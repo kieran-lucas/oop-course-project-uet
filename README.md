@@ -29,7 +29,7 @@ and deployed with a CI/CD pipeline via GitHub Actions.
 Below is the grading rubric for this project.
 
 <p align="center">
-  <img src="assets/image1.png" width="450"/>
+  <img src="assets/image1.png" width="575"/>
 </p>
 
 
