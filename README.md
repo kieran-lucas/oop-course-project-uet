@@ -24,3 +24,12 @@ The system applies OOP principles throughout, with a clear class hierarchy
 (Entity → User/Item → role and category subclasses), and implements the Singleton, 
 Factory Method, and Observer design patterns. Built with Maven, tested with JUnit, 
 and deployed with a CI/CD pipeline via GitHub Actions.
+
+
+<p align="center">
+  <img src="assets/image1.png" width="900"/>
+</p>
+
+
+
+
