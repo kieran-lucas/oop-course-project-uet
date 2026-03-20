@@ -25,6 +25,8 @@ The system applies OOP principles throughout, with a clear class hierarchy
 Factory Method, and Observer design patterns. Built with Maven, tested with JUnit, 
 and deployed with a CI/CD pipeline via GitHub Actions.
 
+## Scoring
+Below is the grading rubric for this project.
 
 <p align="center">
   <img src="assets/image1.png" width="450"/>
