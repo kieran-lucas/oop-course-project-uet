@@ -27,7 +27,7 @@ and deployed with a CI/CD pipeline via GitHub Actions.
 
 
 <p align="center">
-  <img src="assets/image1.png" width="600"/>
+  <img src="assets/image1.png" width="400"/>
 </p>
 
 
