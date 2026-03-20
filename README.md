@@ -8,7 +8,7 @@
 
 A real-time online auction platform built with Java, following a Client–Server 
 architecture. The server handles all business logic, concurrency, and database 
-access; the JavaFX client provides a graphical interface for three user roles — 
+access; the JavaFX client provides a graphical interface for three user roles - 
 Bidder, Seller, and Admin.
 
 Core features include auction session lifecycle management (OPEN → RUNNING → 
@@ -29,7 +29,7 @@ and deployed with a CI/CD pipeline via GitHub Actions.
 Below is the grading rubric for this project.
 
 <p align="center">
-  <img src="assets/image1.png" width="525"/>
+  <img src="assets/image1.png" width="515"/>
 </p>
 
 
