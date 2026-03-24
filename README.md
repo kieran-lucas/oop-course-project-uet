@@ -32,6 +32,7 @@ Below is the grading rubric for this project.
   <img src="assets/image1.png" width="515"/>
 </p>
 
+![Activity Graph](https://github-readme-activity-graph.vercel.app/graph?username=YOUR_USERNAME)
 
 
 
