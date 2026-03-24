@@ -3,7 +3,7 @@
 <p align="center">
   <img src="assets/image.png" width="900"/>
 </p>
-
+hi
 ## Overview
 
 A real-time online auction platform built with Java, following a Client–Server 
