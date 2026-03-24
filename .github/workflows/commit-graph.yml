@@ -2,7 +2,7 @@ name: Generate Commit Graph
 
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 0 * * *" # Chạy mỗi ngày 0:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -13,20 +13,26 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 24 # Node 24+ để dùng dynamic import
 
-      - name: Run script
+      - name: Set GitHub token for script
+        run: echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Run commit chart script
         run: node scripts/generate-commit-chart.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # script sẽ đọc token từ env
 
       - name: Commit & push if changed
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add commit-chart.svg
-          git commit -m "update commit chart" || echo "No changes"
+          git add scripts/commit-chart.svg
+          git diff --cached --quiet || git commit -m "update commit chart"
           git push
