@@ -1,0 +1,45 @@
+
+    <svg width="800" height="200" xmlns="http://www.w3.org/2000/svg">
+      
+      <rect 
+        x="0" 
+        y="192.30769230769232" 
+        width="159" 
+        height="7.6923076923076925" 
+        fill="#7aa2f7"
+      />
+    
+      <rect 
+        x="160" 
+        y="123.07692307692307" 
+        width="159" 
+        height="76.92307692307693" 
+        fill="#7aa2f7"
+      />
+    
+      <rect 
+        x="320" 
+        y="0" 
+        width="159" 
+        height="200" 
+        fill="#7aa2f7"
+      />
+    
+      <rect 
+        x="480" 
+        y="192.30769230769232" 
+        width="159" 
+        height="7.6923076923076925" 
+        fill="#7aa2f7"
+      />
+    
+      <rect 
+        x="640" 
+        y="100" 
+        width="159" 
+        height="100" 
+        fill="#7aa2f7"
+      />
+    
+    </svg>
+  
