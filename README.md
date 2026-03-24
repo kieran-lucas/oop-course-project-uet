@@ -33,6 +33,5 @@ Below is the grading rubric for this project.
 </p>
 
 ## 📊 GitHub Activity
-
-![Activity Graph](https://github-readme-activity-graph.vercel.app/graph?username=kieran-lucas&theme=github-compact)
+![Repo Activity](https://github-readme-activity-graph.vercel.app/graph?username=kieran-lucas&repo=YOUR_REPO_NAME&theme=tokyo-night)
 
