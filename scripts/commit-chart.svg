@@ -71,7 +71,7 @@
         stroke="url(#borderGrad)" stroke-width="1.5"/>
 
   <!-- Stars -->
-  <circle cx="50" cy="22" r="2.0" fill="#fff" opacity="0.4"/><circle cx="950" cy="20" r="2.2" fill="#fff" opacity="0.4"/><circle cx="336.6666666666667" cy="15" r="1.5" fill="#fff" opacity="0.4"/><circle cx="673.3333333333334" cy="30" r="1.7" fill="#fff" opacity="0.4"/><circle cx="252.5" cy="45" r="1.9" fill="#fff" opacity="0.4"/><circle cx="757.5" cy="12" r="0.9" fill="#fff" opacity="0.4"/><circle cx="910" cy="55" r="1.2" fill="#fff" opacity="0.4"/><circle cx="80" cy="50" r="1.0" fill="#fff" opacity="0.4"/>
+  <circle cx="50" cy="22" r="2.1" fill="#fff" opacity="0.4"/><circle cx="950" cy="20" r="1.4" fill="#fff" opacity="0.4"/><circle cx="336.6666666666667" cy="15" r="1.8" fill="#fff" opacity="0.4"/><circle cx="673.3333333333334" cy="30" r="1.5" fill="#fff" opacity="0.4"/><circle cx="252.5" cy="45" r="0.9" fill="#fff" opacity="0.4"/><circle cx="757.5" cy="12" r="1.7" fill="#fff" opacity="0.4"/><circle cx="910" cy="55" r="1.9" fill="#fff" opacity="0.4"/><circle cx="80" cy="50" r="1.8" fill="#fff" opacity="0.4"/>
 
   <!-- Sakura petals -->
   <ellipse cx="95" cy="35" rx="7" ry="3.5"
@@ -143,7 +143,7 @@
         text-anchor="middle" font-family="'Courier New', monospace" letter-spacing="1">TOTAL COMMITS</text>
   <text x="903" y="49" font-size="18" font-weight="bold"
         fill="#e0c0ff" text-anchor="middle" font-family="Georgia, serif"
-        filter="url(#textGlow)">57</text>
+        filter="url(#textGlow)">58</text>
 
   <!-- Y-axis label -->
   <text x="15" y="235" font-size="10" fill="#6a5a90"
@@ -211,15 +211,15 @@
 
   <!-- Area fill (clipped) -->
   <g clip-path="url(#chartClip)">
-    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 364.1666666666667, 745 378.0769230769231 C 820 391.9871794871795, 932.5 199.23076923076925, 970 163.46153846153848 L 970 390 L 70 390 Z" fill="url(#areaGrad)"/>
+    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 366.1538461538462, 745 378.0769230769231 C 820 390, 932.5 189.29487179487177, 970 151.53846153846152 L 970 390 L 70 390 Z" fill="url(#areaGrad)"/>
 
     <!-- Glow duplicate of line -->
-    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 364.1666666666667, 745 378.0769230769231 C 820 391.9871794871795, 932.5 199.23076923076925, 970 163.46153846153848" fill="none" stroke="url(#lineGrad)"
+    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 366.1538461538462, 745 378.0769230769231 C 820 390, 932.5 189.29487179487177, 970 151.53846153846152" fill="none" stroke="url(#lineGrad)"
           stroke-width="6" stroke-linecap="round" stroke-linejoin="round"
           opacity="0.3" filter="url(#lineGlow)"/>
 
     <!-- Main line -->
-    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 364.1666666666667, 745 378.0769230769231 C 820 391.9871794871795, 932.5 199.23076923076925, 970 163.46153846153848" fill="none" stroke="url(#lineGrad)"
+    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 366.1538461538462, 745 378.0769230769231 C 820 390, 932.5 189.29487179487177, 970 151.53846153846152" fill="none" stroke="url(#lineGrad)"
           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
@@ -249,12 +249,12 @@
       <title>2026-03-22: 1 commits</title>
     </circle>
     <circle cx="745" cy="378.0769230769231" r="3" fill="#fff" opacity="0.9"/>
-    <circle cx="970" cy="163.46153846153848" r="5"
+    <circle cx="970" cy="151.53846153846152" r="5"
             fill="#e040fb"
             filter="url(#neonGlow)">
-      <title>2026-03-24: 19 commits</title>
+      <title>2026-03-24: 20 commits</title>
     </circle>
-    <circle cx="970" cy="163.46153846153848" r="3" fill="#fff" opacity="0.9"/>
+    <circle cx="970" cy="151.53846153846152" r="3" fill="#fff" opacity="0.9"/>
 
   <!-- Peak annotation -->
   
