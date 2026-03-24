@@ -6,12 +6,14 @@ async function getFetch() {
   return fetch;
 }
 
+// Token GitHub
 const token = process.env.GITHUB_TOKEN;
 if (!token) {
   console.error("❌ Vui lòng đặt biến môi trường GITHUB_TOKEN trước khi chạy script.");
   process.exit(1);
 }
 
+// Lấy commit
 async function fetchCommits() {
   const fetch = await getFetch();
   let page = 1;
@@ -24,7 +26,7 @@ async function fetchCommits() {
       {
         headers: {
           Authorization: `token ${token}`,
-          "User-Agent": "commit-chart-script"
+          "User-Agent": "anime-commit-chart"
         }
       }
     );
@@ -39,29 +41,31 @@ async function fetchCommits() {
   return allCommits;
 }
 
-// Nhóm theo tuần để nhiều cột hơn
-function groupByWeek(commits) {
+// Nhóm commit theo ngày
+function groupByDay(commits) {
   const map = {};
   commits.forEach(c => {
-    const d = new Date(c.commit.author.date);
-    const year = d.getFullYear();
-    const week = Math.ceil(((d - new Date(year,0,1))/86400000 + new Date(year,0,1).getDay()+1)/7);
-    const key = `${year}-W${week}`;
-    map[key] = (map[key] || 0) + 1;
+    const day = c.commit.author.date.slice(0, 10); // YYYY-MM-DD
+    map[day] = (map[day] || 0) + 1;
   });
   return map;
 }
 
-function generateSVG(data) {
-  const weeks = Object.keys(data).sort();
+// Tạo SVG line chart kiểu anime
+function generateSVGAnime(data) {
+  const days = Object.keys(data).sort();
   const values = Object.values(data);
   const max = Math.max(...values, 1);
-  const avg = values.reduce((a,b)=>a+b,0)/values.length;
 
-  const width = Math.max(1200, weeks.length*25);
-  const height = 400;
-  const margin = 50;
-  const barWidth = (width - margin*2) / weeks.length;
+  const width = Math.max(1200, days.length*15);
+  const height = 500;
+  const margin = 60;
+
+  // Trục X/Y
+  let axes = `
+    <line x1="${margin}" y1="${height-margin}" x2="${width-margin}" y2="${height-margin}" stroke="#333" stroke-width="2"/>
+    <line x1="${margin}" y1="${margin}" x2="${margin}" y2="${height-margin}" stroke="#333" stroke-width="2"/>
+  `;
 
   // Gridline Y
   let yGrid = '';
@@ -72,39 +76,47 @@ function generateSVG(data) {
               <text x="${margin-10}" y="${y+4}" font-size="12" text-anchor="end">${i}</text>`;
   }
 
-  // Các cột
-  let bars = '';
-  weeks.forEach((week, i) => {
-    const value = data[week];
-    const barHeight = (value/max)*(height-margin*2);
-    const color = value>=avg ? "#ff6b6b" : "#7aa2f7";
-    const x = margin + i*barWidth;
-    const y = height - margin - barHeight;
-    bars += `
-      <rect x="${x}" y="${y}" width="${barWidth*0.8}" height="${barHeight}" fill="${color}" />
-      <text x="${x+barWidth*0.4}" y="${height-5}" font-size="10" text-anchor="middle" transform="rotate(45 ${x+barWidth*0.4},${height-5})">${week}</text>
-      <title>${week}: ${value} commits</title>
-    `;
+  // Các điểm commit và đường nối
+  let points = '';
+  let path = '';
+  days.forEach((day, i) => {
+    const value = data[day];
+    const x = margin + i*((width-margin*2)/(days.length-1 || 1));
+    const y = height - margin - (value/max)*(height-margin*2);
+    points += `<circle cx="${x}" cy="${y}" r="5" fill="#ff69b4">
+                 <title>${day}: ${value} commits</title>
+               </circle>`;
+    path += i===0 ? `M ${x} ${y} ` : `L ${x} ${y} `;
   });
 
-  return `
+  // Path màu gradient kiểu anime
+  const svg = `
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="animeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff69b4"/>
+      <stop offset="50%" stop-color="#ffb347"/>
+      <stop offset="100%" stop-color="#1e90ff"/>
+    </linearGradient>
+  </defs>
   ${yGrid}
-  <line x1="${margin}" y1="${height-margin}" x2="${width-margin}" y2="${height-margin}" stroke="#000"/>
-  ${bars}
+  ${axes}
+  <path d="${path}" fill="none" stroke="url(#animeGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  ${points}
 </svg>
   `;
+  return svg;
 }
 
 (async () => {
   try {
-    console.log("🚀 Starting commit chart generation...");
+    console.log("🚀 Starting anime commit chart...");
     const commits = await fetchCommits();
-    const grouped = groupByWeek(commits);
-    const svg = generateSVG(grouped);
+    const grouped = groupByDay(commits);
+    const svg = generateSVGAnime(grouped);
 
     fs.writeFileSync("scripts/commit-chart.svg", svg);
-    console.log("✅ commit-chart.svg đã được tạo thành công trong scripts!");
+    console.log("✅ commit-chart.svg anime đã được tạo trong scripts!");
   } catch (err) {
     console.error("❌ Lỗi:", err);
   }
