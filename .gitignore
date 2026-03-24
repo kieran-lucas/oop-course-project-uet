@@ -1,9 +1,18 @@
 # =========================
-# 🔥 Build files
+# 🔥 Build files (Java)
 # =========================
 target/
 build/
 out/
+
+# =========================
+# 🔥 Node.js
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # =========================
 # 🔥 IntelliJ IDEA
@@ -37,3 +46,11 @@ Thumbs.db
 # 🔥 Environment / config
 # =========================
 .env
+.env.*
+
+# =========================
+# 🔥 Generated files (script output)
+# =========================
+*.svg
+*.png
+
