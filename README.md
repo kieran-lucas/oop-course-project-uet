@@ -32,25 +32,7 @@ Below is the grading rubric for this project.
   <img src="assets/image1.png" width="515"/>
 </p>
 
-## 📊 GitHub Activity
-# 🌸 Online Auction System
+## 📈 Commit History (Repo Only)
 
-<p align="center">
-  <img src="https://i.pinimg.com/originals/anime-banner.gif" />
-</p>
-
-## ✨ About
-A real-time auction system built with Java Spring Boot.
-
-## ⚡ Stats
-
-![Stats](https://github-readme-stats.vercel.app/api?username=kieran-lucas&theme=tokyonight&show_icons=true)
-
-## 📈 Repo Activity
-
-![Repo Activity](https://github-readme-activity-graph.vercel.app/graph?username=kieran-lucas&repo=YOUR_REPO_NAME&theme=tokyo-night)
-
-## 🔥 Streak
-
-![Streak](https://streak-stats.demolab.com/?user=kieran-lucas&theme=tokyonight)
+![Commit Graph](./commit-chart.svg)
 
