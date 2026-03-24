@@ -1,243 +1,285 @@
-<svg width="1047" height="520" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1047 520">
+<svg width="1056" height="570" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1056 570">
 <defs>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&amp;display=swap');
-  </style>
+  <style>@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&amp;display=swap');</style>
 
-  <!-- Backgrounds -->
-  <linearGradient id="bg" x1="0%" y1="0%" x2="60%" y2="100%">
-    <stop offset="0%"   stop-color="#020b1a"/>
-    <stop offset="45%"  stop-color="#030e22"/>
-    <stop offset="100%" stop-color="#010918"/>
+  <!-- ── Dark navy background ── -->
+  <linearGradient id="bg" x1="0%" y1="0%" x2="55%" y2="100%">
+    <stop offset="0%"   stop-color="#010c1e"/>
+    <stop offset="50%"  stop-color="#010f27"/>
+    <stop offset="100%" stop-color="#000a18"/>
   </linearGradient>
 
-  <!-- Area fill (total lines) -->
+  <!-- ── Area fill (total lines) ── -->
   <linearGradient id="areaFill" x1="0%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0%"   stop-color="#475569" stop-opacity="0.5"/>
-    <stop offset="60%"  stop-color="#334155" stop-opacity="0.15"/>
-    <stop offset="100%" stop-color="#1e293b" stop-opacity="0"/>
+    <stop offset="0%"   stop-color="#1e56a8" stop-opacity="0.6"/>
+    <stop offset="55%"  stop-color="#12326a" stop-opacity="0.22"/>
+    <stop offset="100%" stop-color="#0a1e44" stop-opacity="0"/>
   </linearGradient>
 
-  <!-- Commits line gradient -->
+  <!-- ── Commits line ── -->
   <linearGradient id="gCommits" x1="0%" y1="0%" x2="100%" y2="0%">
-    <stop offset="0%"   stop-color="#fb923c"/>
-    <stop offset="100%" stop-color="#f97316"/>
+    <stop offset="0%"   stop-color="#ff6020"/>
+    <stop offset="100%" stop-color="#ffaa60"/>
   </linearGradient>
 
-  <!-- Changes line gradient -->
+  <!-- ── Changes per commit line ── -->
   <linearGradient id="gChanges" x1="0%" y1="0%" x2="100%" y2="0%">
-    <stop offset="0%"   stop-color="#2563eb"/>
-    <stop offset="50%"  stop-color="#3b82f6"/>
-    <stop offset="100%" stop-color="#93c5fd"/>
+    <stop offset="0%"   stop-color="#0090c0"/>
+    <stop offset="50%"  stop-color="#00d4f5"/>
+    <stop offset="100%" stop-color="#7eeeff"/>
   </linearGradient>
 
-  <!-- Border gradient -->
+  <!-- ── Outer border ── -->
   <linearGradient id="gBorder" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%"   stop-color="#1d4ed8" stop-opacity="0.9"/>
-    <stop offset="50%"  stop-color="#3b82f6" stop-opacity="0.55"/>
-    <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.9"/>
+    <stop offset="0%"   stop-color="#1840a0" stop-opacity="0.95"/>
+    <stop offset="50%"  stop-color="#3b82f6" stop-opacity="0.65"/>
+    <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.95"/>
   </linearGradient>
 
-  <!-- Header fill -->
+  <!-- ── Header band ── -->
   <linearGradient id="gHeader" x1="0%" y1="0%" x2="100%" y2="0%">
-    <stop offset="0%"   stop-color="#0c1e4a" stop-opacity="0"/>
-    <stop offset="25%"  stop-color="#0f2257" stop-opacity="0.85"/>
-    <stop offset="75%"  stop-color="#0f2257" stop-opacity="0.85"/>
-    <stop offset="100%" stop-color="#0c1e4a" stop-opacity="0"/>
+    <stop offset="0%"   stop-color="#061530" stop-opacity="0"/>
+    <stop offset="20%"  stop-color="#091c3e" stop-opacity="0.92"/>
+    <stop offset="80%"  stop-color="#091c3e" stop-opacity="0.92"/>
+    <stop offset="100%" stop-color="#061530" stop-opacity="0"/>
   </linearGradient>
 
-  <!-- Filters -->
-  <filter id="gOrange" x="-80%" y="-80%" width="260%" height="260%">
-    <feGaussianBlur stdDeviation="3" result="b"/>
+  <!-- ── Bar fills ── -->
+  <linearGradient id="gAddBar" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%"   stop-color="#34d06a"/>
+    <stop offset="100%" stop-color="#16a34a"/>
+  </linearGradient>
+  <linearGradient id="gDelBar" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%"   stop-color="#f86060"/>
+    <stop offset="100%" stop-color="#c52020"/>
+  </linearGradient>
+
+  <!-- ── Glow filters ── -->
+  <filter id="glowOrange" x="-120%" y="-120%" width="340%" height="340%">
+    <feGaussianBlur stdDeviation="4.5" result="b"/>
     <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
-  <filter id="gBlue" x="-80%" y="-80%" width="260%" height="260%">
-    <feGaussianBlur stdDeviation="2.5" result="b"/>
-    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-  <filter id="gTitle">
-    <feGaussianBlur stdDeviation="3" result="b"/>
-    <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-  <filter id="gLine" x="-5%" y="-80%" width="110%" height="260%">
+  <filter id="glowCyan" x="-120%" y="-120%" width="340%" height="340%">
     <feGaussianBlur stdDeviation="4" result="b"/>
     <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
+  <filter id="glowTitle">
+    <feGaussianBlur stdDeviation="5.5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glowLine" x="-6%" y="-120%" width="112%" height="340%">
+    <feGaussianBlur stdDeviation="5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
 
-  <!-- KNY diamond tile pattern -->
-  <pattern id="knyTile" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-    <path d="M12 1 L23 12 L12 23 L1 12 Z"
-          fill="none" stroke="#1e3a8a" stroke-width="0.35" stroke-opacity="0.22"/>
+  <!-- ── Hollow Knight diamond tile (subtle depth) ── -->
+  <pattern id="diamondTile" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+    <path d="M15 2 L28 15 L15 28 L2 15 Z"
+          fill="none" stroke="#0d2464" stroke-width="0.45" stroke-opacity="0.3"/>
   </pattern>
 
-  <!-- Clip -->
+  <!-- ── Clip ── -->
   <clipPath id="chartClip">
-    <rect x="72" y="100" width="920" height="325"/>
+    <rect x="82" y="124" width="900" height="338"/>
   </clipPath>
 </defs>
 
-<!-- ── Background ── -->
-<rect width="1047" height="520" fill="url(#bg)" rx="14"/>
-<rect width="1047" height="520" fill="url(#knyTile)" rx="14" opacity="0.7"/>
+<!-- ════ BACKGROUND ════ -->
+<rect width="1056" height="570" fill="url(#bg)" rx="16"/>
+<rect width="1056" height="570" fill="url(#diamondTile)" rx="16" opacity="1"/>
 
-<!-- ── Outer border ── -->
-<rect width="1047" height="520" fill="none" rx="14"
-      stroke="url(#gBorder)" stroke-width="1.6"/>
-<!-- inner accent line -->
-<rect x="5" y="5" width="1037" height="510" fill="none" rx="11"
-      stroke="#1d4ed8" stroke-width="0.5" stroke-opacity="0.35"/>
+<!-- ════ BORDERS ════ -->
+<rect width="1056" height="570" fill="none" rx="16"
+      stroke="url(#gBorder)" stroke-width="2.2"/>
+<rect x="5" y="5" width="1046" height="560" fill="none" rx="13"
+      stroke="#1840a0" stroke-width="0.8" stroke-opacity="0.4"/>
 
-<!-- ── Header band ── -->
-<rect x="0" y="0" width="1047" height="96" fill="url(#gHeader)" rx="14"/>
-<line x1="72" y1="96" x2="992" y2="96"
-      stroke="#1d4ed8" stroke-width="0.8" stroke-opacity="0.55"/>
+<!-- ════ HEADER BAND ════ -->
+<rect x="0" y="0" width="1056" height="116" fill="url(#gHeader)" rx="16"/>
+<line x1="24" y1="114.0" x2="1032.0" y2="114.0"
+    stroke="url(#gBorder)" stroke-width="0.9" stroke-opacity="0.55"/>
 
-<!-- ── Title ── -->
-<text x="532.0" y="44"
-      font-size="17" font-weight="600" fill="#bfdbfe"
-      text-anchor="middle" font-family="Lexend, sans-serif"
-      filter="url(#gTitle)" letter-spacing="3.5">⬡  COMMIT ANALYTICS  ⬡</text>
-<text x="532.0" y="61"
-      font-size="9.5" fill="#3b82f6" text-anchor="middle"
-      font-family="Lexend, sans-serif" letter-spacing="3" font-weight="300">kieran-lucas/oop-course-project-uet</text>
+<!-- ════ TITLE ════ -->
+<text x="532.0" y="48"
+      font-size="19" font-weight="600" fill="#cce8ff"
+      text-anchor="middle" font-family="'Lexend', 'Segoe UI', sans-serif"
+      filter="url(#glowTitle)" letter-spacing="6">⬡  COMMIT  ANALYTICS  ⬡</text>
+<text x="532.0" y="67"
+      font-size="10" fill="#3d7ed4" text-anchor="middle"
+      font-family="'Lexend', 'Segoe UI', sans-serif" letter-spacing="4" font-weight="300">kieran-lucas/oop-course-project-uet</text>
 
-<!-- ── Stats badge ── -->
+<!-- ════ STATS BADGE ════ -->
 
-    <rect x="890" y="10" width="98" height="62" rx="6"
-          fill="#050e24" fill-opacity="0.85" stroke="#1d4ed8" stroke-width="0.9"/>
-    <text x="939" y="26" font-size="8.5" fill="#3b82f6"
-          text-anchor="middle" font-family="Lexend, sans-serif" letter-spacing="1.5">TOTAL COMMITS</text>
-    <text x="939" y="46" font-size="22" font-weight="600" fill="#93c5fd"
-          text-anchor="middle" font-family="Lexend, sans-serif" filter="url(#gTitle)">67</text>
-    <text x="939" y="62" font-size="8.5" fill="#86efac"
-          text-anchor="middle" font-family="Lexend, sans-serif">+68.5k</text>
-    <text x="939" y="62" font-size="8.5" fill="#fca5a5"
-          text-anchor="middle" font-family="Lexend, sans-serif" dx="36">-67.5k</text>
+    <rect x="860" y="10" width="116" height="74" rx="9"
+          fill="#030e26" fill-opacity="0.92" stroke="#1d52c0" stroke-width="1.3"/>
+    <text x="918" y="28" font-size="8.5" fill="#4a90e2"
+          text-anchor="middle" font-family="'Lexend', sans-serif" letter-spacing="2.2" font-weight="400">TOTAL  COMMITS</text>
+    <text x="918" y="56" font-size="28" font-weight="700" fill="#d4eeff"
+          text-anchor="middle" font-family="'Lexend', sans-serif" filter="url(#glowTitle)">69</text>
+    <line x1="876" y1="63" x2="960" y2="63"
+          stroke="#1d4ed8" stroke-width="0.8" stroke-opacity="0.5"/>
+    <text x="900" y="76" font-size="9.5" fill="#4ade80"
+          text-anchor="middle" font-family="'Lexend', sans-serif" font-weight="400">+68.9k</text>
+    <text x="938" y="76" font-size="9.5" fill="#f87171"
+          text-anchor="middle" font-family="'Lexend', sans-serif" font-weight="400">-67.8k</text>
 
-<!-- ── Legend ── -->
-<g><rect x="204.1" y="69" width="22" height="11" rx="2" fill="#94a3b8" opacity="0.35" stroke="#94a3b8" stroke-width="0.8"/><text x="230.1" y="77" font-size="11" fill="#93c5fd"
-      font-family="Lexend, sans-serif" font-weight="400">Total lines</text><line x1="337.3" y1="75" x2="357.3" y2="75" stroke="#f97316" stroke-width="2.2"/><circle cx="347.3" cy="75" r="3.5" fill="#f97316"/><text x="363.3" y="77" font-size="11" fill="#93c5fd"
-      font-family="Lexend, sans-serif" font-weight="400">Commits</text><line x1="441.7" y1="75" x2="461.7" y2="75" stroke="#60a5fa" stroke-width="2.2"/><circle cx="451.7" cy="75" r="3.5" fill="#60a5fa"/><text x="467.7" y="77" font-size="11" fill="#93c5fd"
-      font-family="Lexend, sans-serif" font-weight="400">Changes per commit</text><rect x="625.3" y="69" width="12" height="11" rx="2" fill="#22c55e" opacity="0.85"/><text x="642.3" y="77" font-size="11" fill="#93c5fd"
-      font-family="Lexend, sans-serif" font-weight="400">Additions</text><rect x="735.1" y="69" width="12" height="11" rx="2" fill="#ef4444" opacity="0.85"/><text x="752.1" y="77" font-size="11" fill="#93c5fd"
-      font-family="Lexend, sans-serif" font-weight="400">Deletions</text></g>
+<!-- ════ LEGEND ════ -->
+<g><rect x="165.7" y="81.0" width="26" height="13" rx="3"
+        fill="#2a6cb0" fill-opacity="0.5" stroke="#2a6cb0" stroke-width="1.5"/><text x="200.7" y="92.0"
+      font-size="12" fill="#a8d4ff"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400">Total Lines</text><line x1="322.5" y1="88.0"
+        x2="348.5" y2="88.0"
+        stroke="#ff8c42" stroke-width="3" stroke-linecap="round"/><circle cx="335.5" cy="88.0" r="4"
+        fill="#ff8c42" stroke="#fff" stroke-width="0.8" stroke-opacity="0.4"/><text x="357.5" y="92.0"
+      font-size="12" fill="#a8d4ff"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400">Commits</text><line x1="448.1" y1="88.0"
+        x2="474.1" y2="88.0"
+        stroke="#00d4f5" stroke-width="3" stroke-linecap="round"/><circle cx="461.1" cy="88.0" r="4"
+        fill="#00d4f5" stroke="#fff" stroke-width="0.8" stroke-opacity="0.4"/><text x="483.1" y="92.0"
+      font-size="12" fill="#a8d4ff"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400">Changes / Commit</text><rect x="650.9" y="81.0" width="12" height="13" rx="2"
+        fill="#22c55e" opacity="0.9"/><text x="678.9" y="92.0"
+      font-size="12" fill="#a8d4ff"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400">Additions</text><rect x="792.1" y="81.0" width="12" height="13" rx="2"
+        fill="#ef4444" opacity="0.9"/><text x="820.1" y="92.0"
+      font-size="12" fill="#a8d4ff"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400">Deletions</text></g>
 
-<!-- ── Axis labels ── -->
-<text x="13" y="262.5" font-size="9" fill="#3b82f6"
-      text-anchor="middle" font-family="Lexend, sans-serif" letter-spacing="2"
-      transform="rotate(-90, 13, 262.5)">LINES</text>
-<text x="1035" y="262.5" font-size="9" fill="#f97316"
-      text-anchor="middle" font-family="Lexend, sans-serif" letter-spacing="2" opacity="0.75"
-      transform="rotate(90, 1035, 262.5)">COMMITS</text>
+<!-- ════ AXIS LABELS ════ -->
+<text x="16" y="293.0"
+    font-size="10" fill="#4a90e2" text-anchor="middle"
+    font-family="'Lexend', 'Segoe UI', sans-serif" letter-spacing="3" font-weight="300"
+    transform="rotate(-90, 16, 293.0)">LINES</text>
+<text x="1042.0" y="293.0"
+    font-size="10" fill="#ff8c42" text-anchor="middle"
+    font-family="'Lexend', 'Segoe UI', sans-serif" letter-spacing="3" font-weight="300" opacity="0.85"
+    transform="rotate(90, 1042.0, 293.0)">COMMITS</text>
 
-<!-- ── Grid ── -->
-<line x1="72" y1="100.0" x2="992" y2="100.0"
-      stroke="#1e3a8a" stroke-width="0.5"
-      stroke-opacity="0.3"
-      stroke-dasharray="6,5"/><text x="64" y="104.0" font-size="10" fill="#3b82f6"
-        text-anchor="end" font-family="Lexend, sans-serif">1.0k</text><line x1="72" y1="165.0" x2="992" y2="165.0"
-      stroke="#1e3a8a" stroke-width="0.5"
-      stroke-opacity="0.3"
-      stroke-dasharray="6,5"/><text x="64" y="169.0" font-size="10" fill="#3b82f6"
-        text-anchor="end" font-family="Lexend, sans-serif">819</text><line x1="72" y1="230.0" x2="992" y2="230.0"
-      stroke="#1e3a8a" stroke-width="0.5"
-      stroke-opacity="0.3"
-      stroke-dasharray="6,5"/><text x="64" y="234.0" font-size="10" fill="#3b82f6"
-        text-anchor="end" font-family="Lexend, sans-serif">614</text><line x1="72" y1="295.0" x2="992" y2="295.0"
-      stroke="#1e3a8a" stroke-width="0.5"
-      stroke-opacity="0.3"
-      stroke-dasharray="6,5"/><text x="64" y="299.0" font-size="10" fill="#3b82f6"
-        text-anchor="end" font-family="Lexend, sans-serif">410</text><line x1="72" y1="360.0" x2="992" y2="360.0"
-      stroke="#1e3a8a" stroke-width="0.5"
-      stroke-opacity="0.3"
-      stroke-dasharray="6,5"/><text x="64" y="364.0" font-size="10" fill="#3b82f6"
-        text-anchor="end" font-family="Lexend, sans-serif">205</text><line x1="72" y1="425.0" x2="992" y2="425.0"
-      stroke="#1e3a8a" stroke-width="1"
-      stroke-opacity="0.7"
-      stroke-dasharray="none"/>
-<text x="1000" y="104.0" font-size="10" fill="#f97316"
-      font-family="Lexend, sans-serif" opacity="0.75">29</text><text x="1000" y="169.0" font-size="10" fill="#f97316"
-      font-family="Lexend, sans-serif" opacity="0.75">23</text><text x="1000" y="234.0" font-size="10" fill="#f97316"
-      font-family="Lexend, sans-serif" opacity="0.75">17</text><text x="1000" y="299.0" font-size="10" fill="#f97316"
-      font-family="Lexend, sans-serif" opacity="0.75">12</text><text x="1000" y="364.0" font-size="10" fill="#f97316"
-      font-family="Lexend, sans-serif" opacity="0.75">6</text>
+<!-- ════ GRID + Y-LABELS ════ -->
+<line x1="82" y1="462.0" x2="982" y2="462.0"
+      stroke="#1a3f7a" stroke-width="1.4"
+      stroke-opacity="0.95"
+      stroke-dasharray="none"/><line x1="82" y1="385.1" x2="982" y2="385.1"
+      stroke="#1a3f7a" stroke-width="0.6"
+      stroke-opacity="0.38"
+      stroke-dasharray="6,6"/><line x1="82" y1="308.2" x2="982" y2="308.2"
+      stroke="#1a3f7a" stroke-width="0.6"
+      stroke-opacity="0.38"
+      stroke-dasharray="6,6"/><line x1="82" y1="231.3" x2="982" y2="231.3"
+      stroke="#1a3f7a" stroke-width="0.6"
+      stroke-opacity="0.38"
+      stroke-dasharray="6,6"/><line x1="82" y1="154.4" x2="982" y2="154.4"
+      stroke="#1a3f7a" stroke-width="0.6"
+      stroke-opacity="0.38"
+      stroke-dasharray="6,6"/>
+<text x="70" y="466.0"
+      font-size="11.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">0</text><text x="70" y="389.1"
+      font-size="11.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">250</text><text x="70" y="312.2"
+      font-size="11.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">500</text><text x="70" y="235.3"
+      font-size="11.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">750</text><text x="70" y="158.4"
+      font-size="11.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">1.0k</text>
+<text x="994" y="466.0"
+      font-size="11.5" fill="#ff9a55" text-anchor="start"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">0</text><text x="994" y="357.0"
+      font-size="11.5" fill="#ff9a55" text-anchor="start"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">10</text><text x="994" y="247.9"
+      font-size="11.5" fill="#ff9a55" text-anchor="start"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">20</text><text x="994" y="138.9"
+      font-size="11.5" fill="#ff9a55" text-anchor="start"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">30</text>
 
-<!-- ── Axis lines ── -->
-<line x1="72" y1="100" x2="72" y2="425"
-      stroke="#1e40af" stroke-width="0.8" stroke-opacity="0.45"/>
-<line x1="72" y1="425" x2="992" y2="425"
-      stroke="#1e40af" stroke-width="1" stroke-opacity="0.65"/>
-<line x1="992" y1="100" x2="992" y2="425"
-      stroke="#f97316" stroke-width="0.8" stroke-opacity="0.3"/>
+<!-- ════ AXIS LINES ════ -->
+<line x1="82" y1="124" x2="82" y2="462"
+      stroke="#1a3d7a" stroke-width="1.3" stroke-opacity="0.7"/>
+<line x1="82" y1="462" x2="982" y2="462"
+      stroke="#1a3d7a" stroke-width="1.6" stroke-opacity="0.85"/>
+<line x1="982" y1="124" x2="982" y2="462"
+      stroke="#ff8c42" stroke-width="1" stroke-opacity="0.32"/>
 
-<!-- ── X Labels ── -->
-<text x="72.0" y="443"
-      font-size="9.5" fill="#3b82f6" text-anchor="middle"
-      font-family="Lexend, sans-serif" font-weight="300"
-      transform="rotate(-42, 72.0, 443)">10 Mar</text><text x="302.0" y="443"
-      font-size="9.5" fill="#3b82f6" text-anchor="middle"
-      font-family="Lexend, sans-serif" font-weight="300"
-      transform="rotate(-42, 302.0, 443)">17 Mar</text><text x="532.0" y="443"
-      font-size="9.5" fill="#3b82f6" text-anchor="middle"
-      font-family="Lexend, sans-serif" font-weight="300"
-      transform="rotate(-42, 532.0, 443)">20 Mar</text><text x="762.0" y="443"
-      font-size="9.5" fill="#3b82f6" text-anchor="middle"
-      font-family="Lexend, sans-serif" font-weight="300"
-      transform="rotate(-42, 762.0, 443)">22 Mar</text><text x="992.0" y="443"
-      font-size="9.5" fill="#3b82f6" text-anchor="middle"
-      font-family="Lexend, sans-serif" font-weight="300"
-      transform="rotate(-42, 992.0, 443)">24 Mar</text>
+<!-- ════ X-AXIS DATE LABELS ════ -->
+<text
+      x="82.0" y="486"
+      font-size="10.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
+      transform="rotate(-42, 82.0, 486)">10 Mar</text><text
+      x="307.0" y="486"
+      font-size="10.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
+      transform="rotate(-42, 307.0, 486)">17 Mar</text><text
+      x="532.0" y="486"
+      font-size="10.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
+      transform="rotate(-42, 532.0, 486)">20 Mar</text><text
+      x="757.0" y="486"
+      font-size="10.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
+      transform="rotate(-42, 757.0, 486)">22 Mar</text><text
+      x="982.0" y="486"
+      font-size="10.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
+      transform="rotate(-42, 982.0, 486)">24 Mar</text>
 
-<!-- ── Chart (clipped) ── -->
+<!-- ════ CHART CONTENT (clipped) ════ -->
 <g clip-path="url(#chartClip)">
 
-  <!-- Total lines area -->
-  <path d="M 72.00 424.68 C 110.33 423.36, 225.33 421.30, 302.00 416.75 C 378.67 412.20, 455.33 401.78, 532.00 397.39 C 608.67 393.00, 685.33 439.97, 762.00 390.41 C 838.67 340.84, 953.67 148.40, 992.00 100.00 L 992.00 425 L 72.00 425 Z" fill="url(#areaFill)"/>
-  <path d="M 72.00 424.68 C 110.33 423.36, 225.33 421.30, 302.00 416.75 C 378.67 412.20, 455.33 401.78, 532.00 397.39 C 608.67 393.00, 685.33 439.97, 762.00 390.41 C 838.67 340.84, 953.67 148.40, 992.00 100.00" fill="none" stroke="#64748b" stroke-width="1.4" stroke-opacity="0.65"/>
+  <!-- Total lines: area fill + edge line -->
+  <path d="M 82.00 461.69 C 119.50 460.41, 232.00 458.41, 307.00 454.00 C 382.00 449.60, 457.00 439.50, 532.00 435.24 C 607.00 430.99, 682.00 480.35, 757.00 428.48 C 832.00 376.60, 944.50 174.75, 982.00 124.00 L 982.00 462 L 82.00 462 Z" fill="url(#areaFill)"/>
+  <path d="M 82.00 461.69 C 119.50 460.41, 232.00 458.41, 307.00 454.00 C 382.00 449.60, 457.00 439.50, 532.00 435.24 C 607.00 430.99, 682.00 480.35, 757.00 428.48 C 832.00 376.60, 944.50 174.75, 982.00 124.00" fill="none" stroke="#1e56a8" stroke-width="2" stroke-opacity="0.75"/>
 
-  <!-- Bars (deletions top / additions bottom) -->
-  <rect x="983.0" y="171.5" width="18" height="125.9" fill="#ef4444" opacity="0.72" rx="1"/><rect x="983.0" y="297.4" width="18" height="127.6" fill="#22c55e" opacity="0.75" rx="1"/>
+  <!-- Stacked bars (additions green / deletions red) -->
+  <rect x="971.0" y="218.6" width="22" height="120.8" fill="url(#gDelBar)" rx="2" opacity="0.82"/><rect x="971.0" y="339.4" width="22" height="122.6" fill="url(#gAddBar)" rx="2" opacity="0.85"/>
 
-  <!-- Commits line -->
-  <path d="M 72.00 413.79 C 110.33 396.98, 225.33 359.63, 302.00 312.93 C 378.67 266.24, 455.33 116.81, 532.00 133.62 C 608.67 150.43, 685.33 419.40, 762.00 413.79 C 838.67 408.19, 953.67 152.30, 992.00 100.00" fill="none" stroke="#f97316"
-        stroke-width="6" stroke-opacity="0.12" filter="url(#gLine)"/>
-  <path d="M 72.00 413.79 C 110.33 396.98, 225.33 359.63, 302.00 312.93 C 378.67 266.24, 455.33 116.81, 532.00 133.62 C 608.67 150.43, 685.33 419.40, 762.00 413.79 C 838.67 408.19, 953.67 152.30, 992.00 100.00" fill="none" stroke="url(#gCommits)"
-        stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Commits line — glow layer + crisp line -->
+  <path d="M 82.00 451.10 C 119.50 434.74, 232.00 398.40, 307.00 352.97 C 382.00 307.54, 457.00 162.16, 532.00 178.52 C 607.00 194.87, 682.00 460.18, 757.00 451.10 C 832.00 442.01, 944.50 178.52, 982.00 124.00" fill="none" stroke="#ff8c42"
+        stroke-width="10" stroke-opacity="0.08" filter="url(#glowLine)"/>
+  <path d="M 82.00 451.10 C 119.50 434.74, 232.00 398.40, 307.00 352.97 C 382.00 307.54, 457.00 162.16, 532.00 178.52 C 607.00 194.87, 682.00 460.18, 757.00 451.10 C 832.00 442.01, 944.50 178.52, 982.00 124.00" fill="none" stroke="url(#gCommits)"
+        stroke-width="3" stroke-linecap="round"/>
 
-  <!-- Changes per commit line -->
-  <path d="M 72.00 424.93 C 110.33 424.90, 225.33 424.75, 302.00 424.72 C 378.67 424.70, 455.33 425.00, 532.00 424.79 C 608.67 424.58, 685.33 477.61, 762.00 423.47 C 838.67 369.34, 953.67 153.91, 992.00 100.00" fill="none" stroke="#3b82f6"
-        stroke-width="6" stroke-opacity="0.12" filter="url(#gLine)"/>
-  <path d="M 72.00 424.93 C 110.33 424.90, 225.33 424.75, 302.00 424.72 C 378.67 424.70, 455.33 425.00, 532.00 424.79 C 608.67 424.58, 685.33 477.61, 762.00 423.47 C 838.67 369.34, 953.67 153.91, 992.00 100.00" fill="none" stroke="url(#gChanges)"
-        stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Changes per commit — glow layer + crisp line -->
+  <path d="M 82.00 461.92 C 119.50 461.88, 232.00 461.72, 307.00 461.69 C 382.00 461.67, 457.00 462.00, 532.00 461.77 C 607.00 461.54, 682.00 516.61, 757.00 460.31 C 832.00 404.02, 944.50 180.05, 982.00 124.00" fill="none" stroke="#00d4f5"
+        stroke-width="10" stroke-opacity="0.08" filter="url(#glowLine)"/>
+  <path d="M 82.00 461.92 C 119.50 461.88, 232.00 461.72, 307.00 461.69 C 382.00 461.67, 457.00 462.00, 532.00 461.77 C 607.00 461.54, 682.00 516.61, 757.00 460.31 C 832.00 404.02, 944.50 180.05, 982.00 124.00" fill="none" stroke="url(#gChanges)"
+        stroke-width="3" stroke-linecap="round"/>
 
 </g>
 
-<!-- ── Circles (on top of clip) ── -->
-<circle cx="72.0" cy="413.8" r="3.8" fill="#f97316" filter="url(#gOrange)"><title>2026-03-10: 1 commits</title></circle><circle cx="302.0" cy="312.9" r="3.8" fill="#f97316" filter="url(#gOrange)"><title>2026-03-17: 10 commits</title></circle><circle cx="532.0" cy="133.6" r="3.8" fill="#f97316" filter="url(#gOrange)"><title>2026-03-20: 26 commits</title></circle><circle cx="762.0" cy="413.8" r="3.8" fill="#f97316" filter="url(#gOrange)"><title>2026-03-22: 1 commits</title></circle><circle cx="992.0" cy="100.0" r="3.8" fill="#f97316" filter="url(#gOrange)"><title>2026-03-24: 29 commits</title></circle>
-<circle cx="72.0" cy="424.9" r="3.2" fill="#60a5fa" filter="url(#gBlue)"><title>2026-03-10: 1 changes/commit</title></circle><circle cx="302.0" cy="424.7" r="3.2" fill="#60a5fa" filter="url(#gBlue)"><title>2026-03-17: 4 changes/commit</title></circle><circle cx="532.0" cy="424.8" r="3.2" fill="#60a5fa" filter="url(#gBlue)"><title>2026-03-20: 3 changes/commit</title></circle><circle cx="762.0" cy="423.5" r="3.2" fill="#60a5fa" filter="url(#gBlue)"><title>2026-03-22: 22 changes/commit</title></circle><circle cx="992.0" cy="100.0" r="3.2" fill="#60a5fa" filter="url(#gBlue)"><title>2026-03-24: 4687 changes/commit</title></circle>
+<!-- ════ DATA-POINT CIRCLES (above clip) ════ -->
+<circle cx="82.0" cy="451.1" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-10: 1 commits</title></circle><circle cx="307.0" cy="353.0" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-17: 10 commits</title></circle><circle cx="532.0" cy="178.5" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-20: 26 commits</title></circle><circle cx="757.0" cy="451.1" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-22: 1 commits</title></circle><circle cx="982.0" cy="124.0" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-24: 31 commits</title></circle>
+<circle cx="82.0" cy="461.9" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-10: 1 changes/commit</title></circle><circle cx="307.0" cy="461.7" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-17: 4 changes/commit</title></circle><circle cx="532.0" cy="461.8" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-20: 3 changes/commit</title></circle><circle cx="757.0" cy="460.3" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-22: 22 changes/commit</title></circle><circle cx="982.0" cy="124.0" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-24: 4403 changes/commit</title></circle>
 
-<!-- ── Peak annotation ── -->
+<!-- ════ PEAK ANNOTATION ════ -->
 
-    <line x1="992.0" y1="86.0"
-          x2="992.0" y2="62.0"
-          stroke="#60a5fa" stroke-width="1" stroke-dasharray="3,3" opacity="0.7"/>
-    <rect x="948.0" y="44.0"
-          width="88" height="20" rx="4"
-          fill="#020b1a" stroke="#3b82f6" stroke-width="0.8" opacity="0.92"/>
-    <text x="992.0" y="58.0"
-          font-size="10" fill="#93c5fd" text-anchor="middle"
-          font-family="Lexend, sans-serif">⬡ peak: 29 commits</text>
+    <line x1="982.0" y1="109.0"
+          x2="982.0" y2="128.0"
+          stroke="#60a5fa" stroke-width="1.3" stroke-dasharray="4,4" opacity="0.75"/>
+    <rect x="866.0" y="64.0"
+          width="116" height="24" rx="6"
+          fill="#010e2a" stroke="#2563eb" stroke-width="1.1" opacity="0.97"/>
+    <text x="924.0" y="80.0"
+          font-size="10.5" fill="#93c5fd" text-anchor="middle"
+          font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400"
+          letter-spacing="0.6">⬡  peak · 31 commits</text>
 
-<!-- ── Corner brackets (KNY style) ── -->
-<path d="M 72 118 L 72 100 L 90 100"
-      fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-opacity="0.8"/><path d="M 992 118 L 992 100 L 974 100"
-      fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-opacity="0.8"/><path d="M 72 407 L 72 425 L 90 425"
-      fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-opacity="0.8"/><path d="M 992 407 L 992 425 L 974 425"
-      fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-opacity="0.8"/>
+<!-- ════ CORNER BRACKETS ════ -->
+<path d="M 82 148.0 L 82 124 L 106.0 124"
+      fill="none" stroke="#4a90e2" stroke-width="2.2" stroke-opacity="0.9" stroke-linecap="round"/><path d="M 982 148.0 L 982 124 L 958.0 124"
+      fill="none" stroke="#4a90e2" stroke-width="2.2" stroke-opacity="0.9" stroke-linecap="round"/><path d="M 82 438.0 L 82 462 L 106.0 462"
+      fill="none" stroke="#4a90e2" stroke-width="2.2" stroke-opacity="0.9" stroke-linecap="round"/><path d="M 982 438.0 L 982 462 L 958.0 462"
+      fill="none" stroke="#4a90e2" stroke-width="2.2" stroke-opacity="0.9" stroke-linecap="round"/>
 
-<!-- ── Wave decoration ── -->
-<path d="M 0 510 Q 87.3 504.0 174.5 510 Q 261.8 504.0 349.0 510 Q 436.3 504.0 523.5 510 Q 610.8 504.0 698.0 510 Q 785.3 504.0 872.5 510 Q 959.8 504.0 1047.0 510" fill="none" stroke="#1d4ed8" stroke-width="1" stroke-opacity="0.28"/>
-<path d="M 0 505 Q 87.3 500.5 174.5 505 Q 261.8 500.5 349.0 505 Q 436.3 500.5 523.5 505 Q 610.8 500.5 698.0 505 Q 785.3 500.5 872.5 505 Q 959.8 500.5 1047.0 505" fill="none" stroke="#1d4ed8" stroke-width="0.75" stroke-opacity="0.22000000000000003"/>
-<path d="M 0 500 Q 87.3 497.0 174.5 500 Q 261.8 497.0 349.0 500 Q 436.3 497.0 523.5 500 Q 610.8 497.0 698.0 500 Q 785.3 497.0 872.5 500 Q 959.8 497.0 1047.0 500" fill="none" stroke="#1d4ed8" stroke-width="0.5" stroke-opacity="0.16000000000000003"/>
+<!-- ════ WAVE DECORATION ════ -->
+<path d="M 0 562 Q 66.0 554.0 132.0 562 Q 198.0 554.0 264.0 562 Q 330.0 554.0 396.0 562 Q 462.0 554.0 528.0 562 Q 594.0 554.0 660.0 562 Q 726.0 554.0 792.0 562 Q 858.0 554.0 924.0 562 Q 990.0 554.0 1056.0 562" fill="none" stroke="#1948a0"
+      stroke-width="1.4" stroke-opacity="0.38"/>
+<path d="M 0 556 Q 66.0 549.8 132.0 556 Q 198.0 549.8 264.0 556 Q 330.0 549.8 396.0 556 Q 462.0 549.8 528.0 556 Q 594.0 549.8 660.0 556 Q 726.0 549.8 792.0 556 Q 858.0 549.8 924.0 556 Q 990.0 549.8 1056.0 556" fill="none" stroke="#1948a0"
+      stroke-width="1.1199999999999999" stroke-opacity="0.31"/>
+<path d="M 0 550 Q 66.0 545.6 132.0 550 Q 198.0 545.6 264.0 550 Q 330.0 545.6 396.0 550 Q 462.0 545.6 528.0 550 Q 594.0 545.6 660.0 550 Q 726.0 545.6 792.0 550 Q 858.0 545.6 924.0 550 Q 990.0 545.6 1056.0 550" fill="none" stroke="#1948a0"
+      stroke-width="0.8399999999999999" stroke-opacity="0.24"/>
+<path d="M 0 544 Q 66.0 541.4 132.0 544 Q 198.0 541.4 264.0 544 Q 330.0 541.4 396.0 544 Q 462.0 541.4 528.0 544 Q 594.0 541.4 660.0 544 Q 726.0 541.4 792.0 544 Q 858.0 541.4 924.0 544 Q 990.0 541.4 1056.0 544" fill="none" stroke="#1948a0"
+      stroke-width="0.5599999999999998" stroke-opacity="0.16999999999999998"/>
 
 </svg>
