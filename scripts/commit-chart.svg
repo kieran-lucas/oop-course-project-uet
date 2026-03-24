@@ -1,37 +1,271 @@
-
-<svg width="1200" height="500" xmlns="http://www.w3.org/2000/svg">
+<svg width="1010" height="480" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1010 480">
   <defs>
-    <linearGradient id="animeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ff69b4"/>
-      <stop offset="50%" stop-color="#ffb347"/>
-      <stop offset="100%" stop-color="#1e90ff"/>
+    <!-- Background gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d0625"/>
+      <stop offset="60%" stop-color="#0f0a2e"/>
+      <stop offset="100%" stop-color="#0a1628"/>
+    </linearGradient>
+
+    <!-- Line gradient -->
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#ff6ec7"/>
+      <stop offset="35%"  stop-color="#b060ff"/>
+      <stop offset="65%"  stop-color="#60c4ff"/>
+      <stop offset="100%" stop-color="#00f0c8"/>
+    </linearGradient>
+
+    <!-- Area fill gradient (vertical) -->
+    <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#b060ff" stop-opacity="0.35"/>
+      <stop offset="60%"  stop-color="#ff6ec7" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ff6ec7" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Neon glow filter -->
+    <filter id="neonGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft glow for line -->
+    <filter id="lineGlow" x="-5%" y="-60%" width="110%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Text glow -->
+    <filter id="textGlow">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Clip path for chart area -->
+    <clipPath id="chartClip">
+      <rect x="70" y="80" width="900" height="310"/>
+    </clipPath>
+
+    <!-- Border gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#ff6ec7" stop-opacity="0.6"/>
+      <stop offset="50%"  stop-color="#b060ff" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#60c4ff" stop-opacity="0.6"/>
     </linearGradient>
   </defs>
-  <line x1="60" y1="440" x2="1140" y2="440" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="444" font-size="12" text-anchor="end">0</text><line x1="60" y1="396.15384615384613" x2="1140" y2="396.15384615384613" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="400.15384615384613" font-size="12" text-anchor="end">3</text><line x1="60" y1="352.3076923076923" x2="1140" y2="352.3076923076923" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="356.3076923076923" font-size="12" text-anchor="end">6</text><line x1="60" y1="308.46153846153845" x2="1140" y2="308.46153846153845" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="312.46153846153845" font-size="12" text-anchor="end">9</text><line x1="60" y1="264.61538461538464" x2="1140" y2="264.61538461538464" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="268.61538461538464" font-size="12" text-anchor="end">12</text><line x1="60" y1="220.7692307692308" x2="1140" y2="220.7692307692308" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="224.7692307692308" font-size="12" text-anchor="end">15</text><line x1="60" y1="176.9230769230769" x2="1140" y2="176.9230769230769" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="180.9230769230769" font-size="12" text-anchor="end">18</text><line x1="60" y1="133.0769230769231" x2="1140" y2="133.0769230769231" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="137.0769230769231" font-size="12" text-anchor="end">21</text><line x1="60" y1="89.23076923076923" x2="1140" y2="89.23076923076923" stroke="#ddd" stroke-width="1"/>
-              <text x="50" y="93.23076923076923" font-size="12" text-anchor="end">24</text>
+
+  <!-- Background -->
+  <rect width="1010" height="480" fill="url(#bgGrad)" rx="12"/>
+
+  <!-- Border glow -->
+  <rect width="1010" height="480" fill="none" rx="12"
+        stroke="url(#borderGrad)" stroke-width="1.5"/>
+
+  <!-- Stars -->
+  <circle cx="50" cy="22" r="2.0" fill="#fff" opacity="0.4"/><circle cx="950" cy="20" r="2.2" fill="#fff" opacity="0.4"/><circle cx="336.6666666666667" cy="15" r="1.5" fill="#fff" opacity="0.4"/><circle cx="673.3333333333334" cy="30" r="1.7" fill="#fff" opacity="0.4"/><circle cx="252.5" cy="45" r="1.9" fill="#fff" opacity="0.4"/><circle cx="757.5" cy="12" r="0.9" fill="#fff" opacity="0.4"/><circle cx="910" cy="55" r="1.2" fill="#fff" opacity="0.4"/><circle cx="80" cy="50" r="1.0" fill="#fff" opacity="0.4"/>
+
+  <!-- Sakura petals -->
+  <ellipse cx="95" cy="35" rx="7" ry="3.5"
+                     fill="#ffadd2" opacity="0.18"
+                     transform="rotate(20, 95, 35)"/><ellipse cx="100.6" cy="32.2" rx="4.8999999999999995" ry="2.4499999999999997"
+                     fill="#ffadd2" opacity="0.162"
+                     transform="rotate(80, 100.6, 32.2)"/><ellipse cx="90.8" cy="31.5" rx="4.2" ry="2.1"
+                     fill="#ffadd2" opacity="0.144"
+                     transform="rotate(-20, 90.8, 31.5)"/><ellipse cx="180" cy="18" rx="5" ry="2.5"
+                     fill="#ffadd2" opacity="0.12"
+                     transform="rotate(55, 180, 18)"/><ellipse cx="184" cy="16" rx="3.5" ry="1.75"
+                     fill="#ffadd2" opacity="0.108"
+                     transform="rotate(115, 184, 16)"/><ellipse cx="177" cy="15.5" rx="3" ry="1.5"
+                     fill="#ffadd2" opacity="0.096"
+                     transform="rotate(15, 177, 15.5)"/><ellipse cx="930" cy="28" rx="6" ry="3"
+                     fill="#ffadd2" opacity="0.15"
+                     transform="rotate(-30, 930, 28)"/><ellipse cx="934.8" cy="25.6" rx="4.199999999999999" ry="2.0999999999999996"
+                     fill="#ffadd2" opacity="0.135"
+                     transform="rotate(30, 934.8, 25.6)"/><ellipse cx="926.4" cy="25" rx="3.5999999999999996" ry="1.7999999999999998"
+                     fill="#ffadd2" opacity="0.12"
+                     transform="rotate(-70, 926.4, 25)"/><ellipse cx="860" cy="45" rx="4" ry="2"
+                     fill="#ffadd2" opacity="0.1"
+                     transform="rotate(70, 860, 45)"/><ellipse cx="863.2" cy="43.4" rx="2.8" ry="1.4"
+                     fill="#ffadd2" opacity="0.09000000000000001"
+                     transform="rotate(130, 863.2, 43.4)"/><ellipse cx="857.6" cy="43" rx="2.4" ry="1.2"
+                     fill="#ffadd2" opacity="0.08000000000000002"
+                     transform="rotate(30, 857.6, 43)"/><ellipse cx="445" cy="22" rx="8" ry="4"
+                     fill="#ffadd2" opacity="0.13"
+                     transform="rotate(10, 445, 22)"/><ellipse cx="451.4" cy="18.8" rx="5.6" ry="2.8"
+                     fill="#ffadd2" opacity="0.117"
+                     transform="rotate(70, 451.4, 18.8)"/><ellipse cx="440.2" cy="18" rx="4.8" ry="2.4"
+                     fill="#ffadd2" opacity="0.10400000000000001"
+                     transform="rotate(-30, 440.2, 18)"/><ellipse cx="585" cy="38" rx="5" ry="2.5"
+                     fill="#ffadd2" opacity="0.11"
+                     transform="rotate(-60, 585, 38)"/><ellipse cx="589" cy="36" rx="3.5" ry="1.75"
+                     fill="#ffadd2" opacity="0.099"
+                     transform="rotate(0, 589, 36)"/><ellipse cx="582" cy="35.5" rx="3" ry="1.5"
+                     fill="#ffadd2" opacity="0.08800000000000001"
+                     transform="rotate(-100, 582, 35.5)"/><ellipse cx="130" cy="55" rx="4" ry="2"
+                     fill="#ffadd2" opacity="0.09"
+                     transform="rotate(45, 130, 55)"/><ellipse cx="133.2" cy="53.4" rx="2.8" ry="1.4"
+                     fill="#ffadd2" opacity="0.081"
+                     transform="rotate(105, 133.2, 53.4)"/><ellipse cx="127.6" cy="53" rx="2.4" ry="1.2"
+                     fill="#ffadd2" opacity="0.072"
+                     transform="rotate(5, 127.6, 53)"/><ellipse cx="810" cy="15" rx="6" ry="3"
+                     fill="#ffadd2" opacity="0.14"
+                     transform="rotate(30, 810, 15)"/><ellipse cx="814.8" cy="12.6" rx="4.199999999999999" ry="2.0999999999999996"
+                     fill="#ffadd2" opacity="0.12600000000000003"
+                     transform="rotate(90, 814.8, 12.6)"/><ellipse cx="806.4" cy="12" rx="3.5999999999999996" ry="1.7999999999999998"
+                     fill="#ffadd2" opacity="0.11200000000000002"
+                     transform="rotate(-10, 806.4, 12)"/>
+
+  <!-- Title -->
+  <text x="520" y="38" font-size="17" font-weight="700"
+        fill="#e8d5ff" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        filter="url(#textGlow)" letter-spacing="2">
+    ✦ COMMIT HISTORY ✦
+  </text>
+  <text x="520" y="56" font-size="10" fill="#6a5a90"
+        text-anchor="middle" font-family="'Courier New', monospace" letter-spacing="3">
+    kieran-lucas / oop-course-project-uet
+  </text>
+
+  <!-- Stats badge -->
+  <rect x="840" y="14" width="126" height="42" rx="6"
+        fill="#ffffff" fill-opacity="0.04" stroke="#b060ff" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="903" y="31" font-size="9" fill="#a07ac8"
+        text-anchor="middle" font-family="'Courier New', monospace" letter-spacing="1">TOTAL COMMITS</text>
+  <text x="903" y="49" font-size="18" font-weight="bold"
+        fill="#e0c0ff" text-anchor="middle" font-family="Georgia, serif"
+        filter="url(#textGlow)">57</text>
+
+  <!-- Y-axis label -->
+  <text x="15" y="235" font-size="10" fill="#6a5a90"
+        text-anchor="middle" font-family="'Courier New', monospace" letter-spacing="2"
+        transform="rotate(-90, 15, 235)">COMMITS / DAY</text>
+
+  <!-- Grid -->
   
-    <line x1="60" y1="440" x2="1140" y2="440" stroke="#333" stroke-width="2"/>
-    <line x1="60" y1="60" x2="60" y2="440" stroke="#333" stroke-width="2"/>
+    <line x1="70" y1="390" x2="970" y2="390"
+          stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.25"
+          stroke-dasharray="none"/>
+    <text x="60" y="394" font-size="11" fill="#a0a8c8"
+          text-anchor="end" font-family="'Courier New', monospace">0</text>
+    <line x1="70" y1="330.38461538461536" x2="970" y2="330.38461538461536"
+          stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.08"
+          stroke-dasharray="4,4"/>
+    <text x="60" y="334.38461538461536" font-size="11" fill="#a0a8c8"
+          text-anchor="end" font-family="'Courier New', monospace">5</text>
+    <line x1="70" y1="270.7692307692308" x2="970" y2="270.7692307692308"
+          stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.08"
+          stroke-dasharray="4,4"/>
+    <text x="60" y="274.7692307692308" font-size="11" fill="#a0a8c8"
+          text-anchor="end" font-family="'Courier New', monospace">10</text>
+    <line x1="70" y1="199.23076923076923" x2="970" y2="199.23076923076923"
+          stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.08"
+          stroke-dasharray="4,4"/>
+    <text x="60" y="203.23076923076923" font-size="11" fill="#a0a8c8"
+          text-anchor="end" font-family="'Courier New', monospace">16</text>
+    <line x1="70" y1="139.6153846153846" x2="970" y2="139.6153846153846"
+          stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.08"
+          stroke-dasharray="4,4"/>
+    <text x="60" y="143.6153846153846" font-size="11" fill="#a0a8c8"
+          text-anchor="end" font-family="'Courier New', monospace">21</text>
+    <line x1="70" y1="80" x2="970" y2="80"
+          stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.08"
+          stroke-dasharray="4,4"/>
+    <text x="60" y="84" font-size="11" fill="#a0a8c8"
+          text-anchor="end" font-family="'Courier New', monospace">26</text>
+
+  <!-- X-axis baseline -->
+  <line x1="70" y1="390" x2="970" y2="390"
+        stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.2"/>
+
+  <!-- Y-axis line -->
+  <line x1="70" y1="80" x2="70" y2="390"
+        stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.15"/>
+
+  <!-- X labels -->
   
-  <path d="M 60 425.38461538461536 L 330 293.8461538461538 L 600 60 L 870 425.38461538461536 L 1140 176.9230769230769 " fill="none" stroke="url(#animeGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="60" cy="425.38461538461536" r="5" fill="#ff69b4">
-                 <title>2026-03-10: 1 commits</title>
-               </circle><circle cx="330" cy="293.8461538461538" r="5" fill="#ff69b4">
-                 <title>2026-03-17: 10 commits</title>
-               </circle><circle cx="600" cy="60" r="5" fill="#ff69b4">
-                 <title>2026-03-20: 26 commits</title>
-               </circle><circle cx="870" cy="425.38461538461536" r="5" fill="#ff69b4">
-                 <title>2026-03-22: 1 commits</title>
-               </circle><circle cx="1140" cy="176.9230769230769" r="5" fill="#ff69b4">
-                 <title>2026-03-24: 18 commits</title>
-               </circle>
+      <text x="70" y="410" font-size="10" fill="#7a85b0"
+            text-anchor="middle" font-family="'Courier New', monospace"
+            transform="rotate(-40, 70, 410)">10 Mar</text>
+      <text x="295" y="410" font-size="10" fill="#7a85b0"
+            text-anchor="middle" font-family="'Courier New', monospace"
+            transform="rotate(-40, 295, 410)">17 Mar</text>
+      <text x="520" y="410" font-size="10" fill="#7a85b0"
+            text-anchor="middle" font-family="'Courier New', monospace"
+            transform="rotate(-40, 520, 410)">20 Mar</text>
+      <text x="745" y="410" font-size="10" fill="#7a85b0"
+            text-anchor="middle" font-family="'Courier New', monospace"
+            transform="rotate(-40, 745, 410)">22 Mar</text>
+      <text x="970" y="410" font-size="10" fill="#7a85b0"
+            text-anchor="middle" font-family="'Courier New', monospace"
+            transform="rotate(-40, 970, 410)">24 Mar</text>
+
+  <!-- Area fill (clipped) -->
+  <g clip-path="url(#chartClip)">
+    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 364.1666666666667, 745 378.0769230769231 C 820 391.9871794871795, 932.5 199.23076923076925, 970 163.46153846153848 L 970 390 L 70 390 Z" fill="url(#areaGrad)"/>
+
+    <!-- Glow duplicate of line -->
+    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 364.1666666666667, 745 378.0769230769231 C 820 391.9871794871795, 932.5 199.23076923076925, 970 163.46153846153848" fill="none" stroke="url(#lineGrad)"
+          stroke-width="6" stroke-linecap="round" stroke-linejoin="round"
+          opacity="0.3" filter="url(#lineGlow)"/>
+
+    <!-- Main line -->
+    <path d="M 70 378.0769230769231 C 107.5 360.19230769230774, 220 320.44871794871796, 295 270.7692307692308 C 370 221.0897435897436, 445 62.11538461538461, 520 80 C 595 97.88461538461539, 670 364.1666666666667, 745 378.0769230769231 C 820 391.9871794871795, 932.5 199.23076923076925, 970 163.46153846153848" fill="none" stroke="url(#lineGrad)"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Data points (on top of clip) -->
+  
+    <circle cx="70" cy="378.0769230769231" r="5"
+            fill="#e040fb"
+            filter="url(#neonGlow)">
+      <title>2026-03-10: 1 commits</title>
+    </circle>
+    <circle cx="70" cy="378.0769230769231" r="3" fill="#fff" opacity="0.9"/>
+    <circle cx="295" cy="270.7692307692308" r="5"
+            fill="#e040fb"
+            filter="url(#neonGlow)">
+      <title>2026-03-17: 10 commits</title>
+    </circle>
+    <circle cx="295" cy="270.7692307692308" r="3" fill="#fff" opacity="0.9"/>
+    <circle cx="520" cy="80" r="8"
+            fill="#ffe066"
+            filter="url(#neonGlow)">
+      <title>2026-03-20: 26 commits</title>
+    </circle>
+    <circle cx="520" cy="80" r="4" fill="#fff" opacity="0.9"/>
+    <circle cx="745" cy="378.0769230769231" r="5"
+            fill="#e040fb"
+            filter="url(#neonGlow)">
+      <title>2026-03-22: 1 commits</title>
+    </circle>
+    <circle cx="745" cy="378.0769230769231" r="3" fill="#fff" opacity="0.9"/>
+    <circle cx="970" cy="163.46153846153848" r="5"
+            fill="#e040fb"
+            filter="url(#neonGlow)">
+      <title>2026-03-24: 19 commits</title>
+    </circle>
+    <circle cx="970" cy="163.46153846153848" r="3" fill="#fff" opacity="0.9"/>
+
+  <!-- Peak annotation -->
+  
+  <line x1="520" y1="68" x2="520" y2="40"
+        stroke="#ffe066" stroke-width="1" stroke-dasharray="3,3" opacity="0.7"/>
+  <rect x="478" y="22" width="84" height="20"
+        rx="4" fill="#1a1040" stroke="#ffe066" stroke-width="0.8" opacity="0.9"/>
+  <text x="520" y="36" font-size="10.5" fill="#ffe066"
+        text-anchor="middle" font-family="'Courier New', monospace">⭐ peak: 26</text>
+
+  <!-- Bottom decoration line -->
+  <line x1="90" y1="466" x2="950" y2="466"
+        stroke="url(#lineGrad)" stroke-width="0.5" opacity="0.3"/>
 </svg>
-  
