@@ -1,4 +1,4 @@
-// scripts/generate-commit-chart-html.js
+// scripts/generate-commit-chart.js
 const fs = require("fs");
 
 async function getFetch() {
@@ -6,14 +6,12 @@ async function getFetch() {
   return fetch;
 }
 
-// Token GitHub từ biến môi trường
 const token = process.env.GITHUB_TOKEN;
 if (!token) {
   console.error("❌ Vui lòng đặt biến môi trường GITHUB_TOKEN trước khi chạy script.");
   process.exit(1);
 }
 
-// Lấy toàn bộ commit
 async function fetchCommits() {
   const fetch = await getFetch();
   let page = 1;
@@ -41,29 +39,31 @@ async function fetchCommits() {
   return allCommits;
 }
 
-// Nhóm commit theo tháng YYYY-MM
-function groupByMonth(commits) {
+// Nhóm theo tuần để nhiều cột hơn
+function groupByWeek(commits) {
   const map = {};
   commits.forEach(c => {
-    const month = c.commit.author.date.slice(0, 7);
-    map[month] = (map[month] || 0) + 1;
+    const d = new Date(c.commit.author.date);
+    const year = d.getFullYear();
+    const week = Math.ceil(((d - new Date(year,0,1))/86400000 + new Date(year,0,1).getDay()+1)/7);
+    const key = `${year}-W${week}`;
+    map[key] = (map[key] || 0) + 1;
   });
   return map;
 }
 
-// Tạo SVG chart với trục X/Y, gridline, highlight
-function generateSVGChart(data) {
-  const months = Object.keys(data).sort();
+function generateSVG(data) {
+  const weeks = Object.keys(data).sort();
   const values = Object.values(data);
   const max = Math.max(...values, 1);
   const avg = values.reduce((a,b)=>a+b,0)/values.length;
 
-  const width = Math.max(1200, months.length*40);
+  const width = Math.max(1200, weeks.length*25);
   const height = 400;
   const margin = 50;
-  const barWidth = (width - margin*2) / months.length;
+  const barWidth = (width - margin*2) / weeks.length;
 
-  // Tạo gridline Y
+  // Gridline Y
   let yGrid = '';
   const step = Math.ceil(max/10) || 1;
   for (let i=0;i<=max;i+=step){
@@ -72,18 +72,18 @@ function generateSVGChart(data) {
               <text x="${margin-10}" y="${y+4}" font-size="12" text-anchor="end">${i}</text>`;
   }
 
-  // Tạo các cột
+  // Các cột
   let bars = '';
-  months.forEach((month, i) => {
-    const value = data[month];
+  weeks.forEach((week, i) => {
+    const value = data[week];
     const barHeight = (value/max)*(height-margin*2);
     const color = value>=avg ? "#ff6b6b" : "#7aa2f7";
     const x = margin + i*barWidth;
     const y = height - margin - barHeight;
     bars += `
       <rect x="${x}" y="${y}" width="${barWidth*0.8}" height="${barHeight}" fill="${color}" />
-      <text x="${x+barWidth*0.4}" y="${height-5}" font-size="12" text-anchor="middle" transform="rotate(45 ${x+barWidth*0.4},${height-5})">${month}</text>
-      <title>${month}: ${value} commits</title>
+      <text x="${x+barWidth*0.4}" y="${height-5}" font-size="10" text-anchor="middle" transform="rotate(45 ${x+barWidth*0.4},${height-5})">${week}</text>
+      <title>${week}: ${value} commits</title>
     `;
   });
 
@@ -96,38 +96,15 @@ function generateSVGChart(data) {
   `;
 }
 
-// Tạo HTML chứa SVG + tiêu đề
-function generateHTML(svgContent) {
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Commit History Chart</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; }
-  h1 { text-align: center; }
-  svg { border: 1px solid #ccc; display: block; margin: auto; }
-</style>
-</head>
-<body>
-<h1>Commit History Chart (Monthly)</h1>
-${svgContent}
-</body>
-</html>
-  `;
-}
-
-// Main
 (async () => {
   try {
-    console.log("🚀 Starting commit history generation...");
+    console.log("🚀 Starting commit chart generation...");
     const commits = await fetchCommits();
-    const grouped = groupByMonth(commits);
-    const svg = generateSVGChart(grouped);
-    const html = generateHTML(svg);
-    fs.writeFileSync("scripts/commit-history.html", html);
-    console.log("✅ commit-history.html đã được tạo thành công trong scripts!");
+    const grouped = groupByWeek(commits);
+    const svg = generateSVG(grouped);
+
+    fs.writeFileSync("scripts/commit-chart.svg", svg);
+    console.log("✅ commit-chart.svg đã được tạo thành công trong scripts!");
   } catch (err) {
     console.error("❌ Lỗi:", err);
   }
