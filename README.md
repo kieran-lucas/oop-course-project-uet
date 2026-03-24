@@ -34,5 +34,5 @@ Below is the grading rubric for this project.
 
 ## 📈 Commit History (Repo Only)
 
-![Commit Graph](./commit-chart.svg)
+![Commit Graph](./scripts/commit-chart.svg)
 
