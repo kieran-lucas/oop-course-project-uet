@@ -24,10 +24,13 @@ jobs:
       - name: Set GitHub token for script
         run: echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
 
+      - name: Install dependencies
+        run: npm install node-fetch@3
+
       - name: Run commit chart script
         run: node scripts/generate-commit-chart.js
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # script sẽ đọc token từ env
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit & push if changed
         run: |
