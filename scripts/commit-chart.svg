@@ -1,28 +1,37 @@
 
-<svg width="1200" height="400" xmlns="http://www.w3.org/2000/svg">
-  <line x1="50" y1="350" x2="1150" y2="350" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="354" font-size="12" text-anchor="end">0</text><line x1="50" y1="314.70588235294116" x2="1150" y2="314.70588235294116" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="318.70588235294116" font-size="12" text-anchor="end">4</text><line x1="50" y1="279.4117647058823" x2="1150" y2="279.4117647058823" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="283.4117647058823" font-size="12" text-anchor="end">8</text><line x1="50" y1="244.11764705882354" x2="1150" y2="244.11764705882354" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="248.11764705882354" font-size="12" text-anchor="end">12</text><line x1="50" y1="208.8235294117647" x2="1150" y2="208.8235294117647" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="212.8235294117647" font-size="12" text-anchor="end">16</text><line x1="50" y1="173.52941176470588" x2="1150" y2="173.52941176470588" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="177.52941176470588" font-size="12" text-anchor="end">20</text><line x1="50" y1="138.23529411764704" x2="1150" y2="138.23529411764704" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="142.23529411764704" font-size="12" text-anchor="end">24</text><line x1="50" y1="102.94117647058826" x2="1150" y2="102.94117647058826" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="106.94117647058826" font-size="12" text-anchor="end">28</text><line x1="50" y1="67.64705882352939" x2="1150" y2="67.64705882352939" stroke="#ddd" stroke-width="1"/>
-              <text x="40" y="71.64705882352939" font-size="12" text-anchor="end">32</text>
-  <line x1="50" y1="350" x2="1150" y2="350" stroke="#000"/>
+<svg width="1200" height="500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="animeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff69b4"/>
+      <stop offset="50%" stop-color="#ffb347"/>
+      <stop offset="100%" stop-color="#1e90ff"/>
+    </linearGradient>
+  </defs>
+  <line x1="60" y1="440" x2="1140" y2="440" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="444" font-size="12" text-anchor="end">0</text><line x1="60" y1="396.15384615384613" x2="1140" y2="396.15384615384613" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="400.15384615384613" font-size="12" text-anchor="end">3</text><line x1="60" y1="352.3076923076923" x2="1140" y2="352.3076923076923" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="356.3076923076923" font-size="12" text-anchor="end">6</text><line x1="60" y1="308.46153846153845" x2="1140" y2="308.46153846153845" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="312.46153846153845" font-size="12" text-anchor="end">9</text><line x1="60" y1="264.61538461538464" x2="1140" y2="264.61538461538464" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="268.61538461538464" font-size="12" text-anchor="end">12</text><line x1="60" y1="220.7692307692308" x2="1140" y2="220.7692307692308" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="224.7692307692308" font-size="12" text-anchor="end">15</text><line x1="60" y1="176.9230769230769" x2="1140" y2="176.9230769230769" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="180.9230769230769" font-size="12" text-anchor="end">18</text><line x1="60" y1="133.0769230769231" x2="1140" y2="133.0769230769231" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="137.0769230769231" font-size="12" text-anchor="end">21</text><line x1="60" y1="89.23076923076923" x2="1140" y2="89.23076923076923" stroke="#ddd" stroke-width="1"/>
+              <text x="50" y="93.23076923076923" font-size="12" text-anchor="end">24</text>
   
-      <rect x="50" y="341.1764705882353" width="293.33333333333337" height="8.823529411764707" fill="#7aa2f7" />
-      <text x="196.66666666666669" y="395" font-size="10" text-anchor="middle" transform="rotate(45 196.66666666666669,395)">2026-W11</text>
-      <title>2026-W11: 1 commits</title>
-    
-      <rect x="416.6666666666667" y="50" width="293.33333333333337" height="300" fill="#ff6b6b" />
-      <text x="563.3333333333334" y="395" font-size="10" text-anchor="middle" transform="rotate(45 563.3333333333334,395)">2026-W12</text>
-      <title>2026-W12: 34 commits</title>
-    
-      <rect x="783.3333333333334" y="173.52941176470588" width="293.33333333333337" height="176.47058823529412" fill="#ff6b6b" />
-      <text x="930" y="395" font-size="10" text-anchor="middle" transform="rotate(45 930,395)">2026-W13</text>
-      <title>2026-W13: 20 commits</title>
-    
+    <line x1="60" y1="440" x2="1140" y2="440" stroke="#333" stroke-width="2"/>
+    <line x1="60" y1="60" x2="60" y2="440" stroke="#333" stroke-width="2"/>
+  
+  <path d="M 60 425.38461538461536 L 330 293.8461538461538 L 600 60 L 870 425.38461538461536 L 1140 176.9230769230769 " fill="none" stroke="url(#animeGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="60" cy="425.38461538461536" r="5" fill="#ff69b4">
+                 <title>2026-03-10: 1 commits</title>
+               </circle><circle cx="330" cy="293.8461538461538" r="5" fill="#ff69b4">
+                 <title>2026-03-17: 10 commits</title>
+               </circle><circle cx="600" cy="60" r="5" fill="#ff69b4">
+                 <title>2026-03-20: 26 commits</title>
+               </circle><circle cx="870" cy="425.38461538461536" r="5" fill="#ff69b4">
+                 <title>2026-03-22: 1 commits</title>
+               </circle><circle cx="1140" cy="176.9230769230769" r="5" fill="#ff69b4">
+                 <title>2026-03-24: 18 commits</title>
+               </circle>
 </svg>
   
