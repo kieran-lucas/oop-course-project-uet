@@ -2,7 +2,7 @@ name: Generate Commit Graph
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Chạy mỗi ngày 0:00 UTC
+    - cron: "0 21 * * *"
   workflow_dispatch:
 
 jobs:
