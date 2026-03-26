@@ -115,13 +115,13 @@
     <text x="918" y="28" font-size="8.5" fill="#4a90e2"
           text-anchor="middle" font-family="'Lexend', sans-serif" letter-spacing="2.2" font-weight="400">TOTAL  COMMITS</text>
     <text x="918" y="56" font-size="28" font-weight="700" fill="#d4eeff"
-          text-anchor="middle" font-family="'Lexend', sans-serif" filter="url(#glowTitle)">69</text>
+          text-anchor="middle" font-family="'Lexend', sans-serif" filter="url(#glowTitle)">77</text>
     <line x1="876" y1="63" x2="960" y2="63"
           stroke="#1d4ed8" stroke-width="0.8" stroke-opacity="0.5"/>
     <text x="900" y="76" font-size="9.5" fill="#4ade80"
-          text-anchor="middle" font-family="'Lexend', sans-serif" font-weight="400">+68.9k</text>
+          text-anchor="middle" font-family="'Lexend', sans-serif" font-weight="400">+69.2k</text>
     <text x="938" y="76" font-size="9.5" fill="#f87171"
-          text-anchor="middle" font-family="'Lexend', sans-serif" font-weight="400">-67.8k</text>
+          text-anchor="middle" font-family="'Lexend', sans-serif" font-weight="400">-68.0k</text>
 
 <!-- ════ LEGEND ════ -->
 <g><rect x="165.7" y="81.0" width="26" height="13" rx="3"
@@ -159,37 +159,37 @@
 <line x1="82" y1="462.0" x2="982" y2="462.0"
       stroke="#1a3f7a" stroke-width="1.4"
       stroke-opacity="0.95"
-      stroke-dasharray="none"/><line x1="82" y1="385.1" x2="982" y2="385.1"
+      stroke-dasharray="none"/><line x1="82" y1="387.9" x2="982" y2="387.9"
       stroke="#1a3f7a" stroke-width="0.6"
       stroke-opacity="0.38"
-      stroke-dasharray="6,6"/><line x1="82" y1="308.2" x2="982" y2="308.2"
+      stroke-dasharray="6,6"/><line x1="82" y1="313.9" x2="982" y2="313.9"
       stroke="#1a3f7a" stroke-width="0.6"
       stroke-opacity="0.38"
-      stroke-dasharray="6,6"/><line x1="82" y1="231.3" x2="982" y2="231.3"
+      stroke-dasharray="6,6"/><line x1="82" y1="239.8" x2="982" y2="239.8"
       stroke="#1a3f7a" stroke-width="0.6"
       stroke-opacity="0.38"
-      stroke-dasharray="6,6"/><line x1="82" y1="154.4" x2="982" y2="154.4"
+      stroke-dasharray="6,6"/><line x1="82" y1="165.8" x2="982" y2="165.8"
       stroke="#1a3f7a" stroke-width="0.6"
       stroke-opacity="0.38"
       stroke-dasharray="6,6"/>
 <text x="70" y="466.0"
       font-size="11.5" fill="#5aa8ff" text-anchor="end"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">0</text><text x="70" y="389.1"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">0</text><text x="70" y="391.9"
       font-size="11.5" fill="#5aa8ff" text-anchor="end"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">250</text><text x="70" y="312.2"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">250</text><text x="70" y="317.9"
       font-size="11.5" fill="#5aa8ff" text-anchor="end"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">500</text><text x="70" y="235.3"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">500</text><text x="70" y="243.8"
       font-size="11.5" fill="#5aa8ff" text-anchor="end"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">750</text><text x="70" y="158.4"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">750</text><text x="70" y="169.8"
       font-size="11.5" fill="#5aa8ff" text-anchor="end"
       font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">1.0k</text>
 <text x="994" y="466.0"
       font-size="11.5" fill="#ff9a55" text-anchor="start"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">0</text><text x="994" y="357.0"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">0</text><text x="994" y="360.4"
       font-size="11.5" fill="#ff9a55" text-anchor="start"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">10</text><text x="994" y="247.9"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">10</text><text x="994" y="254.8"
       font-size="11.5" fill="#ff9a55" text-anchor="start"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">20</text><text x="994" y="138.9"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">20</text><text x="994" y="149.1"
       font-size="11.5" fill="#ff9a55" text-anchor="start"
       font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">30</text>
 
@@ -207,63 +207,67 @@
       font-size="10.5" fill="#5aa8ff" text-anchor="end"
       font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
       transform="rotate(-42, 82.0, 486)">10 Mar</text><text
-      x="307.0" y="486"
+      x="262.0" y="486"
       font-size="10.5" fill="#5aa8ff" text-anchor="end"
       font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
-      transform="rotate(-42, 307.0, 486)">17 Mar</text><text
-      x="532.0" y="486"
+      transform="rotate(-42, 262.0, 486)">17 Mar</text><text
+      x="442.0" y="486"
       font-size="10.5" fill="#5aa8ff" text-anchor="end"
       font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
-      transform="rotate(-42, 532.0, 486)">20 Mar</text><text
-      x="757.0" y="486"
+      transform="rotate(-42, 442.0, 486)">20 Mar</text><text
+      x="622.0" y="486"
       font-size="10.5" fill="#5aa8ff" text-anchor="end"
       font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
-      transform="rotate(-42, 757.0, 486)">22 Mar</text><text
+      transform="rotate(-42, 622.0, 486)">22 Mar</text><text
+      x="802.0" y="486"
+      font-size="10.5" fill="#5aa8ff" text-anchor="end"
+      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
+      transform="rotate(-42, 802.0, 486)">24 Mar</text><text
       x="982.0" y="486"
       font-size="10.5" fill="#5aa8ff" text-anchor="end"
       font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
-      transform="rotate(-42, 982.0, 486)">24 Mar</text>
+      transform="rotate(-42, 982.0, 486)">25 Mar</text>
 
 <!-- ════ CHART CONTENT (clipped) ════ -->
 <g clip-path="url(#chartClip)">
 
   <!-- Total lines: area fill + edge line -->
-  <path d="M 82.00 461.69 C 119.50 460.41, 232.00 458.41, 307.00 454.00 C 382.00 449.60, 457.00 439.50, 532.00 435.24 C 607.00 430.99, 682.00 480.35, 757.00 428.48 C 832.00 376.60, 944.50 174.75, 982.00 124.00 L 982.00 462 L 82.00 462 Z" fill="url(#areaFill)"/>
-  <path d="M 82.00 461.69 C 119.50 460.41, 232.00 458.41, 307.00 454.00 C 382.00 449.60, 457.00 439.50, 532.00 435.24 C 607.00 430.99, 682.00 480.35, 757.00 428.48 C 832.00 376.60, 944.50 174.75, 982.00 124.00" fill="none" stroke="#1e56a8" stroke-width="2" stroke-opacity="0.75"/>
+  <path d="M 82.00 461.70 C 112.00 460.47, 202.00 458.54, 262.00 454.30 C 322.00 450.05, 382.00 440.33, 442.00 436.23 C 502.00 432.13, 562.00 481.75, 622.00 429.71 C 682.00 377.67, 742.00 174.70, 802.00 124.00 C 862.00 73.30, 952.00 125.23, 982.00 125.48 L 982.00 462 L 82.00 462 Z" fill="url(#areaFill)"/>
+  <path d="M 82.00 461.70 C 112.00 460.47, 202.00 458.54, 262.00 454.30 C 322.00 450.05, 382.00 440.33, 442.00 436.23 C 502.00 432.13, 562.00 481.75, 622.00 429.71 C 682.00 377.67, 742.00 174.70, 802.00 124.00 C 862.00 73.30, 952.00 125.23, 982.00 125.48" fill="none" stroke="#1e56a8" stroke-width="2" stroke-opacity="0.75"/>
 
   <!-- Stacked bars (additions green / deletions red) -->
-  <rect x="971.0" y="218.6" width="22" height="120.8" fill="url(#gDelBar)" rx="2" opacity="0.82"/><rect x="971.0" y="339.4" width="22" height="122.6" fill="url(#gAddBar)" rx="2" opacity="0.85"/>
+  <rect x="791.0" y="218.6" width="22" height="120.8" fill="url(#gDelBar)" rx="2" opacity="0.82"/><rect x="791.0" y="339.4" width="22" height="122.6" fill="url(#gAddBar)" rx="2" opacity="0.85"/>
 
   <!-- Commits line — glow layer + crisp line -->
-  <path d="M 82.00 451.10 C 119.50 434.74, 232.00 398.40, 307.00 352.97 C 382.00 307.54, 457.00 162.16, 532.00 178.52 C 607.00 194.87, 682.00 460.18, 757.00 451.10 C 832.00 442.01, 944.50 178.52, 982.00 124.00" fill="none" stroke="#ff8c42"
+  <path d="M 82.00 451.44 C 112.00 435.59, 202.00 400.39, 262.00 356.38 C 322.00 312.36, 382.00 171.53, 442.00 187.38 C 502.00 203.22, 562.00 462.00, 622.00 451.44 C 682.00 440.88, 742.00 134.56, 802.00 124.00 C 862.00 113.44, 952.00 344.05, 982.00 388.06" fill="none" stroke="#ff8c42"
         stroke-width="10" stroke-opacity="0.08" filter="url(#glowLine)"/>
-  <path d="M 82.00 451.10 C 119.50 434.74, 232.00 398.40, 307.00 352.97 C 382.00 307.54, 457.00 162.16, 532.00 178.52 C 607.00 194.87, 682.00 460.18, 757.00 451.10 C 832.00 442.01, 944.50 178.52, 982.00 124.00" fill="none" stroke="url(#gCommits)"
+  <path d="M 82.00 451.44 C 112.00 435.59, 202.00 400.39, 262.00 356.38 C 322.00 312.36, 382.00 171.53, 442.00 187.38 C 502.00 203.22, 562.00 462.00, 622.00 451.44 C 682.00 440.88, 742.00 134.56, 802.00 124.00 C 862.00 113.44, 952.00 344.05, 982.00 388.06" fill="none" stroke="url(#gCommits)"
         stroke-width="3" stroke-linecap="round"/>
 
   <!-- Changes per commit — glow layer + crisp line -->
-  <path d="M 82.00 461.92 C 119.50 461.88, 232.00 461.72, 307.00 461.69 C 382.00 461.67, 457.00 462.00, 532.00 461.77 C 607.00 461.54, 682.00 516.61, 757.00 460.31 C 832.00 404.02, 944.50 180.05, 982.00 124.00" fill="none" stroke="#00d4f5"
+  <path d="M 82.00 461.92 C 112.00 461.88, 202.00 461.71, 262.00 461.68 C 322.00 461.66, 382.00 462.00, 442.00 461.76 C 502.00 461.53, 562.00 516.56, 622.00 460.26 C 682.00 403.97, 742.00 123.91, 802.00 124.00 C 862.00 124.09, 952.00 404.68, 982.00 460.82" fill="none" stroke="#00d4f5"
         stroke-width="10" stroke-opacity="0.08" filter="url(#glowLine)"/>
-  <path d="M 82.00 461.92 C 119.50 461.88, 232.00 461.72, 307.00 461.69 C 382.00 461.67, 457.00 462.00, 532.00 461.77 C 607.00 461.54, 682.00 516.61, 757.00 460.31 C 832.00 404.02, 944.50 180.05, 982.00 124.00" fill="none" stroke="url(#gChanges)"
+  <path d="M 82.00 461.92 C 112.00 461.88, 202.00 461.71, 262.00 461.68 C 322.00 461.66, 382.00 462.00, 442.00 461.76 C 502.00 461.53, 562.00 516.56, 622.00 460.26 C 682.00 403.97, 742.00 123.91, 802.00 124.00 C 862.00 124.09, 952.00 404.68, 982.00 460.82" fill="none" stroke="url(#gChanges)"
         stroke-width="3" stroke-linecap="round"/>
 
 </g>
 
 <!-- ════ DATA-POINT CIRCLES (above clip) ════ -->
-<circle cx="82.0" cy="451.1" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-10: 1 commits</title></circle><circle cx="307.0" cy="353.0" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-17: 10 commits</title></circle><circle cx="532.0" cy="178.5" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-20: 26 commits</title></circle><circle cx="757.0" cy="451.1" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-22: 1 commits</title></circle><circle cx="982.0" cy="124.0" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-24: 31 commits</title></circle>
-<circle cx="82.0" cy="461.9" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-10: 1 changes/commit</title></circle><circle cx="307.0" cy="461.7" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-17: 4 changes/commit</title></circle><circle cx="532.0" cy="461.8" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-20: 3 changes/commit</title></circle><circle cx="757.0" cy="460.3" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-22: 22 changes/commit</title></circle><circle cx="982.0" cy="124.0" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-24: 4403 changes/commit</title></circle>
+<circle cx="82.0" cy="451.4" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-10: 1 commits</title></circle><circle cx="262.0" cy="356.4" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-17: 10 commits</title></circle><circle cx="442.0" cy="187.4" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-20: 26 commits</title></circle><circle cx="622.0" cy="451.4" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-22: 1 commits</title></circle><circle cx="802.0" cy="124.0" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-24: 32 commits</title></circle><circle cx="982.0" cy="388.1" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>2026-03-25: 7 commits</title></circle>
+<circle cx="82.0" cy="461.9" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-10: 1 changes/commit</title></circle><circle cx="262.0" cy="461.7" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-17: 4 changes/commit</title></circle><circle cx="442.0" cy="461.8" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-20: 3 changes/commit</title></circle><circle cx="622.0" cy="460.3" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-22: 22 changes/commit</title></circle><circle cx="802.0" cy="124.0" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-24: 4279 changes/commit</title></circle><circle cx="982.0" cy="460.8" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>2026-03-25: 15 changes/commit</title></circle>
 
 <!-- ════ PEAK ANNOTATION ════ -->
 
-    <line x1="982.0" y1="109.0"
-          x2="982.0" y2="128.0"
+    <line x1="802.0" y1="109.0"
+          x2="802.0" y2="128.0"
           stroke="#60a5fa" stroke-width="1.3" stroke-dasharray="4,4" opacity="0.75"/>
-    <rect x="866.0" y="64.0"
+    <rect x="744.0" y="64.0"
           width="116" height="24" rx="6"
           fill="#010e2a" stroke="#2563eb" stroke-width="1.1" opacity="0.97"/>
-    <text x="924.0" y="80.0"
+    <text x="802.0" y="80.0"
           font-size="10.5" fill="#93c5fd" text-anchor="middle"
           font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400"
-          letter-spacing="0.6">⬡  peak · 31 commits</text>
+          letter-spacing="0.6">⬡  peak · 32 commits</text>
 
 <!-- ════ CORNER BRACKETS ════ -->
 <path d="M 82 148.0 L 82 124 L 106.0 124"
