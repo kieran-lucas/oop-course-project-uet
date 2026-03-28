@@ -457,20 +457,27 @@ function detectAnnotations(days, seriesData) {
 // §5  SVG UTILITIES — Paths, Labels, Ticks, Splines
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function catmullRomToBezier(points) {
+function catmullRomToBezier(points, clampMinY, clampMaxY) {
   if (points.length === 0) return "";
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-  let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+
+  const clamp = (val) => {
+    if (clampMinY !== undefined && val < clampMinY) return clampMinY;
+    if (clampMaxY !== undefined && val > clampMaxY) return clampMaxY;
+    return val;
+  };
+
+  let d = `M ${points[0].x.toFixed(2)} ${clamp(points[0].y).toFixed(2)}`;
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = points[Math.max(i - 1, 0)];
     const p1 = points[i];
     const p2 = points[i + 1];
     const p3 = points[Math.min(i + 2, points.length - 1)];
     const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp1y = clamp(p1.y + (p2.y - p0.y) / 6);
     const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+    const cp2y = clamp(p2.y - (p3.y - p1.y) / 6);
+    d += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p2.x.toFixed(2)} ${clamp(p2.y).toFixed(2)}`;
   }
   return d;
 }
@@ -743,12 +750,20 @@ function generateSVG(rawDayData, authorData) {
   // ─── Smart annotations ──
   const annotations = detectAnnotations(days, { commits: commitsArr, additions: addArr, deletions: delArr });
 
-  // ─── Adaptive max values ──
+  // ─── Adaptive max values (apply to ALL series) ──
+  const changeStats = computeStats(changesArr.filter(v => v > 0));
+  const barValues = addArr.map((a, i) => a + delArr[i]);
+  const barStats = computeStats(barValues.filter(v => v > 0));
+  const barOutliers = detectOutliers(barValues, CFG.outlierIQRMultiplier);
+
   const adaptiveCommitMax = computeAdaptiveMax(commitsArr, commitStats, commitOutliers);
+  const adaptiveChangeMax = computeAdaptiveMax(changesArr, changeStats, changeOutliers);
+  const adaptiveBarMax = computeAdaptiveMax(barValues, barStats, barOutliers);
+
   const maxLines = Math.max(...totalLines, 1);
   const maxCommits = Math.max(adaptiveCommitMax, 1);
-  const maxChanges = Math.max(...changesArr, 1);
-  const maxBar = Math.max(...addArr.map((a, i) => a + delArr[i]), 1);
+  const maxChanges = Math.max(adaptiveChangeMax, 1);
+  const maxBar = Math.max(adaptiveBarMax, 1);
 
   // ─── Layout computation ──
   const ML = 86;
@@ -797,6 +812,8 @@ function generateSVG(rawDayData, authorData) {
   const ptChanges = days.map((_, i) => ({
     x: xOf(i),
     y: changesArr[i] <= maxChanges ? yOf(changesArr[i], maxChanges) : yOf(maxChanges, maxChanges),
+    isOutlier: changesArr[i] > maxChanges,
+    actualValue: changesArr[i],
   }));
 
   // MA points (always within normal scale)
@@ -809,17 +826,16 @@ function generateSVG(rawDayData, authorData) {
     y: yOf(Math.min(v, maxChanges), maxChanges),
   }));
 
-  // ─── Smooth paths ──
-  const pathLines = catmullRomToBezier(ptLines);
-  // For commits with outliers, cap the points at the max for path drawing
+  // ─── Smooth paths (clamped to chart bounds) ──
+  const pathLines = catmullRomToBezier(ptLines, MT, MT + innerH);
   const ptCommitsCapped = ptCommits.map(pt => ({ x: pt.x, y: pt.y }));
-  const pathCommits = catmullRomToBezier(ptCommitsCapped);
-  const pathChanges = catmullRomToBezier(ptChanges.map(pt => ({ x: pt.x, y: pt.y })));
+  const pathCommits = catmullRomToBezier(ptCommitsCapped, MT, MT + innerH);
+  const pathChanges = catmullRomToBezier(ptChanges.map(pt => ({ x: pt.x, y: pt.y })), MT, MT + innerH);
   const areaLines = `${pathLines} L ${ptLines[n - 1].x.toFixed(2)} ${MT + innerH} L ${ptLines[0].x.toFixed(2)} ${MT + innerH} Z`;
 
-  // MA paths
-  const pathCommitMA = CFG.maWindow > 1 ? catmullRomToBezier(ptCommitMA) : "";
-  const pathChangeMA = CFG.maWindow > 1 ? catmullRomToBezier(ptChangeMA) : "";
+  // MA paths (clamped)
+  const pathCommitMA = CFG.maWindow > 1 ? catmullRomToBezier(ptCommitMA, MT, MT + innerH) : "";
+  const pathChangeMA = CFG.maWindow > 1 ? catmullRomToBezier(ptChangeMA, MT, MT + innerH) : "";
 
   // ─── Adaptive bar width ──
   const rawBarW = (innerW / n) * 0.55;
@@ -873,7 +889,23 @@ function generateSVG(rawDayData, authorData) {
   });
 
   ptChanges.forEach((pt, i) => {
-    if (changesArr[i] > 0) {
+    if (pt.isOutlier) {
+      // Changes outlier: triangle marker above chart
+      const ox = pt.x, oy = MT + 18;
+      outlierMarkers += `
+        <g class="outlier-marker">
+          <polygon points="${ox},${oy - 6} ${ox + 5.5},${oy + 4} ${ox - 5.5},${oy + 4}"
+            fill="${t.accent2}" stroke="${t.accent2Light}" stroke-width="1.2"
+            filter="url(#glowCyan)" opacity="0.9">
+            <title>${days[i]}: ${pt.actualValue} chg/commit (outlier)</title>
+          </polygon>
+          <line x1="${ox}" y1="${oy + 5}" x2="${ox}" y2="${yOf(maxChanges, maxChanges)}"
+            stroke="${t.accent2}" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.5"/>
+          <text x="${ox}" y="${oy - 9}" font-size="8" fill="${t.accent2Light}"
+            text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
+            font-weight="500">${fmtK(pt.actualValue)}</text>
+        </g>`;
+    } else if (changesArr[i] > 0) {
       ciChanges += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="3.5"
         fill="${t.accent2}" stroke="${t.accent2Light}" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
         <title>${days[i]}: ${changesArr[i]} changes/commit</title></circle>`;
@@ -1124,11 +1156,13 @@ function generateSVG(rawDayData, authorData) {
 
   // ─── Scale warning ──
   let scaleWarnSVG = "";
-  const hasScaleCompression = commitOutliers.some(o => o.isUpperOutlier) && adaptiveCommitMax < Math.max(...commitsArr);
-  if (hasScaleCompression) {
+  const commitCompressed = commitOutliers.some(o => o.isUpperOutlier) && adaptiveCommitMax < Math.max(...commitsArr);
+  const changeCompressed = changeOutliers.some(o => o.isUpperOutlier) && adaptiveChangeMax < Math.max(...changesArr);
+  if (commitCompressed || changeCompressed) {
+    const series = [commitCompressed && "commits", changeCompressed && "changes"].filter(Boolean).join(" & ");
     scaleWarnSVG = `<text x="${ML + 8}" y="${MT - 16}" font-size="8" fill="${t.outlierFill}"
       font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.75">
-      ◆ Scale compressed — outliers shown as diamonds above chart</text>`;
+      ◆ Scale compressed (${series}) — outliers marked above chart</text>`;
   }
 
   // ════════════════════════════════════════════════════════════════════════════
