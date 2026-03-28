@@ -355,41 +355,38 @@ function detectOutliers(arr, multiplier) {
   }));
 }
 
-// ─── Adaptive Scale ─────────────────────────────────────────────────────────
+// ─── d3-inspired Scale: niceScaleMax ────────────────────────────────────────
+// Approach from d3-scale .nice() + headroom:
+// 1. Divide absMax by peakHeightRatio to add headroom
+// 2. Round UP to next "nice" number (power of 10 × {1, 2, 2.5, 5})
+// 3. Result: peak always sits at ≤ peakHeightRatio of chart height
+//
+// Example: absMax=50, peakRatio=0.7
+//   → target = 50/0.7 = 71.4
+//   → nice step for 5 ticks = 20
+//   → niced max = ceil(71.4/20)*20 = 80
+//   → peak renders at 50/80 = 62.5% ✓
 
-function computeAdaptiveMax(arr, stats, outliers) {
-  const absMax = Math.max(...arr, 1);
+function niceScaleMax(absMax, tickCount = 5) {
+  if (absMax <= 0) return 1;
 
-  if (CFG.scaleMode === "linear") {
-    // Even in linear mode, enforce peakHeightRatio headroom
-    return absMax / CFG.peakHeightRatio;
-  }
+  // Step 1: add headroom so the tallest data point reaches at most peakHeightRatio
+  const target = absMax / CFG.peakHeightRatio;
 
-  // ── Step 1: Always add headroom so peak reaches at most peakHeightRatio of chart ──
-  // If peakHeightRatio = 0.7, then visualMax = absMax / 0.7 ≈ absMax * 1.43
-  // This means the peak sits at 70% height, leaving 30% breathing room
-  let visualMax = absMax / CFG.peakHeightRatio;
+  // Step 2: d3-style "nice" — find nice step, ceil to next grid line
+  const rawStep = target / tickCount;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const residual = rawStep / magnitude;
 
-  // ── Step 2: Additional compression for outliers ──
-  const hasUpperOutliers = outliers.some(o => o.isUpperOutlier);
-  if (hasUpperOutliers) {
-    const sorted = [...arr].sort((a, b) => a - b);
-    const p90 = sorted[Math.floor(sorted.length * 0.90)];
-    const p95 = sorted[Math.floor(sorted.length * 0.95)];
+  let niceStep;
+  if (residual <= 1) niceStep = 1 * magnitude;
+  else if (residual <= 2) niceStep = 2 * magnitude;
+  else if (residual <= 5) niceStep = 5 * magnitude;
+  else niceStep = 10 * magnitude;
 
-    // If max is much larger than the "normal" range, compress harder:
-    // Use P90/P95 as reference so most data stays readable
-    if (absMax > p95 * 2.5) {
-      // Heavy spike: set scale so P95 is at ~55% height, outliers get markers
-      visualMax = p95 / 0.55;
-    } else if (absMax > p90 * 2) {
-      // Moderate spike: set scale so P90 is at ~50% height
-      visualMax = p90 / 0.50;
-    }
-    // Otherwise the default peakHeightRatio headroom is sufficient
-  }
+  const niceMax = Math.ceil(target / niceStep) * niceStep;
 
-  return Math.max(visualMax, 1);
+  return Math.max(niceMax, 1);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -757,11 +754,6 @@ function generateSVG(rawDayData, authorData) {
     filesArr.push(d.files);
   });
 
-  // ─── Statistics & outlier detection ──
-  const commitStats = computeStats(commitsArr.filter(v => v > 0));
-  const commitOutliers = detectOutliers(commitsArr, CFG.outlierIQRMultiplier);
-  const changeOutliers = detectOutliers(changesArr, CFG.outlierIQRMultiplier);
-
   // ─── Moving averages ──
   const commitMA = movingAverage(commitsArr, CFG.maWindow);
   const changeMA = movingAverage(changesArr, CFG.maWindow);
@@ -769,20 +761,13 @@ function generateSVG(rawDayData, authorData) {
   // ─── Smart annotations ──
   const annotations = detectAnnotations(days, { commits: commitsArr, additions: addArr, deletions: delArr });
 
-  // ─── Adaptive max values (apply to ALL series) ──
-  const changeStats = computeStats(changesArr.filter(v => v > 0));
+  // ─── Scale computation (d3-inspired nice + headroom) ──
   const barValues = addArr.map((a, i) => a + delArr[i]);
-  const barStats = computeStats(barValues.filter(v => v > 0));
-  const barOutliers = detectOutliers(barValues, CFG.outlierIQRMultiplier);
 
-  const adaptiveCommitMax = computeAdaptiveMax(commitsArr, commitStats, commitOutliers);
-  const adaptiveChangeMax = computeAdaptiveMax(changesArr, changeStats, changeOutliers);
-  const adaptiveBarMax = computeAdaptiveMax(barValues, barStats, barOutliers);
-
-  const maxLines = Math.max(...totalLines, 1);
-  const maxCommits = Math.max(adaptiveCommitMax, 1);
-  const maxChanges = Math.max(adaptiveChangeMax, 1);
-  const maxBar = Math.max(adaptiveBarMax, 1);
+  const maxLines   = niceScaleMax(Math.max(...totalLines, 0));
+  const maxCommits = niceScaleMax(Math.max(...commitsArr, 0));
+  const maxChanges = niceScaleMax(Math.max(...changesArr, 0));
+  const maxBar     = niceScaleMax(Math.max(...barValues, 0));
 
   // ─── Layout computation ──
   const ML = 86;
@@ -820,20 +805,10 @@ function generateSVG(rawDayData, authorData) {
     return yOf(v, max);
   };
 
-  // ─── Point arrays ──
-  const ptLines = days.map((_, i) => ({ x: xOf(i), y: yOf(totalLines[i], maxLines) }));
-  const ptCommits = days.map((_, i) => ({
-    x: xOf(i),
-    y: commitsArr[i] <= maxCommits ? yOf(commitsArr[i], maxCommits) : yOf(maxCommits, maxCommits),
-    isOutlier: commitsArr[i] > maxCommits,
-    actualValue: commitsArr[i],
-  }));
-  const ptChanges = days.map((_, i) => ({
-    x: xOf(i),
-    y: changesArr[i] <= maxChanges ? yOf(changesArr[i], maxChanges) : yOf(maxChanges, maxChanges),
-    isOutlier: changesArr[i] > maxChanges,
-    actualValue: changesArr[i],
-  }));
+  // ─── Point arrays (all values guaranteed within chart by niceScaleMax) ──
+  const ptLines   = days.map((_, i) => ({ x: xOf(i), y: yOf(totalLines[i], maxLines) }));
+  const ptCommits = days.map((_, i) => ({ x: xOf(i), y: yOf(commitsArr[i], maxCommits) }));
+  const ptChanges = days.map((_, i) => ({ x: xOf(i), y: yOf(changesArr[i], maxChanges) }));
 
   // MA points (always within normal scale)
   const ptCommitMA = commitMA.map((v, i) => ({
@@ -845,12 +820,11 @@ function generateSVG(rawDayData, authorData) {
     y: yOf(Math.min(v, maxChanges), maxChanges),
   }));
 
-  // ─── Smooth paths (clamped to chart bounds) ──
-  const pathLines = catmullRomToBezier(ptLines, MT, MT + innerH);
-  const ptCommitsCapped = ptCommits.map(pt => ({ x: pt.x, y: pt.y }));
-  const pathCommits = catmullRomToBezier(ptCommitsCapped, MT, MT + innerH);
-  const pathChanges = catmullRomToBezier(ptChanges.map(pt => ({ x: pt.x, y: pt.y })), MT, MT + innerH);
-  const areaLines = `${pathLines} L ${ptLines[n - 1].x.toFixed(2)} ${MT + innerH} L ${ptLines[0].x.toFixed(2)} ${MT + innerH} Z`;
+  // ─── Smooth paths (clamped to chart bounds as safety net) ──
+  const pathLines   = catmullRomToBezier(ptLines, MT, MT + innerH);
+  const pathCommits = catmullRomToBezier(ptCommits, MT, MT + innerH);
+  const pathChanges = catmullRomToBezier(ptChanges, MT, MT + innerH);
+  const areaLines   = `${pathLines} L ${ptLines[n - 1].x.toFixed(2)} ${MT + innerH} L ${ptLines[0].x.toFixed(2)} ${MT + innerH} Z`;
 
   // MA paths (clamped)
   const pathCommitMA = CFG.maWindow > 1 ? catmullRomToBezier(ptCommitMA, MT, MT + innerH) : "";
@@ -878,28 +852,11 @@ function generateSVG(rawDayData, authorData) {
         fill="url(#gAddBar)" rx="${Math.min(2, bw / 3)}" opacity="0.82"/>`;
   });
 
-  // ─── Data-point circles ──
-  let ciCommits = "", ciChanges = "", outlierMarkers = "";
+  // ─── Data-point circles (simple — scale guarantees all points fit) ──
+  let ciCommits = "", ciChanges = "";
 
   ptCommits.forEach((pt, i) => {
-    if (pt.isOutlier) {
-      // Outlier: special diamond marker with value callout
-      const ox = pt.x, oy = MT + 6;
-      const r = 7;
-      outlierMarkers += `
-        <g class="outlier-marker">
-          <polygon points="${ox},${oy - r} ${ox + r},${oy} ${ox},${oy + r} ${ox - r},${oy}"
-            fill="${t.outlierFill}" stroke="${t.outlierStroke}" stroke-width="1.5"
-            filter="url(#glowOrange)" opacity="0.95">
-            <title>${days[i]}: ${pt.actualValue} commits (outlier)</title>
-          </polygon>
-          <line x1="${ox}" y1="${oy + r + 2}" x2="${ox}" y2="${yOf(maxCommits, maxCommits)}"
-            stroke="${t.outlierStroke}" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
-          <text x="${ox}" y="${oy - r - 5}" font-size="9" fill="${t.outlierFill}"
-            text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
-            font-weight="600">${pt.actualValue}</text>
-        </g>`;
-    } else if (commitsArr[i] > 0) {
+    if (commitsArr[i] > 0) {
       const radius = 3 + Math.min(2.5, (commitsArr[i] / maxCommits) * 2.5);
       ciCommits += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${radius.toFixed(1)}"
         fill="${t.accent1}" stroke="${t.accent1Light}" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
@@ -908,23 +865,7 @@ function generateSVG(rawDayData, authorData) {
   });
 
   ptChanges.forEach((pt, i) => {
-    if (pt.isOutlier) {
-      // Changes outlier: triangle marker above chart
-      const ox = pt.x, oy = MT + 18;
-      outlierMarkers += `
-        <g class="outlier-marker">
-          <polygon points="${ox},${oy - 6} ${ox + 5.5},${oy + 4} ${ox - 5.5},${oy + 4}"
-            fill="${t.accent2}" stroke="${t.accent2Light}" stroke-width="1.2"
-            filter="url(#glowCyan)" opacity="0.9">
-            <title>${days[i]}: ${pt.actualValue} chg/commit (outlier)</title>
-          </polygon>
-          <line x1="${ox}" y1="${oy + 5}" x2="${ox}" y2="${yOf(maxChanges, maxChanges)}"
-            stroke="${t.accent2}" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.5"/>
-          <text x="${ox}" y="${oy - 9}" font-size="8" fill="${t.accent2Light}"
-            text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
-            font-weight="500">${fmtK(pt.actualValue)}</text>
-        </g>`;
-    } else if (changesArr[i] > 0) {
+    if (changesArr[i] > 0) {
       ciChanges += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="3.5"
         fill="${t.accent2}" stroke="${t.accent2Light}" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
         <title>${days[i]}: ${changesArr[i]} changes/commit</title></circle>`;
@@ -1037,14 +978,16 @@ function generateSVG(rawDayData, authorData) {
     }
   });
 
-  // ─── Statistical overlay: mean + stddev band for commits ──
+  // ─── Statistical overlay: mean line for commits ──
   let statOverlaySVG = "";
-  if (commitStats.mean > 0) {
-    const meanY = yOf(Math.min(commitStats.mean, maxCommits), maxCommits);
+  const nonZeroCommits = commitsArr.filter(v => v > 0);
+  const commitMean = nonZeroCommits.length > 0 ? nonZeroCommits.reduce((a, b) => a + b, 0) / nonZeroCommits.length : 0;
+  if (commitMean > 0) {
+    const meanY = yOf(commitMean, maxCommits);
     statOverlaySVG += `<line x1="${ML}" y1="${meanY.toFixed(1)}" x2="${ML + innerW}" y2="${meanY.toFixed(1)}"
       stroke="${t.accent1}" stroke-width="1" stroke-dasharray="8,4" opacity="0.3"/>
     <text x="${ML + innerW + 12}" y="${(meanY - 6).toFixed(1)}" font-size="8" fill="${t.accent1}"
-      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.6">μ=${commitStats.mean.toFixed(1)}</text>`;
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.6">μ=${commitMean.toFixed(1)}</text>`;
   }
 
   // ─── Totals ──
@@ -1173,16 +1116,7 @@ function generateSVG(rawDayData, authorData) {
     }
   }
 
-  // ─── Scale warning ──
-  let scaleWarnSVG = "";
-  const commitCompressed = commitOutliers.some(o => o.isUpperOutlier) && adaptiveCommitMax < Math.max(...commitsArr);
-  const changeCompressed = changeOutliers.some(o => o.isUpperOutlier) && adaptiveChangeMax < Math.max(...changesArr);
-  if (commitCompressed || changeCompressed) {
-    const series = [commitCompressed && "commits", changeCompressed && "changes"].filter(Boolean).join(" & ");
-    scaleWarnSVG = `<text x="${ML + 8}" y="${MT - 16}" font-size="8" fill="${t.outlierFill}"
-      font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.75">
-      ◆ Scale compressed (${series}) — outliers marked above chart</text>`;
-  }
+
 
   // ════════════════════════════════════════════════════════════════════════════
 
@@ -1190,8 +1124,6 @@ function generateSVG(rawDayData, authorData) {
 <defs>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&amp;display=swap');
-    .outlier-marker { transition: opacity 0.2s; }
-    .outlier-marker:hover { opacity: 1 !important; }
     circle:hover { opacity: 1 !important; r: 6; }
     rect.bar-segment:hover { opacity: 1 !important; }
   </style>
@@ -1292,8 +1224,6 @@ ${badge}
 <!-- ════ LEGEND ════ -->
 <g>${legendSVG}</g>
 
-${scaleWarnSVG}
-
 <!-- ════ AXIS LABELS ════ -->
 ${axisLabelLeft}
 ${axisLabelRight}
@@ -1337,14 +1267,11 @@ ${xLabels}
 
   <!-- Statistical overlay -->
   ${statOverlaySVG}
+
+  <!-- Data point circles (inside clip for safety) -->
+  ${ciCommits}
+  ${ciChanges}
 </g>
-
-<!-- ════ DATA POINTS ════ -->
-${ciCommits}
-${ciChanges}
-
-<!-- ════ OUTLIER MARKERS ════ -->
-${outlierMarkers}
 
 <!-- ════ ANNOTATIONS ════ -->
 ${annotSVG}
