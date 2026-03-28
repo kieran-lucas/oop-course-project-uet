@@ -2,7 +2,7 @@ name: Generate Commit Graph
 
 on:
   schedule:
-    - cron: "11 22 * * *" # 22:11 UTC = 5:11 AM UTC+7
+    - cron: "0 21 * * *" 
   workflow_dispatch:
 
 jobs:
