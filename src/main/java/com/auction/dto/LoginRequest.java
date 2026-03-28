@@ -4,15 +4,16 @@ package com.auction.dto;
  * DTO cho yêu cầu đăng nhập — chứa thông tin client gửi lên khi nhấn "Đăng nhập".
  *
  * <p>Luồng dữ liệu:
+ *
  * <ol>
- *   <li>Client gửi POST /api/auth/login với JSON: {"username":"alice", "password":"secret123"}</li>
- *   <li>Jackson tự động parse JSON → LoginRequest object</li>
- *   <li>AuthController nhận LoginRequest → chuyển cho UserService.login()</li>
- *   <li>UserService kiểm tra password bằng BCrypt → nếu đúng, trả JWT token</li>
+ *   <li>Client gửi POST /api/auth/login với JSON: {"username":"alice", "password":"secret123"}
+ *   <li>Jackson tự động parse JSON → LoginRequest object
+ *   <li>AuthController nhận LoginRequest → chuyển cho UserService.login()
+ *   <li>UserService kiểm tra password bằng BCrypt → nếu đúng, trả JWT token
  * </ol>
  *
- * <p>Lưu ý: password ở đây là password gốc (plaintext) do người dùng nhập. Server sẽ dùng BCrypt
- * để so sánh với passwordHash trong database — KHÔNG BAO GIỜ lưu plaintext vào DB.
+ * <p>Lưu ý: password ở đây là password gốc (plaintext) do người dùng nhập. Server sẽ dùng BCrypt để
+ * so sánh với passwordHash trong database — KHÔNG BAO GIỜ lưu plaintext vào DB.
  *
  * <p>DTO (Data Transfer Object) chỉ chứa dữ liệu thuần túy, không có business logic. Nó là "phong
  * bì" chuyển dữ liệu giữa client và server qua HTTP.

@@ -4,28 +4,31 @@ package com.auction.dto;
  * DTO cho yêu cầu đăng ký tài khoản mới.
  *
  * <p>Luồng dữ liệu:
+ *
  * <ol>
- *   <li>Client gửi POST /api/auth/register với JSON:
- *       {"username":"alice", "password":"secret123", "email":"alice@mail.com", "role":"BIDDER"}</li>
- *   <li>Jackson parse JSON → RegisterRequest</li>
- *   <li>AuthController → UserService.register()</li>
- *   <li>UserService: validate → BCrypt.hash(password) → tạo đúng subclass (Bidder/Seller/Admin)
- *       → UserDao.insert()</li>
+ *   <li>Client gửi POST /api/auth/register với JSON: {"username":"alice", "password":"secret123",
+ *       "email":"alice@mail.com", "role":"BIDDER"}
+ *   <li>Jackson parse JSON → RegisterRequest
+ *   <li>AuthController → UserService.register()
+ *   <li>UserService: validate → BCrypt.hash(password) → tạo đúng subclass (Bidder/Seller/Admin) →
+ *       UserDao.insert()
  * </ol>
  *
  * <p>Field role quyết định hệ thống tạo loại User nào:
+ *
  * <ul>
- *   <li>"BIDDER" → new Bidder(...) — tham gia đấu giá</li>
- *   <li>"SELLER" → new Seller(...) — đăng sản phẩm</li>
- *   <li>"ADMIN"  → new Admin(...)  — quản lý hệ thống</li>
+ *   <li>"BIDDER" → new Bidder(...) — tham gia đấu giá
+ *   <li>"SELLER" → new Seller(...) — đăng sản phẩm
+ *   <li>"ADMIN" → new Admin(...) — quản lý hệ thống
  * </ul>
  *
  * <p>Server cần validate:
+ *
  * <ul>
- *   <li>username không trùng (DuplicateException nếu đã tồn tại)</li>
- *   <li>email không trùng</li>
- *   <li>password đủ mạnh (tùy chọn)</li>
- *   <li>role phải là 1 trong 3 giá trị hợp lệ</li>
+ *   <li>username không trùng (DuplicateException nếu đã tồn tại)
+ *   <li>email không trùng
+ *   <li>password đủ mạnh (tùy chọn)
+ *   <li>role phải là 1 trong 3 giá trị hợp lệ
  * </ul>
  */
 public class RegisterRequest {

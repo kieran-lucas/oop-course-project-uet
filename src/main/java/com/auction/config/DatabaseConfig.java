@@ -16,15 +16,15 @@ import org.slf4j.LoggerFactory;
  * <p>File này là "cầu nối" giữa Java code và PostgreSQL. Nó tạo ra 2 thứ:
  *
  * <ol>
- *   <li><b>HikariDataSource</b> — connection pool: giữ sẵn ~10 kết nối đến PostgreSQL.
- *       Khi DAO cần chạy SQL, nó lấy 1 connection từ pool (nhanh, ~0.5ms)
- *       thay vì mở connection mới (chậm, ~5-10ms). Dùng xong trả lại pool.
- *   <li><b>Jdbi</b> — SQL wrapper: thay vì viết JDBC thủ công (PreparedStatement,
- *       ResultSet, close...), JDBI cung cấp API gọn hơn. DAO classes dùng Jdbi
- *       để chạy query.
+ *   <li><b>HikariDataSource</b> — connection pool: giữ sẵn ~10 kết nối đến PostgreSQL. Khi DAO cần
+ *       chạy SQL, nó lấy 1 connection từ pool (nhanh, ~0.5ms) thay vì mở connection mới (chậm,
+ *       ~5-10ms). Dùng xong trả lại pool.
+ *   <li><b>Jdbi</b> — SQL wrapper: thay vì viết JDBC thủ công (PreparedStatement, ResultSet,
+ *       close...), JDBI cung cấp API gọn hơn. DAO classes dùng Jdbi để chạy query.
  * </ol>
  *
  * <h3>Luồng dữ liệu:</h3>
+ *
  * <pre>
  *   App.java khởi động
  *     → gọi DatabaseConfig.create()
@@ -35,8 +35,10 @@ import org.slf4j.LoggerFactory;
  * </pre>
  *
  * <h3>Cấu hình từ biến môi trường:</h3>
- * <p>Database URL, username, password đọc từ biến môi trường (System.getenv),
- * KHÔNG hardcode trong code. Lý do:
+ *
+ * <p>Database URL, username, password đọc từ biến môi trường (System.getenv), KHÔNG hardcode trong
+ * code. Lý do:
+ *
  * <ul>
  *   <li>Mỗi người trong nhóm có thể dùng password khác nhau
  *   <li>CI pipeline dùng database test riêng (xem ci.yml: DB_URL, DB_USER, DB_PASSWORD)
@@ -44,6 +46,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>Developer tạo file .env trên máy mình (file này nằm trong .gitignore, không commit):
+ *
  * <pre>
  *   DB_URL=jdbc:postgresql://localhost:5432/auction_db
  *   DB_USER=auction_user
@@ -51,6 +54,7 @@ import org.slf4j.LoggerFactory;
  * </pre>
  *
  * <h3>Liên kết với các file khác:</h3>
+ *
  * <ul>
  *   <li><b>App.java</b>: gọi DatabaseConfig.create() khi server khởi động
  *   <li><b>Tất cả DAO</b> (UserDao, AuctionDao...): nhận Jdbi từ config này
@@ -124,19 +128,22 @@ public class DatabaseConfig {
    *   <li>Khi khởi động, HikariCP mở sẵn {@code minimumIdle} connections đến PostgreSQL
    *   <li>Khi DAO cần chạy SQL, nó "mượn" 1 connection từ pool (~0.5ms)
    *   <li>Chạy SQL xong, connection được "trả lại" pool (không đóng thật)
-   *   <li>Nếu tất cả connections đang bận, request mới phải chờ (tối đa {@code connectionTimeout} ms)
+   *   <li>Nếu tất cả connections đang bận, request mới phải chờ (tối đa {@code connectionTimeout}
+   *       ms)
    *   <li>Nếu chờ quá lâu → throw SQLException → BidService bắt lỗi → trả error cho client
    * </ol>
    *
    * <h4>Tại sao cần connection pool?</h4>
-   * <p>Mở connection đến PostgreSQL tốn ~5-10ms (TCP handshake + authentication).
-   * Nếu mỗi request mở connection mới → 100 request/giây = 100 lần handshake = chậm.
-   * Pool giữ sẵn connections đã mở → lấy ra dùng ngay → nhanh gấp 10-20 lần.
+   *
+   * <p>Mở connection đến PostgreSQL tốn ~5-10ms (TCP handshake + authentication). Nếu mỗi request
+   * mở connection mới → 100 request/giây = 100 lần handshake = chậm. Pool giữ sẵn connections đã mở
+   * → lấy ra dùng ngay → nhanh gấp 10-20 lần.
    *
    * <h4>Tại sao maximumPoolSize = 10?</h4>
-   * <p>PostgreSQL mặc định cho phép tối đa 100 connections. Với 10 connections trong pool,
-   * hệ thống xử lý được ~10 SQL queries đồng thời. Với bài tập lớn (vài chục user),
-   * con số này dư thừa. Nếu cần tăng sau này, chỉ đổi số này.
+   *
+   * <p>PostgreSQL mặc định cho phép tối đa 100 connections. Với 10 connections trong pool, hệ thống
+   * xử lý được ~10 SQL queries đồng thời. Với bài tập lớn (vài chục user), con số này dư thừa. Nếu
+   * cần tăng sau này, chỉ đổi số này.
    *
    * @return HikariDataSource đã cấu hình
    */
@@ -171,8 +178,8 @@ public class DatabaseConfig {
     // maxLifetime: mỗi connection sống tối đa 30 phút → rồi đóng, mở connection mới
     //   → Tránh lỗi "connection bị PostgreSQL server đóng vì quá cũ"
     config.setConnectionTimeout(30000); // 30 giây
-    config.setIdleTimeout(600000);      // 10 phút
-    config.setMaxLifetime(1800000);     // 30 phút
+    config.setIdleTimeout(600000); // 10 phút
+    config.setMaxLifetime(1800000); // 30 phút
 
     // ── Pool name ──
     // Hiện trong log: "HikariPool-AuctionPool - Starting..."
@@ -187,13 +194,14 @@ public class DatabaseConfig {
    * Đọc biến môi trường, trả về giá trị mặc định nếu không tìm thấy.
    *
    * <p>Thứ tự ưu tiên:
+   *
    * <ol>
    *   <li>Biến môi trường hệ thống (System.getenv) — CI pipeline set ở đây
    *   <li>System property (System.getProperty) — có thể truyền qua -D flag khi chạy Gradle
    *   <li>Giá trị mặc định (defaultValue) — cho development local
    * </ol>
    *
-   * @param name         tên biến môi trường (ví dụ: "DB_URL")
+   * @param name tên biến môi trường (ví dụ: "DB_URL")
    * @param defaultValue giá trị mặc định nếu biến không tồn tại
    * @return giá trị biến môi trường hoặc giá trị mặc định
    */

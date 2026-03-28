@@ -3,10 +3,11 @@ package com.auction.dto;
 import java.time.LocalDateTime;
 
 /**
- * DTO trả về khi server gặp lỗi — thay vì trả stacktrace Java (lộ nội bộ hệ thống), server trả
- * JSON chuẩn chứa mã lỗi và thông báo dễ hiểu.
+ * DTO trả về khi server gặp lỗi — thay vì trả stacktrace Java (lộ nội bộ hệ thống), server trả JSON
+ * chuẩn chứa mã lỗi và thông báo dễ hiểu.
  *
  * <p>Mapping giữa Custom Exception → HTTP status → ErrorResponse:
+ *
  * <table>
  *   <tr><th>Exception</th><th>HTTP Status</th><th>error field</th><th>Ví dụ message</th></tr>
  *   <tr><td>InvalidBidException</td><td>400 Bad Request</td><td>INVALID_BID</td>
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
  * </table>
  *
  * <p>Cấu hình trong App.java (Javalin exception handler):
+ *
  * <pre>
  * app.exception(InvalidBidException.class, (e, ctx) -&gt; {
  *     ctx.status(400);
@@ -31,8 +33,8 @@ import java.time.LocalDateTime;
  * });
  * </pre>
  *
- * <p>Client nhận JSON lỗi → parse ErrorResponse → hiển thị message trên UI (ví dụ: Label đỏ
- * "Giá đặt phải cao hơn giá hiện tại").
+ * <p>Client nhận JSON lỗi → parse ErrorResponse → hiển thị message trên UI (ví dụ: Label đỏ "Giá
+ * đặt phải cao hơn giá hiện tại").
  *
  * <p>Field timestamp giúp debug: khi user báo lỗi, có thể đối chiếu thời gian với server log.
  */
@@ -55,7 +57,7 @@ public class ErrorResponse {
    *
    * <p>Ví dụ: {@code ctx.json(ErrorResponse.of("INVALID_BID", "Giá phải cao hơn 500,000đ"));}
    *
-   * @param error   mã lỗi ngắn gọn (client dùng để switch/case xử lý logic)
+   * @param error mã lỗi ngắn gọn (client dùng để switch/case xử lý logic)
    * @param message thông báo chi tiết (hiển thị cho user đọc)
    * @return ErrorResponse với timestamp = thời điểm hiện tại
    */
