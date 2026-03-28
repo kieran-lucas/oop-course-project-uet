@@ -2,8 +2,6 @@
 <defs>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&amp;display=swap');
-    .outlier-marker { transition: opacity 0.2s; }
-    .outlier-marker:hover { opacity: 1 !important; }
     circle:hover { opacity: 1 !important; r: 6; }
     rect.bar-segment:hover { opacity: 1 !important; }
   </style>
@@ -106,15 +104,15 @@
     <text x="1111" y="24" font-size="8" fill="#3d7ed4"
       text-anchor="middle" font-family="'Lexend',sans-serif" letter-spacing="2" font-weight="400">TOTAL  COMMITS</text>
     <text x="1111" y="52" font-size="28" font-weight="700" fill="#cce8ff"
-      text-anchor="middle" font-family="'Lexend',sans-serif" filter="url(#glowTitle)">138</text>
+      text-anchor="middle" font-family="'Lexend',sans-serif" filter="url(#glowTitle)">141</text>
     <line x1="1056" y1="60" x2="1166" y2="60"
       stroke="#1a3f7a" stroke-width="0.8" stroke-opacity="0.5"/>
     <text x="1087" y="74" font-size="9" fill="#22c55e"
-      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="400">+141.8k</text>
+      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="400">+142.0k</text>
     <text x="1135" y="74" font-size="9" fill="#ef4444"
-      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="400">-69.6k</text>
+      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="400">-69.9k</text>
     <text x="1111" y="90" font-size="8" fill="#3d7ed4"
-      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="300">9 active days · 644 files</text>
+      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="300">9 active days · 647 files</text>
 
 <!-- ════ LEGEND ════ -->
 <g><rect x="281.0" y="90.0" width="24" height="12" rx="3"
@@ -133,10 +131,6 @@
         stroke="#a78bfa" stroke-width="2" stroke-dasharray="5,3" stroke-linecap="round"/><text x="929.0" y="100.0" font-size="11" fill="#93c5fd"
       font-family="'Lexend','Segoe UI',sans-serif" font-weight="400">7-day MA</text></g>
 
-<text x="94" y="114" font-size="8" fill="#fbbf24"
-      font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.75">
-      ◆ Scale compressed (changes) — outliers marked above chart</text>
-
 <!-- ════ AXIS LABELS ════ -->
 <text x="16" y="310.0" font-size="9.5" fill="#4a90e2"
     text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif" letter-spacing="3" font-weight="300"
@@ -149,24 +143,25 @@
 <!-- ════ GRID + Y-LABELS ════ -->
 <line x1="86" y1="490.0" x2="1188" y2="490.0"
       stroke="#1a3f7a" stroke-width="1.4"
-      stroke-opacity="0.9" stroke-dasharray="none"/><line x1="86" y1="390.3" x2="1188" y2="390.3"
+      stroke-opacity="0.9" stroke-dasharray="none"/><line x1="86" y1="370.0" x2="1188" y2="370.0"
       stroke="#1a3f7a" stroke-width="0.5"
-      stroke-opacity="0.3" stroke-dasharray="6,6"/><line x1="86" y1="290.5" x2="1188" y2="290.5"
+      stroke-opacity="0.3" stroke-dasharray="6,6"/><line x1="86" y1="250.0" x2="1188" y2="250.0"
       stroke="#1a3f7a" stroke-width="0.5"
-      stroke-opacity="0.3" stroke-dasharray="6,6"/><line x1="86" y1="190.8" x2="1188" y2="190.8"
+      stroke-opacity="0.3" stroke-dasharray="6,6"/><line x1="86" y1="130.0" x2="1188" y2="130.0"
       stroke="#1a3f7a" stroke-width="0.5"
       stroke-opacity="0.3" stroke-dasharray="6,6"/>
 <text x="74" y="494.0" font-size="11" fill="#5aa8ff"
-      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">0</text><text x="74" y="394.3" font-size="11" fill="#5aa8ff"
-      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">20.0k</text><text x="74" y="294.5" font-size="11" fill="#5aa8ff"
-      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">40.0k</text><text x="74" y="194.8" font-size="11" fill="#5aa8ff"
-      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">60.0k</text>
+      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">0</text><text x="74" y="374.0" font-size="11" fill="#5aa8ff"
+      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">50.0k</text><text x="74" y="254.0" font-size="11" fill="#5aa8ff"
+      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">100.0k</text><text x="74" y="134.0" font-size="11" fill="#5aa8ff"
+      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">150.0k</text>
 <text x="1200" y="494.0" font-size="11" fill="#ff8c42"
-      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">0</text><text x="1200" y="405.6" font-size="11" fill="#ff8c42"
-      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">20</text><text x="1200" y="317.2" font-size="11" fill="#ff8c42"
-      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">40</text><text x="1200" y="228.7" font-size="11" fill="#ff8c42"
-      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">60</text><text x="1200" y="140.3" font-size="11" fill="#ff8c42"
-      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">80</text>
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">0</text><text x="1200" y="422.0" font-size="11" fill="#ff8c42"
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">20</text><text x="1200" y="350.0" font-size="11" fill="#ff8c42"
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">40</text><text x="1200" y="278.0" font-size="11" fill="#ff8c42"
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">60</text><text x="1200" y="206.0" font-size="11" fill="#ff8c42"
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">80</text><text x="1200" y="134.0" font-size="11" fill="#ff8c42"
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">100</text>
 
 <!-- ════ AXIS LINES ════ -->
 <line x1="86" y1="130" x2="86" y2="490"
@@ -202,100 +197,87 @@
 <!-- ════ CHART CONTENT ════ -->
 <g clip-path="url(#chartClip)">
   <!-- Total lines: area + stroke -->
-  <path d="M 86.00 490.00 C 96.20 490.00, 126.81 490.00, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 489.97, 494.15 489.89, 514.56 489.87 C 534.96 489.85, 555.37 489.87, 575.78 489.87 C 596.19 489.87, 616.59 489.92, 637.00 489.87 C 657.41 489.82, 677.81 489.62, 698.22 489.57 C 718.63 489.52, 739.04 489.58, 759.44 489.57 C 779.85 489.55, 800.26 489.47, 820.67 489.46 C 841.07 489.44, 861.48 490.00, 881.89 489.46 C 902.30 488.60, 922.70 485.16, 943.11 484.31 C 963.52 483.46, 983.93 484.33, 1004.33 484.34 C 1024.74 484.34, 1045.15 484.33, 1065.56 484.32 C 1085.96 484.31, 1106.37 490.00, 1126.78 484.30 C 1147.19 425.25, 1177.80 189.05, 1188.00 130.00 L 1188.00 490 L 86.00 490 Z" fill="url(#areaFill)"/>
-  <path d="M 86.00 490.00 C 96.20 490.00, 126.81 490.00, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 489.97, 494.15 489.89, 514.56 489.87 C 534.96 489.85, 555.37 489.87, 575.78 489.87 C 596.19 489.87, 616.59 489.92, 637.00 489.87 C 657.41 489.82, 677.81 489.62, 698.22 489.57 C 718.63 489.52, 739.04 489.58, 759.44 489.57 C 779.85 489.55, 800.26 489.47, 820.67 489.46 C 841.07 489.44, 861.48 490.00, 881.89 489.46 C 902.30 488.60, 922.70 485.16, 943.11 484.31 C 963.52 483.46, 983.93 484.33, 1004.33 484.34 C 1024.74 484.34, 1045.15 484.33, 1065.56 484.32 C 1085.96 484.31, 1106.37 490.00, 1126.78 484.30 C 1147.19 425.25, 1177.80 189.05, 1188.00 130.00" fill="none" stroke="#4a90e2" stroke-width="2" stroke-opacity="0.7"/>
+  <path d="M 86.00 490.00 C 96.20 490.00, 126.81 490.00, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 489.99, 494.15 489.95, 514.56 489.94 C 534.96 489.93, 555.37 489.94, 575.78 489.94 C 596.19 489.94, 616.59 489.96, 637.00 489.94 C 657.41 489.91, 677.81 489.82, 698.22 489.79 C 718.63 489.77, 739.04 489.80, 759.44 489.79 C 779.85 489.78, 800.26 489.75, 820.67 489.74 C 841.07 489.73, 861.48 490.00, 881.89 489.74 C 902.30 489.33, 922.70 487.67, 943.11 487.26 C 963.52 486.85, 983.93 487.27, 1004.33 487.27 C 1024.74 487.27, 1045.15 487.27, 1065.56 487.27 C 1085.96 487.26, 1106.37 490.00, 1126.78 487.26 C 1147.19 458.85, 1177.80 345.24, 1188.00 316.84 L 1188.00 490 L 86.00 490 Z" fill="url(#areaFill)"/>
+  <path d="M 86.00 490.00 C 96.20 490.00, 126.81 490.00, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 489.99, 494.15 489.95, 514.56 489.94 C 534.96 489.93, 555.37 489.94, 575.78 489.94 C 596.19 489.94, 616.59 489.96, 637.00 489.94 C 657.41 489.91, 677.81 489.82, 698.22 489.79 C 718.63 489.77, 739.04 489.80, 759.44 489.79 C 779.85 489.78, 800.26 489.75, 820.67 489.74 C 841.07 489.73, 861.48 490.00, 881.89 489.74 C 902.30 489.33, 922.70 487.67, 943.11 487.26 C 963.52 486.85, 983.93 487.27, 1004.33 487.27 C 1024.74 487.27, 1045.15 487.27, 1065.56 487.27 C 1085.96 487.26, 1106.37 490.00, 1126.78 487.26 C 1147.19 458.85, 1177.80 345.24, 1188.00 316.84" fill="none" stroke="#4a90e2" stroke-width="2" stroke-opacity="0.7"/>
 
   <!-- Bars -->
-  <rect x="931.1" y="308.6" width="24" height="90.0"
-        fill="url(#gDelBar)" rx="2" opacity="0.78"/><rect x="931.1" y="398.6" width="24" height="91.4"
-        fill="url(#gAddBar)" rx="2" opacity="0.82"/><rect x="1176.0" y="391.9" width="24" height="2.0"
-        fill="url(#gDelBar)" rx="2" opacity="0.78"/><rect x="1176.0" y="393.9" width="24" height="96.1"
+  <rect x="931.1" y="312.5" width="24" height="88.1"
+        fill="url(#gDelBar)" rx="2" opacity="0.78"/><rect x="931.1" y="400.6" width="24" height="89.4"
+        fill="url(#gAddBar)" rx="2" opacity="0.82"/><rect x="1176.0" y="393.5" width="24" height="2.3"
+        fill="url(#gDelBar)" rx="2" opacity="0.78"/><rect x="1176.0" y="395.7" width="24" height="94.3"
         fill="url(#gAddBar)" rx="2" opacity="0.82"/>
 
   <!-- Commits line — glow + crisp -->
-  <path d="M 86.00 485.58 C 96.20 486.32, 126.81 489.26, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 482.63, 494.15 445.79, 514.56 445.79 C 534.96 445.79, 555.37 482.63, 575.78 490.00 C 596.19 490.00, 616.59 490.00, 637.00 490.00 C 657.41 470.84, 677.81 375.05, 698.22 375.05 C 718.63 375.05, 739.04 471.58, 759.44 490.00 C 779.85 490.00, 800.26 485.58, 820.67 485.58 C 841.07 485.58, 861.48 490.00, 881.89 490.00 C 902.30 467.16, 922.70 353.68, 943.11 348.53 C 963.52 343.37, 983.93 437.68, 1004.33 459.05 C 1024.74 480.42, 1045.15 472.32, 1065.56 476.74 C 1085.96 481.16, 1106.37 490.00, 1126.78 485.58 C 1147.19 445.79, 1177.80 279.26, 1188.00 238.00" fill="none" stroke="#ff8c42" stroke-width="9" stroke-opacity="0.06" filter="url(#glowLine)"/>
-  <path d="M 86.00 485.58 C 96.20 486.32, 126.81 489.26, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 482.63, 494.15 445.79, 514.56 445.79 C 534.96 445.79, 555.37 482.63, 575.78 490.00 C 596.19 490.00, 616.59 490.00, 637.00 490.00 C 657.41 470.84, 677.81 375.05, 698.22 375.05 C 718.63 375.05, 739.04 471.58, 759.44 490.00 C 779.85 490.00, 800.26 485.58, 820.67 485.58 C 841.07 485.58, 861.48 490.00, 881.89 490.00 C 902.30 467.16, 922.70 353.68, 943.11 348.53 C 963.52 343.37, 983.93 437.68, 1004.33 459.05 C 1024.74 480.42, 1045.15 472.32, 1065.56 476.74 C 1085.96 481.16, 1106.37 490.00, 1126.78 485.58 C 1147.19 445.79, 1177.80 279.26, 1188.00 238.00" fill="none" stroke="url(#gCommits)" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M 86.00 486.40 C 96.20 487.00, 126.81 489.40, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 484.00, 494.15 454.00, 514.56 454.00 C 534.96 454.00, 555.37 484.00, 575.78 490.00 C 596.19 490.00, 616.59 490.00, 637.00 490.00 C 657.41 474.40, 677.81 396.40, 698.22 396.40 C 718.63 396.40, 739.04 475.00, 759.44 490.00 C 779.85 490.00, 800.26 486.40, 820.67 486.40 C 841.07 486.40, 861.48 490.00, 881.89 490.00 C 902.30 471.40, 922.70 379.00, 943.11 374.80 C 963.52 370.60, 983.93 447.40, 1004.33 464.80 C 1024.74 482.20, 1045.15 475.60, 1065.56 479.20 C 1085.96 482.80, 1106.37 490.00, 1126.78 486.40 C 1147.19 452.20, 1177.80 309.40, 1188.00 274.00" fill="none" stroke="#ff8c42" stroke-width="9" stroke-opacity="0.06" filter="url(#glowLine)"/>
+  <path d="M 86.00 486.40 C 96.20 487.00, 126.81 489.40, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 484.00, 494.15 454.00, 514.56 454.00 C 534.96 454.00, 555.37 484.00, 575.78 490.00 C 596.19 490.00, 616.59 490.00, 637.00 490.00 C 657.41 474.40, 677.81 396.40, 698.22 396.40 C 718.63 396.40, 739.04 475.00, 759.44 490.00 C 779.85 490.00, 800.26 486.40, 820.67 486.40 C 841.07 486.40, 861.48 490.00, 881.89 490.00 C 902.30 471.40, 922.70 379.00, 943.11 374.80 C 963.52 370.60, 983.93 447.40, 1004.33 464.80 C 1024.74 482.20, 1045.15 475.60, 1065.56 479.20 C 1085.96 482.80, 1106.37 490.00, 1126.78 486.40 C 1147.19 452.20, 1177.80 309.40, 1188.00 274.00" fill="none" stroke="url(#gCommits)" stroke-width="2.8" stroke-linecap="round"/>
 
   <!-- Changes/commit line -->
-  <path d="M 86.00 489.86 C 96.20 489.88, 126.81 489.98, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 489.91, 494.15 489.45, 514.56 489.45 C 534.96 489.45, 555.37 489.91, 575.78 490.00 C 596.19 490.00, 616.59 490.00, 637.00 490.00 C 657.41 489.93, 677.81 489.58, 698.22 489.58 C 718.63 489.58, 739.04 490.00, 759.44 490.00 C 779.85 489.56, 800.26 486.95, 820.67 486.95 C 841.07 486.95, 861.48 490.00, 881.89 490.00 C 902.30 430.51, 922.70 130.35, 943.11 130.00 C 963.52 130.00, 983.93 429.12, 1004.33 487.92 C 1024.74 490.00, 1045.15 483.65, 1065.56 482.79 C 1085.96 481.94, 1106.37 490.00, 1126.78 482.79 C 1147.19 454.00, 1177.80 338.80, 1188.00 310.00" fill="none" stroke="#00d4f5" stroke-width="9" stroke-opacity="0.06" filter="url(#glowLine)"/>
-  <path d="M 86.00 489.86 C 96.20 489.88, 126.81 489.98, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 489.91, 494.15 489.45, 514.56 489.45 C 534.96 489.45, 555.37 489.91, 575.78 490.00 C 596.19 490.00, 616.59 490.00, 637.00 490.00 C 657.41 489.93, 677.81 489.58, 698.22 489.58 C 718.63 489.58, 739.04 490.00, 759.44 490.00 C 779.85 489.56, 800.26 486.95, 820.67 486.95 C 841.07 486.95, 861.48 490.00, 881.89 490.00 C 902.30 430.51, 922.70 130.35, 943.11 130.00 C 963.52 130.00, 983.93 429.12, 1004.33 487.92 C 1024.74 490.00, 1045.15 483.65, 1065.56 482.79 C 1085.96 481.94, 1106.37 490.00, 1126.78 482.79 C 1147.19 454.00, 1177.80 338.80, 1188.00 310.00" fill="none" stroke="url(#gChanges)" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M 86.00 489.95 C 96.20 489.96, 126.81 489.99, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 489.97, 494.15 489.82, 514.56 489.82 C 534.96 489.82, 555.37 489.97, 575.78 490.00 C 596.19 490.00, 616.59 490.00, 637.00 490.00 C 657.41 489.98, 677.81 489.87, 698.22 489.87 C 718.63 489.87, 739.04 490.00, 759.44 490.00 C 779.85 489.86, 800.26 489.01, 820.67 489.01 C 841.07 489.01, 861.48 490.00, 881.89 490.00 C 902.30 458.07, 922.70 297.56, 943.11 297.44 C 963.52 297.33, 983.93 457.62, 1004.33 489.32 C 1024.74 490.00, 1045.15 487.94, 1065.56 487.66 C 1085.96 487.38, 1106.37 490.00, 1126.78 487.66 C 1147.19 478.74, 1177.80 443.04, 1188.00 434.11" fill="none" stroke="#00d4f5" stroke-width="9" stroke-opacity="0.06" filter="url(#glowLine)"/>
+  <path d="M 86.00 489.95 C 96.20 489.96, 126.81 489.99, 147.22 490.00 C 167.63 490.00, 188.04 490.00, 208.44 490.00 C 228.85 490.00, 249.26 490.00, 269.67 490.00 C 290.07 490.00, 310.48 490.00, 330.89 490.00 C 351.30 490.00, 371.70 490.00, 392.11 490.00 C 412.52 490.00, 432.93 490.00, 453.33 490.00 C 473.74 489.97, 494.15 489.82, 514.56 489.82 C 534.96 489.82, 555.37 489.97, 575.78 490.00 C 596.19 490.00, 616.59 490.00, 637.00 490.00 C 657.41 489.98, 677.81 489.87, 698.22 489.87 C 718.63 489.87, 739.04 490.00, 759.44 490.00 C 779.85 489.86, 800.26 489.01, 820.67 489.01 C 841.07 489.01, 861.48 490.00, 881.89 490.00 C 902.30 458.07, 922.70 297.56, 943.11 297.44 C 963.52 297.33, 983.93 457.62, 1004.33 489.32 C 1024.74 490.00, 1045.15 487.94, 1065.56 487.66 C 1085.96 487.38, 1106.37 490.00, 1126.78 487.66 C 1147.19 478.74, 1177.80 443.04, 1188.00 434.11" fill="none" stroke="url(#gChanges)" stroke-width="2.5" stroke-linecap="round"/>
 
   <!-- Moving averages -->
-  <path d="M 86.00 488.89 C 96.20 488.93, 126.81 489.05, 147.22 489.12 C 167.63 489.18, 188.04 489.22, 208.44 489.26 C 228.85 489.31, 249.26 490.00, 269.67 489.37 C 290.07 488.44, 310.48 484.63, 330.89 483.68 C 351.30 482.74, 371.70 483.68, 392.11 483.68 C 412.52 483.68, 432.93 486.42, 453.33 483.68 C 473.74 480.95, 494.15 470.00, 514.56 467.26 C 534.96 464.53, 555.37 467.37, 575.78 467.26 C 596.19 467.16, 616.59 466.74, 637.00 466.63 C 657.41 466.53, 677.81 468.95, 698.22 466.63 C 718.63 464.32, 739.04 455.79, 759.44 452.74 C 779.85 449.68, 800.26 449.37, 820.67 448.32 C 841.07 447.26, 861.48 444.11, 881.89 446.42 C 902.30 448.74, 922.70 465.58, 943.11 462.21 C 963.52 458.84, 983.93 433.86, 1004.33 426.21 C 1024.74 418.56, 1045.15 420.42, 1065.56 416.32 C 1085.96 412.21, 1106.37 401.82, 1126.78 401.58 C 1147.19 401.33, 1177.80 412.63, 1188.00 414.84" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="0.55" filter="url(#glowMA)"/>
-  <path d="M 86.00 489.97 C 96.20 489.97, 126.81 489.97, 147.22 489.97 C 167.63 489.97, 188.04 489.98, 208.44 489.98 C 228.85 489.98, 249.26 489.99, 269.67 489.98 C 290.07 489.97, 310.48 489.93, 330.89 489.92 C 351.30 489.91, 371.70 489.92, 392.11 489.92 C 412.52 489.92, 432.93 489.93, 453.33 489.92 C 473.74 489.91, 494.15 489.87, 514.56 489.86 C 534.96 489.85, 555.37 489.93, 575.78 489.86 C 596.19 489.79, 616.59 489.50, 637.00 489.43 C 657.41 489.35, 677.81 490.00, 698.22 489.43 C 718.63 475.32, 739.04 418.95, 759.44 404.80 C 779.85 390.65, 800.26 404.72, 820.67 404.50 C 841.07 404.28, 861.48 403.81, 881.89 403.47 C 902.30 403.14, 922.70 406.95, 943.11 402.50 C 963.52 398.06, 983.93 384.14, 1004.33 376.79 C 1024.74 369.44, 1045.15 365.88, 1065.56 358.43 C 1085.96 350.98, 1106.37 318.37, 1126.78 332.12 C 1147.19 345.86, 1177.80 422.75, 1188.00 440.88" fill="none" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="5,4" stroke-opacity="0.4"/>
+  <path d="M 86.00 489.10 C 96.20 489.13, 126.81 489.23, 147.22 489.28 C 167.63 489.33, 188.04 489.37, 208.44 489.40 C 228.85 489.43, 249.26 490.00, 269.67 489.49 C 290.07 488.73, 310.48 485.63, 330.89 484.86 C 351.30 484.09, 371.70 484.86, 392.11 484.86 C 412.52 484.86, 432.93 487.09, 453.33 484.86 C 473.74 482.63, 494.15 473.71, 514.56 471.49 C 534.96 469.26, 555.37 471.57, 575.78 471.49 C 596.19 471.40, 616.59 471.06, 637.00 470.97 C 657.41 470.89, 677.81 472.86, 698.22 470.97 C 718.63 469.09, 739.04 462.14, 759.44 459.66 C 779.85 457.17, 800.26 456.91, 820.67 456.06 C 841.07 455.20, 861.48 452.63, 881.89 454.51 C 902.30 456.40, 922.70 470.37, 943.11 467.37 C 963.52 464.37, 983.93 443.04, 1004.33 436.51 C 1024.74 429.99, 1045.15 431.65, 1065.56 428.20 C 1085.96 424.75, 1106.37 416.19, 1126.78 415.84 C 1147.19 415.49, 1177.80 424.39, 1188.00 426.10" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="0.55" filter="url(#glowMA)"/>
+  <path d="M 86.00 489.99 C 96.20 489.99, 126.81 489.99, 147.22 489.99 C 167.63 489.99, 188.04 489.99, 208.44 489.99 C 228.85 489.99, 249.26 490.00, 269.67 489.99 C 290.07 489.99, 310.48 489.98, 330.89 489.97 C 351.30 489.97, 371.70 489.97, 392.11 489.97 C 412.52 489.97, 432.93 489.98, 453.33 489.97 C 473.74 489.97, 494.15 489.96, 514.56 489.95 C 534.96 489.95, 555.37 489.98, 575.78 489.95 C 596.19 489.93, 616.59 489.84, 637.00 489.81 C 657.41 489.79, 677.81 490.00, 698.22 489.81 C 718.63 485.23, 739.04 466.93, 759.44 462.33 C 779.85 457.73, 800.26 462.31, 820.67 462.24 C 841.07 462.16, 861.48 462.01, 881.89 461.90 C 902.30 461.79, 922.70 462.97, 943.11 461.59 C 963.52 460.20, 983.93 455.92, 1004.33 453.60 C 1024.74 451.29, 1045.15 450.09, 1065.56 447.70 C 1085.96 445.31, 1106.37 434.74, 1126.78 439.24 C 1147.19 443.74, 1177.80 468.78, 1188.00 474.69" fill="none" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="5,4" stroke-opacity="0.4"/>
 
   <!-- Statistical overlay -->
-  <line x1="86" y1="422.2" x2="1188" y2="422.2"
+  <line x1="86" y1="433.6" x2="1188" y2="433.6"
       stroke="#ff8c42" stroke-width="1" stroke-dasharray="8,4" opacity="0.3"/>
-    <text x="1200" y="416.2" font-size="8" fill="#ff8c42"
-      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.6">μ=15.3</text>
+    <text x="1200" y="427.6" font-size="8" fill="#ff8c42"
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.6">μ=15.7</text>
+
+  <!-- Data point circles (inside clip for safety) -->
+  <circle cx="86.0" cy="486.4" r="3.0"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-10: 1 commits</title></circle><circle cx="514.6" cy="454.0" r="3.3"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-17: 10 commits</title></circle><circle cx="698.2" cy="396.4" r="3.6"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-20: 26 commits</title></circle><circle cx="820.7" cy="486.4" r="3.0"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-22: 1 commits</title></circle><circle cx="943.1" cy="374.8" r="3.8"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-24: 32 commits</title></circle><circle cx="1004.3" cy="464.8" r="3.2"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-25: 7 commits</title></circle><circle cx="1065.6" cy="479.2" r="3.1"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-26: 3 commits</title></circle><circle cx="1126.8" cy="486.4" r="3.0"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-27: 1 commits</title></circle><circle cx="1188.0" cy="274.0" r="4.5"
+        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>2026-03-28: 60 commits</title></circle>
+  <circle cx="86.0" cy="490.0" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-10: 1 changes/commit</title></circle><circle cx="514.6" cy="489.8" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-17: 4 changes/commit</title></circle><circle cx="698.2" cy="489.9" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-20: 3 changes/commit</title></circle><circle cx="820.7" cy="489.0" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-22: 22 changes/commit</title></circle><circle cx="943.1" cy="297.4" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-24: 4279 changes/commit</title></circle><circle cx="1004.3" cy="489.3" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-25: 15 changes/commit</title></circle><circle cx="1065.6" cy="487.7" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-26: 52 changes/commit</title></circle><circle cx="1126.8" cy="487.7" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-27: 52 changes/commit</title></circle><circle cx="1188.0" cy="434.1" r="3.5"
+        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>2026-03-28: 1242 changes/commit</title></circle>
 </g>
-
-<!-- ════ DATA POINTS ════ -->
-<circle cx="86.0" cy="485.6" r="3.0"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-10: 1 commits</title></circle><circle cx="514.6" cy="445.8" r="3.3"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-17: 10 commits</title></circle><circle cx="698.2" cy="375.1" r="3.8"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-20: 26 commits</title></circle><circle cx="820.7" cy="485.6" r="3.0"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-22: 1 commits</title></circle><circle cx="943.1" cy="348.5" r="4.0"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-24: 32 commits</title></circle><circle cx="1004.3" cy="459.1" r="3.2"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-25: 7 commits</title></circle><circle cx="1065.6" cy="476.7" r="3.1"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-26: 3 commits</title></circle><circle cx="1126.8" cy="485.6" r="3.0"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-27: 1 commits</title></circle><circle cx="1188.0" cy="238.0" r="4.8"
-        fill="#ff8c42" stroke="#ffd0a0" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
-        <title>2026-03-28: 57 commits</title></circle>
-<circle cx="86.0" cy="489.9" r="3.5"
-        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
-        <title>2026-03-10: 1 changes/commit</title></circle><circle cx="514.6" cy="489.4" r="3.5"
-        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
-        <title>2026-03-17: 4 changes/commit</title></circle><circle cx="698.2" cy="489.6" r="3.5"
-        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
-        <title>2026-03-20: 3 changes/commit</title></circle><circle cx="820.7" cy="487.0" r="3.5"
-        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
-        <title>2026-03-22: 22 changes/commit</title></circle><circle cx="1004.3" cy="487.9" r="3.5"
-        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
-        <title>2026-03-25: 15 changes/commit</title></circle><circle cx="1065.6" cy="482.8" r="3.5"
-        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
-        <title>2026-03-26: 52 changes/commit</title></circle><circle cx="1126.8" cy="482.8" r="3.5"
-        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
-        <title>2026-03-27: 52 changes/commit</title></circle><circle cx="1188.0" cy="310.0" r="3.5"
-        fill="#00d4f5" stroke="#80eeff" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
-        <title>2026-03-28: 1299 changes/commit</title></circle>
-
-<!-- ════ OUTLIER MARKERS ════ -->
-
-        <g class="outlier-marker">
-          <polygon points="943.1111111111111,142 948.6111111111111,152 937.6111111111111,152"
-            fill="#00d4f5" stroke="#80eeff" stroke-width="1.2"
-            filter="url(#glowCyan)" opacity="0.9">
-            <title>2026-03-24: 4279 chg/commit (outlier)</title>
-          </polygon>
-          <line x1="943.1111111111111" y1="153" x2="943.1111111111111" y2="130"
-            stroke="#00d4f5" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.5"/>
-          <text x="943.1111111111111" y="139" font-size="8" fill="#80eeff"
-            text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
-            font-weight="500">4.3k</text>
-        </g>
 
 <!-- ════ ANNOTATIONS ════ -->
 
-        <line x1="1188.0" y1="226.0"
-          x2="1188.0" y2="217.0"
+        <line x1="1188.0" y1="262.0"
+          x2="1188.0" y2="253.0"
           stroke="#2563eb" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.65"/>
-        <rect x="1058.0" y="193.0"
+        <rect x="1058.0" y="229.0"
           width="130" height="24" rx="6"
           fill="#030e26" stroke="#2563eb" stroke-width="1" opacity="0.96"/>
-        <text x="1123.0" y="209.0"
+        <text x="1123.0" y="245.0"
           font-size="10" fill="#93c5fd" text-anchor="middle"
           font-family="'Lexend','Segoe UI',sans-serif" font-weight="400"
-          letter-spacing="0.5">⬡  Peak · 57 commits</text>
+          letter-spacing="0.5">⬡  Peak · 60 commits</text>
         <line x1="943.1" y1="494" x2="1188.0" y2="494"
           stroke="#f472b6" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
         <circle cx="943.1" cy="494" r="3" fill="#f472b6" opacity="0.9"/>
@@ -385,7 +367,7 @@
         <title>2026-03-27: 1 commits</title></rect><rect x="649.0" y="750.0"
         width="12" height="12" rx="2.5" fill="#93c5fd"
         stroke="#0d2464" stroke-width="0.5" stroke-opacity="0.4">
-        <title>2026-03-28: 57 commits</title></rect><rect x="664.0" y="660.0"
+        <title>2026-03-28: 60 commits</title></rect><rect x="664.0" y="660.0"
         width="12" height="12" rx="2.5" fill="#0a1630"
         stroke="#0d2464" stroke-width="0.5" stroke-opacity="0.4">
         <title>2026-03-29: 0 commits</title></rect><rect x="664.0" y="675.0"
@@ -417,28 +399,28 @@
       text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
       letter-spacing="2" font-weight="300">OVERVIEW</text>
     <g clip-path="url(#minimapClip)">
-      <path d="M 86.00 931.36 C 88.96 931.63, 97.85 932.73, 103.78 933.00 C 109.70 933.27, 115.63 933.00, 121.56 933.00 C 127.48 933.00, 133.41 933.00, 139.33 933.00 C 145.26 933.00, 151.19 933.00, 157.11 933.00 C 163.04 933.00, 168.96 933.00, 174.89 933.00 C 180.81 933.00, 186.74 935.73, 192.67 933.00 C 198.59 930.27, 204.52 916.60, 210.44 916.60 C 216.37 916.60, 222.30 930.27, 228.22 933.00 C 234.15 935.73, 240.07 940.11, 246.00 933.00 C 251.93 925.89, 257.85 890.35, 263.78 890.35 C 269.70 890.35, 275.63 926.17, 281.56 933.00 C 287.48 939.83, 293.41 931.36, 299.33 931.36 C 305.26 931.36, 311.19 941.48, 317.11 933.00 C 323.04 924.52, 328.96 882.42, 334.89 880.51 C 340.81 878.60, 346.74 913.59, 352.67 921.52 C 358.59 929.45, 364.52 926.44, 370.44 928.08 C 376.37 929.72, 382.30 946.12, 388.22 931.36 C 394.15 916.60, 403.04 854.81, 406.00 839.50 L 406.00 933 L 86.00 933 Z" fill="#4a90e2" fill-opacity="0.15"/>
-      <path d="M 86.00 931.36 C 88.96 931.63, 97.85 932.73, 103.78 933.00 C 109.70 933.27, 115.63 933.00, 121.56 933.00 C 127.48 933.00, 133.41 933.00, 139.33 933.00 C 145.26 933.00, 151.19 933.00, 157.11 933.00 C 163.04 933.00, 168.96 933.00, 174.89 933.00 C 180.81 933.00, 186.74 935.73, 192.67 933.00 C 198.59 930.27, 204.52 916.60, 210.44 916.60 C 216.37 916.60, 222.30 930.27, 228.22 933.00 C 234.15 935.73, 240.07 940.11, 246.00 933.00 C 251.93 925.89, 257.85 890.35, 263.78 890.35 C 269.70 890.35, 275.63 926.17, 281.56 933.00 C 287.48 939.83, 293.41 931.36, 299.33 931.36 C 305.26 931.36, 311.19 941.48, 317.11 933.00 C 323.04 924.52, 328.96 882.42, 334.89 880.51 C 340.81 878.60, 346.74 913.59, 352.67 921.52 C 358.59 929.45, 364.52 926.44, 370.44 928.08 C 376.37 929.72, 382.30 946.12, 388.22 931.36 C 394.15 916.60, 403.04 854.81, 406.00 839.50" fill="none" stroke="#4a90e2" stroke-width="1.5" stroke-opacity="0.7"/>
+      <path d="M 86.00 931.44 C 88.96 931.70, 97.85 932.74, 103.78 933.00 C 109.70 933.26, 115.63 933.00, 121.56 933.00 C 127.48 933.00, 133.41 933.00, 139.33 933.00 C 145.26 933.00, 151.19 933.00, 157.11 933.00 C 163.04 933.00, 168.96 933.00, 174.89 933.00 C 180.81 933.00, 186.74 935.60, 192.67 933.00 C 198.59 930.40, 204.52 917.42, 210.44 917.42 C 216.37 917.42, 222.30 930.40, 228.22 933.00 C 234.15 935.60, 240.07 939.75, 246.00 933.00 C 251.93 926.25, 257.85 892.48, 263.78 892.48 C 269.70 892.48, 275.63 926.51, 281.56 933.00 C 287.48 939.49, 293.41 931.44, 299.33 931.44 C 305.26 931.44, 311.19 941.05, 317.11 933.00 C 323.04 924.95, 328.96 884.95, 334.89 883.13 C 340.81 881.32, 346.74 914.56, 352.67 922.09 C 358.59 929.62, 364.52 926.77, 370.44 928.33 C 376.37 929.88, 382.30 946.25, 388.22 931.44 C 394.15 916.64, 403.04 854.82, 406.00 839.50 L 406.00 933 L 86.00 933 Z" fill="#4a90e2" fill-opacity="0.15"/>
+      <path d="M 86.00 931.44 C 88.96 931.70, 97.85 932.74, 103.78 933.00 C 109.70 933.26, 115.63 933.00, 121.56 933.00 C 127.48 933.00, 133.41 933.00, 139.33 933.00 C 145.26 933.00, 151.19 933.00, 157.11 933.00 C 163.04 933.00, 168.96 933.00, 174.89 933.00 C 180.81 933.00, 186.74 935.60, 192.67 933.00 C 198.59 930.40, 204.52 917.42, 210.44 917.42 C 216.37 917.42, 222.30 930.40, 228.22 933.00 C 234.15 935.60, 240.07 939.75, 246.00 933.00 C 251.93 926.25, 257.85 892.48, 263.78 892.48 C 269.70 892.48, 275.63 926.51, 281.56 933.00 C 287.48 939.49, 293.41 931.44, 299.33 931.44 C 305.26 931.44, 311.19 941.05, 317.11 933.00 C 323.04 924.95, 328.96 884.95, 334.89 883.13 C 340.81 881.32, 346.74 914.56, 352.67 922.09 C 358.59 929.62, 364.52 926.77, 370.44 928.33 C 376.37 929.88, 382.30 946.25, 388.22 931.44 C 394.15 916.64, 403.04 854.82, 406.00 839.50" fill="none" stroke="#4a90e2" stroke-width="1.5" stroke-opacity="0.7"/>
     </g>
     <clipPath id="minimapClip">
       <rect x="86" y="823" width="320" height="110" rx="4"/>
     </clipPath><path d="M 1048.00 854.90
       L 1048.00 836.00
-      A 42 42 0 1 1 1036.67 837.56
-      L 1041.77 855.76
+      A 42 42 0 1 1 1035.11 838.03
+      L 1040.91 856.01
       A 23.1 23.1 0 1 0 1048.00 854.90 Z"
       fill="#4a90e2" fill-opacity="0.8" stroke="#030e26" stroke-width="1.5">
-      <title>Kieran Lucas: 132 commits (96%)</title></path><path d="M 1041.77 855.76
-      L 1036.67 837.56
+      <title>Kieran Lucas: 134 commits (95%)</title></path><path d="M 1040.91 856.01
+      L 1035.11 838.03
       A 42 42 0 0 1 1048.00 836.00
       L 1048.00 854.90
-      A 23.1 23.1 0 0 0 1041.77 855.76 Z"
+      A 23.1 23.1 0 0 0 1040.91 856.01 Z"
       fill="#ff8c42" fill-opacity="0.8" stroke="#030e26" stroke-width="1.5">
-      <title>github-actions: 6 commits (4%)</title></path><text x="1048" y="874" font-size="9" fill="#3d7ed4" text-anchor="middle"
+      <title>github-actions: 7 commits (5%)</title></path><text x="1048" y="874" font-size="9" fill="#3d7ed4" text-anchor="middle"
     font-family="'Lexend','Segoe UI',sans-serif" letter-spacing="1.5" font-weight="300">AUTHORS</text><text x="1048" y="892" font-size="16" fill="#cce8ff" text-anchor="middle"
     font-family="'Lexend','Segoe UI',sans-serif" font-weight="600">2</text><rect x="1106" y="830" width="8" height="8" rx="2" fill="#4a90e2" opacity="0.85"/><text x="1120" y="838" font-size="9.5" fill="#3d7ed4"
-      font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">Kieran Lucas (132)</text><rect x="1106" y="848" width="8" height="8" rx="2" fill="#ff8c42" opacity="0.85"/><text x="1120" y="856" font-size="9.5" fill="#3d7ed4"
-      font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">github-actions (6)</text>
+      font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">Kieran Lucas (134)</text><rect x="1106" y="848" width="8" height="8" rx="2" fill="#ff8c42" opacity="0.85"/><text x="1120" y="856" font-size="9.5" fill="#3d7ed4"
+      font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">github-actions (7)</text>
 
 <!-- ════ WAVES ════ -->
 <path d="M 0 963 Q 79.1 956.0 158.3 963 Q 237.4 956.0 316.5 963 Q 395.6 956.0 474.8 963 Q 553.9 956.0 633.0 963 Q 712.1 956.0 791.3 963 Q 870.4 956.0 949.5 963 Q 1028.6 956.0 1107.8 963 Q 1186.9 956.0 1266.0 963" fill="none" stroke="#1948a0" stroke-width="1.2" stroke-opacity="0.35"/>
