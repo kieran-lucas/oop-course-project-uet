@@ -6,54 +6,56 @@ import java.time.LocalDateTime;
 /**
  * Phiên đấu giá — đối tượng trung tâm của toàn bộ hệ thống.
  *
- * <p>Một Auction gắn với 1 Item, có giá khởi điểm, giá hiện tại,
- * thời gian bắt đầu/kết thúc, và trạng thái.
+ * <p>Một Auction gắn với 1 Item, có giá khởi điểm, giá hiện tại, thời gian bắt đầu/kết thúc, và
+ * trạng thái.
  *
- * <p>Lưu ý sử dụng BigDecimal thay vì double cho tiền tệ.
- * double có lỗi floating point: 0.1 + 0.2 = 0.30000000000000004.
- * Trong đấu giá, sai 1 đồng cũng không chấp nhận được.
- * BigDecimal tính chính xác: new BigDecimal("0.1").add(new BigDecimal("0.2"))
- * = 0.3 đúng.
+ * <p>Lưu ý sử dụng BigDecimal thay vì double cho tiền tệ. double có lỗi floating point: 0.1 + 0.2 =
+ * 0.30000000000000004. Trong đấu giá, sai 1 đồng cũng không chấp nhận được. BigDecimal tính chính
+ * xác: new BigDecimal("0.1").add(new BigDecimal("0.2")) = 0.3 đúng.
  *
- * <p>Trạng thái phiên (status) liên kết với State pattern:
- * - OPEN: vừa tạo, Seller còn có thể sửa thông tin
- * - RUNNING: đang diễn ra, Bidder có thể đặt giá
- * - FINISHED: hết giờ, xác định người thắng
- * - PAID: người thắng đã thanh toán
- * - CANCELED: phiên bị hủy
+ * <p>Trạng thái phiên (status) liên kết với State pattern: - OPEN: vừa tạo, Seller còn có thể sửa
+ * thông tin - RUNNING: đang diễn ra, Bidder có thể đặt giá - FINISHED: hết giờ, xác định người
+ * thắng - PAID: người thắng đã thanh toán - CANCELED: phiên bị hủy
  *
- * <p>Các trạng thái này map trực tiếp với CHECK constraint trong bảng auctions
- * và với các class trong pattern/state/.
+ * <p>Các trạng thái này map trực tiếp với CHECK constraint trong bảng auctions và với các class
+ * trong pattern/state/.
  */
 public class Auction extends Entity {
 
-  private Long itemId;            // foreign key → bảng items
+  private Long itemId; // foreign key → bảng items
   private BigDecimal startingPrice;
   private BigDecimal currentPrice;
-  private Long leadingBidderId;   // foreign key → bảng users (ai đang dẫn đầu)
+  private Long leadingBidderId; // foreign key → bảng users (ai đang dẫn đầu)
   private LocalDateTime startTime;
   private LocalDateTime endTime;
-  private String status;          // OPEN, RUNNING, FINISHED, PAID, CANCELED
+  private String status; // OPEN, RUNNING, FINISHED, PAID, CANCELED
 
   public Auction() {}
 
   /** Constructor tạo phiên mới — status mặc định OPEN, currentPrice = startingPrice. */
-  public Auction(Long itemId, BigDecimal startingPrice, LocalDateTime startTime,
-      LocalDateTime endTime) {
+  public Auction(
+      Long itemId, BigDecimal startingPrice, LocalDateTime startTime, LocalDateTime endTime) {
     super();
     this.itemId = itemId;
     this.startingPrice = startingPrice;
     this.currentPrice = startingPrice; // ban đầu chưa ai bid → giá = giá khởi điểm
-    this.leadingBidderId = null;       // chưa có ai dẫn đầu
+    this.leadingBidderId = null; // chưa có ai dẫn đầu
     this.startTime = startTime;
     this.endTime = endTime;
     this.status = "OPEN";
   }
 
   /** Constructor đầy đủ từ database. */
-  public Auction(Long id, Long itemId, BigDecimal startingPrice, BigDecimal currentPrice,
-      Long leadingBidderId, LocalDateTime startTime, LocalDateTime endTime,
-      String status, LocalDateTime createdAt) {
+  public Auction(
+      Long id,
+      Long itemId,
+      BigDecimal startingPrice,
+      BigDecimal currentPrice,
+      Long leadingBidderId,
+      LocalDateTime startTime,
+      LocalDateTime endTime,
+      String status,
+      LocalDateTime createdAt) {
     super(id, createdAt);
     this.itemId = itemId;
     this.startingPrice = startingPrice;
@@ -79,8 +81,8 @@ public class Auction extends Entity {
   }
 
   /**
-   * Tính thời gian còn lại (milliseconds).
-   * Dùng cho anti-sniping: nếu remaining < 30000ms → gia hạn.
+   * Tính thời gian còn lại (milliseconds). Dùng cho anti-sniping: nếu remaining < 30000ms → gia
+   * hạn.
    */
   public long getRemainingTimeMs() {
     return java.time.Duration.between(LocalDateTime.now(), endTime).toMillis();
@@ -146,7 +148,14 @@ public class Auction extends Entity {
 
   @Override
   public String toString() {
-    return "Auction{id=" + getId() + ", item=" + itemId
-        + ", price=" + currentPrice + ", status=" + status + "}";
+    return "Auction{id="
+        + getId()
+        + ", item="
+        + itemId
+        + ", price="
+        + currentPrice
+        + ", status="
+        + status
+        + "}";
   }
 }

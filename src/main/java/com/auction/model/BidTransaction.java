@@ -6,20 +6,20 @@ import java.time.LocalDateTime;
 /**
  * Ghi lại mỗi lần đặt giá trong một phiên đấu giá.
  *
- * <p>Mỗi khi ai đó bid thành công (giá hợp lệ, phiên đang mở),
- * hệ thống tạo 1 BidTransaction ghi lại: ai, phiên nào, giá bao nhiêu, lúc nào.
+ * <p>Mỗi khi ai đó bid thành công (giá hợp lệ, phiên đang mở), hệ thống tạo 1 BidTransaction ghi
+ * lại: ai, phiên nào, giá bao nhiêu, lúc nào.
  *
- * <p>BidTransaction không bao giờ bị sửa hay xóa — nó là lịch sử bất biến.
- * Điều này quan trọng cho: tính minh bạch đấu giá, bid history chart (trục X = thời gian,
- * trục Y = giá lấy từ các BidTransaction), và audit trail.
+ * <p>BidTransaction không bao giờ bị sửa hay xóa — nó là lịch sử bất biến. Điều này quan trọng cho:
+ * tính minh bạch đấu giá, bid history chart (trục X = thời gian, trục Y = giá lấy từ các
+ * BidTransaction), và audit trail.
  *
- * <p>Field isAutoBid đánh dấu bid này do hệ thống tự đặt (auto-bidding)
- * hay do người dùng tự tay đặt. Dùng cho hiển thị trên chart và thống kê.
+ * <p>Field isAutoBid đánh dấu bid này do hệ thống tự đặt (auto-bidding) hay do người dùng tự tay
+ * đặt. Dùng cho hiển thị trên chart và thống kê.
  */
 public class BidTransaction extends Entity {
 
   private Long auctionId; // foreign key → bảng auctions
-  private Long bidderId;  // foreign key → bảng users
+  private Long bidderId; // foreign key → bảng users
   private BigDecimal amount;
   private boolean autoBid;
 
@@ -35,8 +35,13 @@ public class BidTransaction extends Entity {
   }
 
   /** Constructor đầy đủ từ database. */
-  public BidTransaction(Long id, Long auctionId, Long bidderId, BigDecimal amount,
-      boolean autoBid, LocalDateTime createdAt) {
+  public BidTransaction(
+      Long id,
+      Long auctionId,
+      Long bidderId,
+      BigDecimal amount,
+      boolean autoBid,
+      LocalDateTime createdAt) {
     super(id, createdAt);
     this.auctionId = auctionId;
     this.bidderId = bidderId;
@@ -80,7 +85,13 @@ public class BidTransaction extends Entity {
 
   @Override
   public String toString() {
-    return "Bid{auction=" + auctionId + ", bidder=" + bidderId
-        + ", amount=" + amount + (autoBid ? " (auto)" : "") + "}";
+    return "Bid{auction="
+        + auctionId
+        + ", bidder="
+        + bidderId
+        + ", amount="
+        + amount
+        + (autoBid ? " (auto)" : "")
+        + "}";
   }
 }

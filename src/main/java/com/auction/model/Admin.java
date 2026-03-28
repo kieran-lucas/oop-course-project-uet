@@ -5,8 +5,8 @@ import java.time.LocalDateTime;
 /**
  * Quản trị viên hệ thống.
  *
- * <p>Admin có quyền: quản lý tất cả user, xóa phiên đấu giá vi phạm,
- * xem thống kê hệ thống. Admin KHÔNG tham gia đấu giá.
+ * <p>Admin có quyền: quản lý tất cả user, xóa phiên đấu giá vi phạm, xem thống kê hệ thống. Admin
+ * KHÔNG tham gia đấu giá.
  */
 public class Admin extends User {
 
@@ -16,8 +16,8 @@ public class Admin extends User {
     super(username, passwordHash, email);
   }
 
-  public Admin(Long id, String username, String passwordHash, String email,
-      LocalDateTime createdAt) {
+  public Admin(
+      Long id, String username, String passwordHash, String email, LocalDateTime createdAt) {
     super(id, username, passwordHash, email, createdAt);
   }
 

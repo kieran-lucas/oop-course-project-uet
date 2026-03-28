@@ -2,7 +2,6 @@ package com.auction.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -113,11 +112,9 @@ class ModelTest {
     @Test
     @DisplayName("New auction has status OPEN and currentPrice = startingPrice")
     void newAuctionDefaults() {
-      Auction auction = new Auction(
-          1L,
-          new BigDecimal("100000"),
-          LocalDateTime.now(),
-          LocalDateTime.now().plusHours(2));
+      Auction auction =
+          new Auction(
+              1L, new BigDecimal("100000"), LocalDateTime.now(), LocalDateTime.now().plusHours(2));
 
       assertEquals("OPEN", auction.getStatus());
       assertEquals(new BigDecimal("100000"), auction.getCurrentPrice());
@@ -127,11 +124,12 @@ class ModelTest {
     @Test
     @DisplayName("isExpired returns true after endTime")
     void expiredAuction() {
-      Auction auction = new Auction(
-          1L,
-          new BigDecimal("100000"),
-          LocalDateTime.now().minusHours(3),
-          LocalDateTime.now().minusHours(1)); // ended 1 hour ago
+      Auction auction =
+          new Auction(
+              1L,
+              new BigDecimal("100000"),
+              LocalDateTime.now().minusHours(3),
+              LocalDateTime.now().minusHours(1)); // ended 1 hour ago
 
       assertTrue(auction.isExpired());
     }
@@ -139,11 +137,12 @@ class ModelTest {
     @Test
     @DisplayName("isExpired returns false before endTime")
     void activeAuction() {
-      Auction auction = new Auction(
-          1L,
-          new BigDecimal("100000"),
-          LocalDateTime.now(),
-          LocalDateTime.now().plusHours(2)); // ends in 2 hours
+      Auction auction =
+          new Auction(
+              1L,
+              new BigDecimal("100000"),
+              LocalDateTime.now(),
+              LocalDateTime.now().plusHours(2)); // ends in 2 hours
 
       assertFalse(auction.isExpired());
     }
@@ -156,10 +155,12 @@ class ModelTest {
     @Test
     @DisplayName("canBidAt returns true when within budget")
     void withinBudget() {
-      AutoBidConfig config = new AutoBidConfig(
-          1L, 1L,
-          new BigDecimal("1000000"),  // max 1 triệu
-          new BigDecimal("50000"));    // increment 50k
+      AutoBidConfig config =
+          new AutoBidConfig(
+              1L,
+              1L,
+              new BigDecimal("1000000"), // max 1 triệu
+              new BigDecimal("50000")); // increment 50k
 
       // Giá hiện tại 500k + increment 50k = 550k < 1 triệu → OK
       assertTrue(config.canBidAt(new BigDecimal("500000")));
@@ -168,10 +169,12 @@ class ModelTest {
     @Test
     @DisplayName("canBidAt returns false when over budget")
     void overBudget() {
-      AutoBidConfig config = new AutoBidConfig(
-          1L, 1L,
-          new BigDecimal("1000000"),  // max 1 triệu
-          new BigDecimal("50000"));    // increment 50k
+      AutoBidConfig config =
+          new AutoBidConfig(
+              1L,
+              1L,
+              new BigDecimal("1000000"), // max 1 triệu
+              new BigDecimal("50000")); // increment 50k
 
       // Giá hiện tại 980k + increment 50k = 1030k > 1 triệu → KHÔNG OK
       assertFalse(config.canBidAt(new BigDecimal("980000")));
@@ -180,10 +183,8 @@ class ModelTest {
     @Test
     @DisplayName("getNextBidAmount calculates correctly")
     void nextBidAmount() {
-      AutoBidConfig config = new AutoBidConfig(
-          1L, 1L,
-          new BigDecimal("1000000"),
-          new BigDecimal("50000"));
+      AutoBidConfig config =
+          new AutoBidConfig(1L, 1L, new BigDecimal("1000000"), new BigDecimal("50000"));
 
       BigDecimal next = config.getNextBidAmount(new BigDecimal("500000"));
       assertEquals(new BigDecimal("550000"), next);

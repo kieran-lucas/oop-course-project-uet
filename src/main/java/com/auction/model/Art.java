@@ -5,8 +5,8 @@ import java.time.LocalDateTime;
 /**
  * Tác phẩm nghệ thuật — có thêm thông tin nghệ sĩ.
  *
- * <p>Ví dụ: "Starry Night" (artist = "Van Gogh").
- * Thông tin nghệ sĩ quan trọng với Art nhưng vô nghĩa với Electronics.
+ * <p>Ví dụ: "Starry Night" (artist = "Van Gogh"). Thông tin nghệ sĩ quan trọng với Art nhưng vô
+ * nghĩa với Electronics.
  */
 public class Art extends Item {
 
@@ -19,7 +19,12 @@ public class Art extends Item {
     this.artist = artist;
   }
 
-  public Art(Long id, String name, String description, Long sellerId, String artist,
+  public Art(
+      Long id,
+      String name,
+      String description,
+      Long sellerId,
+      String artist,
       LocalDateTime createdAt) {
     super(id, name, description, sellerId, createdAt);
     this.artist = artist;
