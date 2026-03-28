@@ -32,7 +32,7 @@ const DEFAULTS = {
   // Outlier threshold (multiples of IQR above Q3)
   outlierIQRMultiplier: 1.5,
   // Peak height ratio: peak values reach at most this fraction of chart height (0.0–1.0)
-  peakHeightRatio: 0.7,
+  peakHeightRatio: 0.9,
   // Annotations: auto-detect peaks, streaks, milestones
   annotations: true,
   // Theme: "hollow-knight" | "ocean-depth" | "aurora"
