@@ -1,4 +1,9 @@
-// scripts/generate-commit-chart.js
+#!/usr/bin/env node
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  ⬡  COMMIT ANALYTICS — Hollow Knight Edition v2                           ║
+// ║  Adaptive · Multi-mode · Outlier-aware · Professional-grade SVG charts     ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+
 const fs = require("fs");
 
 async function getFetch() {
@@ -6,24 +11,176 @@ async function getFetch() {
   return fetch;
 }
 
+// ─── CLI CONFIGURATION ──────────────────────────────────────────────────────
+
+const DEFAULTS = {
+  repo: "kieran-lucas/oop-course-project-uet",
+  concurrency: 6,
+  outputDir: "scripts",
+  // Aggregation: "day" | "week" | "month"
+  aggregation: "day",
+  // Scale: "linear" | "log" | "adaptive"
+  scaleMode: "adaptive",
+  // Moving average window (0 = disabled)
+  maWindow: 7,
+  // Max data points before auto-aggregation kicks in
+  maxDataPoints: 90,
+  // Enable heatmap calendar view
+  heatmap: true,
+  // Enable mini-map overview
+  minimap: true,
+  // Outlier threshold (multiples of IQR above Q3)
+  outlierIQRMultiplier: 1.5,
+  // Annotations: auto-detect peaks, streaks, milestones
+  annotations: true,
+  // Theme: "hollow-knight" | "ocean-depth" | "aurora"
+  theme: "hollow-knight",
+};
+
+function parseArgs() {
+  const cfg = { ...DEFAULTS };
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    const [key, val] = args[i].replace(/^--/, "").split("=");
+    if (key === "repo") cfg.repo = val;
+    else if (key === "agg" || key === "aggregation") cfg.aggregation = val;
+    else if (key === "scale") cfg.scaleMode = val;
+    else if (key === "ma") cfg.maWindow = parseInt(val, 10);
+    else if (key === "max-points") cfg.maxDataPoints = parseInt(val, 10);
+    else if (key === "no-heatmap") cfg.heatmap = false;
+    else if (key === "no-minimap") cfg.minimap = false;
+    else if (key === "no-annotations") cfg.annotations = false;
+    else if (key === "theme") cfg.theme = val;
+    else if (key === "output" || key === "out") cfg.outputDir = val;
+    else if (key === "concurrency") cfg.concurrency = parseInt(val, 10);
+    else if (key === "outlier-iqr") cfg.outlierIQRMultiplier = parseFloat(val);
+  }
+  return cfg;
+}
+
+const CFG = parseArgs();
 const token = process.env.GITHUB_TOKEN;
 if (!token) {
-  console.error("❌ Vui lòng đặt biến môi trường GITHUB_TOKEN trước khi chạy script.");
+  console.error("❌ Set GITHUB_TOKEN environment variable before running.");
   process.exit(1);
 }
 
-const REPO = "kieran-lucas/oop-course-project-uet";
-const CONCURRENCY = 6;
+// ═══════════════════════════════════════════════════════════════════════════════
+// §1  THEMES
+// ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── FETCH ───────────────────────────────────────────────────────────────────
+const THEMES = {
+  "hollow-knight": {
+    bg: ["#010c1e", "#010f27", "#000a18"],
+    primary: "#4a90e2",
+    primaryLight: "#5aa8ff",
+    primaryDim: "#1a3f7a",
+    accent1: "#ff8c42",       // commits — orange
+    accent1Light: "#ffd0a0",
+    accent2: "#00d4f5",       // changes — cyan
+    accent2Light: "#80eeff",
+    positive: "#22c55e",      // additions — green
+    negative: "#ef4444",      // deletions — red
+    text: "#cce8ff",
+    textDim: "#3d7ed4",
+    textMuted: "#1948a0",
+    grid: "#1a3f7a",
+    border: ["#1840a0", "#3b82f6", "#60a5fa"],
+    headerBand: "#091c3e",
+    surface: "#030e26",
+    patternStroke: "#0d2464",
+    annotation: "#2563eb",
+    annotationText: "#93c5fd",
+    heatEmpty: "#0a1630",
+    heatLow: "#0d3068",
+    heatMid: "#1e56a8",
+    heatHigh: "#3b82f6",
+    heatMax: "#93c5fd",
+    maLine: "#a78bfa",
+    maLineLight: "#c4b5fd",
+    outlierFill: "#fbbf24",
+    outlierStroke: "#f59e0b",
+    milestoneColor: "#f472b6",
+  },
+  "ocean-depth": {
+    bg: ["#020e12", "#031820", "#011018"],
+    primary: "#0ea5e9",
+    primaryLight: "#38bdf8",
+    primaryDim: "#0c4a6e",
+    accent1: "#f97316",
+    accent1Light: "#fdba74",
+    accent2: "#06b6d4",
+    accent2Light: "#67e8f9",
+    positive: "#10b981",
+    negative: "#f43f5e",
+    text: "#e0f2fe",
+    textDim: "#0284c7",
+    textMuted: "#075985",
+    grid: "#0c4a6e",
+    border: ["#0369a1", "#0ea5e9", "#38bdf8"],
+    headerBand: "#082f49",
+    surface: "#0c1a2e",
+    patternStroke: "#0c4a6e",
+    annotation: "#0284c7",
+    annotationText: "#7dd3fc",
+    heatEmpty: "#0a1a28",
+    heatLow: "#0c4a6e",
+    heatMid: "#0284c7",
+    heatHigh: "#0ea5e9",
+    heatMax: "#7dd3fc",
+    maLine: "#8b5cf6",
+    maLineLight: "#a78bfa",
+    outlierFill: "#f59e0b",
+    outlierStroke: "#d97706",
+    milestoneColor: "#ec4899",
+  },
+  "aurora": {
+    bg: ["#0a0a1a", "#0f0e24", "#08081a"],
+    primary: "#8b5cf6",
+    primaryLight: "#a78bfa",
+    primaryDim: "#3b1f7e",
+    accent1: "#f472b6",
+    accent1Light: "#f9a8d4",
+    accent2: "#34d399",
+    accent2Light: "#6ee7b7",
+    positive: "#22d3ee",
+    negative: "#fb7185",
+    text: "#e2e8f0",
+    textDim: "#7c3aed",
+    textMuted: "#4c1d95",
+    grid: "#2e1065",
+    border: ["#6d28d9", "#8b5cf6", "#a78bfa"],
+    headerBand: "#1e1045",
+    surface: "#130d30",
+    patternStroke: "#2e1065",
+    annotation: "#7c3aed",
+    annotationText: "#c4b5fd",
+    heatEmpty: "#120e28",
+    heatLow: "#3b1f7e",
+    heatMid: "#6d28d9",
+    heatHigh: "#8b5cf6",
+    heatMax: "#c4b5fd",
+    maLine: "#fbbf24",
+    maLineLight: "#fde68a",
+    outlierFill: "#fb923c",
+    outlierStroke: "#f97316",
+    milestoneColor: "#22d3ee",
+  },
+};
+
+function T() { return THEMES[CFG.theme] || THEMES["hollow-knight"]; }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §2  GITHUB API — Fetch commits + stats
+// ═══════════════════════════════════════════════════════════════════════════════
 
 async function fetchAllCommits(fetch) {
   let page = 1, all = [];
   while (true) {
     console.log(`📦 Fetching commits page ${page}...`);
     const res = await fetch(
-      `https://api.github.com/repos/${REPO}/commits?per_page=100&page=${page}`,
-      { headers: { Authorization: `token ${token}`, "User-Agent": "kny-commit-chart" } }
+      `https://api.github.com/repos/${CFG.repo}/commits?per_page=100&page=${page}`,
+      { headers: { Authorization: `token ${token}`, "User-Agent": "commit-chart-v2" } }
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     const data = await res.json();
@@ -38,45 +195,267 @@ async function fetchAllCommits(fetch) {
 async function fetchCommitStats(fetch, sha) {
   try {
     const res = await fetch(
-      `https://api.github.com/repos/${REPO}/commits/${sha}`,
-      { headers: { Authorization: `token ${token}`, "User-Agent": "kny-commit-chart" } }
+      `https://api.github.com/repos/${CFG.repo}/commits/${sha}`,
+      { headers: { Authorization: `token ${token}`, "User-Agent": "commit-chart-v2" } }
     );
-    if (!res.ok) return { additions: 0, deletions: 0 };
+    if (!res.ok) return { additions: 0, deletions: 0, files: 0 };
     const data = await res.json();
-    return { additions: data.stats?.additions || 0, deletions: data.stats?.deletions || 0 };
+    return {
+      additions: data.stats?.additions || 0,
+      deletions: data.stats?.deletions || 0,
+      files: data.files?.length || 0,
+    };
   } catch {
-    return { additions: 0, deletions: 0 };
+    return { additions: 0, deletions: 0, files: 0 };
   }
 }
 
 async function batchFetchStats(fetch, commits) {
   const results = new Array(commits.length);
-  for (let i = 0; i < commits.length; i += CONCURRENCY) {
-    const batch = commits.slice(i, i + CONCURRENCY);
-    process.stdout.write(`\r🔍 Stats ${i + 1}–${Math.min(i + CONCURRENCY, commits.length)} / ${commits.length}   `);
+  for (let i = 0; i < commits.length; i += CFG.concurrency) {
+    const batch = commits.slice(i, i + CFG.concurrency);
+    process.stdout.write(`\r🔍 Stats ${i + 1}–${Math.min(i + CFG.concurrency, commits.length)} / ${commits.length}   `);
     const stats = await Promise.all(batch.map(c => fetchCommitStats(fetch, c.sha)));
     stats.forEach((s, j) => (results[i + j] = s));
-    if (i + CONCURRENCY < commits.length) await new Promise(r => setTimeout(r, 180));
+    if (i + CFG.concurrency < commits.length) await new Promise(r => setTimeout(r, 180));
   }
   console.log("\n✅ Stats fetched.");
   return results;
 }
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// §3  DATA PROCESSING — Aggregation, Statistics, Outlier Detection
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function extractAuthorMap(commits) {
+  const map = {};
+  commits.forEach(c => {
+    const name = c.commit.author.name || c.author?.login || "unknown";
+    map[name] = (map[name] || 0) + 1;
+  });
+  return Object.entries(map)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([name, count]) => ({ name, count }));
+}
 
 function groupByDay(commits, statsArr) {
   const map = {};
   commits.forEach((c, i) => {
     const day = c.commit.author.date.slice(0, 10);
-    if (!map[day]) map[day] = { commits: 0, additions: 0, deletions: 0 };
+    if (!map[day]) map[day] = { commits: 0, additions: 0, deletions: 0, files: 0, authors: new Set() };
     map[day].commits++;
     map[day].additions += statsArr[i].additions;
     map[day].deletions += statsArr[i].deletions;
+    map[day].files += statsArr[i].files;
+    map[day].authors.add(c.commit.author.name || c.author?.login || "unknown");
   });
+  // Convert author sets to counts
+  for (const k of Object.keys(map)) {
+    map[k].authorCount = map[k].authors.size;
+    delete map[k].authors;
+  }
   return map;
 }
 
-// ─── SVG UTILS ───────────────────────────────────────────────────────────────
+function fillMissingDays(dayData) {
+  const days = Object.keys(dayData).sort();
+  if (days.length === 0) return dayData;
+  const start = new Date(days[0] + "T00:00:00Z");
+  const end = new Date(days[days.length - 1] + "T00:00:00Z");
+  const filled = {};
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    const key = d.toISOString().slice(0, 10);
+    filled[key] = dayData[key] || { commits: 0, additions: 0, deletions: 0, files: 0, authorCount: 0 };
+  }
+  return filled;
+}
+
+function aggregateByWeek(dayData) {
+  const result = {};
+  Object.entries(dayData).forEach(([day, data]) => {
+    const d = new Date(day + "T00:00:00Z");
+    // ISO week start (Monday)
+    const weekStart = new Date(d);
+    const dow = d.getUTCDay() || 7; // Mon=1 ... Sun=7
+    weekStart.setUTCDate(d.getUTCDate() - dow + 1);
+    const key = weekStart.toISOString().slice(0, 10);
+    if (!result[key]) result[key] = { commits: 0, additions: 0, deletions: 0, files: 0, authorCount: 0 };
+    result[key].commits += data.commits;
+    result[key].additions += data.additions;
+    result[key].deletions += data.deletions;
+    result[key].files += data.files;
+    result[key].authorCount = Math.max(result[key].authorCount, data.authorCount);
+  });
+  return result;
+}
+
+function aggregateByMonth(dayData) {
+  const result = {};
+  Object.entries(dayData).forEach(([day, data]) => {
+    const key = day.slice(0, 7) + "-01";
+    if (!result[key]) result[key] = { commits: 0, additions: 0, deletions: 0, files: 0, authorCount: 0 };
+    result[key].commits += data.commits;
+    result[key].additions += data.additions;
+    result[key].deletions += data.deletions;
+    result[key].files += data.files;
+    result[key].authorCount = Math.max(result[key].authorCount, data.authorCount);
+  });
+  return result;
+}
+
+function autoSelectAggregation(dayCount) {
+  if (CFG.aggregation !== "day") return CFG.aggregation;
+  if (dayCount > CFG.maxDataPoints * 4) return "month";
+  if (dayCount > CFG.maxDataPoints) return "week";
+  return "day";
+}
+
+// ─── Statistics ──────────────────────────────────────────────────────────────
+
+function computeStats(arr) {
+  if (arr.length === 0) return { min: 0, max: 0, mean: 0, median: 0, q1: 0, q3: 0, iqr: 0, stddev: 0 };
+  const sorted = [...arr].sort((a, b) => a - b);
+  const n = sorted.length;
+  const sum = sorted.reduce((a, b) => a + b, 0);
+  const mean = sum / n;
+  const median = n % 2 === 0 ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 : sorted[Math.floor(n / 2)];
+  const q1 = sorted[Math.floor(n * 0.25)];
+  const q3 = sorted[Math.floor(n * 0.75)];
+  const iqr = q3 - q1;
+  const variance = sorted.reduce((acc, v) => acc + (v - mean) ** 2, 0) / n;
+  const stddev = Math.sqrt(variance);
+  return { min: sorted[0], max: sorted[n - 1], mean, median, q1, q3, iqr, stddev };
+}
+
+function movingAverage(arr, window) {
+  if (window <= 1) return arr;
+  const result = [];
+  for (let i = 0; i < arr.length; i++) {
+    const start = Math.max(0, i - Math.floor(window / 2));
+    const end = Math.min(arr.length, i + Math.ceil(window / 2));
+    const slice = arr.slice(start, end);
+    result.push(slice.reduce((a, b) => a + b, 0) / slice.length);
+  }
+  return result;
+}
+
+function detectOutliers(arr, multiplier) {
+  const stats = computeStats(arr);
+  const upperFence = stats.q3 + multiplier * stats.iqr;
+  const lowerFence = Math.max(0, stats.q1 - multiplier * stats.iqr);
+  return arr.map((v, i) => ({
+    index: i,
+    value: v,
+    isOutlier: v > upperFence || v < lowerFence,
+    isUpperOutlier: v > upperFence,
+  }));
+}
+
+// ─── Adaptive Scale ─────────────────────────────────────────────────────────
+
+function computeAdaptiveMax(arr, stats, outliers) {
+  if (CFG.scaleMode === "linear") return Math.max(...arr, 1);
+
+  const hasUpperOutliers = outliers.some(o => o.isUpperOutlier);
+  if (!hasUpperOutliers || CFG.scaleMode === "linear") return Math.max(...arr, 1);
+
+  // Use P95 as visual max, mark outliers above with special annotation
+  const sorted = [...arr].sort((a, b) => a - b);
+  const p95 = sorted[Math.floor(sorted.length * 0.95)];
+  const p99 = sorted[Math.floor(sorted.length * 0.99)];
+
+  // If the max is more than 3x the P95, compress the scale
+  const absMax = Math.max(...arr);
+  if (absMax > p95 * 3) {
+    return p95 * 1.5; // Compress, mark outliers with special treatment
+  }
+  return absMax;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §4  SMART ANNOTATIONS — Peaks, Streaks, Milestones
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function detectAnnotations(days, seriesData) {
+  if (!CFG.annotations) return [];
+  const annots = [];
+  const { commits, additions, deletions } = seriesData;
+  const n = days.length;
+  if (n === 0) return annots;
+
+  // ─── Peak commit day ──
+  const maxCommits = Math.max(...commits);
+  const peakIdx = commits.indexOf(maxCommits);
+  if (maxCommits > 0) {
+    annots.push({
+      type: "peak",
+      index: peakIdx,
+      label: `Peak · ${maxCommits} commits`,
+      series: "commits",
+    });
+  }
+
+  // ─── Longest streak ──
+  let maxStreak = 0, curStreak = 0, streakEnd = -1;
+  for (let i = 0; i < n; i++) {
+    if (commits[i] > 0) {
+      curStreak++;
+      if (curStreak > maxStreak) { maxStreak = curStreak; streakEnd = i; }
+    } else {
+      curStreak = 0;
+    }
+  }
+  if (maxStreak >= 3) {
+    const streakStart = streakEnd - maxStreak + 1;
+    annots.push({
+      type: "streak",
+      startIndex: streakStart,
+      endIndex: streakEnd,
+      label: `${maxStreak}-day streak`,
+      series: "commits",
+    });
+  }
+
+  // ─── Biggest single-day code change ──
+  const changes = additions.map((a, i) => a + deletions[i]);
+  const maxChange = Math.max(...changes);
+  const bigIdx = changes.indexOf(maxChange);
+  if (maxChange > 0 && bigIdx !== peakIdx) {
+    annots.push({
+      type: "milestone",
+      index: bigIdx,
+      label: `${fmtK(maxChange)} lines changed`,
+      series: "changes",
+    });
+  }
+
+  // ─── Cumulative milestones (1k, 5k, 10k, 50k, 100k lines) ──
+  let cumulative = 0;
+  const milestones = [1000, 5000, 10000, 50000, 100000];
+  const hit = new Set();
+  for (let i = 0; i < n; i++) {
+    cumulative += additions[i] - deletions[i];
+    cumulative = Math.max(0, cumulative);
+    for (const m of milestones) {
+      if (cumulative >= m && !hit.has(m)) {
+        hit.add(m);
+        annots.push({
+          type: "cumulative-milestone",
+          index: i,
+          label: `${fmtK(m)} lines`,
+          series: "totalLines",
+        });
+      }
+    }
+  }
+
+  return annots;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §5  SVG UTILITIES — Paths, Labels, Ticks, Splines
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function catmullRomToBezier(points) {
   if (points.length === 0) return "";
@@ -96,373 +475,739 @@ function catmullRomToBezier(points) {
   return d;
 }
 
-function formatLabel(dateStr) {
-  const d = new Date(dateStr + "T00:00:00");
-  return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`;
+function formatLabel(dateStr, agg) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  if (agg === "month") return `${mon[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  if (agg === "week") return `${d.getUTCDate()} ${mon[d.getUTCMonth()]}`;
+  return `${d.getUTCDate()} ${mon[d.getUTCMonth()]}`;
 }
 
 function fmtK(v) {
-  return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v);
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+  return String(Math.round(v));
 }
 
 function niceTicks(maxVal, count = 5) {
+  if (maxVal <= 0) return [0];
   const raw = maxVal / count;
   const mag = Math.pow(10, Math.floor(Math.log10(raw)));
   const nice = [1, 2, 2.5, 5, 10].find(f => f * mag >= raw) || 10;
   const step = nice * mag;
-  return Array.from({ length: count + 1 }, (_, i) => i * step).filter(v => v <= maxVal * 1.05);
+  const ticks = [];
+  for (let v = 0; v <= maxVal * 1.05; v += step) ticks.push(Math.round(v * 1000) / 1000);
+  return ticks;
 }
 
-// ─── SVG GENERATION ──────────────────────────────────────────────────────────
+function escXml(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
-function generateSVG(dayData) {
+// ═══════════════════════════════════════════════════════════════════════════════
+// §6  HEATMAP CALENDAR — GitHub-style contribution grid
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function generateHeatmapSVG(dayData, yOffset, chartWidth) {
+  if (!CFG.heatmap) return { svg: "", height: 0 };
+  const t = T();
+
   const days = Object.keys(dayData).sort();
+  if (days.length === 0) return { svg: "", height: 0 };
+
+  const values = days.map(d => dayData[d].commits);
+  const maxVal = Math.max(...values, 1);
+
+  // Compute grid dimensions
+  const cellSize = 12;
+  const cellGap = 3;
+  const cellStep = cellSize + cellGap;
+  const labelW = 32;
+
+  // Start from the first Sunday on or before the first day
+  const startDate = new Date(days[0] + "T00:00:00Z");
+  const startDow = startDate.getUTCDay();
+  const gridStart = new Date(startDate);
+  gridStart.setUTCDate(gridStart.getUTCDate() - startDow);
+
+  const endDate = new Date(days[days.length - 1] + "T00:00:00Z");
+  const totalDays = Math.ceil((endDate - gridStart) / (1000 * 60 * 60 * 24)) + 7;
+  const totalWeeks = Math.ceil(totalDays / 7);
+
+  // Heatmap color quantization
+  const quantize = (v) => {
+    if (v === 0) return t.heatEmpty;
+    const ratio = v / maxVal;
+    if (ratio < 0.25) return t.heatLow;
+    if (ratio < 0.5) return t.heatMid;
+    if (ratio < 0.75) return t.heatHigh;
+    return t.heatMax;
+  };
+
+  // Calculate actual needed width and center within chartWidth
+  const gridW = totalWeeks * cellStep;
+  const heatContentW = labelW + gridW;
+  const heatOffsetX = Math.max(0, (chartWidth - heatContentW) / 2);
+
+  let svg = "";
+  const heatHeight = 7 * cellStep + 36; // 7 rows + labels
+
+  // Section title
+  svg += `<text x="${chartWidth / 2}" y="${yOffset + 16}" font-size="11" fill="${t.textDim}"
+    text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
+    letter-spacing="3" font-weight="400">CONTRIBUTION  CALENDAR</text>`;
+
+  const gridY = yOffset + 30;
+
+  // Day-of-week labels
+  const dowLabels = ["", "M", "", "W", "", "F", ""];
+  dowLabels.forEach((lbl, i) => {
+    if (lbl) {
+      svg += `<text x="${heatOffsetX + labelW - 6}" y="${gridY + i * cellStep + cellSize - 1}"
+        font-size="9" fill="${t.textDim}" text-anchor="end"
+        font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">${lbl}</text>`;
+    }
+  });
+
+  // Cells
+  const dateLookup = {};
+  days.forEach(d => { dateLookup[d] = dayData[d].commits; });
+
+  const cur = new Date(gridStart);
+  for (let w = 0; w < totalWeeks && w < 60; w++) {
+    for (let d = 0; d < 7; d++) {
+      const key = cur.toISOString().slice(0, 10);
+      const val = dateLookup[key] || 0;
+      const x = heatOffsetX + labelW + w * cellStep;
+      const y = gridY + d * cellStep;
+      const color = quantize(val);
+
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+        width="${cellSize}" height="${cellSize}" rx="2.5" fill="${color}"
+        stroke="${t.patternStroke}" stroke-width="0.5" stroke-opacity="0.4">
+        <title>${key}: ${val} commits</title></rect>`;
+
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+
+    // Month labels at week boundaries
+    if (cur.getUTCDate() <= 7) {
+      const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const x = heatOffsetX + labelW + w * cellStep;
+      svg += `<text x="${x.toFixed(1)}" y="${gridY - 4}" font-size="8.5" fill="${t.textDim}"
+        font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">${mon[cur.getUTCMonth()]}</text>`;
+    }
+  }
+
+  return { svg, height: heatHeight + 10 };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §7  MINI-MAP OVERVIEW — Compact full-range sparkline
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function generateMinimapSVG(commitsArr, xStart, yOffset, width, height) {
+  if (!CFG.minimap || commitsArr.length < 3) return "";
+  const t = T();
+  const n = commitsArr.length;
+  const maxVal = Math.max(...commitsArr, 1);
+
+  const pts = commitsArr.map((v, i) => ({
+    x: xStart + (i / (n - 1)) * width,
+    y: yOffset + height - (v / maxVal) * height * 0.85,
+  }));
+
+  const path = catmullRomToBezier(pts);
+  const areaPath = `${path} L ${pts[n - 1].x.toFixed(2)} ${yOffset + height} L ${pts[0].x.toFixed(2)} ${yOffset + height} Z`;
+
+  return `
+    <rect x="${xStart}" y="${yOffset}" width="${width}" height="${height}"
+      rx="4" fill="${t.surface}" fill-opacity="0.6" stroke="${t.primaryDim}" stroke-width="0.8"/>
+    <text x="${xStart + width / 2}" y="${yOffset - 4}" font-size="8" fill="${t.textDim}"
+      text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
+      letter-spacing="2" font-weight="300">OVERVIEW</text>
+    <g clip-path="url(#minimapClip)">
+      <path d="${areaPath}" fill="${t.primary}" fill-opacity="0.15"/>
+      <path d="${path}" fill="none" stroke="${t.primary}" stroke-width="1.5" stroke-opacity="0.7"/>
+    </g>
+    <clipPath id="minimapClip">
+      <rect x="${xStart}" y="${yOffset}" width="${width}" height="${height}" rx="4"/>
+    </clipPath>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §8  AUTHOR DISTRIBUTION — Donut chart
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function generateAuthorDonutSVG(authorData, cx, cy, radius) {
+  if (authorData.length === 0) return "";
+  const t = T();
+  const total = authorData.reduce((s, a) => s + a.count, 0);
+  const colors = [t.primary, t.accent1, t.accent2, t.positive, t.negative, t.maLine, t.milestoneColor, t.textDim];
+
+  let svg = "";
+  let startAngle = -Math.PI / 2;
+  const innerR = radius * 0.55;
+
+  authorData.forEach((author, i) => {
+    const sliceAngle = (author.count / total) * 2 * Math.PI;
+    const endAngle = startAngle + sliceAngle;
+    const largeArc = sliceAngle > Math.PI ? 1 : 0;
+
+    const x1 = cx + radius * Math.cos(startAngle);
+    const y1 = cy + radius * Math.sin(startAngle);
+    const x2 = cx + radius * Math.cos(endAngle);
+    const y2 = cy + radius * Math.sin(endAngle);
+    const ix1 = cx + innerR * Math.cos(startAngle);
+    const iy1 = cy + innerR * Math.sin(startAngle);
+    const ix2 = cx + innerR * Math.cos(endAngle);
+    const iy2 = cy + innerR * Math.sin(endAngle);
+
+    const color = colors[i % colors.length];
+    svg += `<path d="M ${ix1.toFixed(2)} ${iy1.toFixed(2)}
+      L ${x1.toFixed(2)} ${y1.toFixed(2)}
+      A ${radius} ${radius} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}
+      L ${ix2.toFixed(2)} ${iy2.toFixed(2)}
+      A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1.toFixed(2)} ${iy1.toFixed(2)} Z"
+      fill="${color}" fill-opacity="0.8" stroke="${t.surface}" stroke-width="1.5">
+      <title>${escXml(author.name)}: ${author.count} commits (${Math.round(author.count / total * 100)}%)</title></path>`;
+
+    startAngle = endAngle;
+  });
+
+  // Center label
+  svg += `<text x="${cx}" y="${cy - 4}" font-size="9" fill="${t.textDim}" text-anchor="middle"
+    font-family="'Lexend','Segoe UI',sans-serif" letter-spacing="1.5" font-weight="300">AUTHORS</text>`;
+  svg += `<text x="${cx}" y="${cy + 14}" font-size="16" fill="${t.text}" text-anchor="middle"
+    font-family="'Lexend','Segoe UI',sans-serif" font-weight="600">${authorData.length}</text>`;
+
+  // Legend (right side)
+  const legendX = cx + radius + 16;
+  authorData.slice(0, 5).forEach((author, i) => {
+    const ly = cy - radius + i * 18;
+    const color = colors[i % colors.length];
+    const name = author.name.length > 14 ? author.name.slice(0, 12) + "…" : author.name;
+    svg += `<rect x="${legendX}" y="${ly - 6}" width="8" height="8" rx="2" fill="${color}" opacity="0.85"/>`;
+    svg += `<text x="${legendX + 14}" y="${ly + 2}" font-size="9.5" fill="${t.textDim}"
+      font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">${escXml(name)} (${author.count})</text>`;
+  });
+
+  return svg;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §9  MAIN SVG GENERATION — Adaptive, multi-section layout
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function generateSVG(rawDayData, authorData) {
+  const t = T();
+
+  // ─── Fill gaps & auto-aggregate ──
+  const filledDayData = fillMissingDays(rawDayData);
+  const allDays = Object.keys(filledDayData).sort();
+  const effectiveAgg = autoSelectAggregation(allDays.length);
+
+  let aggData;
+  if (effectiveAgg === "month") aggData = aggregateByMonth(filledDayData);
+  else if (effectiveAgg === "week") aggData = aggregateByWeek(filledDayData);
+  else aggData = filledDayData;
+
+  const days = Object.keys(aggData).sort();
   const n = days.length;
   if (n === 0) { console.error("No data"); return ""; }
 
-  // ── Series ──
+  console.log(`📊 Aggregation: ${effectiveAgg} (${n} data points)`);
+
+  // ─── Extract series ──
   let cumulative = 0;
-  const totalLines = [], commitsArr = [], addArr = [], delArr = [], changesArr = [];
+  const totalLines = [], commitsArr = [], addArr = [], delArr = [], changesArr = [], filesArr = [];
 
   days.forEach(day => {
-    const d = dayData[day];
+    const d = aggData[day];
     cumulative = Math.max(0, cumulative + d.additions - d.deletions);
     totalLines.push(cumulative);
     commitsArr.push(d.commits);
     addArr.push(d.additions);
     delArr.push(d.deletions);
     changesArr.push(d.commits > 0 ? Math.round((d.additions + d.deletions) / d.commits) : 0);
+    filesArr.push(d.files);
   });
 
-  // ── Layout ──
-  // Generous margins to prevent any label clipping
-  const ML = 82;   // left  – line count labels
-  const MR = 74;   // right – commit count labels
-  const MT = 124;  // top   – title + legend area
-  const MB = 108;  // bottom – x-axis date labels
+  // ─── Statistics & outlier detection ──
+  const commitStats = computeStats(commitsArr.filter(v => v > 0));
+  const commitOutliers = detectOutliers(commitsArr, CFG.outlierIQRMultiplier);
+  const changeOutliers = detectOutliers(changesArr, CFG.outlierIQRMultiplier);
 
-  const minInnerW = 900;
-  const innerW = Math.max(minInnerW, n * 58);
+  // ─── Moving averages ──
+  const commitMA = movingAverage(commitsArr, CFG.maWindow);
+  const changeMA = movingAverage(changesArr, CFG.maWindow);
+
+  // ─── Smart annotations ──
+  const annotations = detectAnnotations(days, { commits: commitsArr, additions: addArr, deletions: delArr });
+
+  // ─── Adaptive max values ──
+  const adaptiveCommitMax = computeAdaptiveMax(commitsArr, commitStats, commitOutliers);
+  const maxLines = Math.max(...totalLines, 1);
+  const maxCommits = Math.max(adaptiveCommitMax, 1);
+  const maxChanges = Math.max(...changesArr, 1);
+  const maxBar = Math.max(...addArr.map((a, i) => a + delArr[i]), 1);
+
+  // ─── Layout computation ──
+  const ML = 86;
+  const MR = 78;
+  const MT = 130;
+  const MB = 112;
+  const minInnerW = 880;
+  const innerW = Math.max(minInnerW, n * Math.max(28, Math.min(58, 1400 / n)));
+  const innerH = 360;
+  const mainChartH = MT + innerH + MB;
+
+  // Extra sections
+  const sectionGap = 28;
+  let extraH = 0;
+
+  // Heatmap
+  const heatmapResult = generateHeatmapSVG(rawDayData, mainChartH + sectionGap, innerW + ML + MR);
+  extraH += heatmapResult.height > 0 ? heatmapResult.height + sectionGap : 0;
+
+  // Author donut + Minimap + Stats panel
+  const bottomPanelH = 130;
+  const hasBottomPanel = authorData.length > 0 || CFG.minimap;
+  if (hasBottomPanel) extraH += bottomPanelH + sectionGap;
+
   const W = innerW + ML + MR;
-  const H = 570;
-  const innerH = H - MT - MB;
+  const H = mainChartH + extraH + 30; // 30 = bottom padding with waves
 
-  // ── Scales ──
-  const maxLines   = Math.max(...totalLines,  1);
-  const maxCommits = Math.max(...commitsArr,  1);
-  const maxChanges = Math.max(...changesArr,  1);
-  const maxBar     = Math.max(...addArr.map((a, i) => a + delArr[i]), 1);
-
-  const xOf = i  => ML + i * (innerW / Math.max(n - 1, 1));
+  // ─── Scales ──
+  const xOf = i => ML + i * (innerW / Math.max(n - 1, 1));
   const yOf = (v, max) => MT + innerH - (v / max) * innerH;
 
-  // ── Point arrays ──
-  const ptLines   = days.map((_, i) => ({ x: xOf(i), y: yOf(totalLines[i],  maxLines)   }));
-  const ptCommits = days.map((_, i) => ({ x: xOf(i), y: yOf(commitsArr[i],  maxCommits) }));
-  const ptChanges = days.map((_, i) => ({ x: xOf(i), y: yOf(changesArr[i],  maxChanges) }));
+  // Clamp function for outliers exceeding adaptive max
+  const clampY = (v, max) => {
+    if (v > max) return MT - 8; // draw slightly above chart with special marker
+    return yOf(v, max);
+  };
 
-  // ── Smooth paths ──
-  const pathLines   = catmullRomToBezier(ptLines);
-  const pathCommits = catmullRomToBezier(ptCommits);
-  const pathChanges = catmullRomToBezier(ptChanges);
-  const areaLines   = `${pathLines} L ${ptLines[n-1].x.toFixed(2)} ${MT + innerH} L ${ptLines[0].x.toFixed(2)} ${MT + innerH} Z`;
+  // ─── Point arrays ──
+  const ptLines = days.map((_, i) => ({ x: xOf(i), y: yOf(totalLines[i], maxLines) }));
+  const ptCommits = days.map((_, i) => ({
+    x: xOf(i),
+    y: commitsArr[i] <= maxCommits ? yOf(commitsArr[i], maxCommits) : yOf(maxCommits, maxCommits),
+    isOutlier: commitsArr[i] > maxCommits,
+    actualValue: commitsArr[i],
+  }));
+  const ptChanges = days.map((_, i) => ({
+    x: xOf(i),
+    y: changesArr[i] <= maxChanges ? yOf(changesArr[i], maxChanges) : yOf(maxChanges, maxChanges),
+  }));
 
-  // ── Bar width: always readable, never too fat ──
-  const bw = Math.max(4, Math.min(22, (innerW / n) * 0.58));
+  // MA points (always within normal scale)
+  const ptCommitMA = commitMA.map((v, i) => ({
+    x: xOf(i),
+    y: yOf(Math.min(v, maxCommits), maxCommits),
+  }));
+  const ptChangeMA = changeMA.map((v, i) => ({
+    x: xOf(i),
+    y: yOf(Math.min(v, maxChanges), maxChanges),
+  }));
 
-  // ── Bars ──
+  // ─── Smooth paths ──
+  const pathLines = catmullRomToBezier(ptLines);
+  // For commits with outliers, cap the points at the max for path drawing
+  const ptCommitsCapped = ptCommits.map(pt => ({ x: pt.x, y: pt.y }));
+  const pathCommits = catmullRomToBezier(ptCommitsCapped);
+  const pathChanges = catmullRomToBezier(ptChanges.map(pt => ({ x: pt.x, y: pt.y })));
+  const areaLines = `${pathLines} L ${ptLines[n - 1].x.toFixed(2)} ${MT + innerH} L ${ptLines[0].x.toFixed(2)} ${MT + innerH} Z`;
+
+  // MA paths
+  const pathCommitMA = CFG.maWindow > 1 ? catmullRomToBezier(ptCommitMA) : "";
+  const pathChangeMA = CFG.maWindow > 1 ? catmullRomToBezier(ptChangeMA) : "";
+
+  // ─── Adaptive bar width ──
+  const rawBarW = (innerW / n) * 0.55;
+  const bw = Math.max(3, Math.min(24, rawBarW));
+
+  // ─── Bars (additions + deletions) ──
   let bars = "";
   days.forEach((_, i) => {
     const total = addArr[i] + delArr[i];
     if (!total) return;
-    const fullH = (total / maxBar) * innerH * 0.72;
-    const addH  = (addArr[i] / total) * fullH;
-    const delH  = fullH - addH;
-    const bx    = xOf(i) - bw / 2;
-    const by    = MT + innerH - fullH;
-    if (delH > 0.8)
-      bars += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${delH.toFixed(1)}" fill="url(#gDelBar)" rx="2" opacity="0.82"/>`;
-    if (addH > 0.8)
-      bars += `<rect x="${bx.toFixed(1)}" y="${(by + delH).toFixed(1)}" width="${bw}" height="${addH.toFixed(1)}" fill="url(#gAddBar)" rx="2" opacity="0.85"/>`;
+    const fullH = Math.min((total / maxBar) * innerH * 0.72, innerH);
+    const addH = (addArr[i] / total) * fullH;
+    const delH = fullH - addH;
+    const bx = xOf(i) - bw / 2;
+    const by = MT + innerH - fullH;
+    if (delH > 0.5)
+      bars += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${delH.toFixed(1)}"
+        fill="url(#gDelBar)" rx="${Math.min(2, bw / 3)}" opacity="0.78"/>`;
+    if (addH > 0.5)
+      bars += `<rect x="${bx.toFixed(1)}" y="${(by + delH).toFixed(1)}" width="${bw}" height="${addH.toFixed(1)}"
+        fill="url(#gAddBar)" rx="${Math.min(2, bw / 3)}" opacity="0.82"/>`;
   });
 
-  // ── Circles ──
-  let ciCommits = "", ciChanges = "";
+  // ─── Data-point circles ──
+  let ciCommits = "", ciChanges = "", outlierMarkers = "";
+
   ptCommits.forEach((pt, i) => {
-    ciCommits += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="4.8" fill="#ff8c42" stroke="#ffd0a0" stroke-width="1.2" filter="url(#glowOrange)"><title>${days[i]}: ${commitsArr[i]} commits</title></circle>`;
-  });
-  ptChanges.forEach((pt, i) => {
-    ciChanges += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="4" fill="#00d4f5" stroke="#80eeff" stroke-width="1" filter="url(#glowCyan)"><title>${days[i]}: ${changesArr[i]} changes/commit</title></circle>`;
+    if (pt.isOutlier) {
+      // Outlier: special diamond marker with value callout
+      const ox = pt.x, oy = MT + 6;
+      const r = 7;
+      outlierMarkers += `
+        <g class="outlier-marker">
+          <polygon points="${ox},${oy - r} ${ox + r},${oy} ${ox},${oy + r} ${ox - r},${oy}"
+            fill="${t.outlierFill}" stroke="${t.outlierStroke}" stroke-width="1.5"
+            filter="url(#glowOrange)" opacity="0.95">
+            <title>${days[i]}: ${pt.actualValue} commits (outlier)</title>
+          </polygon>
+          <line x1="${ox}" y1="${oy + r + 2}" x2="${ox}" y2="${yOf(maxCommits, maxCommits)}"
+            stroke="${t.outlierStroke}" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+          <text x="${ox}" y="${oy - r - 5}" font-size="9" fill="${t.outlierFill}"
+            text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
+            font-weight="600">${pt.actualValue}</text>
+        </g>`;
+    } else if (commitsArr[i] > 0) {
+      const radius = 3 + Math.min(2.5, (commitsArr[i] / maxCommits) * 2.5);
+      ciCommits += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${radius.toFixed(1)}"
+        fill="${t.accent1}" stroke="${t.accent1Light}" stroke-width="1" filter="url(#glowOrange)" opacity="0.9">
+        <title>${days[i]}: ${commitsArr[i]} commits</title></circle>`;
+    }
   });
 
-  // ── Y-axis grid + labels (left = lines, right = commits) ──
-  const leftTicks  = niceTicks(maxLines,   5);
+  ptChanges.forEach((pt, i) => {
+    if (changesArr[i] > 0) {
+      ciChanges += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="3.5"
+        fill="${t.accent2}" stroke="${t.accent2Light}" stroke-width="0.8" filter="url(#glowCyan)" opacity="0.85">
+        <title>${days[i]}: ${changesArr[i]} changes/commit</title></circle>`;
+    }
+  });
+
+  // ─── Y-axis grid + labels ──
+  const leftTicks = niceTicks(maxLines, 5);
   const rightTicks = niceTicks(maxCommits, 5);
 
   let yGrid = "", yLabelsLeft = "", yLabelsRight = "";
 
-  leftTicks.forEach((val, i) => {
-    const y      = yOf(val, maxLines);
+  leftTicks.forEach(val => {
+    const y = yOf(val, maxLines);
     const isBase = val === 0;
     yGrid += `<line x1="${ML}" y1="${y.toFixed(1)}" x2="${ML + innerW}" y2="${y.toFixed(1)}"
-      stroke="#1a3f7a" stroke-width="${isBase ? 1.4 : 0.6}"
-      stroke-opacity="${isBase ? 0.95 : 0.38}"
-      stroke-dasharray="${isBase ? "none" : "6,6"}"/>`;
-    yLabelsLeft += `<text x="${ML - 12}" y="${(y + 4).toFixed(1)}"
-      font-size="11.5" fill="#5aa8ff" text-anchor="end"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300">${fmtK(val)}</text>`;
+      stroke="${t.grid}" stroke-width="${isBase ? 1.4 : 0.5}"
+      stroke-opacity="${isBase ? 0.9 : 0.3}" stroke-dasharray="${isBase ? "none" : "6,6"}"/>`;
+    yLabelsLeft += `<text x="${ML - 12}" y="${(y + 4).toFixed(1)}" font-size="11" fill="${t.primaryLight}"
+      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300">${fmtK(val)}</text>`;
   });
 
   rightTicks.forEach(val => {
     const y = yOf(val, maxCommits);
-    yLabelsRight += `<text x="${ML + innerW + 12}" y="${(y + 4).toFixed(1)}"
-      font-size="11.5" fill="#ff9a55" text-anchor="start"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300" opacity="0.88">${val}</text>`;
+    yLabelsRight += `<text x="${ML + innerW + 12}" y="${(y + 4).toFixed(1)}" font-size="11" fill="${t.accent1}"
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.85">${val}</text>`;
   });
 
-  // ── X-axis labels: max 13, evenly spaced, always include first+last ──
+  // ─── X-axis labels ──
   let xLabels = "";
-  const MAX_X_LABELS = 13;
-  // Build set of indices to render
+  const MAX_X_LABELS = Math.min(16, n);
   const labelIndices = new Set([0, n - 1]);
   if (n > 2) {
     const step = Math.ceil((n - 1) / (MAX_X_LABELS - 1));
     for (let i = step; i < n - 1; i += step) labelIndices.add(i);
   }
-
-  // Check minimum pixel gap between labels to avoid overlap (estimated label width ~36px at -42°)
-  const sortedIndices = [...labelIndices].sort((a, b) => a - b);
-  const filtered = [sortedIndices[0]];
-  for (let k = 1; k < sortedIndices.length; k++) {
-    const prev = filtered[filtered.length - 1];
-    const curr = sortedIndices[k];
-    if (xOf(curr) - xOf(prev) >= 44) filtered.push(curr);
+  const sortedLI = [...labelIndices].sort((a, b) => a - b);
+  const minLabelGap = 50;
+  const filteredLI = [sortedLI[0]];
+  for (let k = 1; k < sortedLI.length; k++) {
+    if (xOf(sortedLI[k]) - xOf(filteredLI[filteredLI.length - 1]) >= minLabelGap) filteredLI.push(sortedLI[k]);
   }
 
   const labelBaseY = MT + innerH + 24;
-  filtered.forEach(i => {
+  filteredLI.forEach(i => {
     const x = xOf(i);
-    xLabels += `<text
-      x="${x.toFixed(1)}" y="${labelBaseY}"
-      font-size="10.5" fill="#5aa8ff" text-anchor="end"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="300"
-      transform="rotate(-42, ${x.toFixed(1)}, ${labelBaseY})">${formatLabel(days[i])}</text>`;
+    xLabels += `<text x="${x.toFixed(1)}" y="${labelBaseY}" font-size="10" fill="${t.primaryLight}"
+      text-anchor="end" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300"
+      transform="rotate(-42, ${x.toFixed(1)}, ${labelBaseY})">${formatLabel(days[i], effectiveAgg)}</text>`;
   });
 
-  // ── Totals ──
-  const totalCommits   = commitsArr.reduce((a, b) => a + b, 0);
-  const totalAdditions = addArr.reduce((a, b) => a + b, 0);
-  const totalDeletions = delArr.reduce((a, b) => a + b, 0);
+  // ─── Annotation SVG ──
+  let annotSVG = "";
+  const usedYZones = []; // prevent overlap
 
-  // ── Legend: 5 items, fixed pixel geometry, centered ──
-  // Each entry: [symbol, color, label]
-  const legendDefs = [
-    { sym: "area",  color: "#2a6cb0",  label: "Total Lines"       },
-    { sym: "line",  color: "#ff8c42",  label: "Commits"           },
-    { sym: "line",  color: "#00d4f5",  label: "Changes / Commit"  },
-    { sym: "bar",   color: "#22c55e",  label: "Additions"         },
-    { sym: "bar",   color: "#ef4444",  label: "Deletions"         },
-  ];
+  function findFreeY(baseY, height) {
+    let y = baseY;
+    let attempts = 0;
+    while (attempts < 10) {
+      const conflict = usedYZones.some(z => y < z.bottom && y + height > z.top);
+      if (!conflict) { usedYZones.push({ top: y, bottom: y + height }); return y; }
+      y -= height + 6;
+      attempts++;
+    }
+    return y;
+  }
 
-  // Fixed pixel widths: symW + symGap + textW + itemGap
-  const SYM_W    = 26;   // symbol icon width
-  const SYM_GAP  = 9;    // gap between icon and label text
-  const ITEM_GAP = 36;   // gap between successive items
-  const CH_W     = 7.8;  // approximate px per character at font-size 12
+  annotations.forEach(ann => {
+    if (ann.type === "peak") {
+      const pt = ptCommits[ann.index];
+      const baseY = pt.isOutlier ? MT - 30 : pt.y - 45;
+      const annotW = 130, annotH = 24;
+      const annotY = findFreeY(Math.max(MT - 60, baseY), annotH);
+      const rawX = pt.x - annotW / 2;
+      const annotX = Math.max(ML, Math.min(ML + innerW - annotW, rawX));
 
-  const itemTotalW = legendDefs.map(d => SYM_W + SYM_GAP + d.label.length * CH_W);
-  const legendTotalW = itemTotalW.reduce((a, b) => a + b, 0) + ITEM_GAP * (legendDefs.length - 1);
-
-  const legendY  = MT - 32;   // sits inside header strip
-  let   lx       = (W - legendTotalW) / 2;
-  let   legendSVG = "";
-
-  legendDefs.forEach((d, idx) => {
-    const symCX = lx + SYM_W / 2;
-    const symCY = legendY - 4;
-
-    if (d.sym === "area") {
-      legendSVG += `<rect x="${lx.toFixed(1)}" y="${(legendY - 11).toFixed(1)}" width="${SYM_W}" height="13" rx="3"
-        fill="${d.color}" fill-opacity="0.5" stroke="${d.color}" stroke-width="1.5"/>`;
-    } else if (d.sym === "line") {
-      legendSVG += `<line x1="${lx.toFixed(1)}" y1="${symCY.toFixed(1)}"
-        x2="${(lx + SYM_W).toFixed(1)}" y2="${symCY.toFixed(1)}"
-        stroke="${d.color}" stroke-width="3" stroke-linecap="round"/>`;
-      legendSVG += `<circle cx="${symCX.toFixed(1)}" cy="${symCY.toFixed(1)}" r="4"
-        fill="${d.color}" stroke="#fff" stroke-width="0.8" stroke-opacity="0.4"/>`;
-    } else {
-      // bar symbol: narrow tall rect
-      legendSVG += `<rect x="${(lx + 7).toFixed(1)}" y="${(legendY - 11).toFixed(1)}" width="12" height="13" rx="2"
-        fill="${d.color}" opacity="0.9"/>`;
+      annotSVG += `
+        <line x1="${pt.x.toFixed(1)}" y1="${(pt.isOutlier ? MT : pt.y - 12).toFixed(1)}"
+          x2="${pt.x.toFixed(1)}" y2="${(annotY + annotH).toFixed(1)}"
+          stroke="${t.annotation}" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.65"/>
+        <rect x="${annotX.toFixed(1)}" y="${annotY.toFixed(1)}"
+          width="${annotW}" height="${annotH}" rx="6"
+          fill="${t.surface}" stroke="${t.annotation}" stroke-width="1" opacity="0.96"/>
+        <text x="${(annotX + annotW / 2).toFixed(1)}" y="${(annotY + 16).toFixed(1)}"
+          font-size="10" fill="${t.annotationText}" text-anchor="middle"
+          font-family="'Lexend','Segoe UI',sans-serif" font-weight="400"
+          letter-spacing="0.5">⬡  ${escXml(ann.label)}</text>`;
     }
 
+    if (ann.type === "streak") {
+      const x1 = xOf(ann.startIndex);
+      const x2 = xOf(ann.endIndex);
+      const y = MT + innerH + 4;
+      annotSVG += `
+        <line x1="${x1.toFixed(1)}" y1="${y}" x2="${x2.toFixed(1)}" y2="${y}"
+          stroke="${t.milestoneColor}" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+        <circle cx="${x1.toFixed(1)}" cy="${y}" r="3" fill="${t.milestoneColor}" opacity="0.9"/>
+        <circle cx="${x2.toFixed(1)}" cy="${y}" r="3" fill="${t.milestoneColor}" opacity="0.9"/>
+        <text x="${((x1 + x2) / 2).toFixed(1)}" y="${y + 14}" font-size="8.5" fill="${t.milestoneColor}"
+          text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
+          font-weight="400" opacity="0.85">🔥 ${escXml(ann.label)}</text>`;
+    }
+
+    if (ann.type === "milestone") {
+      const x = xOf(ann.index);
+      const y = MT + innerH;
+      annotSVG += `
+        <line x1="${x.toFixed(1)}" y1="${MT}" x2="${x.toFixed(1)}" y2="${y}"
+          stroke="${t.milestoneColor}" stroke-width="0.8" stroke-dasharray="3,6" opacity="0.35"/>`;
+    }
+  });
+
+  // ─── Statistical overlay: mean + stddev band for commits ──
+  let statOverlaySVG = "";
+  if (commitStats.mean > 0) {
+    const meanY = yOf(Math.min(commitStats.mean, maxCommits), maxCommits);
+    statOverlaySVG += `<line x1="${ML}" y1="${meanY.toFixed(1)}" x2="${ML + innerW}" y2="${meanY.toFixed(1)}"
+      stroke="${t.accent1}" stroke-width="1" stroke-dasharray="8,4" opacity="0.3"/>
+    <text x="${ML + innerW + 12}" y="${(meanY - 6).toFixed(1)}" font-size="8" fill="${t.accent1}"
+      text-anchor="start" font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.6">μ=${commitStats.mean.toFixed(1)}</text>`;
+  }
+
+  // ─── Totals ──
+  const totalCommits = commitsArr.reduce((a, b) => a + b, 0);
+  const totalAdditions = addArr.reduce((a, b) => a + b, 0);
+  const totalDeletions = delArr.reduce((a, b) => a + b, 0);
+  const totalFiles = filesArr.reduce((a, b) => a + b, 0);
+  const activeDays = commitsArr.filter(v => v > 0).length;
+
+  // ─── Stats badge (top-right) ──
+  const BD_W = 142, BD_H = 92;
+  const bdX = W - MR - BD_W - 6;
+  const bdY = 8;
+
+  const badge = `
+    <rect x="${bdX}" y="${bdY}" width="${BD_W}" height="${BD_H}" rx="10"
+      fill="${t.surface}" fill-opacity="0.94" stroke="${t.annotation}" stroke-width="1.2"/>
+    <text x="${bdX + BD_W / 2}" y="${bdY + 16}" font-size="8" fill="${t.textDim}"
+      text-anchor="middle" font-family="'Lexend',sans-serif" letter-spacing="2" font-weight="400">TOTAL  COMMITS</text>
+    <text x="${bdX + BD_W / 2}" y="${bdY + 44}" font-size="28" font-weight="700" fill="${t.text}"
+      text-anchor="middle" font-family="'Lexend',sans-serif" filter="url(#glowTitle)">${totalCommits}</text>
+    <line x1="${bdX + 16}" y1="${bdY + 52}" x2="${bdX + BD_W - 16}" y2="${bdY + 52}"
+      stroke="${t.primaryDim}" stroke-width="0.8" stroke-opacity="0.5"/>
+    <text x="${bdX + BD_W / 2 - 24}" y="${bdY + 66}" font-size="9" fill="${t.positive}"
+      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="400">+${fmtK(totalAdditions)}</text>
+    <text x="${bdX + BD_W / 2 + 24}" y="${bdY + 66}" font-size="9" fill="${t.negative}"
+      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="400">-${fmtK(totalDeletions)}</text>
+    <text x="${bdX + BD_W / 2}" y="${bdY + 82}" font-size="8" fill="${t.textDim}"
+      text-anchor="middle" font-family="'Lexend',sans-serif" font-weight="300">${activeDays} active days · ${fmtK(totalFiles)} files</text>`;
+
+  // ─── Legend ──
+  const legendDefs = [
+    { sym: "area", color: t.primary, label: "Total Lines" },
+    { sym: "line", color: t.accent1, label: "Commits" },
+    { sym: "line", color: t.accent2, label: "Chg/Commit" },
+    { sym: "bar",  color: t.positive, label: "Additions" },
+    { sym: "bar",  color: t.negative, label: "Deletions" },
+  ];
+  if (CFG.maWindow > 1) {
+    legendDefs.push({ sym: "dash", color: t.maLine, label: `${CFG.maWindow}-${effectiveAgg === "day" ? "day" : effectiveAgg} MA` });
+  }
+
+  const SYM_W = 24, SYM_GAP = 7, ITEM_GAP = 28, CH_W = 7;
+  const itemTotalW = legendDefs.map(d => SYM_W + SYM_GAP + d.label.length * CH_W);
+  const legendTotalW = itemTotalW.reduce((a, b) => a + b, 0) + ITEM_GAP * (legendDefs.length - 1);
+  const legendY = MT - 30;
+  let lx = (W - legendTotalW) / 2;
+  let legendSVG = "";
+
+  legendDefs.forEach(d => {
+    const symCY = legendY - 3;
+    if (d.sym === "area") {
+      legendSVG += `<rect x="${lx.toFixed(1)}" y="${(legendY - 10).toFixed(1)}" width="${SYM_W}" height="12" rx="3"
+        fill="${d.color}" fill-opacity="0.45" stroke="${d.color}" stroke-width="1.2"/>`;
+    } else if (d.sym === "line") {
+      legendSVG += `<line x1="${lx.toFixed(1)}" y1="${symCY.toFixed(1)}" x2="${(lx + SYM_W).toFixed(1)}" y2="${symCY.toFixed(1)}"
+        stroke="${d.color}" stroke-width="2.5" stroke-linecap="round"/>`;
+      legendSVG += `<circle cx="${(lx + SYM_W / 2).toFixed(1)}" cy="${symCY.toFixed(1)}" r="3.5"
+        fill="${d.color}" stroke="#fff" stroke-width="0.6" stroke-opacity="0.3"/>`;
+    } else if (d.sym === "dash") {
+      legendSVG += `<line x1="${lx.toFixed(1)}" y1="${symCY.toFixed(1)}" x2="${(lx + SYM_W).toFixed(1)}" y2="${symCY.toFixed(1)}"
+        stroke="${d.color}" stroke-width="2" stroke-dasharray="5,3" stroke-linecap="round"/>`;
+    } else {
+      legendSVG += `<rect x="${(lx + 6).toFixed(1)}" y="${(legendY - 10).toFixed(1)}" width="12" height="12" rx="2"
+        fill="${d.color}" opacity="0.85"/>`;
+    }
     lx += SYM_W + SYM_GAP;
-    legendSVG += `<text x="${lx.toFixed(1)}" y="${legendY.toFixed(1)}"
-      font-size="12" fill="#a8d4ff"
-      font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400">${d.label}</text>`;
+    legendSVG += `<text x="${lx.toFixed(1)}" y="${legendY.toFixed(1)}" font-size="11" fill="${t.annotationText}"
+      font-family="'Lexend','Segoe UI',sans-serif" font-weight="400">${d.label}</text>`;
     lx += d.label.length * CH_W + ITEM_GAP;
   });
 
-  // ── Stats badge (top-right, inside header) ──
-  const BD_W = 116, BD_H = 74;
-  const bdX = W - MR - BD_W - 6;
-  const bdY = 10;
-
-  const badge = `
-    <rect x="${bdX}" y="${bdY}" width="${BD_W}" height="${BD_H}" rx="9"
-          fill="#030e26" fill-opacity="0.92" stroke="#1d52c0" stroke-width="1.3"/>
-    <text x="${bdX + BD_W/2}" y="${bdY + 18}" font-size="8.5" fill="#4a90e2"
-          text-anchor="middle" font-family="'Lexend', sans-serif" letter-spacing="2.2" font-weight="400">TOTAL  COMMITS</text>
-    <text x="${bdX + BD_W/2}" y="${bdY + 46}" font-size="28" font-weight="700" fill="#d4eeff"
-          text-anchor="middle" font-family="'Lexend', sans-serif" filter="url(#glowTitle)">${totalCommits}</text>
-    <line x1="${bdX + 16}" y1="${bdY + 53}" x2="${bdX + BD_W - 16}" y2="${bdY + 53}"
-          stroke="#1d4ed8" stroke-width="0.8" stroke-opacity="0.5"/>
-    <text x="${bdX + BD_W/2 - 18}" y="${bdY + 66}" font-size="9.5" fill="#4ade80"
-          text-anchor="middle" font-family="'Lexend', sans-serif" font-weight="400">+${fmtK(totalAdditions)}</text>
-    <text x="${bdX + BD_W/2 + 20}" y="${bdY + 66}" font-size="9.5" fill="#f87171"
-          text-anchor="middle" font-family="'Lexend', sans-serif" font-weight="400">-${fmtK(totalDeletions)}</text>`;
-
-  // ── Peak annotation (smart positioning to avoid edge clipping) ──
-  const peakI      = commitsArr.indexOf(Math.max(...commitsArr));
-  const peakPt     = ptCommits[peakI];
-  const annotW     = 116;
-  const annotH     = 24;
-  const rawAnnotX  = peakPt.x - annotW / 2;
-  const annotX     = Math.max(ML, Math.min(ML + innerW - annotW, rawAnnotX));
-  const annotBoxY  = peakPt.y - 60;
-  const annotLineY = Math.max(MT + 4, annotBoxY + annotH + 2);
-
-  const peakAnnot = `
-    <line x1="${peakPt.x.toFixed(1)}" y1="${(peakPt.y - 15).toFixed(1)}"
-          x2="${peakPt.x.toFixed(1)}" y2="${annotLineY.toFixed(1)}"
-          stroke="#60a5fa" stroke-width="1.3" stroke-dasharray="4,4" opacity="0.75"/>
-    <rect x="${annotX.toFixed(1)}" y="${annotBoxY.toFixed(1)}"
-          width="${annotW}" height="${annotH}" rx="6"
-          fill="#010e2a" stroke="#2563eb" stroke-width="1.1" opacity="0.97"/>
-    <text x="${(annotX + annotW / 2).toFixed(1)}" y="${(annotBoxY + 16).toFixed(1)}"
-          font-size="10.5" fill="#93c5fd" text-anchor="middle"
-          font-family="'Lexend', 'Segoe UI', sans-serif" font-weight="400"
-          letter-spacing="0.6">⬡  peak · ${commitsArr[peakI]} commits</text>`;
-
-  // ── Corner brackets (Hollow Knight UI feel) ──
-  const bLen = 24;
+  // ─── Corner brackets ──
+  const bLen = 22;
   const corners = [
     [ML, MT, 1, 1], [ML + innerW, MT, -1, 1],
     [ML, MT + innerH, 1, -1], [ML + innerW, MT + innerH, -1, -1]
   ].map(([cx, cy, dx, dy]) =>
     `<path d="M ${cx} ${(cy + dy * bLen).toFixed(1)} L ${cx} ${cy} L ${(cx + dx * bLen).toFixed(1)} ${cy}"
-      fill="none" stroke="#4a90e2" stroke-width="2.2" stroke-opacity="0.9" stroke-linecap="round"/>`
+      fill="none" stroke="${t.primary}" stroke-width="2" stroke-opacity="0.85" stroke-linecap="round"/>`
   ).join("");
 
-  // ── Wave decoration (bottom, ethereal feel) ──
+  // ─── Wave decoration ──
   const waves = Array.from({ length: 4 }, (_, k) => {
-    const yo  = H - 8 - k * 6;
-    const amp = 8 - k * 1.8;
+    const yo = H - 6 - k * 5;
+    const amp = 7 - k * 1.5;
     const seg = W / 8;
     let d = `M 0 ${yo}`;
     for (let s = 0; s < 8; s++)
       d += ` Q ${(s * seg + seg * 0.5).toFixed(1)} ${(yo - amp).toFixed(1)} ${((s + 1) * seg).toFixed(1)} ${yo}`;
-    return `<path d="${d}" fill="none" stroke="#1948a0"
-      stroke-width="${1.4 - k * 0.28}" stroke-opacity="${0.38 - k * 0.07}"/>`;
+    return `<path d="${d}" fill="none" stroke="${t.textMuted}" stroke-width="${1.2 - k * 0.2}" stroke-opacity="${0.35 - k * 0.06}"/>`;
   }).join("\n");
 
-  // ── Separator line (header / chart boundary) ──
-  const headerSep = `<line x1="24" y1="${(MT - 10).toFixed(1)}" x2="${(W - 24).toFixed(1)}" y2="${(MT - 10).toFixed(1)}"
-    stroke="url(#gBorder)" stroke-width="0.9" stroke-opacity="0.55"/>`;
+  // ─── Header separator ──
+  const headerSep = `<line x1="24" y1="${(MT - 12).toFixed(1)}" x2="${(W - 24).toFixed(1)}" y2="${(MT - 12).toFixed(1)}"
+    stroke="url(#gBorder)" stroke-width="0.8" stroke-opacity="0.5"/>`;
 
-  // ── Left axis label (rotated) ──
-  const axisLabelLeft  = `<text x="16" y="${(MT + innerH / 2).toFixed(1)}"
-    font-size="10" fill="#4a90e2" text-anchor="middle"
-    font-family="'Lexend', 'Segoe UI', sans-serif" letter-spacing="3" font-weight="300"
+  // ─── Axis labels ──
+  const axisLabelLeft = `<text x="16" y="${(MT + innerH / 2).toFixed(1)}" font-size="9.5" fill="${t.primary}"
+    text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif" letter-spacing="3" font-weight="300"
     transform="rotate(-90, 16, ${(MT + innerH / 2).toFixed(1)})">LINES</text>`;
-
-  const axisLabelRight = `<text x="${(W - 14).toFixed(1)}" y="${(MT + innerH / 2).toFixed(1)}"
-    font-size="10" fill="#ff8c42" text-anchor="middle"
-    font-family="'Lexend', 'Segoe UI', sans-serif" letter-spacing="3" font-weight="300" opacity="0.85"
+  const axisLabelRight = `<text x="${(W - 14).toFixed(1)}" y="${(MT + innerH / 2).toFixed(1)}" font-size="9.5"
+    fill="${t.accent1}" text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
+    letter-spacing="3" font-weight="300" opacity="0.8"
     transform="rotate(90, ${(W - 14).toFixed(1)}, ${(MT + innerH / 2).toFixed(1)})">COMMITS</text>`;
 
-  // ════════════════════════════════════════════════════════
+  // ─── Bottom panels ──
+  let bottomPanelSVG = "";
+  if (hasBottomPanel) {
+    const panelY = mainChartH + (heatmapResult.height > 0 ? heatmapResult.height + sectionGap : 0) + sectionGap;
+
+    // Minimap
+    if (CFG.minimap) {
+      const mmW = Math.min(320, innerW * 0.35);
+      const mmH = bottomPanelH - 20;
+      const mmX = ML;
+      bottomPanelSVG += generateMinimapSVG(commitsArr, mmX, panelY + 14, mmW, mmH);
+    }
+
+    // Author donut
+    if (authorData.length > 0) {
+      const donutR = 42;
+      const donutCX = W - MR - 140;
+      const donutCY = panelY + bottomPanelH / 2 + 4;
+      bottomPanelSVG += generateAuthorDonutSVG(authorData, donutCX, donutCY, donutR);
+    }
+  }
+
+  // ─── Scale warning ──
+  let scaleWarnSVG = "";
+  const hasScaleCompression = commitOutliers.some(o => o.isUpperOutlier) && adaptiveCommitMax < Math.max(...commitsArr);
+  if (hasScaleCompression) {
+    scaleWarnSVG = `<text x="${ML + 8}" y="${MT - 16}" font-size="8" fill="${t.outlierFill}"
+      font-family="'Lexend','Segoe UI',sans-serif" font-weight="300" opacity="0.75">
+      ◆ Scale compressed — outliers shown as diamonds above chart</text>`;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+
   return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">
 <defs>
-  <style>@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&amp;display=swap');</style>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&amp;display=swap');
+    .outlier-marker { transition: opacity 0.2s; }
+    .outlier-marker:hover { opacity: 1 !important; }
+    circle:hover { opacity: 1 !important; r: 6; }
+    rect.bar-segment:hover { opacity: 1 !important; }
+  </style>
 
-  <!-- ── Dark navy background ── -->
   <linearGradient id="bg" x1="0%" y1="0%" x2="55%" y2="100%">
-    <stop offset="0%"   stop-color="#010c1e"/>
-    <stop offset="50%"  stop-color="#010f27"/>
-    <stop offset="100%" stop-color="#000a18"/>
+    <stop offset="0%"   stop-color="${t.bg[0]}"/>
+    <stop offset="50%"  stop-color="${t.bg[1]}"/>
+    <stop offset="100%" stop-color="${t.bg[2]}"/>
   </linearGradient>
-
-  <!-- ── Area fill (total lines) ── -->
   <linearGradient id="areaFill" x1="0%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0%"   stop-color="#1e56a8" stop-opacity="0.6"/>
-    <stop offset="55%"  stop-color="#12326a" stop-opacity="0.22"/>
-    <stop offset="100%" stop-color="#0a1e44" stop-opacity="0"/>
+    <stop offset="0%"   stop-color="${t.primary}" stop-opacity="0.5"/>
+    <stop offset="55%"  stop-color="${t.primaryDim}" stop-opacity="0.18"/>
+    <stop offset="100%" stop-color="${t.bg[2]}" stop-opacity="0"/>
   </linearGradient>
-
-  <!-- ── Commits line ── -->
   <linearGradient id="gCommits" x1="0%" y1="0%" x2="100%" y2="0%">
-    <stop offset="0%"   stop-color="#ff6020"/>
-    <stop offset="100%" stop-color="#ffaa60"/>
+    <stop offset="0%"   stop-color="${t.accent1}"/>
+    <stop offset="100%" stop-color="${t.accent1Light}"/>
   </linearGradient>
-
-  <!-- ── Changes per commit line ── -->
   <linearGradient id="gChanges" x1="0%" y1="0%" x2="100%" y2="0%">
-    <stop offset="0%"   stop-color="#0090c0"/>
-    <stop offset="50%"  stop-color="#00d4f5"/>
-    <stop offset="100%" stop-color="#7eeeff"/>
+    <stop offset="0%"   stop-color="${t.accent2}" stop-opacity="0.8"/>
+    <stop offset="50%"  stop-color="${t.accent2}"/>
+    <stop offset="100%" stop-color="${t.accent2Light}"/>
   </linearGradient>
-
-  <!-- ── Outer border ── -->
   <linearGradient id="gBorder" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%"   stop-color="#1840a0" stop-opacity="0.95"/>
-    <stop offset="50%"  stop-color="#3b82f6" stop-opacity="0.65"/>
-    <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.95"/>
+    <stop offset="0%"   stop-color="${t.border[0]}" stop-opacity="0.9"/>
+    <stop offset="50%"  stop-color="${t.border[1]}" stop-opacity="0.6"/>
+    <stop offset="100%" stop-color="${t.border[2]}" stop-opacity="0.9"/>
   </linearGradient>
-
-  <!-- ── Header band ── -->
   <linearGradient id="gHeader" x1="0%" y1="0%" x2="100%" y2="0%">
-    <stop offset="0%"   stop-color="#061530" stop-opacity="0"/>
-    <stop offset="20%"  stop-color="#091c3e" stop-opacity="0.92"/>
-    <stop offset="80%"  stop-color="#091c3e" stop-opacity="0.92"/>
-    <stop offset="100%" stop-color="#061530" stop-opacity="0"/>
+    <stop offset="0%"   stop-color="${t.bg[0]}" stop-opacity="0"/>
+    <stop offset="20%"  stop-color="${t.headerBand}" stop-opacity="0.92"/>
+    <stop offset="80%"  stop-color="${t.headerBand}" stop-opacity="0.92"/>
+    <stop offset="100%" stop-color="${t.bg[0]}" stop-opacity="0"/>
   </linearGradient>
-
-  <!-- ── Bar fills ── -->
   <linearGradient id="gAddBar" x1="0%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0%"   stop-color="#34d06a"/>
-    <stop offset="100%" stop-color="#16a34a"/>
+    <stop offset="0%"   stop-color="${t.positive}" stop-opacity="0.95"/>
+    <stop offset="100%" stop-color="${t.positive}" stop-opacity="0.65"/>
   </linearGradient>
   <linearGradient id="gDelBar" x1="0%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0%"   stop-color="#f86060"/>
-    <stop offset="100%" stop-color="#c52020"/>
+    <stop offset="0%"   stop-color="${t.negative}" stop-opacity="0.9"/>
+    <stop offset="100%" stop-color="${t.negative}" stop-opacity="0.6"/>
   </linearGradient>
 
-  <!-- ── Glow filters ── -->
   <filter id="glowOrange" x="-120%" y="-120%" width="340%" height="340%">
-    <feGaussianBlur stdDeviation="4.5" result="b"/>
-    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-  <filter id="glowCyan" x="-120%" y="-120%" width="340%" height="340%">
     <feGaussianBlur stdDeviation="4" result="b"/>
     <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
+  <filter id="glowCyan" x="-120%" y="-120%" width="340%" height="340%">
+    <feGaussianBlur stdDeviation="3.5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
   <filter id="glowTitle">
-    <feGaussianBlur stdDeviation="5.5" result="b"/>
+    <feGaussianBlur stdDeviation="5" result="b"/>
     <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
   <filter id="glowLine" x="-6%" y="-120%" width="112%" height="340%">
-    <feGaussianBlur stdDeviation="5" result="b"/>
+    <feGaussianBlur stdDeviation="4.5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glowMA" x="-6%" y="-120%" width="112%" height="340%">
+    <feGaussianBlur stdDeviation="3" result="b"/>
     <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
 
-  <!-- ── Hollow Knight diamond tile (subtle depth) ── -->
   <pattern id="diamondTile" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
     <path d="M15 2 L28 15 L15 28 L2 15 Z"
-          fill="none" stroke="#0d2464" stroke-width="0.45" stroke-opacity="0.3"/>
+      fill="none" stroke="${t.patternStroke}" stroke-width="0.4" stroke-opacity="0.25"/>
   </pattern>
 
-  <!-- ── Clip ── -->
   <clipPath id="chartClip">
     <rect x="${ML}" y="${MT}" width="${innerW}" height="${innerH}"/>
   </clipPath>
@@ -470,32 +1215,31 @@ function generateSVG(dayData) {
 
 <!-- ════ BACKGROUND ════ -->
 <rect width="${W}" height="${H}" fill="url(#bg)" rx="16"/>
-<rect width="${W}" height="${H}" fill="url(#diamondTile)" rx="16" opacity="1"/>
+<rect width="${W}" height="${H}" fill="url(#diamondTile)" rx="16"/>
 
 <!-- ════ BORDERS ════ -->
-<rect width="${W}" height="${H}" fill="none" rx="16"
-      stroke="url(#gBorder)" stroke-width="2.2"/>
+<rect width="${W}" height="${H}" fill="none" rx="16" stroke="url(#gBorder)" stroke-width="2.2"/>
 <rect x="5" y="5" width="${W - 10}" height="${H - 10}" fill="none" rx="13"
-      stroke="#1840a0" stroke-width="0.8" stroke-opacity="0.4"/>
+  stroke="${t.border[0]}" stroke-width="0.7" stroke-opacity="0.35"/>
 
-<!-- ════ HEADER BAND ════ -->
+<!-- ════ HEADER ════ -->
 <rect x="0" y="0" width="${W}" height="${MT - 8}" fill="url(#gHeader)" rx="16"/>
 ${headerSep}
 
 <!-- ════ TITLE ════ -->
-<text x="${(ML + innerW / 2).toFixed(1)}" y="48"
-      font-size="19" font-weight="600" fill="#cce8ff"
-      text-anchor="middle" font-family="'Lexend', 'Segoe UI', sans-serif"
-      filter="url(#glowTitle)" letter-spacing="6">⬡  COMMIT  ANALYTICS  ⬡</text>
-<text x="${(ML + innerW / 2).toFixed(1)}" y="67"
-      font-size="10" fill="#3d7ed4" text-anchor="middle"
-      font-family="'Lexend', 'Segoe UI', sans-serif" letter-spacing="4" font-weight="300">${REPO}</text>
+<text x="${(ML + innerW / 2).toFixed(1)}" y="44" font-size="18" font-weight="600" fill="${t.text}"
+  text-anchor="middle" font-family="'Lexend','Segoe UI',sans-serif"
+  filter="url(#glowTitle)" letter-spacing="5">⬡  COMMIT  ANALYTICS  ⬡</text>
+<text x="${(ML + innerW / 2).toFixed(1)}" y="62" font-size="9.5" fill="${t.textDim}" text-anchor="middle"
+  font-family="'Lexend','Segoe UI',sans-serif" letter-spacing="3.5" font-weight="300">${CFG.repo}</text>
 
 <!-- ════ STATS BADGE ════ -->
 ${badge}
 
 <!-- ════ LEGEND ════ -->
 <g>${legendSVG}</g>
+
+${scaleWarnSVG}
 
 <!-- ════ AXIS LABELS ════ -->
 ${axisLabelLeft}
@@ -508,68 +1252,97 @@ ${yLabelsRight}
 
 <!-- ════ AXIS LINES ════ -->
 <line x1="${ML}" y1="${MT}" x2="${ML}" y2="${MT + innerH}"
-      stroke="#1a3d7a" stroke-width="1.3" stroke-opacity="0.7"/>
+  stroke="${t.grid}" stroke-width="1.2" stroke-opacity="0.65"/>
 <line x1="${ML}" y1="${MT + innerH}" x2="${ML + innerW}" y2="${MT + innerH}"
-      stroke="#1a3d7a" stroke-width="1.6" stroke-opacity="0.85"/>
+  stroke="${t.grid}" stroke-width="1.4" stroke-opacity="0.8"/>
 <line x1="${ML + innerW}" y1="${MT}" x2="${ML + innerW}" y2="${MT + innerH}"
-      stroke="#ff8c42" stroke-width="1" stroke-opacity="0.32"/>
+  stroke="${t.accent1}" stroke-width="0.9" stroke-opacity="0.28"/>
 
-<!-- ════ X-AXIS DATE LABELS ════ -->
+<!-- ════ X-AXIS ════ -->
 ${xLabels}
 
-<!-- ════ CHART CONTENT (clipped) ════ -->
+<!-- ════ CHART CONTENT ════ -->
 <g clip-path="url(#chartClip)">
-
-  <!-- Total lines: area fill + edge line -->
+  <!-- Total lines: area + stroke -->
   <path d="${areaLines}" fill="url(#areaFill)"/>
-  <path d="${pathLines}" fill="none" stroke="#1e56a8" stroke-width="2" stroke-opacity="0.75"/>
+  <path d="${pathLines}" fill="none" stroke="${t.primary}" stroke-width="2" stroke-opacity="0.7"/>
 
-  <!-- Stacked bars (additions green / deletions red) -->
+  <!-- Bars -->
   ${bars}
 
-  <!-- Commits line — glow layer + crisp line -->
-  <path d="${pathCommits}" fill="none" stroke="#ff8c42"
-        stroke-width="10" stroke-opacity="0.08" filter="url(#glowLine)"/>
-  <path d="${pathCommits}" fill="none" stroke="url(#gCommits)"
-        stroke-width="3" stroke-linecap="round"/>
+  <!-- Commits line — glow + crisp -->
+  <path d="${pathCommits}" fill="none" stroke="${t.accent1}" stroke-width="9" stroke-opacity="0.06" filter="url(#glowLine)"/>
+  <path d="${pathCommits}" fill="none" stroke="url(#gCommits)" stroke-width="2.8" stroke-linecap="round"/>
 
-  <!-- Changes per commit — glow layer + crisp line -->
-  <path d="${pathChanges}" fill="none" stroke="#00d4f5"
-        stroke-width="10" stroke-opacity="0.08" filter="url(#glowLine)"/>
-  <path d="${pathChanges}" fill="none" stroke="url(#gChanges)"
-        stroke-width="3" stroke-linecap="round"/>
+  <!-- Changes/commit line -->
+  <path d="${pathChanges}" fill="none" stroke="${t.accent2}" stroke-width="9" stroke-opacity="0.06" filter="url(#glowLine)"/>
+  <path d="${pathChanges}" fill="none" stroke="url(#gChanges)" stroke-width="2.5" stroke-linecap="round"/>
 
+  <!-- Moving averages -->
+  ${pathCommitMA ? `<path d="${pathCommitMA}" fill="none" stroke="${t.maLine}" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="0.55" filter="url(#glowMA)"/>` : ""}
+  ${pathChangeMA ? `<path d="${pathChangeMA}" fill="none" stroke="${t.maLineLight}" stroke-width="1.5" stroke-dasharray="5,4" stroke-opacity="0.4"/>` : ""}
+
+  <!-- Statistical overlay -->
+  ${statOverlaySVG}
 </g>
 
-<!-- ════ DATA-POINT CIRCLES (above clip) ════ -->
+<!-- ════ DATA POINTS ════ -->
 ${ciCommits}
 ${ciChanges}
 
-<!-- ════ PEAK ANNOTATION ════ -->
-${peakAnnot}
+<!-- ════ OUTLIER MARKERS ════ -->
+${outlierMarkers}
+
+<!-- ════ ANNOTATIONS ════ -->
+${annotSVG}
 
 <!-- ════ CORNER BRACKETS ════ -->
 ${corners}
 
-<!-- ════ WAVE DECORATION ════ -->
+<!-- ════ HEATMAP ════ -->
+${heatmapResult.svg}
+
+<!-- ════ BOTTOM PANELS ════ -->
+${bottomPanelSVG}
+
+<!-- ════ WAVES ════ -->
 ${waves}
 
 </svg>`;
 }
 
-// ─── MAIN ─────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// §10  MAIN
+// ═══════════════════════════════════════════════════════════════════════════════
 
 (async () => {
   try {
-    console.log("⬡ Starting Hollow-Knight-style commit chart...");
-    const fetch   = await getFetch();
+    console.log("⬡ Commit Analytics v2 — Adaptive Chart Generator");
+    console.log(`  Repo: ${CFG.repo}`);
+    console.log(`  Mode: ${CFG.scaleMode} scale · ${CFG.aggregation} aggregation · MA(${CFG.maWindow})`);
+    console.log(`  Theme: ${CFG.theme} · Heatmap: ${CFG.heatmap} · Minimap: ${CFG.minimap}`);
+    console.log("");
+
+    const fetch = await getFetch();
     const commits = await fetchAllCommits(fetch);
-    console.log(`📊 Fetching per-commit stats (${commits.length} commits, ${CONCURRENCY} concurrent)...`);
-    const stats   = await batchFetchStats(fetch, commits);
+
+    console.log(`📊 Fetching per-commit stats (${commits.length} commits, ${CFG.concurrency} concurrent)...`);
+    const stats = await batchFetchStats(fetch, commits);
+
     const dayData = groupByDay(commits, stats);
-    const svg     = generateSVG(dayData);
-    fs.writeFileSync("scripts/commit-chart.svg", svg);
-    console.log("✅ scripts/commit-chart.svg generated — Hollow Knight blue ⬡");
+    const authorData = extractAuthorMap(commits);
+
+    console.log(`👥 Top contributors: ${authorData.map(a => `${a.name}(${a.count})`).join(", ")}`);
+
+    const svg = generateSVG(dayData, authorData);
+
+    // Ensure output directory exists
+    if (!fs.existsSync(CFG.outputDir)) fs.mkdirSync(CFG.outputDir, { recursive: true });
+
+    const outPath = `${CFG.outputDir}/commit-chart.svg`;
+    fs.writeFileSync(outPath, svg);
+    console.log(`\n✅ ${outPath} generated — ⬡ Hollow Knight Blue`);
+    console.log(`   Size: ${(svg.length / 1024).toFixed(1)} KB`);
   } catch (err) {
     console.error("❌ Error:", err);
     process.exit(1);
