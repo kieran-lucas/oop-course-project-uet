@@ -77,6 +77,8 @@ repositories {
 // testImplementation = chỉ dùng khi chạy test (không đóng gói)
 //
 dependencies {
+    // Environment variables
+    implementation("io.github.cdimascio:dotenv-java:3.0.0")
 
     // ── SERVER ──────────────────────────────────────────────────────────────
     // Javalin: HTTP server + WebSocket server
