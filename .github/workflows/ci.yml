@@ -38,11 +38,15 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # ⚡ Cấp quyền thực thi gradlew
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+      # ⚡ Fix gradlew permission + convert line endings
+      - name: Make gradlew executable and fix line endings
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dos2unix
+          dos2unix gradlew || true
+          chmod +x gradlew
 
-      # ⚡ Tự động format code theo Spotless trước khi check
+      # ⚡ Apply Spotless formatting
       - name: Apply Spotless formatting
         run: ./gradlew spotlessApply
 
@@ -68,3 +72,12 @@ jobs:
         with:
           name: coverage-report
           path: build/reports/jacoco/test/html/
+
+      # ⚡ Optional: commit Spotless changes back to repo
+      - name: Commit Spotless changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Apply Spotless formatting via CI" || echo "No changes to commit"
+          git push
