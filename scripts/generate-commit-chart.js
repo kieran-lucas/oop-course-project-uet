@@ -31,6 +31,8 @@ const DEFAULTS = {
   minimap: true,
   // Outlier threshold (multiples of IQR above Q3)
   outlierIQRMultiplier: 1.5,
+  // Peak height ratio: peak values reach at most this fraction of chart height (0.0–1.0)
+  peakHeightRatio: 0.7,
   // Annotations: auto-detect peaks, streaks, milestones
   annotations: true,
   // Theme: "hollow-knight" | "ocean-depth" | "aurora"
@@ -54,6 +56,7 @@ function parseArgs() {
     else if (key === "output" || key === "out") cfg.outputDir = val;
     else if (key === "concurrency") cfg.concurrency = parseInt(val, 10);
     else if (key === "outlier-iqr") cfg.outlierIQRMultiplier = parseFloat(val);
+    else if (key === "peak-ratio") cfg.peakHeightRatio = parseFloat(val);
   }
   return cfg;
 }
@@ -355,22 +358,38 @@ function detectOutliers(arr, multiplier) {
 // ─── Adaptive Scale ─────────────────────────────────────────────────────────
 
 function computeAdaptiveMax(arr, stats, outliers) {
-  if (CFG.scaleMode === "linear") return Math.max(...arr, 1);
+  const absMax = Math.max(...arr, 1);
 
-  const hasUpperOutliers = outliers.some(o => o.isUpperOutlier);
-  if (!hasUpperOutliers || CFG.scaleMode === "linear") return Math.max(...arr, 1);
-
-  // Use P95 as visual max, mark outliers above with special annotation
-  const sorted = [...arr].sort((a, b) => a - b);
-  const p95 = sorted[Math.floor(sorted.length * 0.95)];
-  const p99 = sorted[Math.floor(sorted.length * 0.99)];
-
-  // If the max is more than 3x the P95, compress the scale
-  const absMax = Math.max(...arr);
-  if (absMax > p95 * 3) {
-    return p95 * 1.5; // Compress, mark outliers with special treatment
+  if (CFG.scaleMode === "linear") {
+    // Even in linear mode, enforce peakHeightRatio headroom
+    return absMax / CFG.peakHeightRatio;
   }
-  return absMax;
+
+  // ── Step 1: Always add headroom so peak reaches at most peakHeightRatio of chart ──
+  // If peakHeightRatio = 0.7, then visualMax = absMax / 0.7 ≈ absMax * 1.43
+  // This means the peak sits at 70% height, leaving 30% breathing room
+  let visualMax = absMax / CFG.peakHeightRatio;
+
+  // ── Step 2: Additional compression for outliers ──
+  const hasUpperOutliers = outliers.some(o => o.isUpperOutlier);
+  if (hasUpperOutliers) {
+    const sorted = [...arr].sort((a, b) => a - b);
+    const p90 = sorted[Math.floor(sorted.length * 0.90)];
+    const p95 = sorted[Math.floor(sorted.length * 0.95)];
+
+    // If max is much larger than the "normal" range, compress harder:
+    // Use P90/P95 as reference so most data stays readable
+    if (absMax > p95 * 2.5) {
+      // Heavy spike: set scale so P95 is at ~55% height, outliers get markers
+      visualMax = p95 / 0.55;
+    } else if (absMax > p90 * 2) {
+      // Moderate spike: set scale so P90 is at ~50% height
+      visualMax = p90 / 0.50;
+    }
+    // Otherwise the default peakHeightRatio headroom is sufficient
+  }
+
+  return Math.max(visualMax, 1);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
