@@ -6,19 +6,53 @@
 
 ## Overview
 
-🚀 A real-time online auction platform built with Java 21, following a clean Client–Server architecture. The Spring Boot server owns all business logic, concurrency control, and database access, while the JavaFX client provides a responsive graphical interface for three distinct user roles: 🧑‍💼 Bidder, 🛍️ Seller, and 🛡️ Admin.
+A real-time online auction platform built with Java 21 and a clean Client–Server architecture.
+The Javalin server handles all business logic, concurrency control, and database access through JDBI, while the JavaFX client provides a responsive graphical interface for three distinct roles: Bidder, Seller, and Admin.
 
-⏳ Auction lifecycle. Each auction session follows a strict state machine: OPEN → RUNNING → FINISHED → PAID / CANCELED. Transitions are triggered automatically by a server-side scheduler, ensuring that sessions open and close exactly on time without any manual intervention. ⏰
+🔄 Auction Lifecycle
 
-🔄 Real-time updates. Whenever a bid is placed, every client currently viewing that auction instantly receives the updated price, the new leading bidder, and the remaining time — pushed directly from the server through a persistent WebSocket connection using the STOMP protocol. No polling. No refresh. No delay. ⚡
+Each auction follows a strict state machine: OPEN → RUNNING → FINISHED → PAID / CANCELED, implemented using the State pattern.
+Every state — OpenState, RunningState, FinishedState, PaidState, and CanceledState — defines exactly which actions are allowed. For example, a running auction accepts bids, while a finished auction rejects them immediately. State transitions are triggered automatically by a server-side scheduler, ensuring auctions open and close precisely on time.
 
-🛡️ Concurrent safety. The system is designed to handle multiple simultaneous bids without race conditions or lost updates, using a combination of JPA optimistic locking (@Version) and pessimistic locking (SELECT FOR UPDATE) to guarantee that exactly one bid wins at any given moment. 🔐
+⚡ Real-Time Updates
 
-🤖 Advanced features. Users can register an auto-bid with a maximum price and a step increment, and the system will automatically bid on their behalf whenever they are outbid, resolving conflicts by maximum price first and then by registration time. A built-in anti-sniping algorithm extends the auction end time whenever a valid bid arrives within the final 30 seconds, preventing last-second sniping. A live price-curve chart in the auction detail view plots each accepted bid as it arrives, giving all participants a clear visual history of how the price has evolved over time. 📈
+When a bid is placed, all clients currently viewing that auction receive instant updates for the latest price, new leading bidder, and remaining time through a persistent WebSocket connection.
+There is no polling and no page refresh. This behavior is powered by the Observer pattern: AuctionEventManager maintains a list of WebSocketObserver instances per session and broadcasts every bid-related event, including BID_UPDATE, TIME_EXTENDED, AUCTION_ENDED, and AUTO_BID_TRIGGERED.
 
-🏗️ Design. The codebase applies OOP principles throughout: a clear inheritance hierarchy (Entity → User / Item → role and category subclasses), strong encapsulation enforced through access modifiers and DTOs, and polymorphism via abstract methods and interfaces. Three design patterns are applied deliberately: Singleton for the auction session manager, Factory Method for item creation by category, and Observer to decouple bid events from WebSocket broadcasting and notification persistence. 🧩
+🛡️ Concurrent Safety
 
-🧰 Tooling. Built with Gradle in a multi-module structure, with server and client as independent modules; tested using JUnit 5 and Mockito, with service-layer coverage ≥ 80% enforced by JaCoCo; and delivered through a CI/CD pipeline on GitHub Actions that builds, tests, and checks coding conventions on every push. ✅
+The platform is designed to handle multiple simultaneous bids safely at two levels.
+At the application level, BidService.placeBid() wraps the entire validate-update-notify flow in a synchronized block on the auction object, preventing interleaved execution on the JVM.
+At the database level, each bid runs inside a transaction that uses SELECT ... FOR UPDATE to lock the auction row, preventing stale reads and race conditions before the current update commits.
+
+🤖 Bidding Strategies
+
+The Strategy pattern separates two bidding modes cleanly:
+
+ManualBidStrategy validates the submitted amount against the current price and applies the update.
+AutoBidStrategy uses a PriorityQueue<AutoBidConfig> ordered by registration time to automatically outbid competitors in controlled increments, without exceeding the user’s declared maximum.
+
+When multiple auto-bids conflict, the bidder who registered earlier gets priority.
+
+⏱️ Anti-Sniping Protection
+
+Inside placeBid(), a concise time-check detects whether fewer than 30 seconds remain when a valid bid arrives.
+If so, the auction end time is extended by 60 seconds, and a TIME_EXTENDED event is broadcast to all connected clients so their countdown timers update instantly.
+
+📈 Live Bid History Chart
+
+The auction detail screen includes a JavaFX LineChart that renders the full price history on load, then appends new points whenever a BID_UPDATE WebSocket message arrives.
+Using Platform.runLater(), the chart stays safely on the UI thread, producing a live price curve that grows in real time as the auction unfolds.
+
+🧩 Design & Architecture
+
+The codebase applies OOP principles consistently: a clear inheritance hierarchy (Entity → User / Item → role and category subclasses), encapsulation through private fields and DTOs, and polymorphism via getRole() and getCategory() overrides.
+It also uses five core design patterns intentionally: Observer for real-time event dispatch, Factory Method for item creation by category, Strategy for bid execution, State for auction lifecycle control, and DAO for isolating SQL from business logic.
+
+🧪 Tooling & Quality
+
+The project is built with Gradle (Kotlin DSL) and kept consistent with Checkstyle, Spotless, and EditorConfig aligned to Google Java Style.
+Testing is done with JUnit 5: unit tests mock the DAO layer using Mockito, while integration tests run against a live PostgreSQL instance. A GitHub Actions pipeline spins up a PostgreSQL 16 service container on every push, then runs formatting checks, convention checks, the full test suite, and a JaCoCo coverage report uploaded as a build artifact.
 
 ## Scoring
 Below is the grading rubric for this project.
