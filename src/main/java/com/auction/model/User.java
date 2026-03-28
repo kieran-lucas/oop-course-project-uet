@@ -5,12 +5,11 @@ import java.time.LocalDateTime;
 /**
  * Lớp trừu tượng cho người dùng hệ thống.
  *
- * <p>Ba loại user: Bidder (đấu giá), Seller (bán), Admin (quản lý).
- * Phần chung (username, password, email) nằm ở đây.
- * Phần riêng (quyền hạn, hành vi) nằm ở subclass.
+ * <p>Ba loại user: Bidder (đấu giá), Seller (bán), Admin (quản lý). Phần chung (username, password,
+ * email) nằm ở đây. Phần riêng (quyền hạn, hành vi) nằm ở subclass.
  *
- * <p>Đây là INHERITANCE: User kế thừa id + createdAt từ Entity,
- * rồi thêm username, passwordHash, email.
+ * <p>Đây là INHERITANCE: User kế thừa id + createdAt từ Entity, rồi thêm username, passwordHash,
+ * email.
  */
 public abstract class User extends Entity {
 
@@ -30,8 +29,8 @@ public abstract class User extends Entity {
   }
 
   /** Constructor từ database — đã có id và createdAt. */
-  protected User(Long id, String username, String passwordHash, String email,
-      LocalDateTime createdAt) {
+  protected User(
+      Long id, String username, String passwordHash, String email, LocalDateTime createdAt) {
     super(id, createdAt);
     this.username = username;
     this.passwordHash = passwordHash;
@@ -41,9 +40,8 @@ public abstract class User extends Entity {
   /**
    * Trả về vai trò của user: "BIDDER", "SELLER", hoặc "ADMIN".
    *
-   * <p>Đây là POLYMORPHISM: mỗi subclass override method này trả về giá trị khác nhau.
-   * Khi bạn có List<User> users, gọi user.getRole() sẽ trả đúng vai trò
-   * mà không cần instanceof.
+   * <p>Đây là POLYMORPHISM: mỗi subclass override method này trả về giá trị khác nhau. Khi bạn có
+   * List<User> users, gọi user.getRole() sẽ trả đúng vai trò mà không cần instanceof.
    */
   public abstract String getRole();
 

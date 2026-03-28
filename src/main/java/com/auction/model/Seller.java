@@ -5,8 +5,8 @@ import java.time.LocalDateTime;
 /**
  * Người bán — đăng sản phẩm lên hệ thống đấu giá.
  *
- * <p>Seller có quyền: tạo/sửa/xóa sản phẩm, tạo phiên đấu giá, xem kết quả.
- * Seller KHÔNG có quyền: tham gia đấu giá sản phẩm của chính mình.
+ * <p>Seller có quyền: tạo/sửa/xóa sản phẩm, tạo phiên đấu giá, xem kết quả. Seller KHÔNG có quyền:
+ * tham gia đấu giá sản phẩm của chính mình.
  */
 public class Seller extends User {
 
@@ -16,8 +16,8 @@ public class Seller extends User {
     super(username, passwordHash, email);
   }
 
-  public Seller(Long id, String username, String passwordHash, String email,
-      LocalDateTime createdAt) {
+  public Seller(
+      Long id, String username, String passwordHash, String email, LocalDateTime createdAt) {
     super(id, username, passwordHash, email, createdAt);
   }
 

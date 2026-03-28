@@ -6,12 +6,11 @@ import java.util.Objects;
 /**
  * Lớp trừu tượng gốc cho mọi entity trong hệ thống.
  *
- * <p>Mọi đối tượng lưu trong database đều có id và thời gian tạo.
- * Thay vì viết lại 2 field này trong User, Item, Auction, BidTransaction,
- * ta viết 1 lần ở đây → tất cả kế thừa.
+ * <p>Mọi đối tượng lưu trong database đều có id và thời gian tạo. Thay vì viết lại 2 field này
+ * trong User, Item, Auction, BidTransaction, ta viết 1 lần ở đây → tất cả kế thừa.
  *
- * <p>Đây là ABSTRACTION trong OOP: Entity định nghĩa "mọi thứ trong hệ thống
- * đều có id và createdAt", nhưng không nói cụ thể đó là User hay Item.
+ * <p>Đây là ABSTRACTION trong OOP: Entity định nghĩa "mọi thứ trong hệ thống đều có id và
+ * createdAt", nhưng không nói cụ thể đó là User hay Item.
  */
 public abstract class Entity {
 
