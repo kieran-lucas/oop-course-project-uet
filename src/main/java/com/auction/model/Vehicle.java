@@ -5,8 +5,8 @@ import java.time.LocalDateTime;
 /**
  * Phương tiện — có thêm thông tin năm sản xuất.
  *
- * <p>Ví dụ: "Toyota Camry 2022" (year = 2022).
- * Năm sản xuất ảnh hưởng lớn đến giá trị xe nhưng không áp dụng cho Art hay Electronics.
+ * <p>Ví dụ: "Toyota Camry 2022" (year = 2022). Năm sản xuất ảnh hưởng lớn đến giá trị xe nhưng
+ * không áp dụng cho Art hay Electronics.
  */
 public class Vehicle extends Item {
 
@@ -19,8 +19,8 @@ public class Vehicle extends Item {
     this.year = year;
   }
 
-  public Vehicle(Long id, String name, String description, Long sellerId, int year,
-      LocalDateTime createdAt) {
+  public Vehicle(
+      Long id, String name, String description, Long sellerId, int year, LocalDateTime createdAt) {
     super(id, name, description, sellerId, createdAt);
     this.year = year;
   }
