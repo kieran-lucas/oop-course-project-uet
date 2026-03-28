@@ -8,22 +8,24 @@ import java.time.LocalDateTime;
  * DTO trả về thông tin phiên đấu giá cho client — phiên bản "an toàn" của Auction.
  *
  * <p>Tại sao cần AuctionResponse thay vì trả thẳng Auction?
+ *
  * <ul>
- *   <li>Auction chứa các field nội bộ mà client không cần biết</li>
- *   <li>Có thể muốn thêm/bớt field tùy API mà không ảnh hưởng model</li>
- *   <li>Tách biệt tầng data (model) và tầng presentation (DTO) — đúng nguyên tắc MVC</li>
- *   <li>Trong tương lai có thể cần nhiều response format khác nhau cho cùng 1 entity</li>
+ *   <li>Auction chứa các field nội bộ mà client không cần biết
+ *   <li>Có thể muốn thêm/bớt field tùy API mà không ảnh hưởng model
+ *   <li>Tách biệt tầng data (model) và tầng presentation (DTO) — đúng nguyên tắc MVC
+ *   <li>Trong tương lai có thể cần nhiều response format khác nhau cho cùng 1 entity
  * </ul>
  *
  * <p>AuctionResponse bổ sung thêm thông tin phái sinh mà client cần:
+ *
  * <ul>
- *   <li>itemName — tên sản phẩm (thay vì chỉ itemId, client không cần query thêm)</li>
- *   <li>leadingBidderUsername — tên người dẫn đầu (thay vì chỉ leadingBidderId)</li>
- *   <li>remainingTimeMs — thời gian còn lại tính sẵn (client không cần tự tính)</li>
+ *   <li>itemName — tên sản phẩm (thay vì chỉ itemId, client không cần query thêm)
+ *   <li>leadingBidderUsername — tên người dẫn đầu (thay vì chỉ leadingBidderId)
+ *   <li>remainingTimeMs — thời gian còn lại tính sẵn (client không cần tự tính)
  * </ul>
  *
- * <p>Method tĩnh fromAuction() giúp chuyển đổi Auction → AuctionResponse một cách tiện lợi,
- * tránh viết lại code mapping ở nhiều nơi.
+ * <p>Method tĩnh fromAuction() giúp chuyển đổi Auction → AuctionResponse một cách tiện lợi, tránh
+ * viết lại code mapping ở nhiều nơi.
  */
 public class AuctionResponse {
 
