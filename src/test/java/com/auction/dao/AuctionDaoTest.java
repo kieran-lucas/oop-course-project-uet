@@ -85,23 +85,27 @@ class AuctionDaoTest {
         assertNull(saved.getLeadingBidderId());
     }
     
-    @Test
+   @Test
     @DisplayName("FindById should return auction")
     void testFindById() {
-        Auction auction = new Auction(
-            testItem.getId(),
-            new BigDecimal("200000"),
-            LocalDateTime.now(),
-            LocalDateTime.now().plusHours(24)
-        );
-        Auction saved = auctionDao.insert(auction);
-        
-        Optional<Auction> found = auctionDao.findById(saved.getId());
-        
-        assertTrue(found.isPresent());
-        assertEquals(saved.getId(), found.get().getId());
-        assertEquals(new BigDecimal("200000"), found.get().getStartingPrice());
-    }
+    LocalDateTime startTime = LocalDateTime.now();
+    LocalDateTime endTime = startTime.plusHours(24);
+    
+    Auction auction = new Auction(
+        testItem.getId(),
+        new BigDecimal("200000"),
+        startTime,
+        endTime
+    );
+    Auction saved = auctionDao.insert(auction);
+    
+    Optional<Auction> found = auctionDao.findById(saved.getId());
+    
+    assertTrue(found.isPresent());
+    assertEquals(saved.getId(), found.get().getId());
+    // So sánh BigDecimal đúng cách
+    assertEquals(0, new BigDecimal("200000").compareTo(found.get().getStartingPrice()));
+}
     
     @Test
     @DisplayName("FindAll should return all auctions")
