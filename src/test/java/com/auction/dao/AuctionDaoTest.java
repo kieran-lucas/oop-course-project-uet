@@ -253,17 +253,22 @@ void testUpdate() {
     @Test
     @DisplayName("GetCurrentPrice should return correct price")
     void testGetCurrentPrice() {
-        Auction auction = new Auction(
-            testItem.getId(),
-            new BigDecimal("500000"),
-            LocalDateTime.now(),
-            LocalDateTime.now().plusHours(24)
-        );
-        Auction saved = auctionDao.insert(auction);
-        
-        Optional<BigDecimal> price = auctionDao.getCurrentPrice(saved.getId());
-        
-        assertTrue(price.isPresent());
-        assertEquals(new BigDecimal("500000"), price.get());
-    }
+    LocalDateTime startTime = LocalDateTime.now();
+    LocalDateTime endTime = startTime.plusHours(24);
+    
+    Auction auction = new Auction(
+        testItem.getId(),
+        new BigDecimal("500000"),
+        startTime,
+        endTime
+    );
+    Auction saved = auctionDao.insert(auction);
+    
+    Optional<BigDecimal> price = auctionDao.getCurrentPrice(saved.getId());
+    
+    assertTrue(price.isPresent());
+    // So sánh BigDecimal đúng cách
+    assertEquals(0, new BigDecimal("500000").compareTo(price.get()), 
+        "Current price should be 500000");
+}
 }
