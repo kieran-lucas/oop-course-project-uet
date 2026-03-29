@@ -66,8 +66,10 @@ public class AutoBidConfigDao {
      * 
      * <p>Map các cột trong bảng auto_bid_configs:
      * <pre>
-     * | id | auction_id | bidder_id | max_bid | increment_amount | active | registered_at | created_at |
+     * | id | auction_id | bidder_id | max_bid | increment_amount | active | registered_at |
      * </pre>
+     * 
+     * <p>Lưu ý: Bảng không có cột created_at, dùng registered_at cho cả createdAt.
      */
     private static class AutoBidConfigMapper implements RowMapper<AutoBidConfig> {
         @Override
@@ -80,7 +82,7 @@ public class AutoBidConfigDao {
                 rs.getBigDecimal("increment_amount"),
                 rs.getBoolean("active"),
                 rs.getTimestamp("registered_at").toLocalDateTime(),
-                rs.getTimestamp("created_at").toLocalDateTime()
+                rs.getTimestamp("registered_at").toLocalDateTime() // created_at không có, dùng registered_at
             );
         }
     }
@@ -105,9 +107,9 @@ public class AutoBidConfigDao {
     public AutoBidConfig insert(AutoBidConfig config) {
         String sql = """
             INSERT INTO auto_bid_configs 
-                (auction_id, bidder_id, max_bid, increment_amount, active, registered_at, created_at)
+                (auction_id, bidder_id, max_bid, increment_amount, active, registered_at)
             VALUES 
-                (:auctionId, :bidderId, :maxBid, :increment, :active, :registeredAt, :createdAt)
+                (:auctionId, :bidderId, :maxBid, :increment, :active, :registeredAt)
             RETURNING id
             """;
         
@@ -119,7 +121,6 @@ public class AutoBidConfigDao {
                     .bind("increment", config.getIncrement())
                     .bind("active", config.isActive())
                     .bind("registeredAt", config.getRegisteredAt())
-                    .bind("createdAt", config.getCreatedAt())
                     .mapTo(Long.class)
                     .one();
             
@@ -143,7 +144,7 @@ public class AutoBidConfigDao {
     public Optional<AutoBidConfig> findById(Long id) {
         String sql = """
             SELECT id, auction_id, bidder_id, max_bid, increment_amount, 
-                   active, registered_at, created_at
+                   active, registered_at
             FROM auto_bid_configs
             WHERE id = :id
             """;
@@ -173,7 +174,7 @@ public class AutoBidConfigDao {
     public Optional<AutoBidConfig> findByAuctionAndBidder(Long auctionId, Long bidderId) {
         String sql = """
             SELECT id, auction_id, bidder_id, max_bid, increment_amount, 
-                   active, registered_at, created_at
+                   active, registered_at
             FROM auto_bid_configs
             WHERE auction_id = :auctionId AND bidder_id = :bidderId
             """;
@@ -193,22 +194,13 @@ public class AutoBidConfigDao {
      * <p><b>QUAN TRỌNG:</b> Method này được AutoBidStrategy gọi mỗi khi có bid mới.
      * Kết quả trả về cần được sắp xếp theo registered_at (ai đăng ký trước được ưu tiên).
      * 
-     * <p>Luồng xử lý auto-bid:
-     * <ol>
-     *   <li>Có bid mới (thủ công hoặc auto)</li>
-     *   <li>AutoBidStrategy lấy tất cả active configs của phiên</li>
-     *   <li>Sắp xếp theo registered_at ASC (ưu tiên người đăng ký trước)</li>
-     *   <li>Duyệt từng config, nếu canBidAt() true → tự động bid</li>
-     *   <li>Lặp lại cho đến khi không còn ai đủ budget</li>
-     * </ol>
-     * 
      * @param auctionId ID phiên đấu giá
      * @return List các AutoBidConfig active, sắp xếp theo thời gian đăng ký
      */
     public List<AutoBidConfig> findActiveByAuctionId(Long auctionId) {
         String sql = """
             SELECT id, auction_id, bidder_id, max_bid, increment_amount, 
-                   active, registered_at, created_at
+                   active, registered_at
             FROM auto_bid_configs
             WHERE auction_id = :auctionId AND active = true
             ORDER BY registered_at ASC
@@ -233,7 +225,7 @@ public class AutoBidConfigDao {
     public List<AutoBidConfig> findByBidderId(Long bidderId) {
         String sql = """
             SELECT id, auction_id, bidder_id, max_bid, increment_amount, 
-                   active, registered_at, created_at
+                   active, registered_at
             FROM auto_bid_configs
             WHERE bidder_id = :bidderId
             ORDER BY registered_at DESC
@@ -258,7 +250,7 @@ public class AutoBidConfigDao {
     public List<AutoBidConfig> findAllByAuctionId(Long auctionId) {
         String sql = """
             SELECT id, auction_id, bidder_id, max_bid, increment_amount, 
-                   active, registered_at, created_at
+                   active, registered_at
             FROM auto_bid_configs
             WHERE auction_id = :auctionId
             ORDER BY registered_at ASC
