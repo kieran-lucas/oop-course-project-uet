@@ -141,31 +141,37 @@ class AuctionDaoTest {
         assertEquals(testItem.getId(), auctions.get(0).getItemId());
     }
     
-    @Test
-    @DisplayName("Update should modify auction")
-    void testUpdate() {
-        Auction auction = new Auction(
-            testItem.getId(),
-            new BigDecimal("100000"),
-            LocalDateTime.now(),
-            LocalDateTime.now().plusHours(24)
-        );
-        Auction saved = auctionDao.insert(auction);
-        
-        saved.setCurrentPrice(new BigDecimal("150000"));
-        saved.setLeadingBidderId(testBidder.getId()); // Dùng bidder thực tế
-        saved.setStatus("RUNNING");
-        
-        boolean updated = auctionDao.update(saved);
-        
-        assertTrue(updated);
-        
-        Optional<Auction> found = auctionDao.findById(saved.getId());
-        assertTrue(found.isPresent());
-        assertEquals(new BigDecimal("150000"), found.get().getCurrentPrice());
-        assertEquals(testBidder.getId(), found.get().getLeadingBidderId());
-        assertEquals("RUNNING", found.get().getStatus());
-    }
+@Test
+@DisplayName("Update should modify auction")
+void testUpdate() {
+    LocalDateTime startTime = LocalDateTime.now();
+    LocalDateTime endTime = startTime.plusHours(24);
+    
+    Auction auction = new Auction(
+        testItem.getId(),
+        new BigDecimal("100000"),
+        startTime,
+        endTime
+    );
+    Auction saved = auctionDao.insert(auction);
+    
+    saved.setCurrentPrice(new BigDecimal("150000"));
+    saved.setLeadingBidderId(testBidder.getId());
+    saved.setStatus("RUNNING");
+    
+    boolean updated = auctionDao.update(saved);
+    
+    assertTrue(updated);
+    
+    Optional<Auction> found = auctionDao.findById(saved.getId());
+    assertTrue(found.isPresent());
+    
+    // So sánh BigDecimal đúng cách
+    assertEquals(0, new BigDecimal("150000").compareTo(found.get().getCurrentPrice()), 
+        "Current price should be 150000");
+    assertEquals(testBidder.getId(), found.get().getLeadingBidderId());
+    assertEquals("RUNNING", found.get().getStatus());
+}
     
     @Test
     @DisplayName("Delete should remove auction")
