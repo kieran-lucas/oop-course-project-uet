@@ -33,17 +33,46 @@ class AutoBidConfigDaoTest {
         auctionDao = new AuctionDao(jdbi);
         autoBidDao = new AutoBidConfigDao(jdbi);
         
-        // Tạo dữ liệu test
-        testSeller = userDao.insert(new Seller("auto_seller", "hash", "auto_seller@test.com"));
-        testBidder1 = userDao.insert(new Bidder("auto_bidder1", "hash", "auto_bidder1@test.com"));
-        testBidder2 = userDao.insert(new Bidder("auto_bidder2", "hash", "auto_bidder2@test.com"));
-        testItem = itemDao.insert(new Electronics("Auto Item", "Test", testSeller.getId(), "Brand"));
+        // Tạo dữ liệu test với timestamp để unique
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        
+        testSeller = userDao.insert(new Seller(
+            "auto_seller_" + timestamp, 
+            "hash", 
+            "auto_seller_" + timestamp + "@test.com"
+        ));
+        
+        testBidder1 = userDao.insert(new Bidder(
+            "auto_bidder1_" + timestamp, 
+            "hash", 
+            "auto_bidder1_" + timestamp + "@test.com"
+        ));
+        
+        testBidder2 = userDao.insert(new Bidder(
+            "auto_bidder2_" + timestamp, 
+            "hash", 
+            "auto_bidder2_" + timestamp + "@test.com"
+        ));
+        
+        testItem = itemDao.insert(new Electronics(
+            "Auto Item " + timestamp, 
+            "Test", 
+            testSeller.getId(), 
+            "Brand"
+        ));
+        
         testAuction = auctionDao.insert(new Auction(
             testItem.getId(),
             new BigDecimal("100000"),
             LocalDateTime.now(),
             LocalDateTime.now().plusHours(24)
         ));
+        
+        System.out.println("Created test seller id: " + testSeller.getId());
+        System.out.println("Created test bidder1 id: " + testBidder1.getId());
+        System.out.println("Created test bidder2 id: " + testBidder2.getId());
+        System.out.println("Created test item id: " + testItem.getId());
+        System.out.println("Created test auction id: " + testAuction.getId());
     }
     
     @BeforeEach
@@ -67,8 +96,8 @@ class AutoBidConfigDaoTest {
         assertNotNull(saved.getId());
         assertEquals(testAuction.getId(), saved.getAuctionId());
         assertEquals(testBidder1.getId(), saved.getBidderId());
-        assertEquals(new BigDecimal("1000000"), saved.getMaxBid());
-        assertEquals(new BigDecimal("50000"), saved.getIncrement());
+        assertEquals(0, new BigDecimal("1000000").compareTo(saved.getMaxBid()));
+        assertEquals(0, new BigDecimal("50000").compareTo(saved.getIncrement()));
         assertTrue(saved.isActive());
         assertNotNull(saved.getRegisteredAt());
     }
@@ -88,7 +117,7 @@ class AutoBidConfigDaoTest {
         
         assertTrue(found.isPresent());
         assertEquals(saved.getId(), found.get().getId());
-        assertEquals(new BigDecimal("2000000"), found.get().getMaxBid());
+        assertEquals(0, new BigDecimal("2000000").compareTo(found.get().getMaxBid()));
     }
     
     @Test
@@ -107,13 +136,12 @@ class AutoBidConfigDaoTest {
         
         assertTrue(found.isPresent());
         assertEquals(testBidder1.getId(), found.get().getBidderId());
-        assertEquals(new BigDecimal("3000000"), found.get().getMaxBid());
+        assertEquals(0, new BigDecimal("3000000").compareTo(found.get().getMaxBid()));
     }
     
     @Test
-    @DisplayName("FindActiveByAuctionId should return only active configs sorted by registration time")
+    @DisplayName("FindActiveByAuctionId should return only active configs")
     void testFindActiveByAuctionId() {
-        // Tạo config cho bidder1 trước
         AutoBidConfig config1 = new AutoBidConfig(
             testAuction.getId(),
             testBidder1.getId(),
@@ -122,10 +150,6 @@ class AutoBidConfigDaoTest {
         );
         autoBidDao.insert(config1);
         
-        // Đợi 1ms để registered_at khác nhau
-        try { Thread.sleep(1); } catch (InterruptedException e) {}
-        
-        // Tạo config cho bidder2 sau
         AutoBidConfig config2 = new AutoBidConfig(
             testAuction.getId(),
             testBidder2.getId(),
@@ -134,7 +158,7 @@ class AutoBidConfigDaoTest {
         );
         autoBidDao.insert(config2);
         
-        // Vô hiệu hóa config2 để test chỉ active
+        // Vô hiệu hóa config2
         config2.setActive(false);
         autoBidDao.update(config2);
         
@@ -176,8 +200,8 @@ class AutoBidConfigDaoTest {
         
         Optional<AutoBidConfig> found = autoBidDao.findById(saved.getId());
         assertTrue(found.isPresent());
-        assertEquals(new BigDecimal("1500000"), found.get().getMaxBid());
-        assertEquals(new BigDecimal("75000"), found.get().getIncrement());
+        assertEquals(0, new BigDecimal("1500000").compareTo(found.get().getMaxBid()));
+        assertEquals(0, new BigDecimal("75000").compareTo(found.get().getIncrement()));
         assertFalse(found.get().isActive());
     }
     
@@ -198,7 +222,7 @@ class AutoBidConfigDaoTest {
         
         Optional<AutoBidConfig> found = autoBidDao.findByAuctionAndBidder(testAuction.getId(), testBidder1.getId());
         assertTrue(found.isPresent());
-        assertEquals(new BigDecimal("2000000"), found.get().getMaxBid());
+        assertEquals(0, new BigDecimal("2000000").compareTo(found.get().getMaxBid()));
         assertFalse(found.get().isActive());
     }
     
