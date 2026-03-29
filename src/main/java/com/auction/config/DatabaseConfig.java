@@ -147,49 +147,38 @@ public class DatabaseConfig {
    *
    * @return HikariDataSource đã cấu hình
    */
-  private static DataSource createDataSource() {
-    // Đọc cấu hình từ biến môi trường, fallback về giá trị mặc định
+private static DataSource createDataSource() {
     String url = getEnv("DB_URL", DEFAULT_URL);
     String user = getEnv("DB_USER", DEFAULT_USER);
     String password = getEnv("DB_PASSWORD", DEFAULT_PASSWORD);
+    
+    // Đảm bảo URL có currentSchema
+    if (!url.contains("currentSchema")) {
+        if (url.contains("?")) {
+            url = url + "&currentSchema=public";
+        } else {
+            url = url + "?currentSchema=public";
+        }
+    }
 
     HikariConfig config = new HikariConfig();
-
-    // ── Kết nối cơ bản ──
-    // jdbcUrl: địa chỉ PostgreSQL server
-    //   Format: jdbc:postgresql://host:port/database_name
-    //   localhost:5432 = PostgreSQL chạy trên máy này, port mặc định
-    //   auction_db = tên database (tạo bằng lệnh CREATE DATABASE auction_db)
     config.setJdbcUrl(url);
     config.setUsername(user);
     config.setPassword(password);
-
-    // ── Pool size ──
-    // maximumPoolSize: tối đa bao nhiêu connections cùng lúc
-    // minimumIdle: giữ sẵn ít nhất bao nhiêu connections (dù không ai dùng)
-    //   → Khi server mới khởi động, đã có 5 connections sẵn sàng → request đầu tiên nhanh
+    
+    // THÊM DÒNG NÀY Ở ĐÂY (trước khi return)
+    config.setConnectionInitSql("SET search_path TO public");
+    
     config.setMaximumPoolSize(10);
     config.setMinimumIdle(5);
-
-    // ── Timeout ──
-    // connectionTimeout: nếu pool hết connection, request chờ tối đa 30 giây
-    //   → Quá 30 giây → throw SQLException → server trả lỗi 503 cho client
-    // idleTimeout: connection không ai dùng trong 10 phút → đóng bớt (tiết kiệm tài nguyên)
-    // maxLifetime: mỗi connection sống tối đa 30 phút → rồi đóng, mở connection mới
-    //   → Tránh lỗi "connection bị PostgreSQL server đóng vì quá cũ"
-    config.setConnectionTimeout(30000); // 30 giây
-    config.setIdleTimeout(600000); // 10 phút
-    config.setMaxLifetime(1800000); // 30 phút
-
-    // ── Pool name ──
-    // Hiện trong log: "HikariPool-AuctionPool - Starting..."
-    // Dễ phân biệt nếu sau này có nhiều pool (ví dụ pool riêng cho read replica)
+    config.setConnectionTimeout(30000);
+    config.setIdleTimeout(600000);
+    config.setMaxLifetime(1800000);
     config.setPoolName("AuctionPool");
 
     LOGGER.info("Khởi tạo connection pool: {} (max={}, min={})", url, 10, 5);
     return new HikariDataSource(config);
-  }
-
+}
   /**
    * Đọc biến môi trường, trả về giá trị mặc định nếu không tìm thấy.
    *

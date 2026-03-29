@@ -3,7 +3,9 @@ package com.auction.config;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
+import java.util.List;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DatabaseConfigTest {
 
     private static Jdbi jdbi;
@@ -14,6 +16,7 @@ class DatabaseConfigTest {
     }
 
     @Test
+    @Order(1)
     @DisplayName("Database connection should work")
     void testConnection() {
         assertDoesNotThrow(() -> {
@@ -27,21 +30,73 @@ class DatabaseConfigTest {
     }
 
     @Test
-    @DisplayName("Should have 5 tables")
-    void testTableCount() {
-        // In ra danh sách các bảng để debug
-        System.out.println("=== Danh sách bảng trong database ===");
-        var tables = jdbi.withHandle(handle ->
+    @Order(2)
+    @DisplayName("List all tables in public schema")
+    void testListTables() {
+        System.out.println("=== Liệt kê bảng trong database ===");
+        List<String> tables = jdbi.withHandle(handle ->
             handle.createQuery(
-                "SELECT table_name FROM information_schema.tables " +
-                "WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
-            ).mapTo(String.class).list()
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+            )
+            .mapTo(String.class)
+            .list()
         );
         
-        System.out.println("Số bảng tìm thấy: " + tables.size());
+        System.out.println("Số bảng trong schema public: " + tables.size());
         tables.forEach(table -> System.out.println("  - " + table));
         
-        assertEquals(5, tables.size(), 
-            "Cần có 5 bảng, nhưng tìm thấy " + tables.size() + " bảng: " + tables);
+        // Kiểm tra có ít nhất 5 bảng
+        assertTrue(tables.size() >= 5, "Cần có ít nhất 5 bảng, hiện có " + tables.size());
+    }
+
+    @Test
+    @Order(3)
+    @DisplayName("Check current schema")
+    void testCurrentSchema() {
+        String schema = jdbi.withHandle(handle ->
+            handle.createQuery("SELECT current_schema()")
+                .mapTo(String.class)
+                .one()
+        );
+        System.out.println("Current schema: " + schema);
+        assertEquals("public", schema);
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("Should have 5 required tables")
+    void testRequiredTables() {
+        List<String> requiredTables = List.of(
+            "users", 
+            "items", 
+            "auctions", 
+            "bid_transactions", 
+            "auto_bid_configs"
+        );
+        
+        List<String> existingTables = jdbi.withHandle(handle ->
+            handle.createQuery(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+            )
+            .mapTo(String.class)
+            .list()
+        );
+        
+        System.out.println("=== Kiểm tra 5 bảng bắt buộc ===");
+        int foundCount = 0;
+        
+        for (String required : requiredTables) {
+            if (existingTables.contains(required)) {
+                System.out.println("✅ Tìm thấy bảng: " + required);
+                foundCount++;
+            } else {
+                System.out.println("❌ Thiếu bảng: " + required);
+            }
+        }
+        
+        System.out.println("Tổng số bảng tìm thấy: " + foundCount + "/5");
+        assertEquals(5, foundCount, 
+            "Cần có đủ 5 bảng: users, items, auctions, bid_transactions, auto_bid_configs. " +
+            "Hiện có: " + existingTables);
     }
 }
