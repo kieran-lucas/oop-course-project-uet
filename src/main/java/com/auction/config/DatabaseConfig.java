@@ -4,11 +4,11 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import javax.sql.DataSource;
 import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.core.statement.Slf4JSqlLOGGER;
+import org.jdbi.v3.core.statement.Slf4JSqlLogger;
 import org.jdbi.v3.postgres.PostgresPlugin;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
-import org.slf4j.LOGGER;
-import org.slf4j.LOGGERFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Cấu hình kết nối database cho toàn bộ hệ thống.
@@ -65,7 +65,7 @@ import org.slf4j.LOGGERFactory;
  */
 public class DatabaseConfig {
 
-  private static final LOGGER LOGGER = LOGGERFactory.getLOGGER(DatabaseConfig.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseConfig.class);
 
   // ============================================================================
   // Giá trị mặc định — dùng khi biến môi trường không được set
@@ -109,13 +109,13 @@ public class DatabaseConfig {
     // JDBI tự tạo implementation class khi runtime.
     jdbi.installPlugin(new SqlObjectPlugin());
 
-    // SQL LOGGER: ghi lại mọi SQL query vào log (mức DEBUG)
+    // SQL Logger: ghi lại mọi SQL query vào log (mức DEBUG)
     // Rất hữu ích khi debug: xem chính xác query nào đang chạy, tham số gì.
     // Trong production sẽ tắt (đổi log level trong logback.xml).
     // Liên kết: logback.xml cấu hình com.auction = DEBUG → thấy SQL log.
-    jdbi.setSqlLOGGER(new Slf4JSqlLOGGER());
+    jdbi.setSqlLogger(new Slf4JSqlLogger());
 
-    LOGGER.info("Đã kết nối database thành công");
+    logger.info("Đã kết nối database thành công");
     return jdbi;
   }
 
@@ -186,7 +186,7 @@ public class DatabaseConfig {
     // Dễ phân biệt nếu sau này có nhiều pool (ví dụ pool riêng cho read replica)
     config.setPoolName("AuctionPool");
 
-    LOGGER.info("Khởi tạo connection pool: {} (max={}, min={})", url, 10, 5);
+    logger.info("Khởi tạo connection pool: {} (max={}, min={})", url, 10, 5);
     return new HikariDataSource(config);
   }
 
