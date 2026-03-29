@@ -19,6 +19,7 @@ class AuctionDaoTest {
     private static ItemDao itemDao;
     private static AuctionDao auctionDao;
     private static User testSeller;
+    private static User testBidder;
     private static Item testItem;
     
     @BeforeAll
@@ -28,12 +29,19 @@ class AuctionDaoTest {
         itemDao = new ItemDao(jdbi);
         auctionDao = new AuctionDao(jdbi);
         
-        // Tạo seller với username/email unique dùng timestamp
+        // Tạo seller với username/email unique
         String timestamp = String.valueOf(System.currentTimeMillis());
         testSeller = userDao.insert(new Seller(
             "auction_seller_" + timestamp, 
             "hash", 
             "auction_seller_" + timestamp + "@test.com"
+        ));
+        
+        // Tạo bidder để dùng cho test update
+        testBidder = userDao.insert(new Bidder(
+            "auction_bidder_" + timestamp,
+            "hash",
+            "auction_bidder_" + timestamp + "@test.com"
         ));
         
         // Tạo item cho test
@@ -45,6 +53,7 @@ class AuctionDaoTest {
         ));
         
         System.out.println("Created test seller with id: " + testSeller.getId());
+        System.out.println("Created test bidder with id: " + testBidder.getId());
         System.out.println("Created test item with id: " + testItem.getId());
     }
     
@@ -140,7 +149,7 @@ class AuctionDaoTest {
         Auction saved = auctionDao.insert(auction);
         
         saved.setCurrentPrice(new BigDecimal("150000"));
-        saved.setLeadingBidderId(1L);
+        saved.setLeadingBidderId(testBidder.getId()); // Dùng bidder thực tế
         saved.setStatus("RUNNING");
         
         boolean updated = auctionDao.update(saved);
@@ -150,7 +159,7 @@ class AuctionDaoTest {
         Optional<Auction> found = auctionDao.findById(saved.getId());
         assertTrue(found.isPresent());
         assertEquals(new BigDecimal("150000"), found.get().getCurrentPrice());
-        assertEquals(1L, found.get().getLeadingBidderId());
+        assertEquals(testBidder.getId(), found.get().getLeadingBidderId());
         assertEquals("RUNNING", found.get().getStatus());
     }
     
