@@ -115,7 +115,7 @@ public class DatabaseConfig {
     // Liên kết: logback.xml cấu hình com.auction = DEBUG → thấy SQL log.
     jdbi.setSqlLogger(new Slf4JSqlLogger());
 
-    logger.info("Đã kết nối database thành công");
+    LOGGER.info("Đã kết nối database thành công");
     return jdbi;
   }
 
@@ -186,7 +186,7 @@ public class DatabaseConfig {
     // Dễ phân biệt nếu sau này có nhiều pool (ví dụ pool riêng cho read replica)
     config.setPoolName("AuctionPool");
 
-    logger.info("Khởi tạo connection pool: {} (max={}, min={})", url, 10, 5);
+    LOGGER.info("Khởi tạo connection pool: {} (max={}, min={})", url, 10, 5);
     return new HikariDataSource(config);
   }
 
