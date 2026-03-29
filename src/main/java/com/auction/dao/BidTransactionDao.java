@@ -231,6 +231,29 @@ public class BidTransactionDao {
                     .list()
         );
     }
+
+    /**
+     * Tìm bid transaction theo ID.
+     * 
+     * <p>Dùng để kiểm tra bid transaction cụ thể, phục vụ test và debug.
+     * 
+     * @param id ID của bid transaction
+     * @return Optional chứa BidTransaction nếu tìm thấy, Optional.empty() nếu không
+     */
+    public java.util.Optional<BidTransaction> findById(Long id) {
+        String sql = """
+            SELECT id, auction_id, bidder_id, amount, auto_bid, created_at
+            FROM bid_transactions
+            WHERE id = :id
+            """;
+        
+        return jdbi.withHandle(handle ->
+            handle.createQuery(sql)
+                    .bind("id", id)
+                    .map(new BidTransactionMapper())
+                    .findOne()
+        );
+    }
     
     /**
      * Lấy bid cuối cùng của một phiên đấu giá (người thắng).
