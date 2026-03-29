@@ -28,9 +28,24 @@ class AuctionDaoTest {
         itemDao = new ItemDao(jdbi);
         auctionDao = new AuctionDao(jdbi);
         
-        // Tạo seller và item cho test
-        testSeller = userDao.insert(new Seller("auction_seller", "hash", "auction_seller@test.com"));
-        testItem = itemDao.insert(new Electronics("Auction Item", "For auction", testSeller.getId(), "Brand"));
+        // Tạo seller với username/email unique dùng timestamp
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        testSeller = userDao.insert(new Seller(
+            "auction_seller_" + timestamp, 
+            "hash", 
+            "auction_seller_" + timestamp + "@test.com"
+        ));
+        
+        // Tạo item cho test
+        testItem = itemDao.insert(new Electronics(
+            "Auction Item " + timestamp, 
+            "For auction", 
+            testSeller.getId(), 
+            "Brand"
+        ));
+        
+        System.out.println("Created test seller with id: " + testSeller.getId());
+        System.out.println("Created test item with id: " + testItem.getId());
     }
     
     @BeforeEach
