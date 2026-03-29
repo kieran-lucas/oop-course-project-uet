@@ -79,6 +79,7 @@ public class DatabaseConfig {
   /** Không cho phép tạo instance — class này chỉ có static methods. */
   private DatabaseConfig() {}
 
+
   /**
    * Tạo Jdbi instance kết nối đến PostgreSQL.
    *
@@ -151,7 +152,13 @@ private static DataSource createDataSource() {
     String url = getEnv("DB_URL", DEFAULT_URL);
     String user = getEnv("DB_USER", DEFAULT_USER);
     String password = getEnv("DB_PASSWORD", DEFAULT_PASSWORD);
+
+
     
+    System.out.println("\n--- [DEBUG NGÁCH 1] ---");
+    System.out.println("Kết nối thực tế dùng User: [" + user + "]");
+    System.out.println("Kết nối thực tế dùng URL: [" + url + "]");
+    System.out.println("-----------------------\n");
     // Đảm bảo URL có currentSchema
     if (!url.contains("currentSchema")) {
         if (url.contains("?")) {
