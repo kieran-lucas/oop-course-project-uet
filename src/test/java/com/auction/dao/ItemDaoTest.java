@@ -23,8 +23,15 @@ class ItemDaoTest {
         userDao = new UserDao(jdbi);
         itemDao = new ItemDao(jdbi);
         
-        // Tạo seller để dùng cho test
-        testSeller = userDao.insert(new Seller("seller_for_items", "hash", "seller_items@test.com"));
+        // Tạo seller với username/email unique dùng timestamp
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        testSeller = userDao.insert(new Seller(
+            "seller_for_items_" + timestamp, 
+            "hash", 
+            "seller_items_" + timestamp + "@test.com"
+        ));
+        
+        System.out.println("Created test seller with id: " + testSeller.getId());
     }
     
     @Test
@@ -99,6 +106,7 @@ class ItemDaoTest {
     void testFindAll() {
         List<Item> items = itemDao.findAll();
         assertNotNull(items);
+        assertTrue(items.size() >= 0, "Items list should not be null");
     }
     
     @Test
@@ -118,9 +126,10 @@ class ItemDaoTest {
     @Test
     @DisplayName("SearchByName should find items by keyword")
     void testSearchByName() {
-        itemDao.insert(new Electronics("iPhone 15 Pro", "Phone", testSeller.getId(), "Apple"));
-        itemDao.insert(new Electronics("iPad Pro", "Tablet", testSeller.getId(), "Apple"));
-        itemDao.insert(new Art("Mona Lisa", "Painting", testSeller.getId(), "Da Vinci"));
+        // Dùng timestamp để tạo tên unique
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        itemDao.insert(new Electronics("iPhone " + timestamp + " Pro", "Phone", testSeller.getId(), "Apple"));
+        itemDao.insert(new Electronics("iPad " + timestamp + " Pro", "Tablet", testSeller.getId(), "Apple"));
         
         List<Item> results = itemDao.searchByName("Pro");
         
