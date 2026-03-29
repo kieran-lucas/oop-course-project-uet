@@ -116,7 +116,6 @@ public class AuctionDao {
       );
 
       // [FIX #6] Đọc updated_at và set vào Auction
-      // Cần thêm field updatedAt + setter vào model Auction.java nếu chưa có
       var updatedAtTs = rs.getTimestamp("updated_at");
       if (updatedAtTs != null) {
         auction.setUpdatedAt(updatedAtTs.toLocalDateTime());
