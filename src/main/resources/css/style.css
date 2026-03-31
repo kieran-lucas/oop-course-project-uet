@@ -1,0 +1,18 @@
+.button {
+    -fx-background-color: linear-gradient(to bottom, #6db3f2, #1e69de);
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-padding: 10 20 10 20;
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 0);
+}
+
+.button:hover {
+    -fx-background-color: linear-gradient(to bottom, #1e69de, #6db3f2);
+    -fx-cursor: hand;
+}
+
+.button:pressed {
+    -fx-background-color: #144a8b;
+    -fx-effect: innershadow(gaussian, rgba(0,0,0,0.4), 5, 0, 0, 0);
+}
