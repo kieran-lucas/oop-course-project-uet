@@ -197,26 +197,25 @@ public class SceneManager {
 
     // ========== SESSION MANAGEMENT ==========
 
-    /**
-     * Logout: xóa session state + xóa cache các màn cần auth.
-     * Giữ lại cache login.fxml và register.fxml (không cần auth).
-     * Navigate về màn login.
-     */
+ 
     public void logout() {
-        jwtToken = null;
-        currentUsername = null;
-        currentRole = null;
-        currentUserId = null;
+    jwtToken = null;
+    currentUsername = null;
+    currentRole = null;
+    currentUserId = null;
 
-        // Xóa cache các view cần đăng nhập, giữ login + register
-        viewCache.keySet().removeIf(
-            k -> !k.equals("login.fxml") && !k.equals("register.fxml"));
-        controllerCache.keySet().removeIf(
-            k -> !k.equals("login.fxml") && !k.equals("register.fxml"));
+    // Xóa cache các view cần auth, giữ lại welcome + login + register
+    viewCache.keySet().removeIf(
+        k -> !k.equals("welcome.fxml")
+          && !k.equals("login.fxml")
+          && !k.equals("register.fxml"));
+    controllerCache.keySet().removeIf(
+        k -> !k.equals("welcome.fxml")
+          && !k.equals("login.fxml")
+          && !k.equals("register.fxml"));
 
-        navigateTo("login.fxml");
-        LOGGER.info("Đã logout — xóa cache và chuyển về login");
-    }
+    navigateTo("welcome.fxml");
+}
 
     /**
      * Xóa cache của 1 màn hình cụ thể.
