@@ -1,27 +1,34 @@
 package com.auction;
 
+import com.auction.config.SceneManager;
 import javafx.application.Application;
-import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
+/**
+ * Entry point của ứng dụng JavaFX client.
+ *
+ * Khởi tạo SceneManager (Singleton) rồi navigate đến màn login.
+ * Từ đây trở đi, mọi chuyển màn đều qua:
+ *   SceneManager.getInstance().navigateTo("ten.fxml");
+ */
 public class ClientApp extends Application {
 
-  @Override
-  public void start(Stage primaryStage) {
-    Label label = new Label("Auction System - Client");
-    label.setStyle("-fx-font-size: 24px;");
+    @Override
+    public void start(Stage primaryStage) {
+        // Khởi tạo SceneManager — chỉ gọi 1 lần duy nhất ở đây
+        SceneManager.init(primaryStage, 1200, 800);
 
-    StackPane root = new StackPane(label);
-    Scene scene = new Scene(root, 800, 600);
+        primaryStage.setTitle("Online Auction System");
+        primaryStage.setMinWidth(900);
+        primaryStage.setMinHeight(600);
 
-    primaryStage.setTitle("Online Auction System");
-    primaryStage.setScene(scene);
-    primaryStage.show();
-  }
+        // Navigate đến màn đăng nhập (lazy load lần đầu)
+        SceneManager.getInstance().navigateTo("login.fxml");
 
-  public static void main(String[] args) {
-    launch(args);
-  }
+        primaryStage.show();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
 }
