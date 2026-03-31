@@ -23,7 +23,7 @@ public class ClientApp extends Application {
         primaryStage.setMinHeight(600);
 
         // Navigate đến màn đăng nhập (lazy load lần đầu)
-        SceneManager.getInstance().navigateTo("login.fxml");
+        SceneManager.getInstance().navigateTo("welcome.fxml");
 
         primaryStage.show();
     }
