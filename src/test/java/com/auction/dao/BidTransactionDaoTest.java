@@ -125,7 +125,15 @@ class BidTransactionDaoTest {
         bidDao.insert(new BidTransaction(testAuction.getId(), testBidder.getId(), new BigDecimal("150000"), false));
         
         // Đợi 1ms để đảm bảo thời gian khác nhau
-        try { Thread.sleep(1); } catch (InterruptedException e) {}
+        try {
+    Thread.sleep(1);
+} catch (InterruptedException e) {
+    // 1. In ra lỗi để dễ debug trong quá trình làm bài
+    System.err.println("Interrupt Processing Core " + e.getMessage());
+    
+    // 2. Bật lại cờ ngắt để hệ thống biết luồng này cần được dừng an toàn
+    Thread.currentThread().interrupt();
+}
         
         BidTransaction last = bidDao.insert(new BidTransaction(testAuction.getId(), testBidder.getId(), new BigDecimal("250000"), false));
         
