@@ -19,10 +19,11 @@ class BidTransactionDaoTest {
     private static ItemDao itemDao;
     private static AuctionDao auctionDao;
     private static BidTransactionDao bidDao;
-    private static User testSeller;
-    private static User testBidder;
-    private static Item testItem;
-    private static Auction testAuction;
+    
+    private User testSeller;
+    private User testBidder;
+    private Item testItem;
+    private Auction testAuction;
     
     @BeforeAll
     static void setup() {
@@ -31,28 +32,24 @@ class BidTransactionDaoTest {
         itemDao = new ItemDao(jdbi);
         auctionDao = new AuctionDao(jdbi);
         bidDao = new BidTransactionDao(jdbi);
+    }
+    
+    @BeforeEach
+    void init() {
+        // 1. Dọn dẹp DB và Reset Identity
+        jdbi.useHandle(handle -> {
+            handle.execute("TRUNCATE TABLE auto_bid_configs CASCADE");
+            handle.execute("TRUNCATE TABLE bid_transactions CASCADE");
+            handle.execute("TRUNCATE TABLE auctions CASCADE");
+            handle.execute("TRUNCATE TABLE items CASCADE");
+            handle.execute("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
+        });
+
+        // 2. Khởi tạo dữ liệu mẫu (ID dự kiến: Seller=1, Bidder=2, Item=1, Auction=1)
+        testSeller = userDao.insert(new Seller("bid_seller", "hash", "seller@test.com"));
+        testBidder = userDao.insert(new Bidder("bid_bidder", "hash", "bidder@test.com"));
         
-        // Tạo dữ liệu test với timestamp để unique
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        
-        testSeller = userDao.insert(new Seller(
-            "bid_tx_seller_" + timestamp, 
-            "hash", 
-            "bid_tx_seller_" + timestamp + "@test.com"
-        ));
-        
-        testBidder = userDao.insert(new Bidder(
-            "bid_tx_bidder_" + timestamp, 
-            "hash", 
-            "bid_tx_bidder_" + timestamp + "@test.com"
-        ));
-        
-        testItem = itemDao.insert(new Electronics(
-            "Bid Tx Item " + timestamp, 
-            "Test", 
-            testSeller.getId(), 
-            "Brand"
-        ));
+        testItem = itemDao.insert(new Electronics("Bid Item", "Test", testSeller.getId(), "Brand"));
         
         testAuction = auctionDao.insert(new Auction(
             testItem.getId(),
@@ -61,16 +58,7 @@ class BidTransactionDaoTest {
             LocalDateTime.now().plusHours(24)
         ));
         
-        System.out.println("Created test seller id: " + testSeller.getId());
-        System.out.println("Created test bidder id: " + testBidder.getId());
-        System.out.println("Created test item id: " + testItem.getId());
-        System.out.println("Created test auction id: " + testAuction.getId());
-    }
-    
-    @BeforeEach
-    void cleanup() {
-        // Xóa bid transactions cũ
-        bidDao.deleteByAuctionId(testAuction.getId());
+        System.out.println("Cleaned DB & Initialized IDs -> Auction: " + testAuction.getId() + ", Bidder: " + testBidder.getId());
     }
     
     @Test
@@ -102,9 +90,8 @@ class BidTransactionDaoTest {
         List<BidTransaction> bids = bidDao.findByAuctionId(testAuction.getId());
         
         assertEquals(2, bids.size());
-        // Kiểm tra sắp xếp theo thời gian tăng dần
-        assertTrue(bids.get(0).getCreatedAt().isBefore(bids.get(1).getCreatedAt()) ||
-                   bids.get(0).getCreatedAt().equals(bids.get(1).getCreatedAt()));
+        // Kiểm tra sắp xếp (thường là theo ID hoặc thời gian)
+        assertTrue(bids.get(0).getAmount().compareTo(bids.get(1).getAmount()) < 0);
     }
     
     @Test
@@ -115,7 +102,7 @@ class BidTransactionDaoTest {
         
         List<BidTransaction> bids = bidDao.findByBidderId(testBidder.getId());
         
-        assertTrue(bids.size() >= 2);
+        assertEquals(2, bids.size());
         assertTrue(bids.stream().allMatch(b -> b.getBidderId().equals(testBidder.getId())));
     }
     
@@ -124,17 +111,7 @@ class BidTransactionDaoTest {
     void testFindLastBid() {
         bidDao.insert(new BidTransaction(testAuction.getId(), testBidder.getId(), new BigDecimal("150000"), false));
         
-        // Đợi 1ms để đảm bảo thời gian khác nhau
-        try {
-    Thread.sleep(1);
-} catch (InterruptedException e) {
-    // 1. In ra lỗi để dễ debug trong quá trình làm bài
-    System.err.println("Interrupt Processing Core " + e.getMessage());
-    
-    // 2. Bật lại cờ ngắt để hệ thống biết luồng này cần được dừng an toàn
-    Thread.currentThread().interrupt();
-}
-        
+        // Tạo bid mới với giá cao hơn/thời gian sau
         BidTransaction last = bidDao.insert(new BidTransaction(testAuction.getId(), testBidder.getId(), new BigDecimal("250000"), false));
         
         Optional<BidTransaction> found = bidDao.findLastBid(testAuction.getId());
@@ -151,7 +128,6 @@ class BidTransactionDaoTest {
         bidDao.insert(new BidTransaction(testAuction.getId(), testBidder.getId(), new BigDecimal("200000"), false));
         
         int count = bidDao.countByAuctionId(testAuction.getId());
-        
         assertEquals(2, count);
     }
     
@@ -182,8 +158,8 @@ class BidTransactionDaoTest {
         
         assertTrue(saved.isAutoBid());
         
-        // Kiểm tra bằng cách lấy tất cả bids của auction
-        List<BidTransaction> bids = bidDao.findByAuctionId(testAuction.getId());
-        assertTrue(bids.stream().anyMatch(b -> b.getId().equals(saved.getId()) && b.isAutoBid()));
+        Optional<BidTransaction> last = bidDao.findLastBid(testAuction.getId());
+        assertTrue(last.isPresent());
+        assertTrue(last.get().isAutoBid());
     }
 }
