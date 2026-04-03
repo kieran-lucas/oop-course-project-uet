@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 -- V1: Initial schema for auction system (UPDATED - khớp với DAO hiện tại)
 
+=======
+-- V1: Initial schema for auction system
+>>>>>>> c3f76507c55bc1e193cd958fb01c50c4ea92d4dd
 CREATE TABLE users (
     id              BIGSERIAL PRIMARY KEY,
     username        VARCHAR(50) UNIQUE NOT NULL,
@@ -18,7 +22,8 @@ CREATE TABLE items (
     brand           VARCHAR(100),
     artist          VARCHAR(100),
     year            INTEGER,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE auctions (
@@ -31,7 +36,8 @@ CREATE TABLE auctions (
     end_time            TIMESTAMP NOT NULL,
     status              VARCHAR(20) NOT NULL DEFAULT 'OPEN'
                         CHECK (status IN ('OPEN', 'RUNNING', 'FINISHED', 'PAID', 'CANCELED')),
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- ==================== SỬA Ở ĐÂY ====================
