@@ -1,5 +1,4 @@
 -- V1: Initial schema for auction system
-
 CREATE TABLE users (
     id              BIGSERIAL PRIMARY KEY,
     username        VARCHAR(50) UNIQUE NOT NULL,
@@ -18,7 +17,8 @@ CREATE TABLE items (
     brand           VARCHAR(100),
     artist          VARCHAR(100),
     year            INTEGER,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE auctions (
