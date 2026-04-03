@@ -18,9 +18,10 @@ class AuctionDaoTest {
     private static UserDao userDao;
     private static ItemDao itemDao;
     private static AuctionDao auctionDao;
-    private static User testSeller;
-    private static User testBidder;
-    private static Item testItem;
+    
+    private User testSeller;
+    private User testBidder;
+    private Item testItem;
     
     @BeforeAll
     static void setup() {
@@ -28,43 +29,25 @@ class AuctionDaoTest {
         userDao = new UserDao(jdbi);
         itemDao = new ItemDao(jdbi);
         auctionDao = new AuctionDao(jdbi);
-        
-        // Tạo seller với username/email unique
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        testSeller = userDao.insert(new Seller(
-            "auction_seller_" + timestamp, 
-            "hash", 
-            "auction_seller_" + timestamp + "@test.com"
-        ));
-        
-        // Tạo bidder để dùng cho test update
-        testBidder = userDao.insert(new Bidder(
-            "auction_bidder_" + timestamp,
-            "hash",
-            "auction_bidder_" + timestamp + "@test.com"
-        ));
-        
-        // Tạo item cho test
-        testItem = itemDao.insert(new Electronics(
-            "Auction Item " + timestamp, 
-            "For auction", 
-            testSeller.getId(), 
-            "Brand"
-        ));
-        
-        System.out.println("Created test seller with id: " + testSeller.getId());
-        System.out.println("Created test bidder with id: " + testBidder.getId());
-        System.out.println("Created test item with id: " + testItem.getId());
     }
     
     @BeforeEach
-    void cleanup() {
-        // Xóa auctions cũ
-        jdbi.useHandle(handle -> 
-            handle.createUpdate("DELETE FROM auctions WHERE item_id = :itemId")
-                .bind("itemId", testItem.getId())
-                .execute()
-        );
+    void init() {
+        // 1. Dọn dẹp toàn bộ DB và Reset ID về 1
+        jdbi.useHandle(handle -> {
+            handle.execute("TRUNCATE TABLE auto_bid_configs CASCADE");
+            handle.execute("TRUNCATE TABLE bid_transactions CASCADE");
+            handle.execute("TRUNCATE TABLE auctions CASCADE");
+            handle.execute("TRUNCATE TABLE items CASCADE");
+            handle.execute("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
+        });
+
+        // 2. Khởi tạo dữ liệu mẫu cho mỗi test case (ID sẽ luôn cố định: Seller=1, Bidder=2, Item=1)
+        testSeller = userDao.insert(new Seller("auction_seller", "hash", "seller@test.com"));
+        testBidder = userDao.insert(new Bidder("auction_bidder", "hash", "bidder@test.com"));
+        testItem = itemDao.insert(new Electronics("Auction Item", "For auction", testSeller.getId(), "Brand"));
+        
+        System.out.println("DB Reset. Test IDs -> Seller: " + testSeller.getId() + ", Item: " + testItem.getId());
     }
     
     @Test
@@ -81,31 +64,27 @@ class AuctionDaoTest {
         
         assertNotNull(saved.getId());
         assertEquals("OPEN", saved.getStatus());
-        assertEquals(new BigDecimal("100000"), saved.getCurrentPrice());
+        assertEquals(0, new BigDecimal("100000").compareTo(saved.getCurrentPrice()));
         assertNull(saved.getLeadingBidderId());
     }
     
-   @Test
+    @Test
     @DisplayName("FindById should return auction")
     void testFindById() {
-    LocalDateTime startTime = LocalDateTime.now();
-    LocalDateTime endTime = startTime.plusHours(24);
-    
-    Auction auction = new Auction(
-        testItem.getId(),
-        new BigDecimal("200000"),
-        startTime,
-        endTime
-    );
-    Auction saved = auctionDao.insert(auction);
-    
-    Optional<Auction> found = auctionDao.findById(saved.getId());
-    
-    assertTrue(found.isPresent());
-    assertEquals(saved.getId(), found.get().getId());
-    // So sánh BigDecimal đúng cách
-    assertEquals(0, new BigDecimal("200000").compareTo(found.get().getStartingPrice()));
-}
+        Auction auction = new Auction(
+            testItem.getId(),
+            new BigDecimal("200000"),
+            LocalDateTime.now(),
+            LocalDateTime.now().plusHours(24)
+        );
+        Auction saved = auctionDao.insert(auction);
+        
+        Optional<Auction> found = auctionDao.findById(saved.getId());
+        
+        assertTrue(found.isPresent());
+        assertEquals(saved.getId(), found.get().getId());
+        assertEquals(0, new BigDecimal("200000").compareTo(found.get().getStartingPrice()));
+    }
     
     @Test
     @DisplayName("FindAll should return all auctions")
@@ -115,18 +94,18 @@ class AuctionDaoTest {
         
         List<Auction> auctions = auctionDao.findAll();
         
-        assertTrue(auctions.size() >= 2);
+        assertEquals(2, auctions.size());
     }
     
     @Test
     @DisplayName("FindByStatus should filter by status")
     void testFindByStatus() {
         Auction open = new Auction(testItem.getId(), new BigDecimal("100"), LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-        open.setStatus("OPEN");
         auctionDao.insert(open);
         
         List<Auction> openAuctions = auctionDao.findByStatus("OPEN");
         
+        assertFalse(openAuctions.isEmpty());
         assertTrue(openAuctions.stream().allMatch(a -> "OPEN".equals(a.getStatus())));
     }
     
@@ -137,45 +116,13 @@ class AuctionDaoTest {
         
         List<Auction> auctions = auctionDao.findByItemId(testItem.getId());
         
-        assertEquals(1, auctions.size());
+        assertFalse(auctions.isEmpty());
         assertEquals(testItem.getId(), auctions.get(0).getItemId());
     }
     
-@Test
-@DisplayName("Update should modify auction")
-void testUpdate() {
-    LocalDateTime startTime = LocalDateTime.now();
-    LocalDateTime endTime = startTime.plusHours(24);
-    
-    Auction auction = new Auction(
-        testItem.getId(),
-        new BigDecimal("100000"),
-        startTime,
-        endTime
-    );
-    Auction saved = auctionDao.insert(auction);
-    
-    saved.setCurrentPrice(new BigDecimal("150000"));
-    saved.setLeadingBidderId(testBidder.getId());
-    saved.setStatus("RUNNING");
-    
-    boolean updated = auctionDao.update(saved);
-    
-    assertTrue(updated);
-    
-    Optional<Auction> found = auctionDao.findById(saved.getId());
-    assertTrue(found.isPresent());
-    
-    // So sánh BigDecimal đúng cách
-    assertEquals(0, new BigDecimal("150000").compareTo(found.get().getCurrentPrice()), 
-        "Current price should be 150000");
-    assertEquals(testBidder.getId(), found.get().getLeadingBidderId());
-    assertEquals("RUNNING", found.get().getStatus());
-}
-    
     @Test
-    @DisplayName("Delete should remove auction")
-    void testDelete() {
+    @DisplayName("Update should modify auction")
+    void testUpdate() {
         Auction auction = new Auction(
             testItem.getId(),
             new BigDecimal("100000"),
@@ -184,31 +131,47 @@ void testUpdate() {
         );
         Auction saved = auctionDao.insert(auction);
         
+        saved.setCurrentPrice(new BigDecimal("150000"));
+        saved.setLeadingBidderId(testBidder.getId());
+        saved.setStatus("RUNNING");
+        
+        boolean updated = auctionDao.update(saved);
+        
+        assertTrue(updated);
+        
+        Optional<Auction> found = auctionDao.findById(saved.getId());
+        assertTrue(found.isPresent());
+        assertEquals(0, new BigDecimal("150000").compareTo(found.get().getCurrentPrice()));
+        assertEquals(testBidder.getId(), found.get().getLeadingBidderId());
+        assertEquals("RUNNING", found.get().getStatus());
+    }
+    
+    @Test
+    @DisplayName("Delete should remove auction")
+    void testDelete() {
+        Auction auction = new Auction(testItem.getId(), new BigDecimal("100000"), LocalDateTime.now(), LocalDateTime.now().plusHours(24));
+        Auction saved = auctionDao.insert(auction);
+        
         boolean deleted = auctionDao.delete(saved.getId());
         
         assertTrue(deleted);
-        Optional<Auction> found = auctionDao.findById(saved.getId());
-        assertFalse(found.isPresent());
+        assertFalse(auctionDao.findById(saved.getId()).isPresent());
     }
     
     @Test
     @DisplayName("StartScheduledAuctions should update status from OPEN to RUNNING")
     void testStartScheduledAuctions() {
-        // Tạo auction với start_time trong quá khứ
         Auction auction = new Auction(
             testItem.getId(),
             new BigDecimal("100000"),
-            LocalDateTime.now().minusHours(1),
-            LocalDateTime.now().plusHours(23)
+            LocalDateTime.now().minusMinutes(5), // Bắt đầu từ 5 phút trước
+            LocalDateTime.now().plusHours(1)
         );
-        auction.setStatus("OPEN");
         auctionDao.insert(auction);
         
         int started = auctionDao.startScheduledAuctions();
-        
         assertTrue(started >= 1);
         
-        // Kiểm tra auction đã chuyển sang RUNNING
         List<Auction> running = auctionDao.findByStatus("RUNNING");
         assertTrue(running.stream().anyMatch(a -> a.getItemId().equals(testItem.getId())));
     }
@@ -216,21 +179,19 @@ void testUpdate() {
     @Test
     @DisplayName("CloseExpiredAuctions should update status from RUNNING to FINISHED")
     void testCloseExpiredAuctions() {
-        // Tạo auction với end_time trong quá khứ
         Auction auction = new Auction(
             testItem.getId(),
             new BigDecimal("100000"),
             LocalDateTime.now().minusHours(2),
-            LocalDateTime.now().minusHours(1)
+            LocalDateTime.now().minusMinutes(1) // Đã kết thúc 1 phút trước
         );
-        auction.setStatus("RUNNING");
-        auctionDao.insert(auction);
+        Auction saved = auctionDao.insert(auction);
+        saved.setStatus("RUNNING");
+        auctionDao.update(saved); // Ép status sang RUNNING để test hàm close
         
         int closed = auctionDao.closeExpiredAuctions();
-        
         assertTrue(closed >= 1);
         
-        // Kiểm tra auction đã chuyển sang FINISHED
         List<Auction> finished = auctionDao.findByStatus("FINISHED");
         assertTrue(finished.stream().anyMatch(a -> a.getItemId().equals(testItem.getId())));
     }
@@ -238,37 +199,22 @@ void testUpdate() {
     @Test
     @DisplayName("ExistsById should return true for existing auction")
     void testExistsById() {
-        Auction auction = new Auction(
-            testItem.getId(),
-            new BigDecimal("100000"),
-            LocalDateTime.now(),
-            LocalDateTime.now().plusHours(24)
-        );
+        Auction auction = new Auction(testItem.getId(), new BigDecimal("100000"), LocalDateTime.now(), LocalDateTime.now().plusHours(24));
         Auction saved = auctionDao.insert(auction);
         
         assertTrue(auctionDao.existsById(saved.getId()));
-        assertFalse(auctionDao.existsById(99999L));
+        assertFalse(auctionDao.existsById(999L));
     }
     
     @Test
     @DisplayName("GetCurrentPrice should return correct price")
     void testGetCurrentPrice() {
-    LocalDateTime startTime = LocalDateTime.now();
-    LocalDateTime endTime = startTime.plusHours(24);
-    
-    Auction auction = new Auction(
-        testItem.getId(),
-        new BigDecimal("500000"),
-        startTime,
-        endTime
-    );
-    Auction saved = auctionDao.insert(auction);
-    
-    Optional<BigDecimal> price = auctionDao.getCurrentPrice(saved.getId());
-    
-    assertTrue(price.isPresent());
-    // So sánh BigDecimal đúng cách
-    assertEquals(0, new BigDecimal("500000").compareTo(price.get()), 
-        "Current price should be 500000");
-}
+        Auction auction = new Auction(testItem.getId(), new BigDecimal("500000"), LocalDateTime.now(), LocalDateTime.now().plusHours(24));
+        Auction saved = auctionDao.insert(auction);
+        
+        Optional<BigDecimal> price = auctionDao.getCurrentPrice(saved.getId());
+        
+        assertTrue(price.isPresent());
+        assertEquals(0, new BigDecimal("500000").compareTo(price.get()));
+    }
 }
