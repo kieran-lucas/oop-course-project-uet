@@ -19,9 +19,9 @@ public class DatabaseConfig {
             synchronized (DatabaseConfig.class) {
                 if (jdbi == null) {
                     // Ưu tiên đọc biến môi trường từ GitHub Actions, nếu không có thì dùng mặc định Local
-                    String dbUrl = getEnvOrDefault("DB_URL", "jdbc:postgresql://localhost:5432/auction_db");
-                    String dbUser = getEnvOrDefault("DB_USER", "postgres");
-                    String dbPass = getEnvOrDefault("DB_PASSWORD", "postgres");
+                    String dbUrl = getEnvOrDefault("DB_URL", "jdbc:postgresql://localhost:5432/auction_test");
+                    String dbUser = getEnvOrDefault("DB_USER", "auction_user");
+                    String dbPass = getEnvOrDefault("DB_PASSWORD", "auction_pass");
 
                     HikariConfig config = new HikariConfig();
                     config.setJdbcUrl(dbUrl);
