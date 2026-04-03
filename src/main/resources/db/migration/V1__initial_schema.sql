@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 -- V1: Initial schema for auction system (UPDATED - khớp với DAO hiện tại)
 
-=======
--- V1: Initial schema for auction system
->>>>>>> c3f76507c55bc1e193cd958fb01c50c4ea92d4dd
 CREATE TABLE users (
     id              BIGSERIAL PRIMARY KEY,
     username        VARCHAR(50) UNIQUE NOT NULL,
@@ -40,27 +36,25 @@ CREATE TABLE auctions (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- ==================== SỬA Ở ĐÂY ====================
 CREATE TABLE bid_transactions (
     id              BIGSERIAL PRIMARY KEY,
     auction_id      BIGINT NOT NULL REFERENCES auctions(id),
     bidder_id       BIGINT NOT NULL REFERENCES users(id),
     amount          DECIMAL(15,2) NOT NULL,
-    auto_bid        BOOLEAN NOT NULL DEFAULT FALSE,   -- ← sửa từ is_auto_bid
+    auto_bid        BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE auto_bid_configs (
-    id              BIGSERIAL PRIMARY KEY,
-    auction_id      BIGINT NOT NULL REFERENCES auctions(id),
-    bidder_id       BIGINT NOT NULL REFERENCES users(id),
-    max_bid         DECIMAL(15,2) NOT NULL,
-    increment_amount DECIMAL(15,2) NOT NULL,         -- ← sửa từ increment
-    active          BOOLEAN NOT NULL DEFAULT TRUE,    -- ← sửa từ is_active
-    registered_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+    id                  BIGSERIAL PRIMARY KEY,
+    auction_id          BIGINT NOT NULL REFERENCES auctions(id),
+    bidder_id           BIGINT NOT NULL REFERENCES users(id),
+    max_bid             DECIMAL(15,2) NOT NULL,
+    increment_amount    DECIMAL(15,2) NOT NULL,
+    active              BOOLEAN NOT NULL DEFAULT TRUE,
+    registered_at       TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (auction_id, bidder_id)
 );
--- =================================================
 
 -- Indexes for common queries
 CREATE INDEX idx_auctions_status ON auctions(status);
