@@ -206,11 +206,18 @@ tasks.register<JavaExec>("runClient") {
 // useJUnitPlatform(): bảo Gradle dùng JUnit 5 engine (không phải JUnit 4)
 // Không có dòng này → Gradle mặc định JUnit 4 → không tìm thấy test nào
 // vì annotation @Test của JUnit 4 (org.junit.Test) khác JUnit 5 (org.junit.jupiter.api.Test)
+//
+// testLogging với FULL exception format: hiện chi tiết lỗi SQL từ PostgreSQL
 tasks.test {
     useJUnitPlatform()
+    
     testLogging {
-        events("passed", "skipped", "failed")
-        showStandardStreams = true // hiện System.out.println trong test output
+        events("passed", "skipped", "failed", "standardOut", "standardError")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+        showStandardStreams = true
     }
 }
 
