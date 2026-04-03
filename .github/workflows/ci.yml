@@ -57,11 +57,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
       
-      # 6. Init schema (QUAN TRỌNG NHẤT)
+            # 6. Init DB schema (ĐÃ CẢI TIẾN - an toàn và rõ ràng hơn)
       - name: Init DB schema
         run: |
+          set -e  # Dừng ngay nếu có lỗi
+          
+          echo "=== Dropping and recreating database to ensure clean state ==="
+          psql -h localhost -U auction_user -d postgres -c "DROP DATABASE IF EXISTS auction_test;"
+          psql -h localhost -U auction_user -d postgres -c "CREATE DATABASE auction_test;"
+          
+          echo "=== Running migration V1__initial_schema.sql ==="
           psql -h localhost -U auction_user -d auction_test \
-          -f src/main/resources/db/migration/V1__initial_schema.sql
+            -f src/main/resources/db/migration/V1__initial_schema.sql
+          
+          echo "=== Verifying tables exist (should show 5 tables) ==="
+          psql -h localhost -U auction_user -d auction_test -c "\dt"
         env:
           PGPASSWORD: auction_pass
       
