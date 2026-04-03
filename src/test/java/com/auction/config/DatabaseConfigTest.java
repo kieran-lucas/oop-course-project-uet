@@ -41,10 +41,10 @@ class DatabaseConfigTest {
             .mapTo(String.class)
             .list()
         );
-        
+
         System.out.println("Số bảng trong schema public: " + tables.size());
         tables.forEach(table -> System.out.println("  - " + table));
-        
+
         // Kiểm tra có ít nhất 5 bảng
         assertTrue(tables.size() >= 5, "Cần có ít nhất 5 bảng, hiện có " + tables.size());
     }
@@ -67,13 +67,13 @@ class DatabaseConfigTest {
     @DisplayName("Should have 5 required tables")
     void testRequiredTables() {
         List<String> requiredTables = List.of(
-            "users", 
-            "items", 
-            "auctions", 
-            "bid_transactions", 
+            "users",
+            "items",
+            "auctions",
+            "bid_transactions",
             "auto_bid_configs"
         );
-        
+
         List<String> existingTables = jdbi.withHandle(handle ->
             handle.createQuery(
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
@@ -81,10 +81,10 @@ class DatabaseConfigTest {
             .mapTo(String.class)
             .list()
         );
-        
+
         System.out.println("=== Kiểm tra 5 bảng bắt buộc ===");
         int foundCount = 0;
-        
+
         for (String required : requiredTables) {
             if (existingTables.contains(required)) {
                 System.out.println("✅ Tìm thấy bảng: " + required);
@@ -93,9 +93,9 @@ class DatabaseConfigTest {
                 System.out.println("❌ Thiếu bảng: " + required);
             }
         }
-        
+
         System.out.println("Tổng số bảng tìm thấy: " + foundCount + "/5");
-        assertEquals(5, foundCount, 
+        assertEquals(5, foundCount,
             "Cần có đủ 5 bảng: users, items, auctions, bid_transactions, auto_bid_configs. " +
             "Hiện có: " + existingTables);
     }

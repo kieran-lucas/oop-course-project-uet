@@ -197,7 +197,7 @@ public class SceneManager {
 
     // ========== SESSION MANAGEMENT ==========
 
- 
+
     public void logout() {
     jwtToken = null;
     currentUsername = null;
