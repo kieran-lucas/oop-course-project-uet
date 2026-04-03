@@ -57,10 +57,8 @@ public class UserService {
 
   public String login(LoginRequest req) {
     // 1. Tìm user
-    User user = userDao.findByUsername(req.getUsername());
-    if (user == null) {
-      throw new NotFoundException("Không tìm thấy tài khoản với username này.");
-    }
+    User user = userDao.findByUsername(req.getUsername())
+    .orElseThrow(() -> new NotFoundException("Không tìm thấy tài khoản với username này."));
 
     // 2. Xác thực mật khẩu
     BCrypt.Result result =
