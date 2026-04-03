@@ -31,7 +31,8 @@ CREATE TABLE auctions (
     end_time            TIMESTAMP NOT NULL,
     status              VARCHAR(20) NOT NULL DEFAULT 'OPEN'
                         CHECK (status IN ('OPEN', 'RUNNING', 'FINISHED', 'PAID', 'CANCELED')),
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE bid_transactions (
