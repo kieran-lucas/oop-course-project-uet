@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DatabaseConfig {
-    private static final Logger logger = LoggerFactory.getLogger(DatabaseConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseConfig.class);
     private static Jdbi jdbi;
     private static HikariDataSource dataSource;
 
@@ -38,9 +38,9 @@ public class DatabaseConfig {
                     try {
                         dataSource = new HikariDataSource(config);
                         jdbi = Jdbi.create(dataSource);
-                        logger.info("✅ Database connection pool initialized: {}", dbUrl);
+                        LOGGER.info("✅ Database connection pool initialized: {}", dbUrl);
                     } catch (Exception e) {
-                        logger.error("❌ Database initialization failed: {}", e.getMessage());
+                        LOGGER.error("❌ Database initialization failed: {}", e.getMessage());
                         throw new RuntimeException("Could not connect to database", e);
                     }
                 }
@@ -57,7 +57,7 @@ public class DatabaseConfig {
             dataSource.close();
             jdbi = null;
             dataSource = null;
-            logger.info("🔌 Database connection pool has been shut down.");
+            LOGGER.info("🔌 Database connection pool has been shut down.");
         }
     }
 
