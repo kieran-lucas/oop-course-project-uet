@@ -25,8 +25,9 @@ public class UserService {
       throw new IllegalArgumentException("Username không được để trống");
     }
 
-    // 2. Check trùng username
-    if (userDao.findByUsername(req.getUsername()) != null) {
+    
+    // 2. Check trùng username (Đã sửa lại để kiểm tra Optional đúng cách)
+    if (userDao.findByUsername(req.getUsername()).isPresent()) {
       throw new DuplicateException("Username '" + req.getUsername() + "' đã tồn tại!");
     }
 
