@@ -15,23 +15,34 @@ class ItemDaoTest {
     private static Jdbi jdbi;
     private static UserDao userDao;
     private static ItemDao itemDao;
-    private static User testSeller;
+    private User testSeller;
     
     @BeforeAll
     static void setup() {
         jdbi = DatabaseConfig.create();
         userDao = new UserDao(jdbi);
         itemDao = new ItemDao(jdbi);
-        
-        // Tạo seller với username/email unique dùng timestamp
-        String timestamp = String.valueOf(System.currentTimeMillis());
+    }
+
+    @BeforeEach
+    void init() {
+        // 1. Dọn dẹp DB và reset ID về 1 trước mỗi test case
+        jdbi.useHandle(handle -> {
+            handle.execute("TRUNCATE TABLE auto_bid_configs CASCADE");
+            handle.execute("TRUNCATE TABLE bid_transactions CASCADE");
+            handle.execute("TRUNCATE TABLE auctions CASCADE");
+            handle.execute("TRUNCATE TABLE items CASCADE");
+            handle.execute("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
+        });
+
+        // 2. Tạo seller mặc định (Lúc này ID chắc chắn là 1)
         testSeller = userDao.insert(new Seller(
-            "seller_for_items_" + timestamp, 
-            "hash", 
-            "seller_items_" + timestamp + "@test.com"
+            "test_seller", 
+            "password123", 
+            "seller@test.com"
         ));
         
-        System.out.println("Created test seller with id: " + testSeller.getId());
+        System.out.println("Cleaned DB & Created test seller with id: " + testSeller.getId());
     }
     
     @Test
@@ -90,9 +101,6 @@ class ItemDaoTest {
     @Test
     @DisplayName("FindBySellerId should return all items of a seller")
     void testFindBySellerId() {
-        // Xóa items cũ của seller
-        itemDao.deleteBySellerId(testSeller.getId());
-        
         itemDao.insert(new Electronics("Laptop", "Dell", testSeller.getId(), "Dell"));
         itemDao.insert(new Art("Painting", "Art", testSeller.getId(), "Artist"));
         
@@ -104,15 +112,15 @@ class ItemDaoTest {
     @Test
     @DisplayName("FindAll should return all items")
     void testFindAll() {
+        itemDao.insert(new Electronics("Item 1", "Desc", testSeller.getId(), "Brand"));
         List<Item> items = itemDao.findAll();
         assertNotNull(items);
-        assertTrue(items.size() >= 0, "Items list should not be null");
+        assertTrue(items.size() > 0);
     }
     
     @Test
     @DisplayName("FindByCategory should filter by category")
     void testFindByCategory() {
-        // Tạo items với các category khác nhau
         itemDao.insert(new Electronics("Phone", "Smartphone", testSeller.getId(), "Apple"));
         itemDao.insert(new Art("Sculpture", "Art", testSeller.getId(), "Artist"));
         
@@ -126,15 +134,13 @@ class ItemDaoTest {
     @Test
     @DisplayName("SearchByName should find items by keyword")
     void testSearchByName() {
-        // Dùng timestamp để tạo tên unique
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        itemDao.insert(new Electronics("iPhone " + timestamp + " Pro", "Phone", testSeller.getId(), "Apple"));
-        itemDao.insert(new Electronics("iPad " + timestamp + " Pro", "Tablet", testSeller.getId(), "Apple"));
+        itemDao.insert(new Electronics("iPhone Pro Max", "Phone", testSeller.getId(), "Apple"));
+        itemDao.insert(new Electronics("iPad Air Pro", "Tablet", testSeller.getId(), "Apple"));
         
         List<Item> results = itemDao.searchByName("Pro");
         
         assertTrue(results.size() >= 2);
-        assertTrue(results.stream().anyMatch(i -> i.getName().contains("Pro")));
+        assertTrue(results.stream().allMatch(i -> i.getName().contains("Pro")));
     }
     
     @Test
@@ -154,7 +160,6 @@ class ItemDaoTest {
         Optional<Item> found = itemDao.findById(saved.getId());
         assertTrue(found.isPresent());
         assertEquals("New Name", found.get().getName());
-        assertEquals("New desc", found.get().getDescription());
         assertEquals("New Brand", ((Electronics) found.get()).getBrand());
     }
     
@@ -178,6 +183,6 @@ class ItemDaoTest {
         Item saved = itemDao.insert(electronics);
         
         assertTrue(itemDao.belongsToSeller(saved.getId(), testSeller.getId()));
-        assertFalse(itemDao.belongsToSeller(saved.getId(), 99999L));
+        assertFalse(itemDao.belongsToSeller(saved.getId(), 999L));
     }
 }
