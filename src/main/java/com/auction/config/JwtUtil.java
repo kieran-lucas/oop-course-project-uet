@@ -2,75 +2,39 @@ package com.auction.config;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
-import java.util.Date;
-
-/**
- * Tiện ích xử lý JWT (JSON Web Token) cho hệ thống đấu giá.
- * Sử dụng thư viện com.auth0:java-jwt.
- */
 public class JwtUtil {
 
-    private final String secret;
-    private final long expirationMs;
-    private final Algorithm algorithm;
-    private final JWTVerifier verifier;
+  // Ưu tiên đọc từ biến môi trường, nếu null thì dùng default
+  private static final String SECRET_KEY =
+      System.getenv("JWT_SECRET") != null ? System.getenv("JWT_SECRET") : "auction-secret-key-dev";
 
-    // Constructor 1: Dùng cho hệ thống chạy thật
-    public JwtUtil() {
-        this.secret = "chuoi_ky_tu_bi_mat_cua_nhom_auction_123456789";
-        this.expirationMs = 3600000L; // 1 giờ
-        this.algorithm = Algorithm.HMAC256(this.secret);
-        this.verifier = JWT.require(this.algorithm).build();
-    }
+  private static final Algorithm ALGORITHM =
+      Algorithm.HMAC256(
+          SECRET_KEY); // Đây là thuật toán mã hóa đối xứng. Nghĩa là hệ thống dùng chung 1 cái
+  // SECRET_KEY vừa để "khóa" (tạo token) vừa để "mở khóa" (xác minh token).
 
-    // Constructor 2: Dùng để chạy Unit Test
-    public JwtUtil(String secret, long expirationMs) {
-        this.secret = secret;
-        this.expirationMs = expirationMs;
-        this.algorithm = Algorithm.HMAC256(this.secret);
-        this.verifier = JWT.require(this.algorithm).build();
-    }
+  private static final JWTVerifier VERIFIER =
+      JWT.require(ALGORITHM)
+          .build(); // Đây là cái "Máy quét thẻ". Thầy để nó là static final (biến tĩnh hằng số) để
+  // máy tính chỉ khởi tạo nó đúng 1 lần duy nhất khi chạy server, giúp tiết kiệm
+  // bộ nhớ và tăng tốc độ xử lý khi có hàng nghìn người dùng cùng truy cập.
 
-    /**
-     * Sinh ra Token dựa trên userId và role
-     */
-    public String generateToken(String userId, String role) {
-        return JWT.create()
-                .withSubject(userId) // Subject thường dùng lưu ID định danh
-                .withClaim("role", role) // Custom claim cho role
-                .withExpiresAt(new Date(System.currentTimeMillis() + this.expirationMs))
-                .sign(this.algorithm);
-    }
+  public static String createToken(Long userId, String username, String role) {
+    return JWT.create()
+        .withClaim("userId", userId)
+        .withClaim("username", username)
+        .withClaim("role", role)
+        .withExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS))
+        .sign(ALGORITHM);
+  }
 
-    /**
-     * Xác thực Token có hợp lệ và còn hạn không
-     */
-    public void verifyToken(String token) {
-        try {
-            verifier.verify(token);
-        } catch (JWTVerificationException e) {
-            // Ném ra RuntimeException để test case (assertThrows) bắt được
-            throw new RuntimeException("Token không hợp lệ hoặc đã hết hạn: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Trích xuất UserId từ Token
-     */
-    public String extractUserId(String token) {
-        DecodedJWT jwt = verifier.verify(token);
-        return jwt.getSubject();
-    }
-
-    /**
-     * Trích xuất Role (Vai trò) từ Token
-     */
-    public String extractRole(String token) {
-        DecodedJWT jwt = verifier.verify(token);
-        return jwt.getClaim("role").asString();
-    }
+  public static DecodedJWT verifyToken(String token) {
+    // Hàm này sẽ tự động quăng lỗi của thư viện JWT nếu token hết hạn hoặc sai chữ ký
+    return VERIFIER.verify(token);
+  }
 }

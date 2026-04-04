@@ -1,4 +1,4 @@
--- V1: Initial schema for auction system
+-- V1: Initial schema for auction system (UPDATED - khớp với DAO hiện tại)
 
 CREATE TABLE users (
     id              BIGSERIAL PRIMARY KEY,
@@ -18,7 +18,8 @@ CREATE TABLE items (
     brand           VARCHAR(100),
     artist          VARCHAR(100),
     year            INTEGER,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE auctions (
@@ -31,7 +32,8 @@ CREATE TABLE auctions (
     end_time            TIMESTAMP NOT NULL,
     status              VARCHAR(20) NOT NULL DEFAULT 'OPEN'
                         CHECK (status IN ('OPEN', 'RUNNING', 'FINISHED', 'PAID', 'CANCELED')),
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE bid_transactions (
@@ -39,18 +41,18 @@ CREATE TABLE bid_transactions (
     auction_id      BIGINT NOT NULL REFERENCES auctions(id),
     bidder_id       BIGINT NOT NULL REFERENCES users(id),
     amount          DECIMAL(15,2) NOT NULL,
-    is_auto_bid     BOOLEAN NOT NULL DEFAULT FALSE,
+    auto_bid        BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE auto_bid_configs (
-    id              BIGSERIAL PRIMARY KEY,
-    auction_id      BIGINT NOT NULL REFERENCES auctions(id),
-    bidder_id       BIGINT NOT NULL REFERENCES users(id),
-    max_bid         DECIMAL(15,2) NOT NULL,
-    increment       DECIMAL(15,2) NOT NULL,
-    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-    registered_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+    id                  BIGSERIAL PRIMARY KEY,
+    auction_id          BIGINT NOT NULL REFERENCES auctions(id),
+    bidder_id           BIGINT NOT NULL REFERENCES users(id),
+    max_bid             DECIMAL(15,2) NOT NULL,
+    increment_amount    DECIMAL(15,2) NOT NULL,
+    active              BOOLEAN NOT NULL DEFAULT TRUE,
+    registered_at       TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (auction_id, bidder_id)
 );
 

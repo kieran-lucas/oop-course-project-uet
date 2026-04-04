@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test cho UserDao - Đảm bảo các nghiệp vụ CRUD và tính đa hình.
- * Liên kết: model/User.java, config/DatabaseConfig.java
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class UserDaoTest {
@@ -22,21 +21,19 @@ class UserDaoTest {
     
     @BeforeAll
     static void setup() {
-        // Khởi tạo Jdbi từ DatabaseConfig
         jdbi = DatabaseConfig.create();
         userDao = new UserDao(jdbi);
     }
     
-    /**
-     * Dọn dẹp bảng users trước mỗi test case.
-     * Sử dụng Transaction để đảm bảo tính toàn vẹn và tránh lỗi Permission.
-     */
     @BeforeEach
     void cleanup() {
-        jdbi.useTransaction(handle -> {
-            // Xóa tất cả các user phục vụ mục đích testing
-            handle.createUpdate("DELETE FROM users WHERE username LIKE 'test_%' OR username LIKE 'poly_%' OR username = 'duplicate_user'")
-                  .execute();
+        // Reset sạch bảng users và khởi động lại ID từ 1 để tránh cộng dồn qua các lần chạy
+        jdbi.useHandle(handle -> {
+            handle.execute("TRUNCATE TABLE auto_bid_configs CASCADE");
+            handle.execute("TRUNCATE TABLE bid_transactions CASCADE");
+            handle.execute("TRUNCATE TABLE auctions CASCADE");
+            handle.execute("TRUNCATE TABLE items CASCADE");
+            handle.execute("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
         });
     }
 
@@ -60,12 +57,12 @@ class UserDaoTest {
     @Order(2)
     @DisplayName("Nên báo lỗi khi trùng Username")
     void testInsertDuplicateUsername() {
-        Bidder b1 = new Bidder("duplicate_user", "hash", "e1@test.com");
-        Bidder b2 = new Bidder("duplicate_user", "hash", "e2@test.com");
+        userDao.insert(new Bidder("duplicate_user", "hash", "e1@test.com"));
         
-        userDao.insert(b1);
         // Jdbi/Postgres sẽ throw exception do ràng buộc UNIQUE
-        assertThrows(Exception.class, () -> userDao.insert(b2));
+        assertThrows(Exception.class, () -> {
+            userDao.insert(new Bidder("duplicate_user", "hash", "e2@test.com"));
+        });
     }
 
     // ============================================================
@@ -91,11 +88,12 @@ class UserDaoTest {
         userDao.insert(new Seller("test_s1", "hash", "s1@test.com"));
         
         List<User> bidders = userDao.findByRole("BIDDER");
+        assertFalse(bidders.isEmpty());
         assertTrue(bidders.stream().allMatch(u -> u instanceof Bidder));
     }
 
     // ============================================================
-    // 3. KIỂM TRA ĐA HÌNH (POLYMORPHISM) - Mục tiêu 0.5 điểm Rubric
+    // 3. KIỂM TRA ĐA HÌNH (POLYMORPHISM) - Quan trọng nhất
     // ============================================================
     
     @Test
@@ -107,10 +105,14 @@ class UserDaoTest {
         User s = userDao.insert(new Seller("poly_seller", "h", "s@p.com"));
         User a = userDao.insert(new Admin("poly_admin", "h", "a@p.com"));
         
-        // Khi lấy ra từ DB, Jdbi phải map đúng class con
-        assertTrue(userDao.findById(b.getId()).get() instanceof Bidder);
-        assertTrue(userDao.findById(s.getId()).get() instanceof Seller);
-        assertTrue(userDao.findById(a.getId()).get() instanceof Admin);
+        // Khi lấy ra từ DB, hệ thống phải tự động map đúng class con (Subclass)
+        User foundB = userDao.findById(b.getId()).orElseThrow();
+        User foundS = userDao.findById(s.getId()).orElseThrow();
+        User foundA = userDao.findById(a.getId()).orElseThrow();
+
+        assertTrue(foundB instanceof Bidder, "Phải là thực thể Bidder");
+        assertTrue(foundS instanceof Seller, "Phải là thực thể Seller");
+        assertTrue(foundA instanceof Admin, "Phải là thực thể Admin");
     }
 
     // ============================================================
@@ -126,7 +128,9 @@ class UserDaoTest {
         
         boolean success = userDao.update(saved);
         assertTrue(success);
-        assertEquals("new@test.com", userDao.findById(saved.getId()).get().getEmail());
+        
+        User updated = userDao.findById(saved.getId()).get();
+        assertEquals("new@test.com", updated.getEmail());
     }
 
     @Test
