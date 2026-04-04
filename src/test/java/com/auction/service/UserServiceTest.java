@@ -37,12 +37,12 @@ class UserServiceTest {
     private UserService userService;
 
     private Bidder mockUser;
-    private final String PLAIN_PASSWORD = "pass123"; // Mật khẩu gốc
+    private final String plainPassword = "pass123"; // Mật khẩu gốc
 
     @BeforeEach
     void setUp() {
         // TẠO MÃ BĂM THẬT: Điều này giúp hàm verifyer() của BCrypt không bị sập
-        String realBcryptHash = BCrypt.withDefaults().hashToString(12, PLAIN_PASSWORD.toCharArray());
+        String realBcryptHash = BCrypt.withDefaults().hashToString(12, plainPassword.toCharArray());
         
         mockUser = new Bidder("nhomAnhDuc", realBcryptHash, "nad@gmail.com");
         mockUser.setId(1L);
@@ -93,7 +93,7 @@ class UserServiceTest {
         when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
         
         // Truyền mật khẩu gốc vào để BCrypt tự kiểm tra
-        LoginRequest loginReq = new LoginRequest("nhomAnhDuc", PLAIN_PASSWORD);
+        LoginRequest loginReq = new LoginRequest("nhomAnhDuc", plainPassword);
         String token = userService.login(loginReq);
 
         assertNotNull(token);
