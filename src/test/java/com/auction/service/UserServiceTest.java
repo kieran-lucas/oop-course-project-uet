@@ -1,5 +1,6 @@
 package com.auction.service;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.auction.config.JwtUtil;
 import com.auction.dao.UserDao;
 import com.auction.dto.LoginRequest;
@@ -7,8 +8,8 @@ import com.auction.dto.RegisterRequest;
 import com.auction.model.Bidder;
 import com.auction.model.User;
 import com.auction.exception.DuplicateException;
-import com.auction.exception.UnauthorizedException;
 import com.auction.exception.NotFoundException;
+import com.auction.exception.UnauthorizedException;
 
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,7 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT) // CHÌA KHÓA GIẢI QUYẾT LỖI Ở ĐÂY
+@MockitoSettings(strictness = Strictness.LENIENT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class UserServiceTest {
 
@@ -36,10 +37,14 @@ class UserServiceTest {
     private UserService userService;
 
     private Bidder mockUser;
+    private final String PLAIN_PASSWORD = "pass123"; // Mật khẩu gốc
 
     @BeforeEach
     void setUp() {
-        mockUser = new Bidder("nhomAnhDuc", "hashed_password_123", "nad@gmail.com");
+        // TẠO MÃ BĂM THẬT: Điều này giúp hàm verifyer() của BCrypt không bị sập
+        String realBcryptHash = BCrypt.withDefaults().hashToString(12, PLAIN_PASSWORD.toCharArray());
+        
+        mockUser = new Bidder("nhomAnhDuc", realBcryptHash, "nad@gmail.com");
         mockUser.setId(1L);
     }
 
@@ -51,7 +56,6 @@ class UserServiceTest {
     @Order(1)
     @DisplayName("testRegisterSuccess() — Đăng ký thành công dùng RegisterRequest")
     void testRegisterSuccess() {
-        // Dùng any() để bắt mọi trường hợp
         when(userDao.findByUsername(any())).thenReturn(Optional.empty());
         when(userDao.insert(any(User.class))).thenAnswer(invocation -> {
             User u = invocation.getArgument(0);
@@ -88,7 +92,8 @@ class UserServiceTest {
     void testLoginSuccess() {
         when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
         
-        LoginRequest loginReq = new LoginRequest("nhomAnhDuc", "hashed_password_123");
+        // Truyền mật khẩu gốc vào để BCrypt tự kiểm tra
+        LoginRequest loginReq = new LoginRequest("nhomAnhDuc", PLAIN_PASSWORD);
         String token = userService.login(loginReq);
 
         assertNotNull(token);
@@ -101,7 +106,8 @@ class UserServiceTest {
     void testLoginWrongPassword() {
         when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
 
-        LoginRequest loginReq = new LoginRequest("nhomAnhDuc", "wrong_password");
+        // Truyền mật khẩu sai
+        LoginRequest loginReq = new LoginRequest("nhomAnhDuc", "wrong_password_hihi");
 
         assertThrows(UnauthorizedException.class, () -> {
             userService.login(loginReq);
