@@ -34,7 +34,7 @@ public class App {
         // 3. Tạo ứng dụng Javalin và cấu hình
         Javalin app = Javalin.create(config -> {
             // Cấu hình Jackson làm JSON Mapper mặc định
-            config.jsonMapper(new JavalinJackson(mapper));
+            config.jsonMapper(new JavalinJackson(mapper, false));
             config.http.defaultContentType = "application/json";
 
             // Cho phép CORS nếu Client (JavaFX WebEngine hoặc Web Frontend) gọi khác port
