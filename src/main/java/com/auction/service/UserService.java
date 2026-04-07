@@ -25,7 +25,17 @@ public class UserService {
       throw new IllegalArgumentException("Username không được để trống");
     }
 
-    
+      String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
+      if (req.getEmail() == null || !req.getEmail().matches(emailRegex)) {
+          throw new IllegalArgumentException("Định dạng email không hợp lệ.");
+      }
+
+      // Kiểm tra Password
+      if (req.getPassword() == null || req.getPassword().length() < 6) {
+          throw new IllegalArgumentException("Mật khẩu phải có ít nhất 6 ký tự.");
+      }
+
+
     // 2. Check trùng username (Đã sửa lại để kiểm tra Optional đúng cách)
     if (userDao.findByUsername(req.getUsername()).isPresent()) {
       throw new DuplicateException("Username '" + req.getUsername() + "' đã tồn tại!");
