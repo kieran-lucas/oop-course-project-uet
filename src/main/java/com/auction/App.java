@@ -2,10 +2,16 @@ package com.auction;
 
 import com.auction.config.DatabaseConfig;
 import com.auction.controller.AuthController;
+import com.auction.controller.AuctionController; // Thêm mới
+import com.auction.controller.ItemController;    // Thêm mới
+import com.auction.dao.AuctionDao;             // Thêm mới
+import com.auction.dao.ItemDao;                // Thêm mới
 import com.auction.dao.UserDao;
 import com.auction.dto.ErrorResponse;
 import com.auction.exception.*;
 import com.auction.middleware.JwtMiddleware;
+import com.auction.service.AuctionService;       // Thêm mới
+import com.auction.service.ItemService;          // Thêm mới
 import com.auction.service.UserService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,10 +32,22 @@ public class App {
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         // 2. Khởi tạo Database, DAO và Service (Dependency Injection thủ công)
+        // ===== ĐÃ CÓ (từ tuần trước) =====
         Jdbi jdbi = DatabaseConfig.create();
-        UserDao userDao = new UserDao(jdbi);
-        UserService userService = new UserService(userDao);
-        AuthController authController = new AuthController(userService);
+        var userDao = new UserDao(jdbi);
+        var userService = new UserService(userDao);
+        var authController = new AuthController(userService);
+
+        // ===== THÊM MỚI =====
+        var itemDao = new ItemDao(jdbi);
+        var auctionDao = new AuctionDao(jdbi);
+
+        var itemService = new ItemService(itemDao);
+        var auctionService = new AuctionService(auctionDao, itemDao, userDao);
+
+        var itemController = new ItemController(itemService);
+        var auctionController = new AuctionController(auctionService);
+
 
         // 3. Tạo ứng dụng Javalin và cấu hình
         Javalin app = Javalin.create(config -> {
@@ -76,8 +94,10 @@ public class App {
         // Endpoint Health Check
         app.get("/api/health", ctx -> ctx.json(java.util.Map.of("status", "ok")));
 
-        // Đăng ký routes của Auth
-        authController.register(app);
+        // ===== ĐĂNG KÝ ROUTES =====
+        authController.register(app);       // /api/auth/login, /register
+        itemController.register(app);       // /api/items
+        auctionController.register(app);    // /api/auctions
 
         // 7. Khởi động server
         app.start(8080);
