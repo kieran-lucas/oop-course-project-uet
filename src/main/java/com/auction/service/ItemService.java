@@ -5,11 +5,8 @@ import com.auction.dto.CreateItemRequest;
 import com.auction.exception.DuplicateException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
-import com.auction.model.Art;
-import com.auction.model.Electronics;
 import com.auction.model.Item;
-import com.auction.model.Vehicle;
-import java.time.LocalDateTime;
+import com.auction.pattern.factory.ItemFactory; // Thêm import ItemFactory
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -68,7 +65,6 @@ public class ItemService {
      * @throws IllegalArgumentException nếu input không hợp lệ
      */
     public Item createItem(CreateItemRequest request, Long sellerId) {
-        // Validate input
         if (request.getName() == null || request.getName().isBlank()) {
             throw new IllegalArgumentException("Item name must not be empty");
         }
@@ -76,35 +72,18 @@ public class ItemService {
             throw new IllegalArgumentException("Category must not be empty");
         }
 
-        // Tạo đúng subclass dựa vào category (Polymorphism)
-        // categoryDetail chứa thông tin riêng: brand (Electronics), artist (Art), year (Vehicle)
-        LocalDateTime now = LocalDateTime.now();
-        String category = request.getCategory().toUpperCase();
-
-        Item newItem = switch (category) {
-            case "ELECTRONICS" -> new Electronics(
-                null, request.getName(), request.getDescription(),
-                sellerId, request.getCategoryDetail(), now);
-            case "ART" -> new Art(
-                null, request.getName(), request.getDescription(),
-                sellerId, request.getCategoryDetail(), now);
-            case "VEHICLE" -> {
-                int year = 0;
-                try {
-                    year = Integer.parseInt(request.getCategoryDetail());
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Vehicle year must be a number");
-                }
-                yield new Vehicle(
-                    null, request.getName(), request.getDescription(),
-                    sellerId, year, now);
-            }
-            default -> throw new IllegalArgumentException(
-                "Invalid category: " + category + ". Must be ELECTRONICS, ART, or VEHICLE");
-        };
+        // Dùng Factory Pattern thay vì switch trực tiếp
+        Item newItem = ItemFactory.create(
+            request.getName(),
+            request.getDescription(),
+            sellerId,
+            request.getCategory(),
+            request.getCategoryDetail()
+        );
 
         Item saved = itemDao.insert(newItem);
-        LOGGER.info("Item created: id={}, name={}, seller={}", saved.getId(), saved.getName(), sellerId);
+        LOGGER.info("Item created: id={}, name={}, seller={}",
+            saved.getId(), saved.getName(), sellerId);
         return saved;
     }
 
