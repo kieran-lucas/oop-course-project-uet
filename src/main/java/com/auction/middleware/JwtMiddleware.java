@@ -18,7 +18,7 @@ public class JwtMiddleware {
             return;
         }
 
-        // 2. GET /api/items và /api/auctions là public (ai cũng xem được)
+        // 2. GET /api/items, /api/auctions, và /api/auctions/:id/bids là public (ai cũng xem được)
         // Nhưng thao tác POST/PUT/DELETE trên các route này vẫn cần token
         if ("GET".equals(method)
             && (path.startsWith("/api/items") || path.startsWith("/api/auctions"))) {
@@ -35,16 +35,13 @@ public class JwtMiddleware {
                     ctx.attribute("username", jwt.getClaim("username").asString());
                     ctx.attribute("role", jwt.getClaim("role").asString());
                 } catch (Exception e) {
-                    // Token không hợp lệ hoặc hết hạn nhưng vì là GET public → vẫn cho qua
+                    // Token không hợp lệ nhưng GET public → cho qua
+                    ctx.attribute("userId", null);
                 }
             }
             return;
         }
-        // GET /api/auctions/:id/bids cũng public (xem lịch sử bid)
-        if ("GET".equals(method)
-            && (path.startsWith("/api/items")
-            || path.startsWith("/api/auctions"))) {
-        }
+
 
         // 3. Các route còn lại: BẮT BUỘC phải có token
         String authHeader = ctx.header("Authorization");

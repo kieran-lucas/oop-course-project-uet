@@ -9,7 +9,6 @@ import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.model.Auction;
 import com.auction.model.Item;
-import com.auction.model.User;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
