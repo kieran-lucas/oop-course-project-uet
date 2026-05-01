@@ -40,6 +40,11 @@ public class JwtMiddleware {
             }
             return;
         }
+        // GET /api/auctions/:id/bids cũng public (xem lịch sử bid)
+        if ("GET".equals(method)
+            && (path.startsWith("/api/items")
+            || path.startsWith("/api/auctions"))) {
+        }
 
         // 3. Các route còn lại: BẮT BUỘC phải có token
         String authHeader = ctx.header("Authorization");

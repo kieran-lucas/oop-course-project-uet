@@ -2,17 +2,21 @@ package com.auction;
 
 import com.auction.config.DatabaseConfig;
 import com.auction.controller.AuthController;
-import com.auction.controller.AuctionController; // Thêm mới
-import com.auction.controller.ItemController;    // Thêm mới
-import com.auction.dao.AuctionDao;             // Thêm mới
-import com.auction.dao.ItemDao;                // Thêm mới
+import com.auction.controller.AuctionController;
+import com.auction.controller.ItemController;
+import com.auction.controller.BidController;
+import com.auction.controller.AuctionWebSocketHandler;
+import com.auction.dao.AuctionDao;
+import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
+import com.auction.dao.BidTransactionDao;
 import com.auction.dto.ErrorResponse;
 import com.auction.exception.*;
 import com.auction.middleware.JwtMiddleware;
-import com.auction.service.AuctionService;       // Thêm mới
-import com.auction.service.ItemService;          // Thêm mới
+import com.auction.service.AuctionService;
+import com.auction.service.ItemService;
 import com.auction.service.UserService;
+import com.auction.service.BidService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -32,13 +36,11 @@ public class App {
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         // 2. Khởi tạo Database, DAO và Service (Dependency Injection thủ công)
-        // ===== ĐÃ CÓ (từ tuần trước) =====
         Jdbi jdbi = DatabaseConfig.create();
         var userDao = new UserDao(jdbi);
         var userService = new UserService(userDao);
         var authController = new AuthController(userService);
 
-        // ===== THÊM MỚI =====
         var itemDao = new ItemDao(jdbi);
         var auctionDao = new AuctionDao(jdbi);
 
@@ -48,6 +50,12 @@ public class App {
         var itemController = new ItemController(itemService);
         var auctionController = new AuctionController(auctionService);
 
+        var bidTransactionDao = new BidTransactionDao(jdbi);
+        var bidService = new BidService(auctionDao, bidTransactionDao, userDao, jdbi);
+        var bidController = new BidController(bidService);
+
+        var wsHandler = new AuctionWebSocketHandler();
+        bidService.setBroadcaster(wsHandler); // Kết nối BidService ↔ WebSocket
 
         // 3. Tạo ứng dụng Javalin và cấu hình
         Javalin app = Javalin.create(config -> {
@@ -94,10 +102,22 @@ public class App {
         // Endpoint Health Check
         app.get("/api/health", ctx -> ctx.json(java.util.Map.of("status", "ok")));
 
-        // ===== ĐĂNG KÝ ROUTES =====
+        // ===== ĐĂNG KÝ REST ROUTES =====
         authController.register(app);       // /api/auth/login, /register
         itemController.register(app);       // /api/items
         auctionController.register(app);    // /api/auctions
+
+        // ═══════════ ĐĂNG KÝ ROUTES MỚI ═══════════
+        bidController.register(app);        // /api/auctions/{id}/bid & /api/auctions/{id}/bids
+
+        // WebSocket — KHÁC với REST routes
+        // app.ws() đăng ký WebSocket endpoint (không phải app.get/post)
+        app.ws("/ws/auction/{id}", ws -> {
+            ws.onConnect(wsHandler::onConnect);
+            ws.onClose(wsHandler::onClose);
+            ws.onError(wsHandler::onError);
+        });
+        // ══════════════════════════════════════════
 
         // 7. Khởi động server
         app.start(8080);
