@@ -2,13 +2,11 @@ package com.auction.service;
 
 import com.auction.dao.ItemDao;
 import com.auction.dto.CreateItemRequest;
-import com.auction.exception.DuplicateException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.model.Item;
 import com.auction.pattern.factory.ItemFactory; // Thêm import ItemFactory
 import java.util.List;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
