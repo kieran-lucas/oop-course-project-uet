@@ -25,16 +25,15 @@ public class UserService {
       throw new IllegalArgumentException("Username không được để trống");
     }
 
-      String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
-      if (req.getEmail() == null || !req.getEmail().matches(emailRegex)) {
-          throw new IllegalArgumentException("Định dạng email không hợp lệ.");
-      }
+    String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
+    if (req.getEmail() == null || !req.getEmail().matches(emailRegex)) {
+      throw new IllegalArgumentException("Định dạng email không hợp lệ.");
+    }
 
-      // Kiểm tra Password
-      if (req.getPassword() == null || req.getPassword().length() < 6) {
-          throw new IllegalArgumentException("Mật khẩu phải có ít nhất 6 ký tự.");
-      }
-
+    // Kiểm tra Password
+    if (req.getPassword() == null || req.getPassword().length() < 6) {
+      throw new IllegalArgumentException("Mật khẩu phải có ít nhất 6 ký tự.");
+    }
 
     // 2. Check trùng username (Đã sửa lại để kiểm tra Optional đúng cách)
     if (userDao.findByUsername(req.getUsername()).isPresent()) {
@@ -68,8 +67,10 @@ public class UserService {
 
   public String login(LoginRequest req) {
     // 1. Tìm user
-    User user = userDao.findByUsername(req.getUsername())
-    .orElseThrow(() -> new NotFoundException("Không tìm thấy tài khoản với username này."));
+    User user =
+        userDao
+            .findByUsername(req.getUsername())
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy tài khoản với username này."));
 
     // 2. Xác thực mật khẩu
     BCrypt.Result result =

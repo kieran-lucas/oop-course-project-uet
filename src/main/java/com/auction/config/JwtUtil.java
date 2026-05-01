@@ -21,6 +21,7 @@ public class JwtUtil {
   private static final JWTVerifier VERIFIER =
       JWT.require(ALGORITHM)
           .build(); // Đây là cái "Máy quét thẻ". Thầy để nó là static final (biến tĩnh hằng số) để
+
   // máy tính chỉ khởi tạo nó đúng 1 lần duy nhất khi chạy server, giúp tiết kiệm
   // bộ nhớ và tăng tốc độ xử lý khi có hàng nghìn người dùng cùng truy cập.
 
