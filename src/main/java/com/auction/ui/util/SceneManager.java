@@ -279,3 +279,4 @@ public class SceneManager {
         return (T) controllerCache.get(fxmlName);
     }
 }
+

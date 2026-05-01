@@ -30,3 +30,4 @@ public interface Navigable {
      */
     default void onNavigatedFrom() {}
 }
+

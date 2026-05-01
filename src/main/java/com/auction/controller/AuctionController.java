@@ -2,7 +2,6 @@ package com.auction.controller;
 
 import com.auction.dto.AuctionResponse;
 import com.auction.dto.CreateAuctionRequest;
-import com.auction.exception.UnauthorizedException;
 import com.auction.model.Auction;
 import com.auction.service.AuctionService;
 import io.javalin.Javalin;
