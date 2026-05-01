@@ -1,54 +1,59 @@
 package com.auction.dao;
 
 import com.auction.model.AutoBidConfig;
+import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Optional;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Optional;
-
 /**
  * DAO (Data Access Object) cho bảng auto_bid_configs.
  *
- * <p>Class này chịu trách nhiệm quản lý cấu hình đấu giá tự động (auto-bid).
- * Auto-bid cho phép người dùng đặt trước giá tối đa và bước giá, hệ thống sẽ
- * tự động trả giá thay họ khi có người khác bid.
+ * <p>Class này chịu trách nhiệm quản lý cấu hình đấu giá tự động (auto-bid). Auto-bid cho phép
+ * người dùng đặt trước giá tối đa và bước giá, hệ thống sẽ tự động trả giá thay họ khi có người
+ * khác bid.
  *
  * <h3>Vai trò trong hệ thống</h3>
- * <p>AutoBidConfig là một phần quan trọng của chức năng nâng cao auto-bidding.
- * Mỗi khi có bid mới, AutoBidStrategy sẽ:
+ *
+ * <p>AutoBidConfig là một phần quan trọng của chức năng nâng cao auto-bidding. Mỗi khi có bid mới,
+ * AutoBidStrategy sẽ:
+ *
  * <ol>
- *   <li>Lấy tất cả auto-bid configs active của phiên đó</li>
- *   <li>Sắp xếp theo registered_at (ai đăng ký trước được ưu tiên)</li>
- *   <li>Duyệt từng config, nếu còn budget thì tự động bid</li>
- *   <li>Lặp lại cho đến khi không còn ai đủ budget</li>
+ *   <li>Lấy tất cả auto-bid configs active của phiên đó
+ *   <li>Sắp xếp theo registered_at (ai đăng ký trước được ưu tiên)
+ *   <li>Duyệt từng config, nếu còn budget thì tự động bid
+ *   <li>Lặp lại cho đến khi không còn ai đủ budget
  * </ol>
  *
  * <h3>Ràng buộc UNIQUE</h3>
- * <p>Bảng auto_bid_configs có constraint UNIQUE(auction_id, bidder_id).
- * Điều này đảm bảo mỗi user chỉ có 1 auto-bid config active cho mỗi phiên.
- * Khi user thay đổi maxBid, ta UPDATE thay vì INSERT mới.
+ *
+ * <p>Bảng auto_bid_configs có constraint UNIQUE(auction_id, bidder_id). Điều này đảm bảo mỗi user
+ * chỉ có 1 auto-bid config active cho mỗi phiên. Khi user thay đổi maxBid, ta UPDATE thay vì INSERT
+ * mới.
  *
  * <h3>Trạng thái active</h3>
+ *
  * <p>Auto-bid config có thể bị vô hiệu hóa (active = false) trong các trường hợp:
+ *
  * <ul>
- *   <li>User chủ động tắt auto-bid</li>
- *   <li>Max bid đã bị vượt quá (hết budget)</li>
- *   <li>User đã thắng phiên (không cần auto-bid nữa)</li>
+ *   <li>User chủ động tắt auto-bid
+ *   <li>Max bid đã bị vượt quá (hết budget)
+ *   <li>User đã thắng phiên (không cần auto-bid nữa)
  * </ul>
  *
  * <h3>Liên kết với các file khác</h3>
+ *
  * <ul>
- *   <li><b>AutoBidConfig.java</b> — model class, chứa cấu hình auto-bid</li>
- *   <li><b>BidService.java</b> — gọi DAO để lấy configs khi có bid mới</li>
- *   <li><b>AutoBidStrategy.java</b> — dùng PriorityQueue và DAO để xử lý</li>
- *   <li><b>V1__initial_schema.sql</b> — định nghĩa bảng auto_bid_configs</li>
+ *   <li><b>AutoBidConfig.java</b> — model class, chứa cấu hình auto-bid
+ *   <li><b>BidService.java</b> — gọi DAO để lấy configs khi có bid mới
+ *   <li><b>AutoBidStrategy.java</b> — dùng PriorityQueue và DAO để xử lý
+ *   <li><b>V1__initial_schema.sql</b> — định nghĩa bảng auto_bid_configs
  * </ul>
  */
 public class AutoBidConfigDao {
@@ -68,12 +73,12 @@ public class AutoBidConfigDao {
   /**
    * RowMapper chuyển ResultSet thành AutoBidConfig object.
    *
-   * <p>[FIX #11] Bảng auto_bid_configs không có cột created_at riêng.
-   * Thay vào đó dùng registered_at làm timestamp chuẩn. Nếu model Entity
-   * base class yêu cầu createdAt, hãy override getCreatedAt() trong
-   * AutoBidConfig.java trả về registeredAt để tránh hack ở DAO layer.
+   * <p>[FIX #11] Bảng auto_bid_configs không có cột created_at riêng. Thay vào đó dùng
+   * registered_at làm timestamp chuẩn. Nếu model Entity base class yêu cầu createdAt, hãy override
+   * getCreatedAt() trong AutoBidConfig.java trả về registeredAt để tránh hack ở DAO layer.
    *
    * <p>Map các cột trong bảng auto_bid_configs:
+   *
    * <pre>
    * | id | auction_id | bidder_id | max_bid | increment_amount | active | registered_at |
    * </pre>
@@ -96,7 +101,7 @@ public class AutoBidConfigDao {
           rs.getBoolean("active"),
           registeredAt,
           registeredAt // createdAt = registeredAt (bảng không có cột created_at)
-      );
+          );
     }
   }
 
@@ -109,16 +114,17 @@ public class AutoBidConfigDao {
    *
    * <p>Được gọi khi người dùng bật auto-bid cho một phiên.
    *
-   * <p><b>Lưu ý:</b> Nếu user đã có config cho phiên này (do UNIQUE constraint),
-   * INSERT sẽ thất bại. Trong trường hợp đó, nên gọi update() để cập nhật.
+   * <p><b>Lưu ý:</b> Nếu user đã có config cho phiên này (do UNIQUE constraint), INSERT sẽ thất
+   * bại. Trong trường hợp đó, nên gọi update() để cập nhật.
    *
    * @param config AutoBidConfig cần tạo (chưa có id)
    * @return AutoBidConfig đã được gán id từ database
-   * @throws org.jdbi.v3.core.statement.UnableToExecuteStatementException
-   *         nếu vi phạm UNIQUE constraint (user đã có config cho auction này)
+   * @throws org.jdbi.v3.core.statement.UnableToExecuteStatementException nếu vi phạm UNIQUE
+   *     constraint (user đã có config cho auction này)
    */
   public AutoBidConfig insert(AutoBidConfig config) {
-    String sql = """
+    String sql =
+        """
         INSERT INTO auto_bid_configs
             (auction_id, bidder_id, max_bid, increment_amount, active, registered_at)
         VALUES
@@ -126,22 +132,28 @@ public class AutoBidConfigDao {
         RETURNING id
         """;
 
-    return jdbi.withHandle(handle -> {
-      long id = handle.createQuery(sql)
-          .bind("auctionId", config.getAuctionId())
-          .bind("bidderId", config.getBidderId())
-          .bind("maxBid", config.getMaxBid())
-          .bind("increment", config.getIncrement())
-          .bind("active", config.isActive())
-          .bind("registeredAt", config.getRegisteredAt())
-          .mapTo(Long.class)
-          .one();
+    return jdbi.withHandle(
+        handle -> {
+          long id =
+              handle
+                  .createQuery(sql)
+                  .bind("auctionId", config.getAuctionId())
+                  .bind("bidderId", config.getBidderId())
+                  .bind("maxBid", config.getMaxBid())
+                  .bind("increment", config.getIncrement())
+                  .bind("active", config.isActive())
+                  .bind("registeredAt", config.getRegisteredAt())
+                  .mapTo(Long.class)
+                  .one();
 
-      config.setId(id);
-      LOGGER.debug("Inserted auto-bid config: auction={}, bidder={}, max={}",
-          config.getAuctionId(), config.getBidderId(), config.getMaxBid());
-      return config;
-    });
+          config.setId(id);
+          LOGGER.debug(
+              "Inserted auto-bid config: auction={}, bidder={}, max={}",
+              config.getAuctionId(),
+              config.getBidderId(),
+              config.getMaxBid());
+          return config;
+        });
   }
 
   // ============================================================
@@ -157,22 +169,19 @@ public class AutoBidConfigDao {
   public Optional<AutoBidConfig> findById(Long id) {
     String sql = "SELECT " + SELECT_COLUMNS + " FROM auto_bid_configs WHERE id = :id";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("id", id)
-            .map(new AutoBidConfigMapper())
-            .findOne()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createQuery(sql).bind("id", id).map(new AutoBidConfigMapper()).findOne());
   }
 
   /**
    * Tìm cấu hình auto-bid của một user trong một phiên.
    *
    * <p>Method này quan trọng để:
+   *
    * <ul>
-   *   <li>Kiểm tra user đã có auto-bid cho phiên này chưa</li>
-   *   <li>Lấy config để cập nhật khi user thay đổi maxBid</li>
-   *   <li>Kiểm tra trạng thái active của auto-bid user</li>
+   *   <li>Kiểm tra user đã có auto-bid cho phiên này chưa
+   *   <li>Lấy config để cập nhật khi user thay đổi maxBid
+   *   <li>Kiểm tra trạng thái active của auto-bid user
    * </ul>
    *
    * @param auctionId ID phiên đấu giá
@@ -180,39 +189,45 @@ public class AutoBidConfigDao {
    * @return Optional chứa AutoBidConfig nếu tồn tại
    */
   public Optional<AutoBidConfig> findByAuctionAndBidder(Long auctionId, Long bidderId) {
-    String sql = "SELECT " + SELECT_COLUMNS
-        + " FROM auto_bid_configs WHERE auction_id = :auctionId AND bidder_id = :bidderId";
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM auto_bid_configs WHERE auction_id = :auctionId AND bidder_id = :bidderId";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .bind("bidderId", bidderId)
-            .map(new AutoBidConfigMapper())
-            .findOne()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle
+                .createQuery(sql)
+                .bind("auctionId", auctionId)
+                .bind("bidderId", bidderId)
+                .map(new AutoBidConfigMapper())
+                .findOne());
   }
 
   /**
    * Lấy tất cả auto-bid configs active của một phiên.
    *
-   * <p><b>QUAN TRỌNG:</b> Method này được AutoBidStrategy gọi mỗi khi có bid mới.
-   * Kết quả trả về sắp xếp theo registered_at (ai đăng ký trước được ưu tiên).
+   * <p><b>QUAN TRỌNG:</b> Method này được AutoBidStrategy gọi mỗi khi có bid mới. Kết quả trả về
+   * sắp xếp theo registered_at (ai đăng ký trước được ưu tiên).
    *
    * @param auctionId ID phiên đấu giá
    * @return List các AutoBidConfig active, sắp xếp theo thời gian đăng ký
    */
   public List<AutoBidConfig> findActiveByAuctionId(Long auctionId) {
-    String sql = "SELECT " + SELECT_COLUMNS
-        + " FROM auto_bid_configs"
-        + " WHERE auction_id = :auctionId AND active = true"
-        + " ORDER BY registered_at ASC";
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM auto_bid_configs"
+            + " WHERE auction_id = :auctionId AND active = true"
+            + " ORDER BY registered_at ASC";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .map(new AutoBidConfigMapper())
-            .list()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle
+                .createQuery(sql)
+                .bind("auctionId", auctionId)
+                .map(new AutoBidConfigMapper())
+                .list());
   }
 
   /**
@@ -224,15 +239,18 @@ public class AutoBidConfigDao {
    * @return List các AutoBidConfig của user đó
    */
   public List<AutoBidConfig> findByBidderId(Long bidderId) {
-    String sql = "SELECT " + SELECT_COLUMNS
-        + " FROM auto_bid_configs WHERE bidder_id = :bidderId ORDER BY registered_at DESC";
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM auto_bid_configs WHERE bidder_id = :bidderId ORDER BY registered_at DESC";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("bidderId", bidderId)
-            .map(new AutoBidConfigMapper())
-            .list()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle
+                .createQuery(sql)
+                .bind("bidderId", bidderId)
+                .map(new AutoBidConfigMapper())
+                .list());
   }
 
   /**
@@ -244,15 +262,18 @@ public class AutoBidConfigDao {
    * @return List tất cả AutoBidConfig của phiên
    */
   public List<AutoBidConfig> findAllByAuctionId(Long auctionId) {
-    String sql = "SELECT " + SELECT_COLUMNS
-        + " FROM auto_bid_configs WHERE auction_id = :auctionId ORDER BY registered_at ASC";
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM auto_bid_configs WHERE auction_id = :auctionId ORDER BY registered_at ASC";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .map(new AutoBidConfigMapper())
-            .list()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle
+                .createQuery(sql)
+                .bind("auctionId", auctionId)
+                .map(new AutoBidConfigMapper())
+                .list());
   }
 
   // ============================================================
@@ -263,17 +284,19 @@ public class AutoBidConfigDao {
    * Cập nhật cấu hình auto-bid.
    *
    * <p>Dùng khi:
+   *
    * <ul>
-   *   <li>User thay đổi maxBid hoặc increment</li>
-   *   <li>User tắt auto-bid (set active = false)</li>
-   *   <li>Hệ thống vô hiệu hóa auto-bid khi hết budget</li>
+   *   <li>User thay đổi maxBid hoặc increment
+   *   <li>User tắt auto-bid (set active = false)
+   *   <li>Hệ thống vô hiệu hóa auto-bid khi hết budget
    * </ul>
    *
    * @param config AutoBidConfig đã cập nhật (phải có id)
    * @return true nếu cập nhật thành công, false nếu không tìm thấy
    */
   public boolean update(AutoBidConfig config) {
-    String sql = """
+    String sql =
+        """
         UPDATE auto_bid_configs
         SET max_bid = :maxBid,
             increment_amount = :increment,
@@ -281,18 +304,23 @@ public class AutoBidConfigDao {
         WHERE id = :id
         """;
 
-    int rowsAffected = jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("maxBid", config.getMaxBid())
-            .bind("increment", config.getIncrement())
-            .bind("active", config.isActive())
-            .bind("id", config.getId())
-            .execute()
-    );
+    int rowsAffected =
+        jdbi.withHandle(
+            handle ->
+                handle
+                    .createUpdate(sql)
+                    .bind("maxBid", config.getMaxBid())
+                    .bind("increment", config.getIncrement())
+                    .bind("active", config.isActive())
+                    .bind("id", config.getId())
+                    .execute());
 
     if (rowsAffected > 0) {
-      LOGGER.debug("Updated auto-bid config: id={}, active={}, max={}",
-          config.getId(), config.isActive(), config.getMaxBid());
+      LOGGER.debug(
+          "Updated auto-bid config: id={}, active={}, max={}",
+          config.getId(),
+          config.isActive(),
+          config.getMaxBid());
       return true;
     }
 
@@ -312,10 +340,10 @@ public class AutoBidConfigDao {
    * @param active trạng thái active mới
    * @return true nếu cập nhật thành công, false nếu không tìm thấy config
    */
-  public boolean updateByAuctionAndBidder(Long auctionId, Long bidderId,
-      BigDecimal maxBid, BigDecimal increment,
-      boolean active) {
-    String sql = """
+  public boolean updateByAuctionAndBidder(
+      Long auctionId, Long bidderId, BigDecimal maxBid, BigDecimal increment, boolean active) {
+    String sql =
+        """
         UPDATE auto_bid_configs
         SET max_bid = :maxBid,
             increment_amount = :increment,
@@ -323,19 +351,25 @@ public class AutoBidConfigDao {
         WHERE auction_id = :auctionId AND bidder_id = :bidderId
         """;
 
-    int rowsAffected = jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("maxBid", maxBid)
-            .bind("increment", increment)
-            .bind("active", active)
-            .bind("auctionId", auctionId)
-            .bind("bidderId", bidderId)
-            .execute()
-    );
+    int rowsAffected =
+        jdbi.withHandle(
+            handle ->
+                handle
+                    .createUpdate(sql)
+                    .bind("maxBid", maxBid)
+                    .bind("increment", increment)
+                    .bind("active", active)
+                    .bind("auctionId", auctionId)
+                    .bind("bidderId", bidderId)
+                    .execute());
 
     if (rowsAffected > 0) {
-      LOGGER.debug("Updated auto-bid config: auction={}, bidder={}, active={}, max={}",
-          auctionId, bidderId, active, maxBid);
+      LOGGER.debug(
+          "Updated auto-bid config: auction={}, bidder={}, active={}, max={}",
+          auctionId,
+          bidderId,
+          active,
+          maxBid);
       return true;
     }
 
@@ -346,11 +380,12 @@ public class AutoBidConfigDao {
    * Vô hiệu hóa auto-bid của một user trong một phiên.
    *
    * <p>Được gọi khi:
+   *
    * <ul>
-   *   <li>User tắt auto-bid</li>
-   *   <li>Auto-bid hết budget (maxBid đã bị vượt)</li>
-   *   <li>User thắng phiên (không cần auto-bid nữa)</li>
-   *   <li>Phiên đấu giá kết thúc</li>
+   *   <li>User tắt auto-bid
+   *   <li>Auto-bid hết budget (maxBid đã bị vượt)
+   *   <li>User thắng phiên (không cần auto-bid nữa)
+   *   <li>Phiên đấu giá kết thúc
    * </ul>
    *
    * @param auctionId ID phiên đấu giá
@@ -358,18 +393,21 @@ public class AutoBidConfigDao {
    * @return true nếu vô hiệu hóa thành công, false nếu không tìm thấy config
    */
   public boolean deactivate(Long auctionId, Long bidderId) {
-    String sql = """
+    String sql =
+        """
         UPDATE auto_bid_configs
         SET active = false
         WHERE auction_id = :auctionId AND bidder_id = :bidderId AND active = true
         """;
 
-    int rowsAffected = jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("auctionId", auctionId)
-            .bind("bidderId", bidderId)
-            .execute()
-    );
+    int rowsAffected =
+        jdbi.withHandle(
+            handle ->
+                handle
+                    .createUpdate(sql)
+                    .bind("auctionId", auctionId)
+                    .bind("bidderId", bidderId)
+                    .execute());
 
     if (rowsAffected > 0) {
       LOGGER.info("Deactivated auto-bid: auction={}, bidder={}", auctionId, bidderId);
@@ -388,21 +426,18 @@ public class AutoBidConfigDao {
    * @return số lượng configs bị vô hiệu hóa
    */
   public int deactivateAllByAuctionId(Long auctionId) {
-    String sql = """
+    String sql =
+        """
         UPDATE auto_bid_configs
         SET active = false
         WHERE auction_id = :auctionId AND active = true
         """;
 
-    int rowsAffected = jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("auctionId", auctionId)
-            .execute()
-    );
+    int rowsAffected =
+        jdbi.withHandle(handle -> handle.createUpdate(sql).bind("auctionId", auctionId).execute());
 
     if (rowsAffected > 0) {
-      LOGGER.info("Deactivated {} auto-bid configs for auction: {}",
-          rowsAffected, auctionId);
+      LOGGER.info("Deactivated {} auto-bid configs for auction: {}", rowsAffected, auctionId);
     }
 
     return rowsAffected;
@@ -415,8 +450,8 @@ public class AutoBidConfigDao {
   /**
    * Xóa cấu hình auto-bid theo ID.
    *
-   * <p><b>CHỈ DÙNG CHO TEST.</b> Không gọi method này trong production.
-   * Trong production, chỉ cập nhật active = false, không xóa.
+   * <p><b>CHỈ DÙNG CHO TEST.</b> Không gọi method này trong production. Trong production, chỉ cập
+   * nhật active = false, không xóa.
    *
    * @param id ID của cấu hình cần xóa
    * @return true nếu xóa thành công
@@ -424,11 +459,7 @@ public class AutoBidConfigDao {
   public boolean deleteById(Long id) {
     String sql = "DELETE FROM auto_bid_configs WHERE id = :id";
 
-    int rowsAffected = jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("id", id)
-            .execute()
-    );
+    int rowsAffected = jdbi.withHandle(handle -> handle.createUpdate(sql).bind("id", id).execute());
 
     return rowsAffected > 0;
   }
@@ -444,11 +475,8 @@ public class AutoBidConfigDao {
   public int deleteByAuctionId(Long auctionId) {
     String sql = "DELETE FROM auto_bid_configs WHERE auction_id = :auctionId";
 
-    return jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("auctionId", auctionId)
-            .execute()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createUpdate(sql).bind("auctionId", auctionId).execute());
   }
 
   // ============================================================
@@ -463,18 +491,21 @@ public class AutoBidConfigDao {
    * @return true nếu đã có config active
    */
   public boolean hasActiveConfig(Long auctionId, Long bidderId) {
-    String sql = """
+    String sql =
+        """
         SELECT COUNT(*) FROM auto_bid_configs
         WHERE auction_id = :auctionId AND bidder_id = :bidderId AND active = true
         """;
 
-    long count = jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .bind("bidderId", bidderId)
-            .mapTo(Long.class)
-            .one()
-    );
+    long count =
+        jdbi.withHandle(
+            handle ->
+                handle
+                    .createQuery(sql)
+                    .bind("auctionId", auctionId)
+                    .bind("bidderId", bidderId)
+                    .mapTo(Long.class)
+                    .one());
 
     return count > 0;
   }
@@ -486,16 +517,13 @@ public class AutoBidConfigDao {
    * @return số lượng configs active
    */
   public int countActiveByAuctionId(Long auctionId) {
-    String sql = """
+    String sql =
+        """
         SELECT COUNT(*) FROM auto_bid_configs
         WHERE auction_id = :auctionId AND active = true
         """;
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .mapTo(Integer.class)
-            .one()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createQuery(sql).bind("auctionId", auctionId).mapTo(Integer.class).one());
   }
 }

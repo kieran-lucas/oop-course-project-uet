@@ -4,25 +4,25 @@ import com.auction.model.Admin;
 import com.auction.model.Bidder;
 import com.auction.model.Seller;
 import com.auction.model.User;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Optional;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Optional;
-
 /**
  * DAO (Data Access Object) cho bảng users.
  *
- * <p>Class này chịu trách nhiệm giao tiếp với database, thực hiện các thao tác CRUD
- * (Create, Read, Update, Delete) trên bảng users. DAO layer nằm giữa Service layer
- * và Database, giúp tách biệt logic nghiệp vụ (Service) khỏi logic truy vấn SQL.
+ * <p>Class này chịu trách nhiệm giao tiếp với database, thực hiện các thao tác CRUD (Create, Read,
+ * Update, Delete) trên bảng users. DAO layer nằm giữa Service layer và Database, giúp tách biệt
+ * logic nghiệp vụ (Service) khỏi logic truy vấn SQL.
  *
  * <p>Luồng dữ liệu:
+ *
  * <pre>
  * Service (UserService)
  *   → gọi userDao.findByUsername(...)
@@ -32,21 +32,23 @@ import java.util.Optional;
  * </pre>
  *
  * <p>Điểm quan trọng: RowMapper phải đọc cột "role" để quyết định tạo đúng subclass:
+ *
  * <ul>
- *   <li>role = "BIDDER" → new Bidder(...)</li>
- *   <li>role = "SELLER" → new Seller(...)</li>
- *   <li>role = "ADMIN" → new Admin(...)</li>
+ *   <li>role = "BIDDER" → new Bidder(...)
+ *   <li>role = "SELLER" → new Seller(...)
+ *   <li>role = "ADMIN" → new Admin(...)
  * </ul>
  *
- * <p>Điều này thể hiện POLYMORPHISM: cùng một câu query SELECT * FROM users,
- * RowMapper tự động tạo đúng loại User mà không cần code if-else rải rác.
+ * <p>Điều này thể hiện POLYMORPHISM: cùng một câu query SELECT * FROM users, RowMapper tự động tạo
+ * đúng loại User mà không cần code if-else rải rác.
  *
  * <p>Liên kết với các file khác:
+ *
  * <ul>
- *   <li><b>User.java, Bidder.java, Seller.java, Admin.java</b> — model classes</li>
- *   <li><b>DatabaseConfig.java</b> — cung cấp Jdbi instance</li>
- *   <li><b>UserService.java</b> — gọi các method của DAO này</li>
- *   <li><b>V1__initial_schema.sql</b> — định nghĩa bảng users</li>
+ *   <li><b>User.java, Bidder.java, Seller.java, Admin.java</b> — model classes
+ *   <li><b>DatabaseConfig.java</b> — cung cấp Jdbi instance
+ *   <li><b>UserService.java</b> — gọi các method của DAO này
+ *   <li><b>V1__initial_schema.sql</b> — định nghĩa bảng users
  * </ul>
  */
 public class UserDao {
@@ -63,6 +65,7 @@ public class UserDao {
    * Constructor — nhận Jdbi từ DatabaseConfig.
    *
    * <p>Trong App.java:
+   *
    * <pre>
    * Jdbi jdbi = DatabaseConfig.create();
    * UserDao userDao = new UserDao(jdbi);
@@ -77,10 +80,11 @@ public class UserDao {
   /**
    * RowMapper chuyển ResultSet (1 dòng từ bảng users) thành User object.
    *
-   * <p>JDBI tự động gọi mapper này cho mỗi dòng trong ResultSet.
-   * Mapper đọc giá trị các cột, dựa vào cột "role" để tạo subclass phù hợp.
+   * <p>JDBI tự động gọi mapper này cho mỗi dòng trong ResultSet. Mapper đọc giá trị các cột, dựa
+   * vào cột "role" để tạo subclass phù hợp.
    *
    * <p>Ví dụ:
+   *
    * <pre>
    * | id | username | password_hash | email   | role   | created_at |
    * | 1  | alice    | $2a$10$...    | a@x.com | BIDDER | 2024-01-01 |
@@ -88,6 +92,7 @@ public class UserDao {
    * </pre>
    *
    * <p>[FIX #4] Throw exception thay vì return null khi gặp role không hợp lệ.
+   *
    * <p>[FIX #9] Dùng enhanced switch expression (Java 21) — gọn hơn, compiler bắt thiếu case.
    */
   private static class UserMapper implements RowMapper<User> {
@@ -105,10 +110,16 @@ public class UserDao {
         case "BIDDER" -> new Bidder(id, username, passwordHash, email, createdAt);
         case "SELLER" -> new Seller(id, username, passwordHash, email, createdAt);
         case "ADMIN" -> new Admin(id, username, passwordHash, email, createdAt);
-        default -> throw new IllegalStateException(
-            "Role không hợp lệ trong database: '" + role
-                + "' (user id=" + id + ", username=" + username + "). "
-                + "Kiểm tra dữ liệu bảng users hoặc thêm case mới vào UserMapper.");
+        default ->
+            throw new IllegalStateException(
+                "Role không hợp lệ trong database: '"
+                    + role
+                    + "' (user id="
+                    + id
+                    + ", username="
+                    + username
+                    + "). "
+                    + "Kiểm tra dữ liệu bảng users hoặc thêm case mới vào UserMapper.");
       };
     }
   }
@@ -123,41 +134,46 @@ public class UserDao {
    * <p>Method này được gọi khi người dùng đăng ký thành công (UserService.register()).
    *
    * <p>Luồng xử lý:
+   *
    * <ol>
-   *   <li>UserService đã hash password bằng BCrypt</li>
-   *   <li>Gọi userDao.insert(user) với user có id = null (chưa có)</li>
-   *   <li>JDBI thực thi INSERT, sử dụng RETURNING id để lấy ID database sinh ra</li>
-   *   <li>Cập nhật id vào user object (setId)</li>
-   *   <li>Trả về user đã có id</li>
+   *   <li>UserService đã hash password bằng BCrypt
+   *   <li>Gọi userDao.insert(user) với user có id = null (chưa có)
+   *   <li>JDBI thực thi INSERT, sử dụng RETURNING id để lấy ID database sinh ra
+   *   <li>Cập nhật id vào user object (setId)
+   *   <li>Trả về user đã có id
    * </ol>
    *
    * @param user đối tượng User (chưa có id, đã có passwordHash)
    * @return User đã được gán id từ database
-   * @throws org.jdbi.v3.core.statement.UnableToExecuteStatementException nếu INSERT thất bại
-   *         (ví dụ: duplicate username do UNIQUE constraint)
+   * @throws org.jdbi.v3.core.statement.UnableToExecuteStatementException nếu INSERT thất bại (ví
+   *     dụ: duplicate username do UNIQUE constraint)
    */
   public User insert(User user) {
-    String sql = """
+    String sql =
+        """
         INSERT INTO users (username, password_hash, email, role, created_at)
         VALUES (:username, :passwordHash, :email, :role, :createdAt)
         RETURNING id
         """;
 
-    return jdbi.withHandle(handle -> {
-      long id = handle.createQuery(sql)
-          .bind("username", user.getUsername())
-          .bind("passwordHash", user.getPasswordHash())
-          .bind("email", user.getEmail())
-          .bind("role", user.getRole())
-          .bind("createdAt", user.getCreatedAt())
-          .mapTo(Long.class)
-          .one();
+    return jdbi.withHandle(
+        handle -> {
+          long id =
+              handle
+                  .createQuery(sql)
+                  .bind("username", user.getUsername())
+                  .bind("passwordHash", user.getPasswordHash())
+                  .bind("email", user.getEmail())
+                  .bind("role", user.getRole())
+                  .bind("createdAt", user.getCreatedAt())
+                  .mapTo(Long.class)
+                  .one();
 
-      user.setId(id);
-      LOGGER.debug("Inserted user: {} (id={}, role={})",
-          user.getUsername(), id, user.getRole());
-      return user;
-    });
+          user.setId(id);
+          LOGGER.debug(
+              "Inserted user: {} (id={}, role={})", user.getUsername(), id, user.getRole());
+          return user;
+        });
   }
 
   // ============================================================
@@ -167,8 +183,8 @@ public class UserDao {
   /**
    * Tìm user theo ID.
    *
-   * <p>Dùng khi cần lấy thông tin user từ JWT token (userId nằm trong token)
-   * hoặc khi cần kiểm tra owner của item/auction.
+   * <p>Dùng khi cần lấy thông tin user từ JWT token (userId nằm trong token) hoặc khi cần kiểm tra
+   * owner của item/auction.
    *
    * @param id ID của user cần tìm
    * @return Optional chứa User nếu tìm thấy, Optional.empty() nếu không
@@ -176,12 +192,8 @@ public class UserDao {
   public Optional<User> findById(Long id) {
     String sql = "SELECT " + SELECT_COLUMNS + " FROM users WHERE id = :id";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("id", id)
-            .map(new UserMapper())
-            .findOne()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createQuery(sql).bind("id", id).map(new UserMapper()).findOne());
   }
 
   /**
@@ -190,11 +202,12 @@ public class UserDao {
    * <p>Đây là method quan trọng nhất của UserDao, được gọi trong login flow.
    *
    * <p>Luồng đăng nhập:
+   *
    * <ol>
-   *   <li>Client gửi username/password</li>
-   *   <li>UserService.login() gọi findByUsername(username)</li>
-   *   <li>Nếu tìm thấy user, dùng BCrypt.verify() so sánh password</li>
-   *   <li>Nếu đúng → tạo JWT token và trả về</li>
+   *   <li>Client gửi username/password
+   *   <li>UserService.login() gọi findByUsername(username)
+   *   <li>Nếu tìm thấy user, dùng BCrypt.verify() so sánh password
+   *   <li>Nếu đúng → tạo JWT token và trả về
    * </ol>
    *
    * @param username tên đăng nhập
@@ -203,12 +216,9 @@ public class UserDao {
   public Optional<User> findByUsername(String username) {
     String sql = "SELECT " + SELECT_COLUMNS + " FROM users WHERE username = :username";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("username", username)
-            .map(new UserMapper())
-            .findOne()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle.createQuery(sql).bind("username", username).map(new UserMapper()).findOne());
   }
 
   /**
@@ -220,37 +230,28 @@ public class UserDao {
   public Optional<User> findByEmail(String email) {
     String sql = "SELECT " + SELECT_COLUMNS + " FROM users WHERE email = :email";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("email", email)
-            .map(new UserMapper())
-            .findOne()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createQuery(sql).bind("email", email).map(new UserMapper()).findOne());
   }
 
   /**
    * Lấy tất cả user trong hệ thống (dành cho Admin).
    *
-   * <p>Admin Panel sẽ gọi method này để hiển thị danh sách người dùng,
-   * cho phép admin xóa hoặc vô hiệu hóa tài khoản vi phạm.
+   * <p>Admin Panel sẽ gọi method này để hiển thị danh sách người dùng, cho phép admin xóa hoặc vô
+   * hiệu hóa tài khoản vi phạm.
    *
    * @return List chứa tất cả User (có thể rỗng nếu chưa có user nào)
    */
   public List<User> findAll() {
     String sql = "SELECT " + SELECT_COLUMNS + " FROM users ORDER BY id";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .map(new UserMapper())
-            .list()
-    );
+    return jdbi.withHandle(handle -> handle.createQuery(sql).map(new UserMapper()).list());
   }
 
   /**
    * Lấy tất cả user với một role cụ thể.
    *
-   * <p>Ví dụ: lấy tất cả Seller để hiển thị trong Admin Panel,
-   * hoặc lấy tất cả Bidder để thống kê.
+   * <p>Ví dụ: lấy tất cả Seller để hiển thị trong Admin Panel, hoặc lấy tất cả Bidder để thống kê.
    *
    * @param role "BIDDER", "SELLER", hoặc "ADMIN"
    * @return List chứa các user có role tương ứng
@@ -258,12 +259,8 @@ public class UserDao {
   public List<User> findByRole(String role) {
     String sql = "SELECT " + SELECT_COLUMNS + " FROM users WHERE role = :role ORDER BY id";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("role", role)
-            .map(new UserMapper())
-            .list()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createQuery(sql).bind("role", role).map(new UserMapper()).list());
   }
 
   // ============================================================
@@ -273,27 +270,30 @@ public class UserDao {
   /**
    * Cập nhật thông tin user.
    *
-   * <p>Cho phép user thay đổi email, password. Không cho phép thay đổi username
-   * (username là unique identifier, không nên thay đổi sau khi tạo).
+   * <p>Cho phép user thay đổi email, password. Không cho phép thay đổi username (username là unique
+   * identifier, không nên thay đổi sau khi tạo).
    *
    * @param user đối tượng User đã được cập nhật thông tin (phải có id)
    * @return true nếu cập nhật thành công, false nếu không tìm thấy user
    */
   public boolean update(User user) {
-    String sql = """
+    String sql =
+        """
         UPDATE users
         SET password_hash = :passwordHash,
             email = :email
         WHERE id = :id
         """;
 
-    int rowsAffected = jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("passwordHash", user.getPasswordHash())
-            .bind("email", user.getEmail())
-            .bind("id", user.getId())
-            .execute()
-    );
+    int rowsAffected =
+        jdbi.withHandle(
+            handle ->
+                handle
+                    .createUpdate(sql)
+                    .bind("passwordHash", user.getPasswordHash())
+                    .bind("email", user.getEmail())
+                    .bind("id", user.getId())
+                    .execute());
 
     if (rowsAffected > 0) {
       LOGGER.debug("Updated user: id={}, username={}", user.getId(), user.getUsername());
@@ -311,8 +311,8 @@ public class UserDao {
   /**
    * Xóa user khỏi database.
    *
-   * <p>Lưu ý: do có ON DELETE CASCADE trong bảng items và auctions,
-   * khi xóa user, tất cả sản phẩm và phiên đấu giá của user đó cũng bị xóa.
+   * <p>Lưu ý: do có ON DELETE CASCADE trong bảng items và auctions, khi xóa user, tất cả sản phẩm
+   * và phiên đấu giá của user đó cũng bị xóa.
    *
    * <p>Chỉ Admin mới có quyền gọi method này.
    *
@@ -322,11 +322,7 @@ public class UserDao {
   public boolean delete(Long id) {
     String sql = "DELETE FROM users WHERE id = :id";
 
-    int rowsAffected = jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("id", id)
-            .execute()
-    );
+    int rowsAffected = jdbi.withHandle(handle -> handle.createUpdate(sql).bind("id", id).execute());
 
     if (rowsAffected > 0) {
       LOGGER.info("Deleted user with id: {}", id);
@@ -350,12 +346,9 @@ public class UserDao {
   public boolean existsByUsername(String username) {
     String sql = "SELECT COUNT(*) FROM users WHERE username = :username";
 
-    long count = jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("username", username)
-            .mapTo(Long.class)
-            .one()
-    );
+    long count =
+        jdbi.withHandle(
+            handle -> handle.createQuery(sql).bind("username", username).mapTo(Long.class).one());
 
     return count > 0;
   }
@@ -369,12 +362,9 @@ public class UserDao {
   public boolean existsByEmail(String email) {
     String sql = "SELECT COUNT(*) FROM users WHERE email = :email";
 
-    long count = jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("email", email)
-            .mapTo(Long.class)
-            .one()
-    );
+    long count =
+        jdbi.withHandle(
+            handle -> handle.createQuery(sql).bind("email", email).mapTo(Long.class).one());
 
     return count > 0;
   }

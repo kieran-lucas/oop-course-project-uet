@@ -1,51 +1,54 @@
 package com.auction.dao;
 
 import com.auction.model.BidTransaction;
-import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.core.mapper.RowMapper;
-import org.jdbi.v3.core.statement.StatementContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.mapper.RowMapper;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DAO (Data Access Object) cho bảng bid_transactions.
  *
- * <p>Class này chịu trách nhiệm ghi lại lịch sử đấu giá vào bảng bid_transactions.
- * BidTransaction là dữ liệu bất biến (append-only) — chỉ INSERT, không UPDATE hay DELETE.
- * Điều này đảm bảo tính minh bạch và khả năng kiểm toán (audit trail) của hệ thống.
+ * <p>Class này chịu trách nhiệm ghi lại lịch sử đấu giá vào bảng bid_transactions. BidTransaction
+ * là dữ liệu bất biến (append-only) — chỉ INSERT, không UPDATE hay DELETE. Điều này đảm bảo tính
+ * minh bạch và khả năng kiểm toán (audit trail) của hệ thống.
  *
  * <h3>Vai trò trong hệ thống</h3>
+ *
  * <p>Mỗi khi có một bid thành công (thủ công hoặc auto-bid), hệ thống ghi lại:
+ *
  * <ul>
- *   <li>Ai đã bid (bidderId)</li>
- *   <li>Phiên nào (auctionId)</li>
- *   <li>Giá bao nhiêu (amount)</li>
- *   <li>Lúc nào (created_at)</li>
- *   <li>Là auto-bid hay thủ công (auto_bid flag)</li>
+ *   <li>Ai đã bid (bidderId)
+ *   <li>Phiên nào (auctionId)
+ *   <li>Giá bao nhiêu (amount)
+ *   <li>Lúc nào (created_at)
+ *   <li>Là auto-bid hay thủ công (auto_bid flag)
  * </ul>
  *
  * <h3>Ứng dụng của bid history</h3>
+ *
  * <ul>
- *   <li><b>Bid History Chart:</b> Lấy tất cả bid của một phiên để vẽ biểu đồ đường
- *       (trục X = thời gian, trục Y = giá)</li>
- *   <li><b>Xác định người thắng:</b> Tìm bid cuối cùng (giá cao nhất) của phiên đã kết thúc</li>
- *   <li><b>Audit trail:</b> Nếu có tranh chấp, có thể xem lại toàn bộ lịch sử</li>
- *   <li><b>Thống kê:</b> Đếm số bid của mỗi user, phân tích hành vi đấu giá</li>
+ *   <li><b>Bid History Chart:</b> Lấy tất cả bid của một phiên để vẽ biểu đồ đường (trục X = thời
+ *       gian, trục Y = giá)
+ *   <li><b>Xác định người thắng:</b> Tìm bid cuối cùng (giá cao nhất) của phiên đã kết thúc
+ *   <li><b>Audit trail:</b> Nếu có tranh chấp, có thể xem lại toàn bộ lịch sử
+ *   <li><b>Thống kê:</b> Đếm số bid của mỗi user, phân tích hành vi đấu giá
  * </ul>
  *
  * <h3>Liên kết với các file khác</h3>
+ *
  * <ul>
- *   <li><b>BidTransaction.java</b> — model class, chứa dữ liệu một bid</li>
- *   <li><b>BidService.java</b> — gọi insert() sau mỗi bid thành công</li>
- *   <li><b>AuctionController.java</b> — gọi findByAuctionId() cho Bid History Chart</li>
- *   <li><b>V1__initial_schema.sql</b> — định nghĩa bảng bid_transactions</li>
+ *   <li><b>BidTransaction.java</b> — model class, chứa dữ liệu một bid
+ *   <li><b>BidService.java</b> — gọi insert() sau mỗi bid thành công
+ *   <li><b>AuctionController.java</b> — gọi findByAuctionId() cho Bid History Chart
+ *   <li><b>V1__initial_schema.sql</b> — định nghĩa bảng bid_transactions
  * </ul>
  */
 public class BidTransactionDao {
@@ -66,6 +69,7 @@ public class BidTransactionDao {
    * RowMapper chuyển ResultSet thành BidTransaction object.
    *
    * <p>Map các cột trong bảng bid_transactions:
+   *
    * <pre>
    * | id | auction_id | bidder_id | amount | auto_bid | created_at |
    * </pre>
@@ -79,8 +83,7 @@ public class BidTransactionDao {
           rs.getLong("bidder_id"),
           rs.getBigDecimal("amount"),
           rs.getBoolean("auto_bid"),
-          rs.getTimestamp("created_at").toLocalDateTime()
-      );
+          rs.getTimestamp("created_at").toLocalDateTime());
     }
   }
 
@@ -91,10 +94,11 @@ public class BidTransactionDao {
   /**
    * Ghi lại một bid thành công vào database (phiên bản TRONG TRANSACTION).
    *
-   * <p>Method này được gọi sau khi BidService đã validate và cập nhật auction.
-   * Nó được gọi TRONG CÙNG TRANSACTION với auction update để đảm bảo consistency.
+   * <p>Method này được gọi sau khi BidService đã validate và cập nhật auction. Nó được gọi TRONG
+   * CÙNG TRANSACTION với auction update để đảm bảo consistency.
    *
    * <p>Ví dụ transaction trong BidService:
+   *
    * <pre>
    * jdbi.inTransaction(handle -> {
    *     Auction auction = auctionDao.findByIdForUpdate(handle, auctionId);
@@ -113,25 +117,31 @@ public class BidTransactionDao {
    * @return BidTransaction đã được gán id từ database
    */
   public BidTransaction insert(org.jdbi.v3.core.Handle handle, BidTransaction transaction) {
-    String sql = """
+    String sql =
+        """
         INSERT INTO bid_transactions (auction_id, bidder_id, amount, auto_bid, created_at)
         VALUES (:auctionId, :bidderId, :amount, :autoBid, :createdAt)
         RETURNING id
         """;
 
-    long id = handle.createQuery(sql)
-        .bind("auctionId", transaction.getAuctionId())
-        .bind("bidderId", transaction.getBidderId())
-        .bind("amount", transaction.getAmount())
-        .bind("autoBid", transaction.isAutoBid())
-        .bind("createdAt", transaction.getCreatedAt())
-        .mapTo(Long.class)
-        .one();
+    long id =
+        handle
+            .createQuery(sql)
+            .bind("auctionId", transaction.getAuctionId())
+            .bind("bidderId", transaction.getBidderId())
+            .bind("amount", transaction.getAmount())
+            .bind("autoBid", transaction.isAutoBid())
+            .bind("createdAt", transaction.getCreatedAt())
+            .mapTo(Long.class)
+            .one();
 
     transaction.setId(id);
-    LOGGER.debug("Inserted bid transaction: auction={}, bidder={}, amount={}, auto={}",
-        transaction.getAuctionId(), transaction.getBidderId(),
-        transaction.getAmount(), transaction.isAutoBid());
+    LOGGER.debug(
+        "Inserted bid transaction: auction={}, bidder={}, amount={}, auto={}",
+        transaction.getAuctionId(),
+        transaction.getBidderId(),
+        transaction.getAmount(),
+        transaction.isAutoBid());
 
     return transaction;
   }
@@ -139,35 +149,42 @@ public class BidTransactionDao {
   /**
    * Ghi lại một bid thành công (phiên bản NGOÀI transaction, tạo connection riêng).
    *
-   * <p>Dùng cho các trường hợp không cần transaction với auction update,
-   * ví dụ: khi insert bid history cho mục đích logging không critical.
+   * <p>Dùng cho các trường hợp không cần transaction với auction update, ví dụ: khi insert bid
+   * history cho mục đích logging không critical.
    *
    * @param transaction BidTransaction cần ghi
    * @return BidTransaction đã được gán id
    */
   public BidTransaction insert(BidTransaction transaction) {
-    String sql = """
+    String sql =
+        """
         INSERT INTO bid_transactions (auction_id, bidder_id, amount, auto_bid, created_at)
         VALUES (:auctionId, :bidderId, :amount, :autoBid, :createdAt)
         RETURNING id
         """;
 
-    return jdbi.withHandle(handle -> {
-      long id = handle.createQuery(sql)
-          .bind("auctionId", transaction.getAuctionId())
-          .bind("bidderId", transaction.getBidderId())
-          .bind("amount", transaction.getAmount())
-          .bind("autoBid", transaction.isAutoBid())
-          .bind("createdAt", transaction.getCreatedAt())
-          .mapTo(Long.class)
-          .one();
+    return jdbi.withHandle(
+        handle -> {
+          long id =
+              handle
+                  .createQuery(sql)
+                  .bind("auctionId", transaction.getAuctionId())
+                  .bind("bidderId", transaction.getBidderId())
+                  .bind("amount", transaction.getAmount())
+                  .bind("autoBid", transaction.isAutoBid())
+                  .bind("createdAt", transaction.getCreatedAt())
+                  .mapTo(Long.class)
+                  .one();
 
-      transaction.setId(id);
-      LOGGER.debug("Inserted bid transaction: auction={}, bidder={}, amount={}",
-          transaction.getAuctionId(), transaction.getBidderId(), transaction.getAmount());
+          transaction.setId(id);
+          LOGGER.debug(
+              "Inserted bid transaction: auction={}, bidder={}, amount={}",
+              transaction.getAuctionId(),
+              transaction.getBidderId(),
+              transaction.getAmount());
 
-      return transaction;
-    });
+          return transaction;
+        });
   }
 
   // ============================================================
@@ -177,47 +194,53 @@ public class BidTransactionDao {
   /**
    * Lấy tất cả bid transactions của một phiên đấu giá.
    *
-   * <p><b>QUAN TRỌNG:</b> Method này được dùng cho Bid History Chart.
-   * Kết quả trả về sắp xếp theo thời gian tăng dần (từ cũ đến mới)
-   * để vẽ biểu đồ đường (line chart) với trục X = thời gian.
+   * <p><b>QUAN TRỌNG:</b> Method này được dùng cho Bid History Chart. Kết quả trả về sắp xếp theo
+   * thời gian tăng dần (từ cũ đến mới) để vẽ biểu đồ đường (line chart) với trục X = thời gian.
    *
    * @param auctionId ID của phiên đấu giá
    * @return List các BidTransaction sắp xếp theo thời gian (cũ → mới)
    */
   public List<BidTransaction> findByAuctionId(Long auctionId) {
-    String sql = "SELECT " + SELECT_COLUMNS
-        + " FROM bid_transactions WHERE auction_id = :auctionId ORDER BY created_at ASC";
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM bid_transactions WHERE auction_id = :auctionId ORDER BY created_at ASC";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .map(new BidTransactionMapper())
-            .list()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle
+                .createQuery(sql)
+                .bind("auctionId", auctionId)
+                .map(new BidTransactionMapper())
+                .list());
   }
 
   /**
    * Lấy tất cả bid transactions của một người dùng.
    *
    * <p>Dùng cho:
+   *
    * <ul>
-   *   <li>User profile: hiển thị lịch sử đấu giá của bidder</li>
-   *   <li>Thống kê: đếm số lần bid của mỗi user</li>
+   *   <li>User profile: hiển thị lịch sử đấu giá của bidder
+   *   <li>Thống kê: đếm số lần bid của mỗi user
    * </ul>
    *
    * @param bidderId ID của người đấu giá
    * @return List các BidTransaction sắp xếp theo thời gian (mới → cũ)
    */
   public List<BidTransaction> findByBidderId(Long bidderId) {
-    String sql = "SELECT " + SELECT_COLUMNS
-        + " FROM bid_transactions WHERE bidder_id = :bidderId ORDER BY created_at DESC";
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM bid_transactions WHERE bidder_id = :bidderId ORDER BY created_at DESC";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("bidderId", bidderId)
-            .map(new BidTransactionMapper())
-            .list()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle
+                .createQuery(sql)
+                .bind("bidderId", bidderId)
+                .map(new BidTransactionMapper())
+                .list());
   }
 
   /**
@@ -231,12 +254,8 @@ public class BidTransactionDao {
   public Optional<BidTransaction> findById(Long id) {
     String sql = "SELECT " + SELECT_COLUMNS + " FROM bid_transactions WHERE id = :id";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("id", id)
-            .map(new BidTransactionMapper())
-            .findOne()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createQuery(sql).bind("id", id).map(new BidTransactionMapper()).findOne());
   }
 
   /**
@@ -244,38 +263,41 @@ public class BidTransactionDao {
    *
    * <p>Dùng để xác định người thắng khi phiên kết thúc.
    *
-   * <p>[FIX #7] Order by cả amount DESC lẫn created_at DESC.
-   * Trước đây chỉ order by created_at → edge case khi auto-bid xử lý nhanh,
-   * 2 bids có thể cùng created_at (precision đến millisecond).
+   * <p>[FIX #7] Order by cả amount DESC lẫn created_at DESC. Trước đây chỉ order by created_at →
+   * edge case khi auto-bid xử lý nhanh, 2 bids có thể cùng created_at (precision đến millisecond).
    * Thêm amount DESC đảm bảo luôn lấy bid giá cao nhất.
    *
    * @param auctionId ID của phiên đấu giá
    * @return Optional chứa BidTransaction cuối cùng, Optional.empty() nếu chưa có bid nào
    */
   public Optional<BidTransaction> findLastBid(Long auctionId) {
-    String sql = "SELECT " + SELECT_COLUMNS
-        + " FROM bid_transactions WHERE auction_id = :auctionId"
-        + " ORDER BY amount DESC, created_at DESC LIMIT 1";
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM bid_transactions WHERE auction_id = :auctionId"
+            + " ORDER BY amount DESC, created_at DESC LIMIT 1";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .map(new BidTransactionMapper())
-            .findOne()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle
+                .createQuery(sql)
+                .bind("auctionId", auctionId)
+                .map(new BidTransactionMapper())
+                .findOne());
   }
 
   /**
    * Lấy tất cả bid transactions của một phiên, kèm thông tin username của bidder.
    *
-   * <p>Method này JOIN với bảng users để lấy username,
-   * giúp client hiển thị tên người bid trên chart mà không cần gọi thêm API.
+   * <p>Method này JOIN với bảng users để lấy username, giúp client hiển thị tên người bid trên
+   * chart mà không cần gọi thêm API.
    *
    * @param auctionId ID của phiên đấu giá
    * @return List các BidHistoryEntry chứa BidTransaction + username
    */
   public List<BidHistoryEntry> findWithUsernames(Long auctionId) {
-    String sql = """
+    String sql =
+        """
         SELECT bt.id, bt.auction_id, bt.bidder_id, bt.amount, bt.auto_bid, bt.created_at,
                u.username
         FROM bid_transactions bt
@@ -284,23 +306,25 @@ public class BidTransactionDao {
         ORDER BY bt.created_at ASC
         """;
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .map((rs, ctx) -> {
-              BidTransaction tx = new BidTransaction(
-                  rs.getLong("id"),
-                  rs.getLong("auction_id"),
-                  rs.getLong("bidder_id"),
-                  rs.getBigDecimal("amount"),
-                  rs.getBoolean("auto_bid"),
-                  rs.getTimestamp("created_at").toLocalDateTime()
-              );
-              String username = rs.getString("username");
-              return new BidHistoryEntry(tx, username);
-            })
-            .list()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle
+                .createQuery(sql)
+                .bind("auctionId", auctionId)
+                .map(
+                    (rs, ctx) -> {
+                      BidTransaction tx =
+                          new BidTransaction(
+                              rs.getLong("id"),
+                              rs.getLong("auction_id"),
+                              rs.getLong("bidder_id"),
+                              rs.getBigDecimal("amount"),
+                              rs.getBoolean("auto_bid"),
+                              rs.getTimestamp("created_at").toLocalDateTime());
+                      String username = rs.getString("username");
+                      return new BidHistoryEntry(tx, username);
+                    })
+                .list());
   }
 
   /**
@@ -314,12 +338,8 @@ public class BidTransactionDao {
   public int countByAuctionId(Long auctionId) {
     String sql = "SELECT COUNT(*) FROM bid_transactions WHERE auction_id = :auctionId";
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .mapTo(Integer.class)
-            .one()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createQuery(sql).bind("auctionId", auctionId).mapTo(Integer.class).one());
   }
 
   /**
@@ -331,7 +351,8 @@ public class BidTransactionDao {
    * @return Optional chứa giá cao nhất, Optional.empty() nếu chưa có bid nào
    */
   public Optional<BigDecimal> getHighestPrice(Long auctionId) {
-    String sql = """
+    String sql =
+        """
         SELECT amount
         FROM bid_transactions
         WHERE auction_id = :auctionId
@@ -339,12 +360,9 @@ public class BidTransactionDao {
         LIMIT 1
         """;
 
-    return jdbi.withHandle(handle ->
-        handle.createQuery(sql)
-            .bind("auctionId", auctionId)
-            .mapTo(BigDecimal.class)
-            .findOne()
-    );
+    return jdbi.withHandle(
+        handle ->
+            handle.createQuery(sql).bind("auctionId", auctionId).mapTo(BigDecimal.class).findOne());
   }
 
   // ============================================================
@@ -354,11 +372,11 @@ public class BidTransactionDao {
   /**
    * DTO helper cho bid history kèm username.
    *
-   * <p>[FIX #12] Đổi từ inner class thành Java 21 record — gọn hơn, immutable,
-   * tự sinh equals/hashCode/toString. Được dùng trong {@code findWithUsernames()}.
+   * <p>[FIX #12] Đổi từ inner class thành Java 21 record — gọn hơn, immutable, tự sinh
+   * equals/hashCode/toString. Được dùng trong {@code findWithUsernames()}.
    *
-   * <p><b>Cân nhắc:</b> Nếu muốn tách ra file riêng, đặt vào package dto/
-   * (ví dụ: {@code dto/BidHistoryEntry.java}) vì nó thực chất là DTO trả về client.
+   * <p><b>Cân nhắc:</b> Nếu muốn tách ra file riêng, đặt vào package dto/ (ví dụ: {@code
+   * dto/BidHistoryEntry.java}) vì nó thực chất là DTO trả về client.
    *
    * @param transaction giao dịch bid
    * @param username tên người đấu giá (lấy từ bảng users)
@@ -406,10 +424,7 @@ public class BidTransactionDao {
   public int deleteByAuctionId(Long auctionId) {
     String sql = "DELETE FROM bid_transactions WHERE auction_id = :auctionId";
 
-    return jdbi.withHandle(handle ->
-        handle.createUpdate(sql)
-            .bind("auctionId", auctionId)
-            .execute()
-    );
+    return jdbi.withHandle(
+        handle -> handle.createUpdate(sql).bind("auctionId", auctionId).execute());
   }
 }

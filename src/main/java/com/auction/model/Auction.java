@@ -9,17 +9,18 @@ import java.time.LocalDateTime;
  * <p>Một Auction gắn với 1 Item, có giá khởi điểm, giá hiện tại, thời gian bắt đầu/kết thúc, và
  * trạng thái.
  *
- * <p>Lưu ý sử dụng BigDecimal thay vì double cho tiền tệ. double có lỗi floating point: 0.1 + 0.2
- * = 0.30000000000000004. Trong đấu giá, sai 1 đồng cũng không chấp nhận được. BigDecimal tính
- * chính xác: new BigDecimal("0.1").add(new BigDecimal("0.2")) = 0.3 đúng.
+ * <p>Lưu ý sử dụng BigDecimal thay vì double cho tiền tệ. double có lỗi floating point: 0.1 + 0.2 =
+ * 0.30000000000000004. Trong đấu giá, sai 1 đồng cũng không chấp nhận được. BigDecimal tính chính
+ * xác: new BigDecimal("0.1").add(new BigDecimal("0.2")) = 0.3 đúng.
  *
  * <p>Trạng thái phiên (status) liên kết với State pattern:
+ *
  * <ul>
- *   <li>OPEN: vừa tạo, Seller còn có thể sửa thông tin</li>
- *   <li>RUNNING: đang diễn ra, Bidder có thể đặt giá</li>
- *   <li>FINISHED: hết giờ, xác định người thắng</li>
- *   <li>PAID: người thắng đã thanh toán</li>
- *   <li>CANCELED: phiên bị hủy</li>
+ *   <li>OPEN: vừa tạo, Seller còn có thể sửa thông tin
+ *   <li>RUNNING: đang diễn ra, Bidder có thể đặt giá
+ *   <li>FINISHED: hết giờ, xác định người thắng
+ *   <li>PAID: người thắng đã thanh toán
+ *   <li>CANCELED: phiên bị hủy
  * </ul>
  *
  * <p>Các trạng thái này map trực tiếp với CHECK constraint trong bảng auctions và với các class
@@ -38,9 +39,9 @@ public class Auction extends Entity {
   /**
    * Thời điểm cập nhật gần nhất (giá mới, trạng thái mới, gia hạn...).
    *
-   * <p>[FIX #6] Trước đây cột updated_at được SELECT từ database nhưng AuctionMapper
-   * không đọc → mất thông tin. Giờ field này được mapper set sau khi tạo Auction object.
-   * Dùng để hiển thị "Cập nhật lần cuối: X phút trước" trên UI.
+   * <p>[FIX #6] Trước đây cột updated_at được SELECT từ database nhưng AuctionMapper không đọc →
+   * mất thông tin. Giờ field này được mapper set sau khi tạo Auction object. Dùng để hiển thị "Cập
+   * nhật lần cuối: X phút trước" trên UI.
    */
   private LocalDateTime updatedAt;
 
@@ -96,8 +97,8 @@ public class Auction extends Entity {
   }
 
   /**
-   * Tính thời gian còn lại (milliseconds). Dùng cho anti-sniping: nếu remaining &lt; 30000ms →
-   * gia hạn.
+   * Tính thời gian còn lại (milliseconds). Dùng cho anti-sniping: nếu remaining &lt; 30000ms → gia
+   * hạn.
    */
   public long getRemainingTimeMs() {
     return java.time.Duration.between(LocalDateTime.now(), endTime).toMillis();
