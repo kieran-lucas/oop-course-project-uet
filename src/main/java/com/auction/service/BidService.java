@@ -1,157 +1,133 @@
 package com.auction.service;
 
 import com.auction.dao.AuctionDao;
-import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
-import com.auction.dao.BidTransactionDao.BidHistoryEntry;
-import com.auction.dto.AutoBidRequest;
+import com.auction.dao.UserDao;
+import com.auction.dto.BidRequest;
 import com.auction.dto.BidUpdateMessage;
+import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
-import com.auction.model.AutoBidConfig;
 import com.auction.model.BidTransaction;
-import com.auction.pattern.observer.AuctionEventManager;
-import com.auction.pattern.state.AuctionState;
-import com.auction.pattern.strategy.AutoBidStrategy;
-import com.auction.pattern.strategy.BidStrategy;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import com.auction.model.User;
 import java.util.List;
+import org.jdbi.v3.core.Jdbi;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Lớp Service trung tâm xử lý Logic Đặt giá. Hợp nhất tính năng Tuần 3 (Core Bidding) và Tuần 4
- * (Concurrency, Anti-sniping, Auto-bidding).
- */
 public class BidService {
 
-  // --- 1. KHAI BÁO CÁC DEPENDENCY ---
+  private static final Logger LOGGER = LoggerFactory.getLogger(BidService.class);
+
   private final AuctionDao auctionDao;
   private final BidTransactionDao bidTransactionDao;
-  private final AutoBidConfigDao autoBidConfigDao;
-  private final AuctionService auctionService;
-  private final BidStrategy manualBidStrategy;
-  private final AuctionEventManager eventManager;
+  private final UserDao userDao;
+  private final Jdbi jdbi;
 
-  // AutoBidStrategy được inject qua Setter để tránh Circular Dependency (Lỗi vòng lặp phụ thuộc)
-  private AutoBidStrategy autoBidStrategy;
+  // WebSocket handler — set sau khi khởi tạo (tránh circular dependency)
+  private AuctionWebSocketBroadcaster broadcaster;
 
-  // --- 2. CONSTRUCTOR ---
   public BidService(
-      AuctionDao auctionDao,
-      BidTransactionDao bidTransactionDao,
-      AutoBidConfigDao autoBidConfigDao,
-      AuctionService auctionService,
-      BidStrategy manualBidStrategy,
-      AuctionEventManager eventManager) {
+      AuctionDao auctionDao, BidTransactionDao bidTransactionDao, UserDao userDao, Jdbi jdbi) {
     this.auctionDao = auctionDao;
     this.bidTransactionDao = bidTransactionDao;
-    this.autoBidConfigDao = autoBidConfigDao;
-    this.auctionService = auctionService;
-    this.manualBidStrategy = manualBidStrategy;
-    this.eventManager = eventManager;
+    this.userDao = userDao;
+    this.jdbi = jdbi;
   }
 
-  // Setter để tiêm AutoBidStrategy vào sau khi khởi tạo
-  public void setAutoBidStrategy(AutoBidStrategy autoBidStrategy) {
-    this.autoBidStrategy = autoBidStrategy;
+  public interface AuctionWebSocketBroadcaster {
+    void broadcast(Long auctionId, BidUpdateMessage message);
   }
 
-  // --- 3. LOGIC ĐĂNG KÝ AUTO-BID (TUẦN 4) ---
-  /** Người dùng cài đặt cấu hình tự động đặt giá. */
-  public void setupAutoBid(Long auctionId, Long bidderId, AutoBidRequest req) {
-    AutoBidConfig config = new AutoBidConfig();
-    config.setAuctionId(auctionId);
-    config.setBidderId(bidderId);
-    config.setMaxBid(req.getMaxBid());
-    config.setIncrement(req.getIncrement());
-    config.setActive(true);
-    config.setRegisteredAt(LocalDateTime.now());
-
-    autoBidConfigDao.insert(config);
+  public void setBroadcaster(AuctionWebSocketBroadcaster broadcaster) {
+    this.broadcaster = broadcaster;
   }
 
-  // --- 4. LOGIC ĐẶT GIÁ LÕI (HỢP NHẤT TUẦN 3 & TUẦN 4) ---
-  /** Xử lý yêu cầu đặt giá (Bao gồm cả người dùng tự bấm và hệ thống tự động gọi). */
-  public void placeBid(
-      org.jdbi.v3.core.Handle handle,
-      Long auctionId,
-      Long bidderId,
-      BigDecimal amount,
-      boolean isAutoBid) {
-
-    // BƯỚC 1: Tầng 2 DB-Lock (Xử lý Đa luồng)
-    // Dùng SELECT ... FOR UPDATE để khóa dòng dữ liệu dưới Database
-    Auction auction = auctionDao.findByIdForUpdate(handle, auctionId);
-    if (auction == null) {
-      throw new NotFoundException("Phiên đấu giá không tồn tại hoặc đã bị xóa");
+  public BidTransaction placeBid(Long auctionId, BidRequest request, Long bidderId) {
+    // Validate input
+    if (request.getAmount() == null || request.getAmount().signum() <= 0) {
+      throw new InvalidBidException("Bid amount must be greater than 0");
     }
-    // BƯỚC 2: State Pattern (Chặn từ vòng gửi xe nếu phiên không RUNNING)
-    AuctionState state = auctionService.getState(auction);
-    state.placeBid(auction, amount, bidderId);
 
-    // BƯỚC 3: Tầng 1 App-Lock (Đảm bảo an toàn bộ nhớ trên Server)
-    synchronized (auction) {
+    // Thực hiện trong transaction để đảm bảo consistency
+    BidTransaction savedBid =
+        jdbi.inTransaction(
+            handle -> {
+              // Lấy auction với FOR UPDATE lock (tránh race condition)
+              Auction auction = auctionDao.findByIdForUpdate(handle, auctionId);
 
-      // 3.1. Strategy Pattern: Xác thực giá hợp lệ
-      manualBidStrategy.execute(auction, bidderId, amount);
+              // Kiểm tra trạng thái — chỉ RUNNING mới cho bid
+              if ("OPEN".equals(auction.getStatus())) {
+                throw new InvalidBidException("Phiên chưa bắt đầu");
+              }
+              if ("FINISHED".equals(auction.getStatus())) {
+                throw new InvalidBidException("Phiên đã kết thúc");
+              }
+              if (!"RUNNING".equals(auction.getStatus())) {
+                throw new InvalidBidException(
+                    "Auction is not running. Current status: " + auction.getStatus());
+              }
 
-      // 3.2. Tính năng Nâng cao: Anti-sniping (Chống bắn tỉa)
-      LocalDateTime now = LocalDateTime.now();
-      boolean isTimeExtended = false;
-      long remainingMs = ChronoUnit.MILLIS.between(now, auction.getEndTime());
+              // Kiểm tra hết hạn
+              if (auction.isExpired()) {
+                throw new InvalidBidException("Auction has expired");
+              }
 
-      // Nếu thời gian còn lại dưới 30 giây (30,000 milliseconds) -> Cộng thêm 60s
-      if (remainingMs > 0 && remainingMs < 30_000) {
-        auction.setEndTime(auction.getEndTime().plusSeconds(60));
-        isTimeExtended = true;
+              // Kiểm tra giá phải cao hơn giá hiện tại
+              if (request.getAmount().compareTo(auction.getCurrentPrice()) <= 0) {
+                throw new InvalidBidException(
+                    "Bid amount must be higher than current price: " + auction.getCurrentPrice());
+              }
+
+              // Cập nhật auction
+              auction.setCurrentPrice(request.getAmount());
+              auction.setLeadingBidderId(bidderId);
+              auctionDao.updateInTransaction(handle, auction);
+
+              // Ghi bid transaction
+              BidTransaction transaction =
+                  new BidTransaction(auctionId, bidderId, request.getAmount(), false);
+              bidTransactionDao.insert(handle, transaction);
+
+              LOGGER.info(
+                  "Bid placed: auction={}, bidder={}, amount={}",
+                  auctionId,
+                  bidderId,
+                  request.getAmount());
+
+              return transaction;
+            });
+
+    // Broadcast qua WebSocket (ngoài transaction)
+    if (broadcaster != null) {
+      try {
+        String username = userDao.findById(bidderId).map(User::getUsername).orElse("Unknown");
+
+        Auction updatedAuction = auctionDao.findById(auctionId).orElse(null);
+        if (updatedAuction != null) {
+          BidUpdateMessage message =
+              BidUpdateMessage.bidUpdate(
+                  auctionId,
+                  request.getAmount(),
+                  bidderId,
+                  username,
+                  updatedAuction.getEndTime(),
+                  false);
+          broadcaster.broadcast(auctionId, message);
+        }
+      } catch (Exception e) {
+        LOGGER.error("Failed to broadcast bid update: {}", e.getMessage());
       }
-
-      // 3.3. Cập nhật dữ liệu xuống DB
-      auctionDao.update(auction); // (Nên nằm trong Transaction của JDBI)
-
-      BidTransaction txn = new BidTransaction();
-      txn.setAuctionId(auctionId);
-      txn.setBidderId(bidderId);
-      txn.setAmount(amount);
-      txn.setAutoBid(isAutoBid);
-      txn.setCreatedAt(now);
-      bidTransactionDao.insert(handle, txn);
-
-      // 3.4. Observer Pattern: Thông báo Realtime cho WebSocket
-      // Chú ý: Đã truyền đủ 6 tham số theo cấu trúc DTO mới nhất
-      BidUpdateMessage updateMsg =
-          BidUpdateMessage.bidUpdate(
-              auctionId, amount, bidderId, "BID_UPDATE", auction.getEndTime(), isAutoBid);
-      eventManager.notifyBidUpdate(auctionId, updateMsg);
-
-      if (isTimeExtended) {
-        BidUpdateMessage extendMsg =
-            BidUpdateMessage.bidUpdate(
-                auctionId, amount, bidderId, "TIME_EXTENDED", auction.getEndTime(), isAutoBid);
-        eventManager.notifyTimeExtended(auctionId, extendMsg);
-      }
-    } // KẾT THÚC KHỐI SYNCHRONIZED
-
-    // BƯỚC 4: Kích hoạt Auto-bidding (Của các đối thủ)
-    // CHÚ Ý: Đặt NGOÀI khối synchronized để tránh Deadlock và lồng ghép đệ quy quá sâu
-    if (autoBidStrategy != null) {
-      autoBidStrategy.executeAll(handle, auction, amount);
     }
+
+    return savedBid;
   }
 
-  /**
-   * Lấy lịch sử đặt giá để vẽ biểu đồ và hiển thị danh sách.
-   *
-   * @param auctionId ID của phiên đấu giá.
-   * @return Danh sách các giao dịch đặt giá được sắp xếp theo thời gian.
-   */
   public List<BidTransaction> getBidHistory(Long auctionId) {
-    // Gọi DAO để lấy danh sách bid, sắp xếp theo thời gian từ cũ đến mới
+    // Kiểm tra auction tồn tại
+    if (!auctionDao.existsById(auctionId)) {
+      throw new NotFoundException("Auction not found with id: " + auctionId);
+    }
     return bidTransactionDao.findByAuctionId(auctionId);
-  }
-
-  public List<BidHistoryEntry> getBidHistoryWithUsernames(Long auctionId) {
-    return bidTransactionDao.findWithUsernames(auctionId);
   }
 }

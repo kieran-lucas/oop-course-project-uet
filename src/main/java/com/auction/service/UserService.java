@@ -25,8 +25,18 @@ public class UserService {
       throw new IllegalArgumentException("Username không được để trống");
     }
 
-    // 2. Check trùng username
-    if (userDao.findByUsername(req.getUsername()) != null) {
+    String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
+    if (req.getEmail() == null || !req.getEmail().matches(emailRegex)) {
+      throw new IllegalArgumentException("Định dạng email không hợp lệ.");
+    }
+
+    // Kiểm tra Password
+    if (req.getPassword() == null || req.getPassword().length() < 6) {
+      throw new IllegalArgumentException("Mật khẩu phải có ít nhất 6 ký tự.");
+    }
+
+    // 2. Check trùng username (Đã sửa lại để kiểm tra Optional đúng cách)
+    if (userDao.findByUsername(req.getUsername()).isPresent()) {
       throw new DuplicateException("Username '" + req.getUsername() + "' đã tồn tại!");
     }
 
@@ -60,13 +70,7 @@ public class UserService {
     User user =
         userDao
             .findByUsername(req.getUsername())
-            .orElseThrow(
-                () -> new NotFoundException("Không tìm thấy người dùng với username này!"));
-    // Giải thích: Lệnh này bảo Java rằng: "Hãy lấy User trong hộp ra. Nếu hộp rỗng, lập tức ném ra
-    // lỗi NotFoundException".//
-    if (user == null) {
-      throw new NotFoundException("Không tìm thấy tài khoản với username này.");
-    }
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy tài khoản với username này."));
 
     // 2. Xác thực mật khẩu
     BCrypt.Result result =

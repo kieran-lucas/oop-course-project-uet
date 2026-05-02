@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 public class JwtUtil {
+
   // Ưu tiên đọc từ biến môi trường, nếu null thì dùng default
   private static final String SECRET_KEY =
       System.getenv("JWT_SECRET") != null ? System.getenv("JWT_SECRET") : "auction-secret-key-dev";
@@ -16,6 +17,7 @@ public class JwtUtil {
       Algorithm.HMAC256(
           SECRET_KEY); // Đây là thuật toán mã hóa đối xứng. Nghĩa là hệ thống dùng chung 1 cái
   // SECRET_KEY vừa để "khóa" (tạo token) vừa để "mở khóa" (xác minh token).
+
   private static final JWTVerifier VERIFIER =
       JWT.require(ALGORITHM)
           .build(); // Đây là cái "Máy quét thẻ". Thầy để nó là static final (biến tĩnh hằng số) để
