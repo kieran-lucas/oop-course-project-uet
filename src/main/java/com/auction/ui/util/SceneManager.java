@@ -156,7 +156,7 @@ public class SceneManager {
    */
   private Parent loadFxml(String fxmlName) {
     try {
-      FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/" + fxmlName));
+      FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/fxml/" + fxmlName));
       Parent view = loader.load();
 
       // Cache cả view và controller
