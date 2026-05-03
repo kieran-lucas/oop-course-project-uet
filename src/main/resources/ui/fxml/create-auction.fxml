@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane styleClass="main-layout"
+            xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.auction.ui.controller.CreateAuctionController">
+
+   <!-- ===== TOP BAR ===== -->
+   <top>
+      <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="top-bar">
+         <padding>
+            <Insets bottom="12.0" left="20.0" right="20.0" top="12.0" />
+         </padding>
+         <Button text="&lt;- Quay lại" styleClass="back-button" onAction="#goBack" />
+         <Label styleClass="app-logo" text="Tạo phiên đấu giá" />
+         <Region HBox.hgrow="ALWAYS" />
+      </HBox>
+   </top>
+
+   <!-- ===== CENTER: Form tạo phiên ===== -->
+   <center>
+      <VBox alignment="TOP_CENTER" spacing="16.0">
+         <padding>
+            <Insets bottom="24.0" left="40.0" right="40.0" top="24.0" />
+         </padding>
+
+         <VBox maxWidth="520.0" spacing="14.0" styleClass="form-card">
+            <padding>
+               <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+            </padding>
+
+            <!-- Chọn sản phẩm -->
+            <VBox spacing="4.0">
+               <Label styleClass="field-label" text="Sản phẩm *" />
+               <ComboBox fx:id="itemCombo" maxWidth="Infinity" styleClass="combo-box"
+                         promptText="Chọn sản phẩm của bạn" />
+               <Button text="+ Tạo sản phẩm mới" styleClass="link-button"
+                       onAction="#goToCreateItem" />
+            </VBox>
+
+            <!-- Giá khởi điểm -->
+            <VBox spacing="4.0">
+               <Label styleClass="field-label" text="Giá khởi điểm (VND) *" />
+               <TextField fx:id="startingPriceField" promptText="Nhập giá khởi điểm"
+                          styleClass="text-field" />
+            </VBox>
+
+            <!-- Thời gian bắt đầu -->
+            <VBox spacing="4.0">
+               <Label styleClass="field-label" text="Ngày bắt đầu *" />
+               <HBox spacing="8.0">
+                  <DatePicker fx:id="startDatePicker" styleClass="date-picker"
+                              promptText="dd/mm/yyyy" HBox.hgrow="ALWAYS" />
+                  <TextField fx:id="startTimeField" promptText="HH:mm (vd: 09:00)"
+                             styleClass="text-field" prefWidth="120.0" />
+               </HBox>
+            </VBox>
+
+            <!-- Thời gian kết thúc -->
+            <VBox spacing="4.0">
+               <Label styleClass="field-label" text="Ngày kết thúc *" />
+               <HBox spacing="8.0">
+                  <DatePicker fx:id="endDatePicker" styleClass="date-picker"
+                              promptText="dd/mm/yyyy" HBox.hgrow="ALWAYS" />
+                  <TextField fx:id="endTimeField" promptText="HH:mm (vd: 21:00)"
+                             styleClass="text-field" prefWidth="120.0" />
+               </HBox>
+            </VBox>
+
+            <!-- Thông báo lỗi/thành công -->
+            <Label fx:id="statusLabel" styleClass="status-label" text=""
+                   visible="false" wrapText="true" />
+
+            <!-- Nút tạo -->
+            <Button fx:id="createButton" text="Tạo phiên đấu giá" styleClass="primary-button"
+                    maxWidth="Infinity" onAction="#handleCreate" />
+         </VBox>
+      </VBox>
+   </center>
+
+</BorderPane>
