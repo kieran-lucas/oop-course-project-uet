@@ -16,9 +16,9 @@ public class DatabaseConfig {
     if (jdbi == null) {
       synchronized (DatabaseConfig.class) {
         if (jdbi == null) {
-          // Ưu tiên đọc biến môi trường từ GitHub Actions, nếu không có thì dùng mặc định Local
-          String dbUrl = getEnvOrDefault("DB_URL", "jdbc:postgresql://localhost:5432/auction_test");
-          String dbUser = getEnvOrDefault("DB_USER", "auction_user");
+          // Ưu tiên đọc biến môi trường hệ thống, nếu không có thì dùng cấu hình local mặc định
+          String dbUrl = getEnvOrDefault("DB_URL", "jdbc:postgresql://localhost:5432/auction_db");
+          String dbUser = getEnvOrDefault("DB_USER", "postgres");
           String dbPass = getEnvOrDefault("DB_PASSWORD", "auction_pass");
 
           HikariConfig config = new HikariConfig();
@@ -26,7 +26,7 @@ public class DatabaseConfig {
           config.setUsername(dbUser);
           config.setPassword(dbPass);
 
-          // Cấu hình Pool
+          // Cấu hình Connection Pool
           config.setMaximumPoolSize(10);
           config.setMinimumIdle(5);
           config.setConnectionTimeout(20000);
@@ -47,7 +47,7 @@ public class DatabaseConfig {
     return jdbi;
   }
 
-  /** Đóng Connection Pool khi kết thúc chương trình hoặc kết thúc toàn bộ Test */
+  /** Đóng Connection Pool khi kết thúc chương trình hoặc toàn bộ test */
   public static void shutDown() {
     if (dataSource != null && !dataSource.isClosed()) {
       dataSource.close();

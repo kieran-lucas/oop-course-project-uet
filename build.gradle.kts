@@ -196,8 +196,27 @@ application {
 tasks.register<JavaExec>("runClient") {
     group = "application"
     description = "Chạy JavaFX client"
+
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.auction.ClientApp")
+
+    val os = System.getProperty("os.name").lowercase()
+    val platform =
+        when {
+            os.contains("win") -> "win"
+            os.contains("mac") -> "mac"
+            else -> "linux"
+        }
+
+    val javafxLibPath =
+        configurations.runtimeClasspath.get()
+            .filter { it.name.contains("javafx") && it.name.contains(platform) }
+            .joinToString(";") { it.absolutePath }
+
+    jvmArgs = listOf(
+        "--module-path", javafxLibPath,
+        "--add-modules", "javafx.controls,javafx.fxml"
+    )
 }
 
 // ============================================================================
