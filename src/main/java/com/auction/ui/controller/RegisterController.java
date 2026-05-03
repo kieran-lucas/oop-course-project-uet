@@ -115,8 +115,9 @@ public class RegisterController implements Navigable {
           String token = json.get("token").asText();
           String returnedRole = json.get("role").asText();
           String uname = json.get("username").asText();
+          long userId = json.get("userId").asLong();
 
-          Platform.runLater(() -> onRegisterSuccess(token, returnedRole, uname));
+          Platform.runLater(() -> onRegisterSuccess(token, returnedRole, uname, userId));
         } else {
           JsonNode json = MAPPER.readTree(response.body());
           String msg = json.has("message") ? json.get("message").asText()
@@ -145,11 +146,12 @@ public class RegisterController implements Navigable {
   // ========== PRIVATE HELPERS ==========
 
   /** Lưu session và điều hướng sau khi đăng ký thành công. */
-  private void onRegisterSuccess(String token, String role, String username) {
+  private void onRegisterSuccess(String token, String role, String username, long userId) {
     SceneManager sm = SceneManager.getInstance();
     sm.setJwtToken(token);
     sm.setCurrentUsername(username);
     sm.setCurrentRole(role);
+    sm.setCurrentUserId(userId);
 
     LOGGER.info("Đăng ký thành công: username={}, role={}", username, role);
     sm.navigateTo("auction-list.fxml");

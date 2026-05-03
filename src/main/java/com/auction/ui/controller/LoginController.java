@@ -108,8 +108,9 @@ public class LoginController implements Navigable {
           String token = json.get("token").asText();
           String role = json.get("role").asText();
           String uname = json.get("username").asText();
+          long userId = json.get("userId").asLong();
 
-          Platform.runLater(() -> onLoginSuccess(token, role, uname));
+          Platform.runLater(() -> onLoginSuccess(token, role, uname, userId));
         } else {
           JsonNode json = MAPPER.readTree(response.body());
           String msg = json.has("message") ? json.get("message").asText()
@@ -150,11 +151,12 @@ public class LoginController implements Navigable {
   // ========== PRIVATE HELPERS ==========
 
   /** Lưu session và điều hướng đến màn hình phù hợp theo role. */
-  private void onLoginSuccess(String token, String role, String username) {
+  private void onLoginSuccess(String token, String role, String username, long userId) {
     SceneManager sm = SceneManager.getInstance();
     sm.setJwtToken(token);
     sm.setCurrentUsername(username);
     sm.setCurrentRole(role);
+    sm.setCurrentUserId(userId);
 
     LOGGER.info("Đăng nhập thành công: username={}, role={}", username, role);
 

@@ -6,7 +6,17 @@
       "Bash(git rm *)",
       "Bash(./gradlew compileJava compileTestJava --no-daemon)",
       "Bash(./gradlew compileJava compileTestJava)",
-      "Bash(./gradlew test *)"
+      "Bash(./gradlew test *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Programming\\\\Java\\\\oop-course-project-uet\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "PowerShell(ls *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(python -c \"import bcrypt; pwd = b'123456'; hashed = bcrypt.hashpw\\(pwd, bcrypt.gensalt\\(12\\)\\); print\\(hashed.decode\\(\\)\\)\")",
+      "Bash(python3 -c \"import bcrypt; pwd = b'123456'; hashed = bcrypt.hashpw\\(pwd, bcrypt.gensalt\\(12\\)\\); print\\(hashed.decode\\(\\)\\)\")",
+      "Bash(node -e \"const bcrypt = require\\('bcryptjs'\\); const hash = bcrypt.hashSync\\('123456', 12\\); console.log\\(hash\\);\")",
+      "Bash(node -e \"const bcrypt = require\\('bcrypt'\\); const hash = bcrypt.hashSync\\('123456', 12\\); console.log\\(hash\\);\")",
+      "Bash(mvn -q test-compile exec:java -Dexec.mainClass=\"com.auction.util.HashGen\" -Dexec.args=\"123456\" -Dexec.classpathScope=\"test\")",
+      "PowerShell(Get-ChildItem *)"
     ]
   }
 }

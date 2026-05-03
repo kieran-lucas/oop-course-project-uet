@@ -96,15 +96,17 @@ public class AuthController {
         // Tạo JWT token ngay sau khi đăng ký (tiện cho client: đăng ký xong → dùng luôn)
         LoginRequest loginRequest = new LoginRequest(request.getUsername(), request.getPassword());
         String token = userService.login(loginRequest);
+        long userId = com.auction.config.JwtUtil.verifyToken(token).getClaim("userId").asLong();
 
         LOGGER.info("Đăng ký thành công: username={}, role={}",
             request.getUsername(), request.getRole());
 
-        // Trả về token + role cho client biết để chuyển màn hình phù hợp
+        // Trả về token + role + userId cho client biết để chuyển màn hình phù hợp
         ctx.status(201).json(Map.of(
             "token", token,
             "role", request.getRole(),
-            "username", request.getUsername()
+            "username", request.getUsername(),
+            "userId", userId
         ));
     }
 
@@ -143,16 +145,18 @@ public class AuthController {
         // Gọi service: tìm user → verify BCrypt → tạo JWT
         String token = userService.login(request);
 
-        // Lấy role từ token để client biết chuyển màn hình nào (auction-list hay admin-panel)
+        // Lấy role và userId từ token để client biết chuyển màn hình nào
         String role = userService.getRoleByUsername(request.getUsername());
         String username = request.getUsername();
+        long userId = com.auction.config.JwtUtil.verifyToken(token).getClaim("userId").asLong();
 
         LOGGER.info("Đăng nhập thành công: username={}", username);
 
         ctx.status(200).json(Map.of(
             "token", token,
             "role", role,
-            "username", username
+            "username", username,
+            "userId", userId
         ));
     }
 }

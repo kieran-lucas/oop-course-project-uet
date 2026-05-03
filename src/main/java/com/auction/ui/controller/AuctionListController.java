@@ -158,7 +158,7 @@ public class AuctionListController implements Navigable {
           List<AuctionResponse> list = RestClient.parseList(response.body(), AuctionResponse.class);
           Platform.runLater(() -> {
             allAuctions.setAll(list);
-            auctionTable.setItems(FXCollections.observableArrayList(allAuctions));
+            handleSearch(); // re-apply filter/search hiện tại
             setStatus("Tổng cộng " + list.size() + " phiên đấu giá.");
           });
         } else {
@@ -217,10 +217,12 @@ public class AuctionListController implements Navigable {
         } else {
           setText(status);
           String color = switch (status) {
-            case "RUNNING" -> "-fx-text-fill: #00c853; -fx-font-weight: bold;";
-            case "OPEN"    -> "-fx-text-fill: #2196f3; -fx-font-weight: bold;";
-            case "FINISHED"-> "-fx-text-fill: #9e9e9e;";
-            default        -> "";
+            case "RUNNING"  -> "-fx-text-fill: #00c853; -fx-font-weight: bold;";
+            case "OPEN"     -> "-fx-text-fill: #2196f3; -fx-font-weight: bold;";
+            case "FINISHED" -> "-fx-text-fill: #9e9e9e;";
+            case "CANCELED" -> "-fx-text-fill: #e53935;";
+            case "PAID"     -> "-fx-text-fill: #7b1fa2;";
+            default         -> "";
           };
           setStyle(color);
         }
