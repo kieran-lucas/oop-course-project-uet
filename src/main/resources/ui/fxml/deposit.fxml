@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<StackPane styleClass="login-root"
+           xmlns="http://javafx.com/javafx/21"
+           xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.auction.ui.controller.DepositController">
+
+   <VBox alignment="CENTER" maxWidth="400.0" spacing="14.0" styleClass="login-card">
+      <padding>
+         <Insets bottom="36.0" left="36.0" right="36.0" top="36.0" />
+      </padding>
+
+      <Label styleClass="app-title" text="Nạp tiền" />
+      <Label fx:id="balanceLabel" styleClass="app-subtitle" text="Số dư hiện tại: —" />
+
+      <VBox spacing="4.0">
+         <Label styleClass="field-label" text="Số tiền nạp (VND)" />
+         <TextField fx:id="amountField" promptText="Nhập số tiền cần nạp"
+                    styleClass="text-field" />
+      </VBox>
+
+      <Label fx:id="statusLabel" styleClass="status-label" text=""
+             visible="false" wrapText="true" />
+
+      <Button fx:id="depositButton" text="Nạp tiền" styleClass="primary-button"
+              maxWidth="Infinity" onAction="#handleDeposit" />
+
+      <Button text="Quay lại" styleClass="secondary-button"
+              maxWidth="Infinity" onAction="#goBack" />
+   </VBox>
+
+</StackPane>
