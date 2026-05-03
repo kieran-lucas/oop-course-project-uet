@@ -2,118 +2,264 @@ package com.auction.controller;
 
 import com.auction.dto.AuctionResponse;
 import com.auction.dto.CreateAuctionRequest;
-import com.auction.model.Auction;
+import com.auction.exception.UnauthorizedException;
 import com.auction.service.AuctionService;
 import io.javalin.Javalin;
+import io.javalin.http.Context;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Controller xử lý HTTP request cho Auction (phiên đấu giá).
+ * Controller xử lý toàn bộ thao tác CRUD cho tài nguyên Auction (phiên đấu giá).
  *
- * <p>5 endpoints:
+ * <p>Danh sách endpoints và quyền truy cập:
+ * <pre>
+ *   GET    /api/auctions           → Mọi user đã đăng nhập (filter ?status=RUNNING)
+ *   GET    /api/auctions/:id       → Mọi user đã đăng nhập (trả về AuctionResponse đầy đủ)
+ *   POST   /api/auctions           → Chỉ SELLER
+ *   PUT    /api/auctions/:id       → Chỉ SELLER sở hữu phiên, chỉ khi status=OPEN
+ *   DELETE /api/auctions/:id       → SELLER sở hữu phiên hoặc ADMIN
+ * </pre>
  *
+ * <p>Tích hợp State Pattern:
  * <ul>
- *   <li>GET /api/auctions — list tất cả (hỗ trợ ?status=RUNNING)
- *   <li>GET /api/auctions/:id — chi tiết, trả AuctionResponse
- *   <li>POST /api/auctions — seller tạo phiên (check role, check item ownership)
- *   <li>PUT /api/auctions/:id — seller sửa (chỉ khi OPEN)
- *   <li>DELETE /api/auctions/:id — seller/admin xóa
+ *   <li>{@code PUT} (sửa phiên) → service gọi {@code state.edit()} → {@code OpenState} cho phép,
+ *       {@code RunningState}/{@code FinishedState} ném {@code AuctionClosedException}.</li>
+ *   <li>{@code POST} bid (trong {@link BidController}) → service gọi {@code state.placeBid()} →
+ *       chỉ {@code RunningState} cho phép.</li>
  * </ul>
+ *
+ * <p>Khác biệt với {@link ItemController}: endpoint {@code GET /api/auctions/:id} trả về
+ * {@link AuctionResponse} (enriched object) thay vì {@link com.auction.model.Auction} raw,
+ * bao gồm thêm: {@code itemName}, {@code leadingBidderUsername}, {@code remainingTimeMs}.
+ *
+ * @see com.auction.service.AuctionService
+ * @see com.auction.pattern.state.AuctionState
+ * @see BidController
  */
 public class AuctionController {
 
-  private final AuctionService auctionService;
+    /** Logger ghi lại các thao tác CRUD trên phiên đấu giá. */
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuctionController.class);
 
-  public AuctionController(AuctionService auctionService) {
-    this.auctionService = auctionService;
-  }
+    /** Hàm khởi tạo private — lớp này chỉ dùng static methods, không cần instance. */
+    private AuctionController() {}
 
-  public void register(Javalin app) {
+    /**
+     * Đăng ký tất cả route của AuctionController vào Javalin instance.
+     *
+     * @param app            Javalin instance đang chạy
+     * @param auctionService service xử lý logic nghiệp vụ cho phiên đấu giá
+     */
+    public static void register(Javalin app, AuctionService auctionService) {
+        app.get("/api/auctions", ctx -> handleGetAll(ctx, auctionService));
+        app.get("/api/auctions/{id}", ctx -> handleGetById(ctx, auctionService));
+        app.post("/api/auctions", ctx -> handleCreate(ctx, auctionService));
+        app.put("/api/auctions/{id}", ctx -> handleUpdate(ctx, auctionService));
+        app.delete("/api/auctions/{id}", ctx -> handleDelete(ctx, auctionService));
 
-    // ════════════════════════════════════════════════════════
-    // GET /api/auctions — List tất cả auctions
-    // ════════════════════════════════════════════════════════
-    //
-    // Hỗ trợ query param: GET /api/auctions?status=RUNNING
-    // → chỉ lấy auctions đang chạy.
-    // Không có ?status → lấy tất cả.
-    app.get(
-        "/api/auctions",
-        ctx -> {
-          String status = ctx.queryParam("status");
-          List<Auction> auctions = auctionService.getAllAuctions(status);
-          ctx.json(auctions);
-        });
+        LOGGER.info("Đã đăng ký AuctionController: GET/POST /api/auctions, "
+            + "GET/PUT/DELETE /api/auctions/:id");
+    }
 
-    // ════════════════════════════════════════════════════════
-    // GET /api/auctions/:id — Chi tiết 1 auction
-    // ════════════════════════════════════════════════════════
-    //
-    // Trả về AuctionResponse (không phải Auction model).
-    // AuctionResponse bổ sung thêm: itemName, itemCategory, leadingBidderUsername.
-    //
-    // Tại sao không trả Auction trực tiếp?
-    // → Auction model chỉ có itemId (số), client cần itemName (tên) để hiển thị.
-    // → Auction model chỉ có leadingBidderId, client cần leadingBidderUsername.
-    // → AuctionResponse gộp dữ liệu từ 3 bảng: auctions + items + users.
-    app.get(
-        "/api/auctions/{id}",
-        ctx -> {
-          Long id = Long.parseLong(ctx.pathParam("id"));
-          AuctionResponse response = auctionService.getAuctionById(id);
-          ctx.json(response);
-        });
+    /**
+     * Lấy danh sách tất cả phiên đấu giá, có hỗ trợ lọc theo trạng thái.
+     *
+     * <p>Query parameter tùy chọn:
+     * <ul>
+     *   <li>{@code ?status=RUNNING} — chỉ lấy phiên đang diễn ra.</li>
+     *   <li>{@code ?status=OPEN} — chỉ lấy phiên sắp mở.</li>
+     *   <li>{@code ?status=FINISHED} — chỉ lấy phiên đã kết thúc.</li>
+     *   <li>Không có parameter → trả về TẤT CẢ phiên (trừ CANCELED và PAID nếu không phải ADMIN).</li>
+     * </ul>
+     *
+     * <p>Ví dụ response (mảng {@link AuctionResponse}):
+     * <pre>
+     *   [
+     *     {
+     *       "id": 1,
+     *       "itemName": "iPhone 15 Pro",
+     *       "currentPrice": 15000000,
+     *       "status": "RUNNING",
+     *       "remainingTimeMs": 1800000,
+     *       "leadingBidderUsername": "alice"
+     *     }
+     *   ]
+     * </pre>
+     *
+     * @param ctx            Javalin context chứa HTTP request/response
+     * @param auctionService service truy vấn danh sách phiên đấu giá
+     */
+    private static void handleGetAll(Context ctx, AuctionService auctionService) {
+        // Lấy query param lọc trạng thái (có thể null nếu không truyền)
+        String statusFilter = ctx.queryParam("status");
 
-    // ════════════════════════════════════════════════════════
-    // POST /api/auctions — Seller tạo phiên đấu giá
-    // ════════════════════════════════════════════════════════
-    //
-    // Yêu cầu:
-    // 1. Role phải là SELLER
-    // 2. Item phải tồn tại
-    // 3. Item phải thuộc seller này (không tạo auction cho item người khác)
-    app.post(
-        "/api/auctions",
-        ctx -> {
-          Long userId = ctx.attribute("userId");
-          String role = ctx.attribute("role");
+        List<AuctionResponse> auctions = auctionService.getAll(statusFilter);
+        ctx.status(200).json(auctions);
+    }
 
-          CreateAuctionRequest request = ctx.bodyAsClass(CreateAuctionRequest.class);
-          Auction created = auctionService.createAuction(request, userId, role);
+    /**
+     * Lấy chi tiết một phiên đấu giá theo ID — trả về {@link AuctionResponse} đầy đủ.
+     *
+     * <p>Khác với {@code GET /api/auctions} (trả về list), endpoint này trả về dữ liệu
+     * được "enriched" (làm giàu thêm thông tin) bao gồm:
+     * <ul>
+     *   <li>{@code itemName} — tên sản phẩm (join từ bảng items).</li>
+     *   <li>{@code leadingBidderUsername} — username của người đang dẫn đầu.</li>
+     *   <li>{@code remainingTimeMs} — thời gian còn lại (milliseconds).</li>
+     * </ul>
+     *
+     * <p>Client dùng endpoint này khi mở màn hình {@code auction-detail.fxml}.
+     *
+     * @param ctx            Javalin context chứa HTTP request/response
+     * @param auctionService service tìm kiếm và enrich dữ liệu phiên đấu giá
+     */
+    private static void handleGetById(Context ctx, AuctionService auctionService) {
+        Long auctionId = Long.parseLong(ctx.pathParam("id"));
+        AuctionResponse auction = auctionService.getById(auctionId);
+        ctx.status(200).json(auction);
+    }
 
-          ctx.status(201).json(created);
-        });
+    /**
+     * Tạo phiên đấu giá mới — CHỈ SELLER được phép thực hiện.
+     *
+     * <p>Luồng xử lý:
+     * <ol>
+     *   <li>Kiểm tra {@code role == "SELLER"} từ JWT context.</li>
+     *   <li>Parse {@link CreateAuctionRequest} từ body (chứa itemId, startingPrice, startTime,
+     *       endTime).</li>
+     *   <li>Gọi {@code AuctionService.create()} — kiểm tra item thuộc seller, validate
+     *       startTime < endTime, tạo Auction với status = "OPEN".</li>
+     * </ol>
+     *
+     * <p>Phiên mới tạo luôn có status = {@code OPEN}. {@link com.auction.service.AuctionScheduler}
+     * sẽ tự động chuyển sang {@code RUNNING} khi đến {@code startTime}.
+     *
+     * <p>Ví dụ request body:
+     * <pre>
+     *   {
+     *     "itemId": 3,
+     *     "startingPrice": 5000000,
+     *     "startTime": "2025-06-01T10:00:00",
+     *     "endTime": "2025-06-01T12:00:00"
+     *   }
+     * </pre>
+     *
+     * @param ctx            Javalin context chứa HTTP request/response
+     * @param auctionService service tạo phiên đấu giá mới
+     * @throws UnauthorizedException nếu user không có role SELLER
+     */
+    private static void handleCreate(Context ctx, AuctionService auctionService) {
+        // Kiểm tra quyền: chỉ SELLER mới được mở phiên đấu giá
+        requireRole(ctx, "SELLER");
 
-    // ════════════════════════════════════════════════════════
-    // PUT /api/auctions/:id — Seller sửa phiên đấu giá
-    // ════════════════════════════════════════════════════════
-    //
-    // Chỉ sửa được khi status = OPEN (chưa bắt đầu).
-    // RUNNING/FINISHED → không sửa được (đang/đã đấu giá).
-    app.put(
-        "/api/auctions/{id}",
-        ctx -> {
-          Long auctionId = Long.parseLong(ctx.pathParam("id"));
-          Long userId = ctx.attribute("userId");
+        Long sellerId = ctx.attribute("userId");
 
-          CreateAuctionRequest request = ctx.bodyAsClass(CreateAuctionRequest.class);
-          Auction updated = auctionService.updateAuction(auctionId, request, userId);
+        // Parse JSON body
+        CreateAuctionRequest request = ctx.bodyAsClass(CreateAuctionRequest.class);
 
-          ctx.json(updated);
-        });
+        // Service kiểm tra item thuộc sellerId và tạo phiên mới với status=OPEN
+        AuctionResponse created = auctionService.create(request, sellerId);
 
-    // ════════════════════════════════════════════════════════
-    // DELETE /api/auctions/:id — Seller/Admin xóa
-    // ════════════════════════════════════════════════════════
-    app.delete(
-        "/api/auctions/{id}",
-        ctx -> {
-          Long auctionId = Long.parseLong(ctx.pathParam("id"));
-          Long userId = ctx.attribute("userId");
-          String role = ctx.attribute("role");
+        LOGGER.info("Tạo phiên đấu giá mới: sellerId={}, itemId={}, startingPrice={}",
+            sellerId, request.getItemId(), request.getStartingPrice());
 
-          auctionService.deleteAuction(auctionId, userId, role);
-          ctx.status(204);
-        });
-  }
+        ctx.status(201).json(created);
+    }
+
+    /**
+     * Cập nhật thông tin phiên đấu giá — CHỈ SELLER sở hữu phiên và KHI PHIÊN CÒN Ở TRẠNG THÁI OPEN.
+     *
+     * <p>State Pattern được áp dụng tại đây:
+     * <ul>
+     *   <li>Nếu phiên đang ở {@code OpenState} → {@code state.edit()} thành công → cập nhật DB.</li>
+     *   <li>Nếu phiên đang ở {@code RunningState} → {@code state.edit()} ném
+     *       {@code AuctionClosedException("Không thể sửa khi phiên đang diễn ra")}.</li>
+     *   <li>Nếu phiên đang ở {@code FinishedState}/{@code PaidState}/{@code CanceledState}
+     *       → tương tự, ném exception.</li>
+     * </ul>
+     *
+     * <p>Những trường có thể cập nhật khi OPEN: {@code startingPrice}, {@code startTime},
+     * {@code endTime}. Không thể đổi {@code itemId} sau khi tạo phiên.
+     *
+     * @param ctx            Javalin context chứa HTTP request/response
+     * @param auctionService service cập nhật phiên sau khi qua State pattern validation
+     * @throws UnauthorizedException nếu không phải SELLER hoặc không sở hữu phiên
+     */
+    private static void handleUpdate(Context ctx, AuctionService auctionService) {
+        requireRole(ctx, "SELLER");
+
+        Long auctionId = Long.parseLong(ctx.pathParam("id"));
+        Long userId = ctx.attribute("userId");
+
+        // Parse body — chứa các trường muốn cập nhật
+        CreateAuctionRequest request = ctx.bodyAsClass(CreateAuctionRequest.class);
+
+        // Service: kiểm tra ownership + State pattern (chỉ OPEN mới cho sửa)
+        AuctionResponse updated = auctionService.update(auctionId, request, userId);
+
+        LOGGER.info("Cập nhật phiên đấu giá: auctionId={}, sellerId={}", auctionId, userId);
+
+        ctx.status(200).json(updated);
+    }
+
+    /**
+     * Xóa / hủy phiên đấu giá — SELLER sở hữu phiên hoặc ADMIN.
+     *
+     * <p>Logic phân quyền:
+     * <ul>
+     *   <li>Role {@code ADMIN} → có thể hủy bất kỳ phiên nào (kể cả đang RUNNING).</li>
+     *   <li>Role {@code SELLER} → chỉ hủy được phiên của mình khi status = OPEN.</li>
+     *   <li>Role {@code BIDDER} → không được phép → {@code UnauthorizedException}.</li>
+     * </ul>
+     *
+     * <p>Lưu ý: Hệ thống không xóa cứng (hard delete) phiên đấu giá có dữ liệu bid
+     * để đảm bảo tính toàn vẹn lịch sử. Thay vào đó, service sẽ chuyển status
+     * sang {@code CANCELED}.
+     *
+     * @param ctx            Javalin context chứa HTTP request/response
+     * @param auctionService service xử lý hủy phiên đấu giá
+     * @throws UnauthorizedException nếu không có quyền hủy
+     */
+    private static void handleDelete(Context ctx, AuctionService auctionService) {
+        String role = ctx.attribute("role");
+        Long userId = ctx.attribute("userId");
+        Long auctionId = Long.parseLong(ctx.pathParam("id"));
+
+        // Chỉ SELLER hoặc ADMIN mới được hủy phiên
+        if (!"SELLER".equals(role) && !"ADMIN".equals(role)) {
+            throw new UnauthorizedException(
+                "Chỉ người bán hoặc quản trị viên mới có thể hủy phiên đấu giá"
+            );
+        }
+
+        // Service xử lý: kiểm tra ownership (với SELLER), chuyển status → CANCELED
+        auctionService.delete(auctionId, userId, role);
+
+        LOGGER.info("Hủy phiên đấu giá: auctionId={}, thực hiện bởi userId={}, role={}",
+            auctionId, userId, role);
+
+        // 204 No Content — thành công, không có body
+        ctx.status(204);
+    }
+
+    /**
+     * Kiểm tra role của user hiện tại có khớp với role yêu cầu không.
+     *
+     * <p>Phương thức helper dùng nội bộ để tránh lặp code kiểm tra role.
+     * Attribute {@code "role"} đã được {@code JwtMiddleware} set vào context trước đó.
+     *
+     * @param ctx          Javalin context chứa role của user sau khi middleware xác thực
+     * @param requiredRole role yêu cầu (ví dụ: "SELLER", "ADMIN")
+     * @throws UnauthorizedException nếu role không khớp
+     */
+    private static void requireRole(Context ctx, String requiredRole) {
+        String role = ctx.attribute("role");
+        if (!requiredRole.equals(role)) {
+            throw new UnauthorizedException(
+                "Chỉ " + requiredRole + " mới có quyền thực hiện thao tác này"
+            );
+        }
+    }
 }
