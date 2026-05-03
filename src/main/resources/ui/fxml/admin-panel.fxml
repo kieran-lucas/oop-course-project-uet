@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane styleClass="main-layout"
+            xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.auction.ui.controller.AdminPanelController">
+
+   <!-- ===== TOP BAR ===== -->
+   <top>
+      <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="top-bar">
+         <padding>
+            <Insets bottom="12.0" left="20.0" right="20.0" top="12.0" />
+         </padding>
+         <Label styleClass="app-logo" text="Admin Panel" />
+         <Region HBox.hgrow="ALWAYS" />
+         <Label fx:id="usernameLabel" styleClass="username-label" text="" />
+         <Button text="Đăng xuất" styleClass="logout-button" onAction="#handleLogout" />
+      </HBox>
+   </top>
+
+   <!-- ===== CENTER: Quản lý phiên đấu giá ===== -->
+   <center>
+      <VBox spacing="12.0">
+         <padding>
+            <Insets bottom="16.0" left="20.0" right="20.0" top="16.0" />
+         </padding>
+
+         <HBox alignment="CENTER_LEFT" spacing="12.0">
+            <Label styleClass="section-title" text="Quản lý phiên đấu giá" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Button text="Làm mới" styleClass="secondary-button" onAction="#handleRefresh" />
+         </HBox>
+
+         <HBox spacing="8.0">
+            <TextField fx:id="searchField" promptText="Tìm kiếm phiên..."
+                       styleClass="search-field" prefWidth="240.0" />
+            <Button text="Tìm" styleClass="secondary-button" onAction="#handleSearch" />
+         </HBox>
+
+         <TableView fx:id="auctionTable" VBox.vgrow="ALWAYS" styleClass="auction-table">
+            <columns>
+               <TableColumn fx:id="idCol" text="ID" prefWidth="60.0" />
+               <TableColumn fx:id="itemCol" text="Sản phẩm" prefWidth="200.0" />
+               <TableColumn fx:id="statusCol" text="Trạng thái" prefWidth="110.0" />
+               <TableColumn fx:id="priceCol" text="Giá hiện tại" prefWidth="140.0" />
+               <TableColumn fx:id="actionCol" text="Hành động" prefWidth="160.0" />
+            </columns>
+            <placeholder>
+               <Label text="Không có phiên nào." />
+            </placeholder>
+         </TableView>
+
+         <Label fx:id="statusLabel" styleClass="status-label" text="" />
+      </VBox>
+   </center>
+
+</BorderPane>
