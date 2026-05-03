@@ -1,1 +1,183 @@
+package com.auction.ui.controller;
 
+import com.auction.ui.util.Navigable;
+import com.auction.ui.util.SceneManager;
+import com.auction.util.RestClient;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.http.HttpResponse;
+import javafx.application.Platform;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Controller cho màn hình đăng nhập (login.fxml).
+ *
+ * <p><b>Mục đích:</b>
+ * Xử lý luồng đăng nhập người dùng: nhận username/password, gọi REST API
+ * {@code POST /api/auth/login}, lưu JWT token vào {@link SceneManager},
+ * và điều hướng đến màn hình phù hợp theo role.
+ *
+ * <p><b>Các phương thức chính:</b>
+ * <ul>
+ *   <li>{@link #handleLogin()} — Gọi API đăng nhập, lưu session, điều hướng.</li>
+ *   <li>{@link #goToRegister()} — Chuyển sang màn hình đăng ký.</li>
+ *   <li>{@link #goToForgotPassword()} — Chuyển sang màn hình quên mật khẩu.</li>
+ *   <li>{@link #onDataReceived(Object)} — Nhận role hint từ WelcomeController.</li>
+ * </ul>
+ *
+ * <p><b>Vị trí trong kiến trúc:</b>
+ * LoginController nhận dữ liệu từ WelcomeController (role hint), giao tiếp
+ * với server qua {@link RestClient}, và lưu trạng thái session vào
+ * {@link SceneManager} (JWT token, username, role, userId).
+ */
+public class LoginController implements Navigable {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(LoginController.class);
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  @FXML private TextField usernameField;
+  @FXML private PasswordField passwordField;
+  @FXML private Label errorLabel;
+  @FXML private Label roleHintLabel;
+  @FXML private Button loginButton;
+
+  // ========== NAVIGABLE LIFECYCLE ==========
+
+  /**
+   * Nhận role hint từ WelcomeController (ví dụ: "BIDDER", "SELLER", "ADMIN").
+   * Cập nhật subtitle label để gợi ý người dùng.
+   */
+  @Override
+  public void onDataReceived(Object data) {
+    if (data instanceof String role) {
+      if (roleHintLabel != null) {
+        roleHintLabel.setText("Đăng nhập với vai trò: " + role);
+      }
+    }
+  }
+
+  /** Reset form khi navigate trở lại màn hình này. */
+  @Override
+  public void onNavigatedTo() {
+    clearForm();
+  }
+
+  // ========== FXML ACTIONS ==========
+
+  /**
+   * Xử lý sự kiện nhấn nút "Đăng nhập".
+   *
+   * <p>Luồng:
+   * <ol>
+   *   <li>Validate input cơ bản.</li>
+   *   <li>Gọi {@code POST /api/auth/login} trên luồng nền.</li>
+   *   <li>Nếu thành công: lưu JWT, username, role vào SceneManager → điều hướng.</li>
+   *   <li>Nếu thất bại: hiển thị thông báo lỗi.</li>
+   * </ol>
+   */
+  @FXML
+  public void handleLogin() {
+    String username = usernameField.getText().trim();
+    String password = passwordField.getText();
+
+    if (username.isEmpty() || password.isEmpty()) {
+      showError("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.");
+      return;
+    }
+
+    loginButton.setDisable(true);
+    hideError();
+
+    // Gọi API trên luồng nền để không block JavaFX thread
+    Thread.ofVirtual().start(() -> {
+      try {
+        var body = new java.util.HashMap<String, String>();
+        body.put("username", username);
+        body.put("password", password);
+
+        HttpResponse<String> response = RestClient.post("/api/auth/login", body);
+
+        if (response.statusCode() == 200) {
+          JsonNode json = MAPPER.readTree(response.body());
+          String token = json.get("token").asText();
+          String role = json.get("role").asText();
+          String uname = json.get("username").asText();
+
+          Platform.runLater(() -> onLoginSuccess(token, role, uname));
+        } else {
+          JsonNode json = MAPPER.readTree(response.body());
+          String msg = json.has("message") ? json.get("message").asText()
+              : "Đăng nhập thất bại. Vui lòng kiểm tra lại.";
+          Platform.runLater(() -> {
+            showError(msg);
+            loginButton.setDisable(false);
+          });
+        }
+      } catch (Exception e) {
+        LOGGER.error("Lỗi kết nối server khi đăng nhập", e);
+        Platform.runLater(() -> {
+          showError("Không thể kết nối đến server. Vui lòng thử lại.");
+          loginButton.setDisable(false);
+        });
+      }
+    });
+  }
+
+  /** Chuyển sang màn hình đăng ký. */
+  @FXML
+  public void goToRegister() {
+    SceneManager.getInstance().navigateTo("register.fxml");
+  }
+
+  /** Chuyển sang màn hình quên mật khẩu. */
+  @FXML
+  public void goToForgotPassword() {
+    SceneManager.getInstance().navigateTo("forgot-password.fxml");
+  }
+
+  /** Quay lại màn hình chào mừng. */
+  @FXML
+  public void goBack() {
+    SceneManager.getInstance().navigateTo("welcome.fxml");
+  }
+
+  // ========== PRIVATE HELPERS ==========
+
+  /** Lưu session và điều hướng đến màn hình phù hợp theo role. */
+  private void onLoginSuccess(String token, String role, String username) {
+    SceneManager sm = SceneManager.getInstance();
+    sm.setJwtToken(token);
+    sm.setCurrentUsername(username);
+    sm.setCurrentRole(role);
+
+    LOGGER.info("Đăng nhập thành công: username={}, role={}", username, role);
+
+    if ("ADMIN".equals(role)) {
+      sm.navigateTo("admin-panel.fxml");
+    } else {
+      sm.navigateTo("auction-list.fxml");
+    }
+  }
+
+  private void showError(String message) {
+    errorLabel.setText(message);
+    errorLabel.setVisible(true);
+  }
+
+  private void hideError() {
+    errorLabel.setVisible(false);
+  }
+
+  private void clearForm() {
+    if (usernameField != null) usernameField.clear();
+    if (passwordField != null) passwordField.clear();
+    hideError();
+    if (loginButton != null) loginButton.setDisable(false);
+  }
+}
