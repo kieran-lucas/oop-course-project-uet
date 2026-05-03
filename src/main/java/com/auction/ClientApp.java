@@ -1,0 +1,95 @@
+package com.auction;
+
+import com.auction.ui.util.SceneManager;
+import javafx.application.Application;
+import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Điểm khởi động ứng dụng JavaFX (Client) — Online Auction System.
+ *
+ * <p><b>Kiến trúc Client:</b>
+ * <pre>
+ *   ClientApp (entry point)
+ *     → SceneManager (singleton, quản lý navigation + session)
+ *     → welcome.fxml → login.fxml / register.fxml
+ *     → auction-list.fxml (danh sách phiên)
+ *     → auction-detail.fxml (đặt giá realtime + chart)
+ *     → create-item.fxml, create-auction.fxml (Seller)
+ *     → admin-panel.fxml (Admin)
+ * </pre>
+ *
+ * <p><b>Cách chạy client:</b>
+ * <pre>
+ *   ./gradlew runClient
+ * </pre>
+ *
+ * <p><b>Lưu ý:</b> Server phải đang chạy ({@code ./gradlew run}) trước khi khởi động client.
+ * Server mặc định trên {@code http://localhost:8080}.
+ *
+ * <p><b>Liên kết với các file khác:</b>
+ * <ul>
+ *   <li>{@link SceneManager} — singleton quản lý toàn bộ màn hình và session JWT</li>
+ *   <li>{@code /resources/fxml/} — tất cả file FXML (View trong MVC)</li>
+ *   <li>{@code /resources/css/style.css} — dark theme áp dụng cho toàn bộ ứng dụng</li>
+ * </ul>
+ */
+public class ClientApp extends Application {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ClientApp.class);
+
+  /** Chiều rộng cửa sổ tối thiểu */
+  private static final double MIN_WIDTH = 1000;
+
+  /** Chiều cao cửa sổ tối thiểu */
+  private static final double MIN_HEIGHT = 700;
+
+  /**
+   * Khởi động giao diện JavaFX.
+   *
+   * <p>Thứ tự khởi tạo:
+   * <ol>
+   *   <li>Khởi tạo SceneManager với Stage chính.</li>
+   *   <li>Cài đặt kích thước tối thiểu cho cửa sổ.</li>
+   *   <li>Hiển thị màn hình chào mừng.</li>
+   *   <li>Show Stage.</li>
+   * </ol>
+   *
+   * @param primaryStage Stage chính do JavaFX cung cấp
+   */
+  @Override
+  public void start(Stage primaryStage) {
+    try {
+      // Khởi tạo SceneManager singleton
+      SceneManager sceneManager = SceneManager.init(primaryStage, MIN_WIDTH, MIN_HEIGHT);
+
+      // Cấu hình Stage
+      primaryStage.setTitle("Online Auction System");
+      primaryStage.setMinWidth(MIN_WIDTH);
+      primaryStage.setMinHeight(MIN_HEIGHT);
+
+      // Load màn hình chào mừng đầu tiên
+      sceneManager.navigateTo("welcome.fxml");
+
+      primaryStage.show();
+      LOGGER.info("Ứng dụng đã khởi động — {}x{}", MIN_WIDTH, MIN_HEIGHT);
+
+    } catch (Exception e) {
+      LOGGER.error("Lỗi khởi động ứng dụng JavaFX", e);
+      throw new RuntimeException("Không thể khởi động ứng dụng", e);
+    }
+  }
+
+  /**
+   * Main method — entry point cho JVM.
+   *
+   * <p>JavaFX Application cần gọi {@code Application.launch()} để khởi động
+   * Application Thread (JavaFX Thread). Không gọi {@code new ClientApp().start()} trực tiếp.
+   *
+   * @param args tham số dòng lệnh (không sử dụng)
+   */
+  public static void main(String[] args) {
+    launch(args);
+  }
+}
