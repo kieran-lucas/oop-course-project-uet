@@ -18,6 +18,7 @@ import com.auction.pattern.state.PaidState;
 import com.auction.pattern.state.RunningState;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +48,29 @@ public class AuctionService {
       return auctionDao.findByStatus(status.toUpperCase());
     }
     return auctionDao.findAll();
+  }
+
+  /**
+   * Alias cho getAllAuctions — dùng bởi AuctionController.
+   *
+   * @param status filter theo trạng thái (có thể null để lấy tất cả)
+   * @return danh sách AuctionResponse đã được enrich
+   */
+  public List<AuctionResponse> getAll(String status) {
+    return getAllAuctions(status).stream()
+        .map(this::enrichAuctionResponse)
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * Alias cho getAuctionById — dùng bởi AuctionController.
+   *
+   * @param id ID của auction
+   * @return AuctionResponse đầy đủ thông tin
+   * @throws NotFoundException nếu auction không tồn tại
+   */
+  public AuctionResponse getById(Long id) {
+    return getAuctionById(id);
   }
 
   /**
@@ -267,6 +291,21 @@ public class AuctionService {
     auction.setCurrentPrice(newPrice);
     auctionDao.update(auction);
     return auction;
+  }
+
+  /**
+   * Cập nhật phiên đấu giá và trả về AuctionResponse — dùng bởi AuctionController.
+   *
+   * <p>Delegate sang {@link #updateAuction} rồi enrich kết quả.
+   *
+   * @param auctionId ID phiên cần sửa
+   * @param request   dữ liệu mới (startingPrice, startTime, endTime)
+   * @param userId    ID seller từ JWT
+   * @return AuctionResponse đã cập nhật
+   */
+  public AuctionResponse update(Long auctionId, CreateAuctionRequest request, Long userId) {
+    Auction auction = updateAuction(auctionId, request, userId);
+    return enrichAuctionResponse(auction);
   }
 
   /**

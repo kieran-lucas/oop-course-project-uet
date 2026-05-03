@@ -125,7 +125,29 @@ public class ItemService {
 
     updatedItem.setId(id);
     updatedItem.setSellerId(existing.getSellerId()); // sellerId không thể thay đổi
-    return itemDao.update(updatedItem);
+    itemDao.update(updatedItem);
+    return updatedItem;
+  }
+
+  /**
+   * Cập nhật sản phẩm từ request DTO — dùng bởi ItemController.
+   *
+   * <p>Dùng {@link ItemFactory} để tạo lại subclass đúng loại từ request,
+   * sau đó delegate sang {@link #update(Long, Item, Long)}.
+   *
+   * @param id          ID của item cần cập nhật
+   * @param request     dữ liệu mới từ client
+   * @param requesterId ID người thực hiện (từ JWT)
+   * @return item đã cập nhật
+   */
+  public Item update(Long id, CreateItemRequest request, Long requesterId) {
+    Item existing = getById(id);
+    checkOwnership(existing, requesterId, "cập nhật");
+
+    Item updatedItem = ItemFactory.create(request, existing.getSellerId());
+    updatedItem.setId(id);
+    itemDao.update(updatedItem);
+    return updatedItem;
   }
 
   /**
@@ -150,7 +172,7 @@ public class ItemService {
       checkOwnership(existing, requesterId, "xóa");
     }
 
-    itemDao.deleteById(id);
+    itemDao.delete(id);
   }
 
   /**

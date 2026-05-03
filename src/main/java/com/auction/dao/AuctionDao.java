@@ -366,16 +366,12 @@ public class AuctionDao {
   /**
    * Cập nhật phiên đấu giá — phiên bản NGOÀI transaction.
    *
-   * <p>[FIX #5] Hành vi khác so với {@code updateInTransaction}: return false nếu không tìm thấy,
-   * KHÔNG throw exception.
-   *
    * <p>Dùng cho các thao tác update đơn giản không cần transaction, ví dụ: Admin sửa trạng thái,
    * AuctionScheduler đóng phiên.
    *
    * @param auction Auction đã được cập nhật (phải có id)
-   * @return true nếu update thành công, false nếu không tìm thấy auction
    */
-  public boolean update(Auction auction) {
+  public void update(Auction auction) {
     String sql =
         """
         UPDATE auctions
@@ -406,11 +402,9 @@ public class AuctionDao {
           auction.getId(),
           auction.getStatus(),
           auction.getCurrentPrice());
-      return true;
+    } else {
+      LOGGER.warn("Auction not found for update: id={}", auction.getId());
     }
-
-    LOGGER.warn("Auction not found for update: id={}", auction.getId());
-    return false;
   }
 
   // ============================================================
@@ -425,18 +419,16 @@ public class AuctionDao {
    * @param id ID của phiên cần xóa
    * @return true nếu xóa thành công, false nếu không tìm thấy
    */
-  public boolean delete(Long id) {
+  public void delete(Long id) {
     String sql = "DELETE FROM auctions WHERE id = :id";
 
     int rowsAffected = jdbi.withHandle(handle -> handle.createUpdate(sql).bind("id", id).execute());
 
     if (rowsAffected > 0) {
       LOGGER.info("Deleted auction: id={}", id);
-      return true;
+    } else {
+      LOGGER.warn("Auction not found for deletion: id={}", id);
     }
-
-    LOGGER.warn("Auction not found for deletion: id={}", id);
-    return false;
   }
 
   // ============================================================
