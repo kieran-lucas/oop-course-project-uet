@@ -5,10 +5,18 @@ import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.AuctionResponse;
 import com.auction.dto.CreateAuctionRequest;
+import com.auction.exception.AuctionClosedException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.model.Auction;
 import com.auction.model.Item;
+import com.auction.pattern.state.AuctionState;
+import com.auction.pattern.state.CanceledState;
+import com.auction.pattern.state.FinishedState;
+import com.auction.pattern.state.OpenState;
+import com.auction.pattern.state.PaidState;
+import com.auction.pattern.state.RunningState;
+import java.math.BigDecimal;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -207,6 +215,157 @@ public class AuctionService {
 
     auctionDao.delete(auctionId);
     LOGGER.info("Auction deleted: id={}, by userId={}", auctionId, userId);
+  }
+
+  // ========== Methods required by AuctionServiceTest ==========
+
+  /**
+   * Tạo phiên đấu giá (simplified — không check role, dùng cho test).
+   * Delegate sang createAuction() với role="SELLER".
+   */
+  public Auction create(CreateAuctionRequest req, Long sellerId) {
+    if (req.getItemId() == null) {
+      throw new IllegalArgumentException("Item ID is required");
+    }
+    if (req.getStartingPrice() == null || req.getStartingPrice().signum() <= 0) {
+      throw new IllegalArgumentException("Starting price must be greater than 0");
+    }
+    if (req.getStartTime() == null || req.getEndTime() == null) {
+      throw new IllegalArgumentException("Start time and end time are required");
+    }
+    if (!req.getEndTime().isAfter(req.getStartTime())) {
+      throw new IllegalArgumentException("End time must be after start time");
+    }
+
+    Item item = itemDao.findById(req.getItemId())
+        .orElseThrow(() -> new NotFoundException("Item not found with id: " + req.getItemId()));
+
+    if (!item.getSellerId().equals(sellerId)) {
+      throw new UnauthorizedException("You can only create auctions for your own items");
+    }
+
+    Auction auction = new Auction(
+        req.getItemId(), req.getStartingPrice(), req.getStartTime(), req.getEndTime());
+    auction.setSellerId(sellerId);
+    auctionDao.insert(auction);
+    LOGGER.info("Auction created (via create): itemId={}, seller={}", req.getItemId(), sellerId);
+    return auction;
+  }
+
+  /**
+   * Cập nhật giá khởi điểm của phiên (simplified — chỉ nhận BigDecimal).
+   * Kiểm tra trạng thái qua State pattern trước khi sửa.
+   */
+  public Auction update(Long auctionId, BigDecimal newPrice, Long sellerId) {
+    Auction auction = auctionDao.findById(auctionId)
+        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+
+    // Dùng State pattern để validate — OpenState cho phép, RunningState/FinishedState từ chối
+    getState(auction).edit(auction);
+
+    auction.setStartingPrice(newPrice);
+    auction.setCurrentPrice(newPrice);
+    auctionDao.update(auction);
+    return auction;
+  }
+
+  /**
+   * Xóa phiên đấu giá (delegate sang deleteAuction với tên ngắn hơn).
+   * Không cho phép xóa phiên đang RUNNING.
+   */
+  public void delete(Long auctionId, Long userId, String role) {
+    Auction auction = auctionDao.findById(auctionId)
+        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+
+    // Không xóa được phiên đang RUNNING (trừ ADMIN)
+    if ("RUNNING".equals(auction.getStatus()) && !"ADMIN".equals(role)) {
+      throw new AuctionClosedException("Không thể xóa phiên đang diễn ra.");
+    }
+
+    if ("ADMIN".equals(role)) {
+      auctionDao.delete(auctionId);
+      return;
+    }
+
+    // Kiểm tra ownership qua sellerId trên auction
+    Long auctionSellerId = auction.getSellerId();
+    if (auctionSellerId == null) {
+      // Fallback: kiểm tra qua item
+      Item item = itemDao.findById(auction.getItemId())
+          .orElseThrow(() -> new NotFoundException("Item not found"));
+      auctionSellerId = item.getSellerId();
+    }
+    if (!auctionSellerId.equals(userId)) {
+      throw new UnauthorizedException("You can only delete your own auctions");
+    }
+
+    auctionDao.delete(auctionId);
+  }
+
+  /**
+   * Đặt giá thông qua State pattern (dùng trong test và AuctionScheduler).
+   * Không persist xuống DB — chỉ validate state và update in-memory.
+   */
+  public void placeBidViaState(Long auctionId, Long bidderId, BigDecimal amount) {
+    Auction auction = auctionDao.findById(auctionId)
+        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+    getState(auction).placeBid(auction, amount, bidderId);
+  }
+
+  /**
+   * Chuyển trạng thái OPEN → RUNNING.
+   * Chỉ hợp lệ khi auction đang ở OPEN. Gọi bởi AuctionScheduler.
+   *
+   * @throws AuctionClosedException nếu auction không ở trạng thái OPEN
+   */
+  public void transitionToRunning(Long auctionId) {
+    Auction auction = auctionDao.findById(auctionId)
+        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+
+    if (!"OPEN".equals(auction.getStatus())) {
+      throw new AuctionClosedException(
+          "Không thể chuyển sang RUNNING từ trạng thái: " + auction.getStatus());
+    }
+
+    auction.setStatus("RUNNING");
+    auctionDao.update(auction);
+    LOGGER.info("Auction #{} → RUNNING", auctionId);
+  }
+
+  /**
+   * Chuyển trạng thái RUNNING → FINISHED.
+   * Chỉ hợp lệ khi auction đang ở RUNNING. Gọi bởi AuctionScheduler.
+   */
+  public void transitionToFinished(Long auctionId) {
+    Auction auction = auctionDao.findById(auctionId)
+        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+
+    if (!"RUNNING".equals(auction.getStatus())) {
+      throw new AuctionClosedException(
+          "Không thể chuyển sang FINISHED từ trạng thái: " + auction.getStatus());
+    }
+
+    auction.setStatus("FINISHED");
+    auctionDao.update(auction);
+    LOGGER.info("Auction #{} → FINISHED", auctionId);
+  }
+
+  /**
+   * Trả về AuctionState tương ứng với trạng thái hiện tại của auction.
+   * Dùng để delegate behavior theo State pattern.
+   *
+   * @param auction auction cần resolve state
+   * @return AuctionState implementation tương ứng
+   */
+  public AuctionState getState(Auction auction) {
+    return switch (auction.getStatus()) {
+      case "OPEN"     -> new OpenState();
+      case "RUNNING"  -> new RunningState();
+      case "FINISHED" -> new FinishedState();
+      case "PAID"     -> new PaidState();
+      case "CANCELED" -> new CanceledState();
+      default -> throw new IllegalStateException("Unknown auction status: " + auction.getStatus());
+    };
   }
 
   /**

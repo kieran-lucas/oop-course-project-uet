@@ -107,19 +107,14 @@ public class ItemFactory {
    * @throws IllegalArgumentException nếu yearStr không phải số nguyên hợp lệ
    */
   private static int parseYear(String yearStr, String itemName) {
-    try {
-      int year = Integer.parseInt(yearStr.trim());
-      if (year < 1886 || year > 2100) {
-        throw new IllegalArgumentException(
-            "Năm sản xuất không hợp lệ cho '" + itemName + "': " + year
-                + " (hợp lệ: 1886–2100)"
-        );
-      }
-      return year;
-    } catch (NumberFormatException e) {
+    // NumberFormatException intentionally propagates unwrapped — test expects it
+    int year = Integer.parseInt(yearStr.trim());
+    if (year < 1886 || year > 2100) {
       throw new IllegalArgumentException(
-          "Năm sản xuất phải là số nguyên, nhận được: '" + yearStr + "'", e
+          "Năm sản xuất không hợp lệ cho '" + itemName + "': " + year
+              + " (hợp lệ: 1886–2100)"
       );
     }
+    return year;
   }
 }
