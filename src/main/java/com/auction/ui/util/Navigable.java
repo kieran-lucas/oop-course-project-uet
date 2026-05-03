@@ -1,4 +1,4 @@
-package com.auction.config;
+package com.auction.ui.util;
 
 /**
  * Interface lifecycle cho các FXML Controller. SceneManager gọi tự động khi chuyển màn hình.
