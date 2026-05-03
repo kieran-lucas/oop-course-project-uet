@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane styleClass="main-layout"
+            xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.auction.ui.controller.AuctionDetailController">
+
+   <!-- ===== TOP BAR ===== -->
+   <top>
+      <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="top-bar">
+         <padding>
+            <Insets bottom="12.0" left="20.0" right="20.0" top="12.0" />
+         </padding>
+         <Button text="← Quay lại" styleClass="back-button" onAction="#goBack" />
+         <Label styleClass="app-logo" text="Auction House" />
+         <Region HBox.hgrow="ALWAYS" />
+         <Label fx:id="usernameLabel" styleClass="username-label" text="" />
+      </HBox>
+   </top>
+
+   <!-- ===== CENTER ===== -->
+   <center>
+      <HBox spacing="20.0">
+         <padding>
+            <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+         </padding>
+
+         <!-- ===== CỘT TRÁI: Thông tin phiên + Đặt giá ===== -->
+         <VBox spacing="16.0" HBox.hgrow="ALWAYS">
+
+            <!-- Thông tin sản phẩm -->
+            <VBox spacing="8.0" styleClass="info-card">
+               <padding><Insets bottom="16.0" left="16.0" right="16.0" top="16.0" /></padding>
+               <Label fx:id="itemNameLabel" styleClass="detail-title" text="Đang tải..." />
+               <Label fx:id="itemCategoryLabel" styleClass="detail-subtitle" text="" />
+               <Label fx:id="auctionStatusLabel" styleClass="status-badge" text="" />
+            </VBox>
+
+            <!-- Giá và người dẫn đầu -->
+            <VBox spacing="8.0" styleClass="info-card">
+               <padding><Insets bottom="16.0" left="16.0" right="16.0" top="16.0" /></padding>
+               <HBox spacing="8.0">
+                  <Label text="Giá hiện tại:" styleClass="field-label" />
+                  <Label fx:id="currentPriceLabel" styleClass="price-highlight" text="—" />
+               </HBox>
+               <HBox spacing="8.0">
+                  <Label text="Người dẫn đầu:" styleClass="field-label" />
+                  <Label fx:id="leadingBidderLabel" styleClass="detail-text" text="—" />
+               </HBox>
+               <HBox spacing="8.0">
+                  <Label text="Thời gian còn:" styleClass="field-label" />
+                  <Label fx:id="countdownLabel" styleClass="countdown-label" text="—" />
+               </HBox>
+            </VBox>
+
+            <!-- Form đặt giá (ẩn nếu không phải BIDDER hoặc phiên đã kết thúc) -->
+            <VBox fx:id="bidBox" spacing="12.0" styleClass="info-card">
+               <padding><Insets bottom="16.0" left="16.0" right="16.0" top="16.0" /></padding>
+               <Label styleClass="section-title" text="Đặt giá" />
+               <HBox spacing="8.0" alignment="CENTER_LEFT">
+                  <TextField fx:id="bidAmountField" promptText="Nhập số tiền (VND)"
+                             styleClass="text-field" prefWidth="220.0" />
+                  <Button fx:id="bidButton" text="Đặt giá" styleClass="primary-button"
+                          onAction="#handleBid" />
+               </HBox>
+               <Label fx:id="bidErrorLabel" styleClass="error-label" text=""
+                      visible="false" wrapText="true" />
+            </VBox>
+
+            <!-- Thông báo kết thúc phiên -->
+            <VBox fx:id="endedBox" spacing="8.0" styleClass="info-card"
+                  visible="false" managed="false">
+               <padding><Insets bottom="16.0" left="16.0" right="16.0" top="16.0" /></padding>
+               <Label styleClass="section-title" text="Phiên đã kết thúc" />
+               <Label fx:id="winnerLabel" styleClass="winner-label" text="" />
+            </VBox>
+         </VBox>
+
+         <!-- ===== CỘT PHẢI: Lịch sử bid ===== -->
+         <VBox spacing="8.0" prefWidth="280.0">
+            <Label styleClass="section-title" text="Lịch sử đặt giá" />
+            <ListView fx:id="bidHistoryList" VBox.vgrow="ALWAYS"
+                      styleClass="bid-history-list" />
+         </VBox>
+      </HBox>
+   </center>
+
+</BorderPane>
