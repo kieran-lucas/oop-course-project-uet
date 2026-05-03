@@ -2,7 +2,8 @@ package com.auction.controller;
 
 import com.auction.config.JwtUtil;
 import com.auction.dto.BidUpdateMessage;
-import com.auction.service.BidService;
+import com.auction.pattern.observer.AuctionEventManager;
+import com.auction.pattern.observer.WebSocketObserver;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,110 +19,170 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AuctionWebSocketHandler implements BidService.AuctionWebSocketBroadcaster {
+/**
+ * WebSocket handler — quản lý kết nối realtime giữa server và client.
+ *
+ * <p><b>Vai trò trong hệ thống:</b>
+ * AuctionWebSocketHandler là cầu nối giữa Observer pattern (AuctionEventManager)
+ * và transport layer (WebSocket). Khi client kết nối:
+ * <ol>
+ *   <li>Xác thực JWT token từ query parameter.</li>
+ *   <li>Lưu WebSocket session vào map theo auctionId.</li>
+ *   <li>Tạo {@link WebSocketObserver} và subscribe vào {@link AuctionEventManager}.</li>
+ * </ol>
+ *
+ * <p>Khi có sự kiện (bid mới, gia hạn, kết thúc):
+ * <pre>
+ *   BidService → EventManager.notify() → WebSocketObserver.onBidUpdate()
+ *     → AuctionWebSocketHandler.broadcast() → gửi JSON đến tất cả client
+ * </pre>
+ *
+ * <p><b>Liên kết với các file khác:</b>
+ * <ul>
+ *   <li>{@link AuctionEventManager} — subscribe/unsubscribe observer khi client connect/disconnect</li>
+ *   <li>{@link WebSocketObserver} — observer nhận events và gọi broadcast()</li>
+ *   <li>{@link com.auction.App} — đăng ký WebSocket route /ws/auction/{id}</li>
+ * </ul>
+ */
+public class AuctionWebSocketHandler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionWebSocketHandler.class);
 
-  // Map lưu tất cả WebSocket connections theo auctionId
-  // ConcurrentHashMap: thread-safe (nhiều client connect/disconnect cùng lúc)
-  // CopyOnWriteArraySet: thread-safe cho Set (iterate + modify đồng thời)
+  /**
+   * Map auctionId → set WebSocket sessions đang kết nối.
+   * ConcurrentHashMap + CopyOnWriteArraySet để thread-safe.
+   */
   private final Map<Long, Set<WsContext>> connections = new ConcurrentHashMap<>();
 
-  // Jackson ObjectMapper để serialize BidUpdateMessage → JSON
+  /**
+   * Map session → WebSocketObserver tương ứng.
+   * Dùng để unsubscribe khi client disconnect.
+   */
+  private final Map<WsContext, WebSocketObserver> observers = new ConcurrentHashMap<>();
+
+  private final AuctionEventManager eventManager;
   private final ObjectMapper objectMapper;
 
-  public AuctionWebSocketHandler() {
+  public AuctionWebSocketHandler(AuctionEventManager eventManager) {
+    this.eventManager = eventManager;
     this.objectMapper = new ObjectMapper();
     this.objectMapper.registerModule(new JavaTimeModule());
   }
 
+  /**
+   * Xử lý client kết nối WebSocket.
+   *
+   * <p>Luồng:
+   * <ol>
+   *   <li>Lấy auctionId từ URL path ({@code /ws/auction/{id}}).</li>
+   *   <li>Verify JWT từ query param {@code token}.</li>
+   *   <li>Lưu session vào connections map.</li>
+   *   <li>Tạo WebSocketObserver và subscribe vào EventManager.</li>
+   * </ol>
+   */
   public void onConnect(WsConnectContext ctx) {
     try {
-      // Lấy auctionId từ path
       Long auctionId = Long.parseLong(ctx.pathParam("id"));
-
-      // Lấy JWT token từ query parameter
       String token = ctx.queryParam("token");
 
       if (token == null || token.isEmpty()) {
-        LOGGER.warn("WebSocket connection rejected: no token");
+        LOGGER.warn("WebSocket từ chối: thiếu token");
         ctx.session.close(4001, "Missing token");
         return;
       }
 
-      // Verify JWT token
       DecodedJWT decoded = JwtUtil.verifyToken(token);
       String username = decoded.getSubject();
 
-      // Lưu connection vào map
-      // computeIfAbsent: nếu chưa có Set cho auctionId này → tạo mới
+      // Lưu connection
       connections.computeIfAbsent(auctionId, k -> new CopyOnWriteArraySet<>()).add(ctx);
 
-      LOGGER.info("WebSocket connected: user={}, auction={}", username, auctionId);
+      // Tạo observer và subscribe vào EventManager
+      WebSocketObserver observer = new WebSocketObserver(this, auctionId);
+      observers.put(ctx, observer);
+      eventManager.subscribe(auctionId, observer);
+
+      LOGGER.info("WebSocket kết nối: user={}, phiên=#{}", username, auctionId);
 
     } catch (JWTVerificationException e) {
-      LOGGER.warn("WebSocket connection rejected: invalid token");
+      LOGGER.warn("WebSocket từ chối: token không hợp lệ");
       ctx.session.close(4001, "Invalid token");
     } catch (Exception e) {
-      LOGGER.error("WebSocket connection error: {}", e.getMessage());
+      LOGGER.error("Lỗi kết nối WebSocket: {}", e.getMessage());
       ctx.session.close(4000, "Connection error");
     }
   }
 
+  /**
+   * Xử lý client ngắt kết nối — dọn dẹp connection và unsubscribe observer.
+   */
   public void onClose(WsCloseContext ctx) {
     removeConnection(ctx);
-    LOGGER.debug("WebSocket disconnected: statusCode={}, reason={}", ctx.status(), ctx.reason());
+    LOGGER.debug("WebSocket ngắt kết nối: status={}, reason={}", ctx.status(), ctx.reason());
   }
 
+  /**
+   * Xử lý lỗi WebSocket — dọn dẹp connection và unsubscribe observer.
+   */
   public void onError(WsErrorContext ctx) {
     removeConnection(ctx);
     if (ctx.error() != null) {
-      LOGGER.error("WebSocket error: {}", ctx.error().getMessage());
+      LOGGER.error("Lỗi WebSocket: {}", ctx.error().getMessage());
     }
   }
 
-  @Override
+  /**
+   * Gửi BidUpdateMessage JSON đến tất cả client đang xem phiên đấu giá.
+   *
+   * <p>Serialize message 1 lần, gửi đến tất cả connections của phiên đó.
+   * Tự động dọn dẹp các session đã đóng.
+   *
+   * @param auctionId ID phiên đấu giá
+   * @param message   message cần gửi (BID_UPDATE, TIME_EXTENDED, AUCTION_ENDED)
+   */
   public void broadcast(Long auctionId, BidUpdateMessage message) {
     Set<WsContext> auctionConnections = connections.get(auctionId);
-
     if (auctionConnections == null || auctionConnections.isEmpty()) {
-      return; // Không có ai đang xem → không cần gửi
+      return;
     }
 
     try {
-      // Serialize message thành JSON 1 lần (không serialize lại cho mỗi client)
       String json = objectMapper.writeValueAsString(message);
 
-      // Gửi cho tất cả connections
       for (WsContext wsCtx : auctionConnections) {
         try {
           if (wsCtx.session.isOpen()) {
             wsCtx.send(json);
           } else {
-            // Connection đã đóng nhưng chưa được cleanup → xóa
             auctionConnections.remove(wsCtx);
           }
         } catch (Exception e) {
-          LOGGER.error("Failed to send WebSocket message to client: {}", e.getMessage());
+          LOGGER.error("Lỗi gửi WebSocket message: {}", e.getMessage());
           auctionConnections.remove(wsCtx);
         }
       }
 
-      LOGGER.debug(
-          "Broadcast to {} clients for auction {}: {}",
-          auctionConnections.size(),
-          auctionId,
-          message.getType());
+      LOGGER.debug("Broadcast {} đến {} client cho phiên #{}",
+          message.getType(), auctionConnections.size(), auctionId);
 
     } catch (Exception e) {
-      LOGGER.error("Failed to serialize WebSocket message: {}", e.getMessage());
+      LOGGER.error("Lỗi serialize WebSocket message: {}", e.getMessage());
     }
   }
 
+  /**
+   * Xóa connection và unsubscribe observer khỏi EventManager.
+   */
   private void removeConnection(WsContext ctx) {
     connections.values().forEach(set -> set.remove(ctx));
+
+    WebSocketObserver observer = observers.remove(ctx);
+    if (observer != null) {
+      eventManager.unsubscribe(observer.getAuctionId(), observer);
+    }
   }
 
+  /** Lấy số lượng kết nối đang active cho một phiên — dùng cho health check. */
   public int getConnectionCount(Long auctionId) {
     Set<WsContext> set = connections.get(auctionId);
     return set != null ? set.size() : 0;
