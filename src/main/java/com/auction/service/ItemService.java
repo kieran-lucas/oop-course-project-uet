@@ -5,142 +5,168 @@ import com.auction.dto.CreateItemRequest;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.model.Item;
-import com.auction.pattern.factory.ItemFactory; // Thêm import ItemFactory
+import com.auction.pattern.factory.ItemFactory;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Service xử lý logic nghiệp vụ cho Item.
+ * Service xử lý toàn bộ business logic liên quan đến sản phẩm (Item).
  *
- * <p>Controller gọi Service → Service gọi DAO → DAO gọi database. Service chứa logic: validation,
- * kiểm tra quyền, tạo đúng subclass...
+ * <h2>Trách nhiệm của ItemService</h2>
+ * <ul>
+ *   <li>Tạo item đúng subclass thông qua {@link ItemFactory} (Factory Method pattern)</li>
+ *   <li>Kiểm tra quyền sở hữu (ownership) trước khi cho phép sửa/xóa</li>
+ *   <li>Delegate tất cả SQL operation xuống {@link ItemDao}</li>
+ * </ul>
+ *
+ * <h2>Vị trí trong kiến trúc</h2>
+ * <pre>
+ * ItemController (A viết)
+ *       │  gọi
+ *       ▼
+ * ItemService  ◄─── bạn đang ở đây
+ *   │         │
+ *   │ dùng    │ delegate SQL
+ *   ▼         ▼
+ * ItemFactory  ItemDao (A viết)
+ * </pre>
+ *
+ * <h2>Nguyên tắc phân tầng</h2>
+ * <p>ItemService không biết về HTTP, không biết về SQL. Nó chỉ biết về business rules:
+ * "ai được tạo item?", "ai được sửa item?", "item được tạo bằng cách nào?"
+ * Mọi chi tiết HTTP thuộc về Controller, mọi chi tiết SQL thuộc về DAO.
  */
 public class ItemService {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ItemService.class);
-
   private final ItemDao itemDao;
 
+  /**
+   * Constructor injection — ItemDao được inject từ bên ngoài để dễ mock trong test.
+   *
+   * @param itemDao DAO để thực hiện các thao tác SQL trên bảng items
+   */
   public ItemService(ItemDao itemDao) {
     this.itemDao = itemDao;
   }
 
   /**
-   * Lấy tất cả items, có thể filter theo sellerId.
+   * Tạo sản phẩm mới cho seller.
    *
-   * <p>Nếu sellerId != null → chỉ lấy items của seller đó. Nếu sellerId == null → lấy tất cả.
+   * <p>Luồng xử lý:
+   * <ol>
+   *   <li>Delegate sang {@link ItemFactory#create} để tạo đúng subclass theo category</li>
+   *   <li>Persist item mới xuống database qua {@link ItemDao#insert}</li>
+   *   <li>Trả về item đã được gán id từ DB</li>
+   * </ol>
+   *
+   * @param req      request chứa name, description, category, categoryDetail
+   * @param sellerId ID của seller đang tạo — lưu vào item để check ownership sau này
+   * @return item đã lưu vào DB với id được gán
+   * @throws IllegalArgumentException nếu category không hợp lệ (từ ItemFactory)
    */
-  public List<Item> getAllItems(Long sellerId) {
-    if (sellerId != null) {
-      return itemDao.findBySellerId(sellerId);
-    }
+  public Item create(CreateItemRequest req, Long sellerId) {
+    // Factory tạo đúng subclass (Electronics/Art/Vehicle) dựa trên req.getCategory()
+    Item item = ItemFactory.create(req, sellerId);
+
+    // Persist xuống DB — DAO trả về item với id đã được gán
+    return itemDao.insert(item);
+  }
+
+  /**
+   * Lấy tất cả sản phẩm trong hệ thống.
+   *
+   * <p>Không có filter — dùng cho admin hoặc danh sách công khai.
+   * Xem {@link #getBySellerId} nếu cần lọc theo seller.
+   *
+   * @return danh sách tất cả items, có thể rỗng nếu chưa có item nào
+   */
+  public List<Item> getAll() {
     return itemDao.findAll();
   }
 
   /**
-   * Lấy chi tiết 1 item theo ID.
+   * Lấy tất cả sản phẩm của một seller cụ thể.
    *
-   * @throws NotFoundException nếu không tìm thấy item
+   * <p>Dùng trong form tạo phiên đấu giá: seller chọn item của mình từ danh sách này.
+   *
+   * @param sellerId ID của seller cần lấy danh sách item
+   * @return danh sách items của seller, có thể rỗng
    */
-  public Item getItemById(Long id) {
-    return itemDao
-        .findById(id)
-        .orElseThrow(() -> new NotFoundException("Item not found with id: " + id));
+  public List<Item> getBySellerId(Long sellerId) {
+    return itemDao.findBySellerId(sellerId);
   }
 
   /**
-   * Seller tạo item mới.
+   * Lấy thông tin chi tiết một sản phẩm theo ID.
    *
-   * <p>Luồng: 1. Validate input (name, description, category) 2. Tạo đúng subclass dựa vào category
-   * (Polymorphism) 3. Gán sellerId từ JWT token 4. Lưu vào database
-   *
-   * @param request dữ liệu từ client
-   * @param sellerId ID của seller (lấy từ JWT token trong middleware)
-   * @throws IllegalArgumentException nếu input không hợp lệ
+   * @param id ID của item cần lấy
+   * @return item tìm thấy
+   * @throws NotFoundException nếu không có item với id này
    */
-  public Item createItem(CreateItemRequest request, Long sellerId) {
-    if (request.getName() == null || request.getName().isBlank()) {
-      throw new IllegalArgumentException("Item name must not be empty");
-    }
-    if (request.getCategory() == null || request.getCategory().isBlank()) {
-      throw new IllegalArgumentException("Category must not be empty");
-    }
-
-    // Dùng Factory Pattern thay vì switch trực tiếp
-    Item newItem =
-        ItemFactory.create(
-            request.getName(),
-            request.getDescription(),
-            sellerId,
-            request.getCategory(),
-            request.getCategoryDetail());
-
-    Item saved = itemDao.insert(newItem);
-    LOGGER.info(
-        "Item created: id={}, name={}, seller={}", saved.getId(), saved.getName(), sellerId);
-    return saved;
+  public Item getById(Long id) {
+    return itemDao.findById(id)
+        .orElseThrow(() -> new NotFoundException("Sản phẩm #" + id + " không tồn tại"));
   }
 
   /**
-   * Seller cập nhật item.
+   * Cập nhật thông tin sản phẩm.
    *
-   * <p>Kiểm tra: 1. Item có tồn tại không? 2. Item có thuộc seller này không? (ownership check)
+   * <p>Chỉ seller sở hữu item mới được phép cập nhật.
+   * Admin không có quyền sửa item (chỉ có quyền xóa).
    *
-   * @param itemId ID của item cần sửa
-   * @param request dữ liệu mới
-   * @param userId ID của user đang request (từ JWT)
-   * @throws NotFoundException nếu item không tồn tại
-   * @throws UnauthorizedException nếu item không thuộc seller này
+   * @param id          ID của item cần cập nhật
+   * @param updatedItem item với thông tin mới (name, description, v.v.)
+   * @param requesterId ID của người đang thực hiện request (từ JWT)
+   * @throws NotFoundException      nếu item không tồn tại
+   * @throws UnauthorizedException  nếu requester không phải seller sở hữu item này
    */
-  public Item updateItem(Long itemId, CreateItemRequest request, Long userId) {
-    // Tìm item
-    Item item =
-        itemDao
-            .findById(itemId)
-            .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
+  public Item update(Long id, Item updatedItem, Long requesterId) {
+    Item existing = getById(id); // throw NotFoundException nếu không có
+    checkOwnership(existing, requesterId, "cập nhật");
 
-    // Kiểm tra ownership: sellerId trong DB == userId từ JWT
-    if (!item.getSellerId().equals(userId)) {
-      throw new UnauthorizedException("You can only edit your own items");
-    }
-
-    // Cập nhật thông tin
-    if (request.getName() != null && !request.getName().isBlank()) {
-      item.setName(request.getName());
-    }
-    if (request.getDescription() != null) {
-      item.setDescription(request.getDescription());
-    }
-
-    itemDao.update(item);
-    LOGGER.info("Item updated: id={}, name={}", itemId, item.getName());
-    return item;
+    updatedItem.setId(id);
+    updatedItem.setSellerId(existing.getSellerId()); // sellerId không thể thay đổi
+    return itemDao.update(updatedItem);
   }
 
   /**
-   * Seller hoặc Admin xóa item.
+   * Xóa sản phẩm khỏi hệ thống.
    *
-   * <p>Seller chỉ xóa được item của mình. Admin xóa được tất cả.
+   * <p>Seller chỉ được xóa item của mình. Admin có thể xóa bất kỳ item nào.
    *
-   * @param itemId ID item cần xóa
-   * @param userId ID user đang request (từ JWT)
-   * @param role role của user (từ JWT)
-   * @throws NotFoundException nếu item không tồn tại
-   * @throws UnauthorizedException nếu không có quyền xóa
+   * <p><b>Lưu ý:</b> Nếu item đang được dùng trong phiên RUNNING, việc xóa có thể
+   * gây lỗi foreign key constraint ở DB — cần xử lý cascade hay block ở tầng DB.
+   *
+   * @param id          ID của item cần xóa
+   * @param requesterId ID của người thực hiện request
+   * @param requesterRole role của người thực hiện ("SELLER", "ADMIN")
+   * @throws NotFoundException     nếu item không tồn tại
+   * @throws UnauthorizedException nếu SELLER cố xóa item của người khác
    */
-  public void deleteItem(Long itemId, Long userId, String role) {
-    Item item =
-        itemDao
-            .findById(itemId)
-            .orElseThrow(() -> new NotFoundException("Item not found with id: " + itemId));
+  public void delete(Long id, Long requesterId, String requesterRole) {
+    Item existing = getById(id); // throw NotFoundException nếu không có
 
-    // Admin xóa được tất cả, Seller chỉ xóa item của mình
-    if (!"ADMIN".equals(role) && !item.getSellerId().equals(userId)) {
-      throw new UnauthorizedException("You can only delete your own items");
+    // Admin có thể xóa mọi item. Seller chỉ xóa item của mình
+    if (!"ADMIN".equals(requesterRole)) {
+      checkOwnership(existing, requesterId, "xóa");
     }
 
-    itemDao.delete(itemId);
-    LOGGER.info("Item deleted: id={}, by userId={}", itemId, userId);
+    itemDao.deleteById(id);
+  }
+
+  /**
+   * Kiểm tra quyền sở hữu: người request phải là seller của item.
+   *
+   * @param item        item cần kiểm tra
+   * @param requesterId ID người đang request
+   * @param action      tên hành động (dùng trong error message, ví dụ: "cập nhật", "xóa")
+   * @throws UnauthorizedException nếu requesterId khác sellerId của item
+   */
+  private void checkOwnership(Item item, Long requesterId, String action) {
+    if (!item.getSellerId().equals(requesterId)) {
+      throw new UnauthorizedException(
+          "Bạn không có quyền " + action + " sản phẩm #" + item.getId()
+              + " vì bạn không phải người tạo sản phẩm này"
+      );
+    }
   }
 }
