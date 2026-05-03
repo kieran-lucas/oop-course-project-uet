@@ -157,9 +157,7 @@ class AuctionDaoTest {
     saved.setLeadingBidderId(testBidder.getId());
     saved.setStatus("RUNNING");
 
-    boolean updated = auctionDao.update(saved);
-
-    assertTrue(updated);
+    auctionDao.update(saved);
 
     Optional<Auction> found = auctionDao.findById(saved.getId());
     assertTrue(found.isPresent());
@@ -179,9 +177,8 @@ class AuctionDaoTest {
             LocalDateTime.now().plusHours(24));
     Auction saved = auctionDao.insert(auction);
 
-    boolean deleted = auctionDao.delete(saved.getId());
+    auctionDao.delete(saved.getId());
 
-    assertTrue(deleted);
     assertFalse(auctionDao.findById(saved.getId()).isPresent());
   }
 

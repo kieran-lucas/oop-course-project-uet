@@ -73,14 +73,14 @@ class BidTransactionDaoTest {
         new BidTransaction(
             testAuction.getId(), testBidder.getId(), new BigDecimal("150000"), false);
 
-    BidTransaction saved = bidDao.insert(tx);
+    bidDao.insert(tx);
 
-    assertNotNull(saved.getId());
-    assertEquals(testAuction.getId(), saved.getAuctionId());
-    assertEquals(testBidder.getId(), saved.getBidderId());
-    assertEquals(0, new BigDecimal("150000").compareTo(saved.getAmount()));
-    assertFalse(saved.isAutoBid());
-    assertNotNull(saved.getCreatedAt());
+    assertNotNull(tx.getId());
+    assertEquals(testAuction.getId(), tx.getAuctionId());
+    assertEquals(testBidder.getId(), tx.getBidderId());
+    assertEquals(0, new BigDecimal("150000").compareTo(tx.getAmount()));
+    assertFalse(tx.isAutoBid());
+    assertNotNull(tx.getCreatedAt());
   }
 
   @Test
@@ -125,9 +125,8 @@ class BidTransactionDaoTest {
 
     // Tạo bid mới với giá cao hơn/thời gian sau
     BidTransaction last =
-        bidDao.insert(
-            new BidTransaction(
-                testAuction.getId(), testBidder.getId(), new BigDecimal("250000"), false));
+        new BidTransaction(testAuction.getId(), testBidder.getId(), new BigDecimal("250000"), false);
+    bidDao.insert(last);
 
     Optional<BidTransaction> found = bidDao.findLastBid(testAuction.getId());
 
@@ -175,9 +174,9 @@ class BidTransactionDaoTest {
     BidTransaction tx =
         new BidTransaction(testAuction.getId(), testBidder.getId(), new BigDecimal("180000"), true);
 
-    BidTransaction saved = bidDao.insert(tx);
+    bidDao.insert(tx);
 
-    assertTrue(saved.isAutoBid());
+    assertTrue(tx.isAutoBid());
 
     Optional<BidTransaction> last = bidDao.findLastBid(testAuction.getId());
     assertTrue(last.isPresent());

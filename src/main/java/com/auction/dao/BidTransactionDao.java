@@ -153,9 +153,8 @@ public class BidTransactionDao {
    * history cho mục đích logging không critical.
    *
    * @param transaction BidTransaction cần ghi
-   * @return BidTransaction đã được gán id
    */
-  public BidTransaction insert(BidTransaction transaction) {
+  public void insert(BidTransaction transaction) {
     String sql =
         """
         INSERT INTO bid_transactions (auction_id, bidder_id, amount, auto_bid, created_at)
@@ -163,7 +162,7 @@ public class BidTransactionDao {
         RETURNING id
         """;
 
-    return jdbi.withHandle(
+    jdbi.withHandle(
         handle -> {
           long id =
               handle
@@ -183,7 +182,7 @@ public class BidTransactionDao {
               transaction.getBidderId(),
               transaction.getAmount());
 
-          return transaction;
+          return null;
         });
   }
 

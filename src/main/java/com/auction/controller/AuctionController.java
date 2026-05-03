@@ -3,6 +3,7 @@ package com.auction.controller;
 import com.auction.dto.AuctionResponse;
 import com.auction.dto.CreateAuctionRequest;
 import com.auction.exception.UnauthorizedException;
+import com.auction.model.Auction;
 import com.auction.service.AuctionService;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -160,7 +161,7 @@ public class AuctionController {
         CreateAuctionRequest request = ctx.bodyAsClass(CreateAuctionRequest.class);
 
         // Service kiểm tra item thuộc sellerId và tạo phiên mới với status=OPEN
-        AuctionResponse created = auctionService.create(request, sellerId);
+        Auction created = auctionService.create(request, sellerId);
 
         LOGGER.info("Tạo phiên đấu giá mới: sellerId={}, itemId={}, startingPrice={}",
             sellerId, request.getItemId(), request.getStartingPrice());

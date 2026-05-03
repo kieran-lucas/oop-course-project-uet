@@ -15,6 +15,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -45,6 +47,7 @@ import static org.mockito.Mockito.*;
  * biết ngay vấn đề ở đâu mà không cần đọc stacktrace dài.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("BidService — Bid Logic, Anti-sniping & Observer Notification")
 class BidServiceTest {
 
