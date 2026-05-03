@@ -1,18 +1,756 @@
-.button {
-    -fx-background-color: linear-gradient(to bottom, #6db3f2, #1e69de);
-    -fx-text-fill: white;
-    -fx-font-size: 16px;
-    -fx-padding: 10 20 10 20;
-    -fx-background-radius: 8px;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 0);
+/* ================================================================
+   Online Auction System — Blue Design System + Lexend
+   ================================================================
+   Palette
+     navy     #0D47A1   deep navy  — top bar, pressed states
+     primary  #1565C0   main blue  — headings, active states
+     medium   #1976D2   mid blue   — hover
+     sky      #42A5F5   sky blue   — accents
+     bg       #EFF6FF   page bg    — very light blue tint
+     surface  #FFFFFF   card bg
+     border   #BFDBFE   input / card borders
+     row-alt  #F8FBFF   table odd row
+     text     #1E293B   body text
+     muted    #64748B   secondary text
+     subtle   #94A3B8   placeholder
+     error    #DC2626   error red
+     success  #16A34A   success green
+     price    #D97706   price amber
+     timer    #9333EA   countdown purple
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   ROOT — global font + bg
+   ---------------------------------------------------------------- */
+.root {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-background-color: #EFF6FF;
 }
 
-.button:hover {
-    -fx-background-color: linear-gradient(to bottom, #1e69de, #6db3f2);
+/* ================================================================
+   WELCOME SCREEN
+   ================================================================ */
+
+.welcome-root {
+    -fx-background-color: linear-gradient(to bottom, #0D47A1, #1565C0 55%, #1976D2);
+}
+
+.welcome-title {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+}
+
+.welcome-subtitle {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 15px;
+    -fx-text-fill: rgba(255,255,255,0.72);
+}
+
+.welcome-prompt {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 15px;
+    -fx-text-fill: rgba(255,255,255,0.88);
+}
+
+.role-card {
+    -fx-background-color: rgba(255,255,255,0.12);
+    -fx-border-color: rgba(255,255,255,0.28);
+    -fx-border-width: 1.5;
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+    -fx-padding: 26 22 26 22;
+    -fx-pref-width: 165;
+    -fx-pref-height: 198;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 14, 0, 0, 4);
+    -fx-alignment: CENTER;
+}
+
+.role-card:hover {
+    -fx-background-color: rgba(255,255,255,0.26);
+    -fx-border-color: rgba(255,255,255,0.62);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.32), 20, 0, 0, 5);
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+.role-card:pressed {
+    -fx-background-color: rgba(255,255,255,0.08);
+    -fx-scale-x: 0.97;
+    -fx-scale-y: 0.97;
+    -fx-effect: innershadow(gaussian, rgba(0,0,0,0.2), 4, 0, 0, 1);
+}
+
+.role-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+    -fx-alignment: CENTER;
+}
+
+.role-desc {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 11px;
+    -fx-text-fill: rgba(255,255,255,0.58);
+    -fx-alignment: CENTER;
+}
+
+.role-icon-circle {
+    -fx-pref-width: 76;
+    -fx-pref-height: 76;
+    -fx-min-width: 76;
+    -fx-min-height: 76;
+    -fx-background-radius: 38;
+    -fx-alignment: CENTER;
+}
+
+.role-icon-admin-circle {
+    -fx-background-color: linear-gradient(to bottom right, #7C3AED, #9333EA);
+    -fx-border-color: rgba(196,148,255,0.45);
+    -fx-border-radius: 38;
+    -fx-border-width: 1.5;
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.70), 18, 0.12, 0, 4);
+}
+
+.role-icon-bidder-circle {
+    -fx-background-color: linear-gradient(to bottom right, #0284C7, #0EA5E9);
+    -fx-border-color: rgba(125,211,252,0.45);
+    -fx-border-radius: 38;
+    -fx-border-width: 1.5;
+    -fx-effect: dropshadow(gaussian, rgba(14,165,233,0.70), 18, 0.12, 0, 4);
+}
+
+.role-icon-seller-circle {
+    -fx-background-color: linear-gradient(to bottom right, #D97706, #F59E0B);
+    -fx-border-color: rgba(253,211,77,0.45);
+    -fx-border-radius: 38;
+    -fx-border-width: 1.5;
+    -fx-effect: dropshadow(gaussian, rgba(217,119,6,0.70), 18, 0.12, 0, 4);
+}
+
+/* ================================================================
+   AUTH SCREENS  (login / register / deposit / change-password / etc.)
+   ================================================================ */
+
+.login-root {
+    -fx-background-color: linear-gradient(to bottom right, #0D47A1, #1565C0, #1976D2);
+}
+
+.login-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 18;
+    -fx-effect: dropshadow(gaussian, rgba(13,71,161,0.28), 34, 0.08, 0, 7);
+}
+
+/* ================================================================
+   TYPOGRAPHY
+   ================================================================ */
+
+.app-title {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1565C0;
+    -fx-alignment: CENTER;
+    -fx-max-width: Infinity;
+}
+
+.app-subtitle {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 15px;
+    -fx-text-fill: #64748B;
+    -fx-alignment: CENTER;
+    -fx-max-width: Infinity;
+}
+
+.app-logo {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+}
+
+.username-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: rgba(255,255,255,0.92);
+}
+
+.field-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #374151;
+}
+
+.section-title {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1565C0;
+}
+
+.detail-title {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1E293B;
+    -fx-wrap-text: true;
+}
+
+.detail-subtitle {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #64748B;
+}
+
+.detail-text {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #1E293B;
+}
+
+.price-highlight {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #D97706;
+}
+
+.countdown-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #9333EA;
+}
+
+.winner-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #16A34A;
+    -fx-wrap-text: true;
+}
+
+.status-badge {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: #1565C0;
+    -fx-background-radius: 20;
+    -fx-padding: 3 10 3 10;
+}
+
+.error-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: #DC2626;
+    -fx-background-color: #FEF2F2;
+    -fx-background-radius: 6;
+    -fx-padding: 7 11 7 11;
+    -fx-wrap-text: true;
+}
+
+.status-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: #16A34A;
+    -fx-background-color: #F0FDF4;
+    -fx-background-radius: 6;
+    -fx-padding: 7 11 7 11;
+    -fx-wrap-text: true;
+}
+
+/* ================================================================
+   BUTTONS
+   ================================================================ */
+
+.button {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+.primary-button {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: linear-gradient(to bottom, #1976D2, #1565C0);
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: transparent;
+    -fx-padding: 11 26 11 26;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.42), 8, 0, 0, 2);
+}
+
+.primary-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #1E88E5, #1976D2);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.58), 12, 0, 0, 3);
+}
+
+.primary-button:pressed {
+    -fx-background-color: #0D47A1;
+    -fx-effect: innershadow(gaussian, rgba(0,0,0,0.28), 4, 0, 0, 1);
+}
+
+.secondary-button {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #1565C0;
+    -fx-background-color: transparent;
+    -fx-border-color: #BFDBFE;
+    -fx-border-width: 1.5;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 9 22 9 22;
     -fx-cursor: hand;
 }
 
-.button:pressed {
-    -fx-background-color: #144a8b;
-    -fx-effect: innershadow(gaussian, rgba(0,0,0,0.4), 5, 0, 0, 0);
+.secondary-button:hover {
+    -fx-background-color: #EFF6FF;
+    -fx-border-color: #1565C0;
+    -fx-text-fill: #1565C0;
+}
+
+.secondary-button:pressed {
+    -fx-background-color: #DBEAFE;
+}
+
+.logout-button {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: rgba(255,255,255,0.18);
+    -fx-border-color: rgba(255,255,255,0.45);
+    -fx-border-width: 1;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-padding: 7 15 7 15;
+    -fx-cursor: hand;
+}
+
+.logout-button:hover {
+    -fx-background-color: rgba(255,255,255,0.30);
+    -fx-border-color: rgba(255,255,255,0.70);
+}
+
+.logout-button:pressed {
+    -fx-background-color: rgba(255,255,255,0.10);
+}
+
+.back-button {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: rgba(255,255,255,0.88);
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 6 10 6 6;
+    -fx-cursor: hand;
+}
+
+.back-button:hover {
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: rgba(255,255,255,0.13);
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+}
+
+.link-button {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: #1565C0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-cursor: hand;
+    -fx-padding: 2 0 2 0;
+}
+
+.link-button:hover {
+    -fx-text-fill: #1976D2;
+    -fx-underline: true;
+}
+
+/* ================================================================
+   HYPERLINKS
+   ================================================================ */
+
+.link {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: #1565C0;
+    -fx-border-color: transparent;
+    -fx-underline: false;
+}
+
+.link:hover {
+    -fx-text-fill: #1976D2;
+    -fx-underline: true;
+}
+
+.link:visited {
+    -fx-text-fill: #1565C0;
+}
+
+.back-link {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: #64748B;
+    -fx-border-color: transparent;
+    -fx-underline: false;
+    -fx-alignment: CENTER;
+}
+
+.back-link:hover {
+    -fx-text-fill: #1565C0;
+    -fx-underline: true;
+}
+
+/* ================================================================
+   INPUT FIELDS
+   ================================================================ */
+
+.text-field {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #1E293B;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #BFDBFE;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 9 12 9 12;
+    -fx-prompt-text-fill: #94A3B8;
+}
+
+.text-field:focused {
+    -fx-border-color: #1565C0;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.20), 6, 0, 0, 0);
+}
+
+.text-area {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #1E293B;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #BFDBFE;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-prompt-text-fill: #94A3B8;
+}
+
+.text-area:focused {
+    -fx-border-color: #1565C0;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.20), 6, 0, 0, 0);
+}
+
+.text-area .content {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 6;
+    -fx-padding: 8 10 8 10;
+}
+
+.search-field {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #1E293B;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #BFDBFE;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 12 8 12;
+    -fx-prompt-text-fill: #94A3B8;
+}
+
+.search-field:focused {
+    -fx-border-color: #1565C0;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.20), 6, 0, 0, 0);
+}
+
+/* ================================================================
+   COMBO BOX
+   ================================================================ */
+
+.combo-box {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #BFDBFE;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.combo-box:focused {
+    -fx-border-color: #1565C0;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.20), 6, 0, 0, 0);
+}
+
+.combo-box .list-cell {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #1E293B;
+    -fx-background-color: transparent;
+    -fx-padding: 5 10 5 10;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #BFDBFE;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.18), 10, 0, 0, 3);
+}
+
+.combo-box-popup .list-view .list-cell {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #1E293B;
+    -fx-padding: 8 12 8 12;
+    -fx-background-color: #FFFFFF;
+}
+
+.combo-box-popup .list-view .list-cell:hover {
+    -fx-background-color: #EFF6FF;
+    -fx-text-fill: #1565C0;
+}
+
+.combo-box-popup .list-view .list-cell:selected {
+    -fx-background-color: #DBEAFE;
+    -fx-text-fill: #1565C0;
+}
+
+/* ================================================================
+   DATE PICKER
+   ================================================================ */
+
+.date-picker {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #BFDBFE;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.date-picker:focused {
+    -fx-border-color: #1565C0;
+}
+
+.date-picker .text-field {
+    -fx-border-width: 0;
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+    -fx-effect: none;
+}
+
+.date-picker .arrow-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.date-picker .arrow-button:hover {
+    -fx-background-color: #EFF6FF;
+    -fx-background-radius: 5;
+}
+
+/* ================================================================
+   LAYOUT CONTAINERS
+   ================================================================ */
+
+.main-layout {
+    -fx-background-color: #EFF6FF;
+}
+
+.top-bar {
+    -fx-background-color: linear-gradient(to right, #0D47A1, #1565C0);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 8, 0, 0, 2);
+}
+
+/* ================================================================
+   CARDS
+   ================================================================ */
+
+.info-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 12;
+    -fx-border-color: #DBEAFE;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.09), 12, 0, 0, 2);
+}
+
+.form-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 14;
+    -fx-border-color: #DBEAFE;
+    -fx-border-width: 1;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.12), 16, 0, 0, 3);
+}
+
+/* ================================================================
+   TABLE VIEW
+   ================================================================ */
+
+.auction-table {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #DBEAFE;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-border-width: 1;
+    -fx-table-cell-border-color: #EFF6FF;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.08), 10, 0, 0, 2);
+}
+
+.auction-table .column-header-background {
+    -fx-background-color: linear-gradient(to bottom, #1976D2, #1565C0);
+    -fx-background-radius: 11 11 0 0;
+}
+
+.auction-table .filler {
+    -fx-background-color: #1565C0;
+}
+
+.auction-table .column-header {
+    -fx-background-color: transparent;
+    -fx-size: 42;
+}
+
+.auction-table .column-header .label {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 10 8 10 8;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.auction-table .table-row-cell {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: #1E293B;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent transparent #EFF6FF transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.auction-table .table-row-cell:odd {
+    -fx-background-color: #F8FBFF;
+}
+
+.auction-table .table-row-cell:hover {
+    -fx-background-color: #EFF6FF;
+}
+
+.auction-table .table-row-cell:selected {
+    -fx-background-color: #DBEAFE;
+}
+
+.auction-table .table-row-cell:selected .table-cell {
+    -fx-text-fill: #1565C0;
+}
+
+.auction-table .table-cell {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-padding: 9 8 9 8;
+    -fx-text-fill: #1E293B;
+}
+
+.auction-table .placeholder .label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-text-fill: #94A3B8;
+}
+
+/* ================================================================
+   LIST VIEW (bid history)
+   ================================================================ */
+
+.bid-history-list {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #DBEAFE;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.08), 8, 0, 0, 1);
+}
+
+.bid-history-list .list-cell {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13px;
+    -fx-text-fill: #1E293B;
+    -fx-padding: 9 14 9 14;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent transparent #EFF6FF transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.bid-history-list .list-cell:odd {
+    -fx-background-color: #F8FBFF;
+}
+
+.bid-history-list .list-cell:selected {
+    -fx-background-color: #DBEAFE;
+    -fx-text-fill: #1565C0;
+}
+
+.bid-history-list .list-cell:hover {
+    -fx-background-color: #EFF6FF;
+}
+
+/* ================================================================
+   SCROLL BARS — thin, minimal
+   ================================================================ */
+
+.scroll-bar:vertical,
+.scroll-bar:horizontal {
+    -fx-background-color: transparent;
+    -fx-pref-width: 7;
+    -fx-pref-height: 7;
+}
+
+.scroll-bar:vertical .track,
+.scroll-bar:horizontal .track {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-bar:vertical .thumb,
+.scroll-bar:horizontal .thumb {
+    -fx-background-color: #BFDBFE;
+    -fx-background-radius: 4;
+}
+
+.scroll-bar:vertical .thumb:hover,
+.scroll-bar:horizontal .thumb:hover {
+    -fx-background-color: #93C5FD;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-pref-height: 0;
+    -fx-pref-width: 0;
+}
+
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-shape: "";
+    -fx-pref-height: 0;
+    -fx-pref-width: 0;
 }

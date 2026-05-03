@@ -43,7 +43,8 @@
                        prefWidth="280.0" styleClass="search-field"
                        onAction="#handleSearch" />
             <ComboBox fx:id="statusFilter" promptText="Lọc theo trạng thái"
-                      prefWidth="180.0" styleClass="combo-box" />
+                      prefWidth="180.0" styleClass="combo-box"
+                      onAction="#handleSearch" />
             <Button text="Tìm kiếm" styleClass="secondary-button" onAction="#handleSearch" />
             <Button text="Làm mới" styleClass="secondary-button" onAction="#handleRefresh" />
             <Region HBox.hgrow="ALWAYS" />

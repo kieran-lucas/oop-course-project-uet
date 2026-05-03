@@ -176,11 +176,12 @@ public class CreateAuctionController implements Navigable {
 
   // ========== DATA LOADING ==========
 
-  /** Load danh sách sản phẩm thuộc seller hiện tại từ GET /api/items. */
+  /** Load danh sách sản phẩm thuộc seller hiện tại từ GET /api/items?sellerId=X. */
   private void loadMyItems() {
+    Long sellerId = SceneManager.getInstance().getCurrentUserId();
     Thread.ofVirtual().start(() -> {
       try {
-        HttpResponse<String> response = RestClient.get("/api/items");
+        HttpResponse<String> response = RestClient.get("/api/items?sellerId=" + sellerId);
         if (response.statusCode() == 200) {
           List<Item> items = RestClient.parseList(response.body(), Item.class);
           Platform.runLater(() -> {
@@ -199,10 +200,14 @@ public class CreateAuctionController implements Navigable {
                 setText(empty || item == null ? "Chọn sản phẩm của bạn" : item.getName());
               }
             });
+            if (items.isEmpty()) {
+              showStatus("Bạn chưa có sản phẩm nào. Hãy tạo sản phẩm trước.", true);
+            }
           });
         }
       } catch (Exception e) {
         LOGGER.error("Lỗi load danh sách sản phẩm", e);
+        Platform.runLater(() -> showStatus("Không thể tải danh sách sản phẩm.", true));
       }
     });
   }
