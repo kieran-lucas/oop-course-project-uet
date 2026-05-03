@@ -7,12 +7,20 @@ import com.auction.controller.AuthController;
 import com.auction.controller.BidController;
 import com.auction.controller.ItemController;
 import com.auction.dao.AuctionDao;
+import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.ErrorResponse;
-import com.auction.exception.*;
+import com.auction.exception.AuctionClosedException;
+import com.auction.exception.DuplicateException;
+import com.auction.exception.InvalidBidException;
+import com.auction.exception.NotFoundException;
+import com.auction.exception.UnauthorizedException;
 import com.auction.middleware.JwtMiddleware;
+import com.auction.pattern.observer.AuctionEventManager;
+import com.auction.pattern.observer.WebSocketObserver;
+import com.auction.service.AuctionScheduler;
 import com.auction.service.AuctionService;
 import com.auction.service.BidService;
 import com.auction.service.ItemService;
@@ -22,120 +30,153 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.javalin.Javalin;
 import io.javalin.json.JavalinJackson;
+import java.util.Map;
 import org.jdbi.v3.core.Jdbi;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Điểm khởi động chính của server Javalin — Online Auction System.
+ *
+ * <p>Thứ tự khởi tạo:
+ * <ol>
+ *   <li>Jackson ObjectMapper (hỗ trợ LocalDateTime, BigDecimal).</li>
+ *   <li>Database connection (HikariCP + JDBI).</li>
+ *   <li>DAOs → Services → Controllers.</li>
+ *   <li>Observer pattern: AuctionEventManager + WebSocketObserver.</li>
+ *   <li>AuctionScheduler (OPEN→RUNNING→FINISHED transition).</li>
+ *   <li>Javalin: Middleware → Exception handlers → Routes → Start.</li>
+ * </ol>
+ *
+ * <p>Biến môi trường yêu cầu (đọc từ .env):
+ * <ul>
+ *   <li>DB_URL, DB_USER, DB_PASSWORD — kết nối PostgreSQL.</li>
+ *   <li>JWT_SECRET — khóa ký JWT (default: "auction-secret-key-dev").</li>
+ * </ul>
+ */
 public class App {
 
-  public static void main(String[] args) {
+  private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
+  private static final int SERVER_PORT = 8080;
 
-    // 1. Cấu hình Jackson (Rất quan trọng để parse LocalDateTime chuẩn ISO-8601)
+  public static void main(String[] args) {
+    // ── 1. Cấu hình Jackson ───────────────────────────��──────
     ObjectMapper mapper = new ObjectMapper();
     mapper.registerModule(new JavaTimeModule());
     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-    // 2. Khởi tạo Database, DAO và Service (Dependency Injection thủ công)
+    // ── 2. Khởi tạo Database ─────────────────────────────────
     Jdbi jdbi = DatabaseConfig.create();
-    var userDao = new UserDao(jdbi);
-    var userService = new UserService(userDao);
-    var authController = new AuthController(userService);
+    LOGGER.info("Kết nối database thành công");
 
+    // ── 3. Khởi tạo DAOs ────────────────────────────────────
+    var userDao = new UserDao(jdbi);
     var itemDao = new ItemDao(jdbi);
     var auctionDao = new AuctionDao(jdbi);
+    var bidTransactionDao = new BidTransactionDao(jdbi);
+    var autoBidConfigDao = new AutoBidConfigDao(jdbi);
 
+    // ── 4. Khởi tạo Observer (EventManager) ─────────────────
+    var eventManager = new AuctionEventManager();
+
+    // ── 5. Khởi tạo WebSocket Handler + Observer integration ─
+    var wsHandler = new AuctionWebSocketHandler(eventManager);
+
+    // ── 6. Khởi tạo Services ────────────────────────────────
+    var userService = new UserService(userDao);
     var itemService = new ItemService(itemDao);
     var auctionService = new AuctionService(auctionDao, itemDao, userDao);
+    var bidService = new BidService(auctionDao, bidTransactionDao, autoBidConfigDao, eventManager);
 
-    var itemController = new ItemController(itemService);
-    var auctionController = new AuctionController(auctionService);
+    // ── 7. Khởi tạo Scheduler (tự chuyển trạng thái phiên) ──
+    var scheduler = new AuctionScheduler(auctionDao, eventManager);
+    scheduler.start();
 
-    var bidTransactionDao = new BidTransactionDao(jdbi);
-    var bidService = new BidService(auctionDao, bidTransactionDao, userDao, jdbi);
-    var bidController = new BidController(bidService);
+    // Đăng ký shutdown hook để dừng scheduler khi server tắt
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      scheduler.stop();
+      LOGGER.info("Server đang tắt...");
+    }));
 
-    var wsHandler = new AuctionWebSocketHandler();
-    bidService.setBroadcaster(wsHandler); // Kết nối BidService ↔ WebSocket
+    // ── 8. Tạo Javalin instance ──────────────────────────────
+    Javalin app = Javalin.create(config -> {
+      config.jsonMapper(new JavalinJackson(mapper, false));
+      config.http.defaultContentType = "application/json";
+      config.bundledPlugins.enableCors(cors -> cors.addRule(it -> it.anyHost()));
+    });
 
-    // 3. Tạo ứng dụng Javalin và cấu hình
-    Javalin app =
-        Javalin.create(
-            config -> {
-              // Cấu hình Jackson làm JSON Mapper mặc định
-              config.jsonMapper(new JavalinJackson(mapper, false));
-              config.http.defaultContentType = "application/json";
-
-              // Cho phép CORS nếu Client (JavaFX WebEngine hoặc Web Frontend) gọi khác port
-              config.bundledPlugins.enableCors(cors -> cors.addRule(it -> it.anyHost()));
-            });
-
-    // 4. Đăng ký Middleware xác thực JWT cho tất cả API (trừ /api/auth/ đã bỏ qua trong Middleware)
+    // ── 9. Đăng ký JWT Middleware ────────────────────────────
     app.before("/api/*", JwtMiddleware::handle);
 
-    // 5. Đăng ký 5 Exception Handlers chuyển Exception thành JSON ErrorResponse
-    app.exception(
-        InvalidBidException.class,
-        (e, ctx) -> {
-          ctx.status(400).json(ErrorResponse.of("INVALID_BID", e.getMessage()));
-        });
+    // ── 10. Đăng ký Exception Handlers ──────────────────────
+    registerExceptionHandlers(app);
 
-    app.exception(
-        AuctionClosedException.class,
-        (e, ctx) -> {
-          ctx.status(400).json(ErrorResponse.of("AUCTION_CLOSED", e.getMessage()));
-        });
+    // ── 11. Đăng ký Routes ───────────────────────────────────
+    app.get("/api/health", ctx -> ctx.json(Map.of("status", "ok")));
 
-    app.exception(
-        UnauthorizedException.class,
-        (e, ctx) -> {
-          ctx.status(401).json(ErrorResponse.of("UNAUTHORIZED", e.getMessage()));
-        });
+    AuthController.register(app, userService);
+    ItemController.register(app, itemService);
+    AuctionController.register(app, auctionService);
 
-    app.exception(
-        NotFoundException.class,
-        (e, ctx) -> {
-          ctx.status(404).json(ErrorResponse.of("NOT_FOUND", e.getMessage()));
-        });
+    // Đăng ký BidController với BidService mới
+    var bidController = new BidController(bidService);
+    bidController.register(app);
 
-    app.exception(
-        DuplicateException.class,
-        (e, ctx) -> {
-          ctx.status(409).json(ErrorResponse.of("DUPLICATE", e.getMessage()));
-        });
+    // ── 12. Đăng ký WebSocket ────────────────────────────────
+    app.ws("/ws/auction/{id}", ws -> {
+      ws.onConnect(wsHandler::onConnect);
+      ws.onClose(wsHandler::onClose);
+      ws.onError(wsHandler::onError);
+    });
 
-    // Catch-all cho các lỗi Server không lường trước
-    app.exception(
-        Exception.class,
-        (e, ctx) -> {
-          e.printStackTrace(); // Log ra console để dev debug
-          ctx.status(500)
-              .json(ErrorResponse.of("INTERNAL_ERROR", "Lỗi hệ thống, vui lòng thử lại sau."));
-        });
+    // ── 13. Khởi động server ─────────────────────────────────
+    app.start(SERVER_PORT);
+    LOGGER.info("Server đang chạy tại http://localhost:{}", SERVER_PORT);
+  }
 
-    // 6. Đăng ký các Routes
+  /**
+   * Đăng ký exception handlers — ánh xạ custom exception → HTTP status code.
+   *
+   * <p>Bảng ánh xạ:
+   * <pre>
+   *   InvalidBidException      → 400 Bad Request
+   *   AuctionClosedException   → 400 Bad Request
+   *   UnauthorizedException    → 401 Unauthorized
+   *   NotFoundException        → 404 Not Found
+   *   DuplicateException       → 409 Conflict
+   *   Exception (catch-all)    → 500 Internal Server Error
+   * </pre>
+   */
+  private static void registerExceptionHandlers(Javalin app) {
+    app.exception(InvalidBidException.class, (e, ctx) -> {
+      LOGGER.warn("Lỗi đặt giá: {}", e.getMessage());
+      ctx.status(400).json(ErrorResponse.of("INVALID_BID", e.getMessage()));
+    });
 
-    // Endpoint Health Check
-    app.get("/api/health", ctx -> ctx.json(java.util.Map.of("status", "ok")));
+    app.exception(AuctionClosedException.class, (e, ctx) -> {
+      LOGGER.warn("Lỗi trạng thái phiên: {}", e.getMessage());
+      ctx.status(400).json(ErrorResponse.of("AUCTION_CLOSED", e.getMessage()));
+    });
 
-    // ===== ĐĂNG KÝ REST ROUTES =====
-    authController.register(app); // /api/auth/login, /register
-    itemController.register(app); // /api/items
-    auctionController.register(app); // /api/auctions
+    app.exception(UnauthorizedException.class, (e, ctx) -> {
+      LOGGER.warn("Lỗi xác thực: {}", e.getMessage());
+      ctx.status(401).json(ErrorResponse.of("UNAUTHORIZED", e.getMessage()));
+    });
 
-    // ═══════════ ĐĂNG KÝ ROUTES MỚI ═══════════
-    bidController.register(app); // /api/auctions/{id}/bid & /api/auctions/{id}/bids
+    app.exception(NotFoundException.class, (e, ctx) -> {
+      LOGGER.warn("Không tìm thấy tài nguyên: {}", e.getMessage());
+      ctx.status(404).json(ErrorResponse.of("NOT_FOUND", e.getMessage()));
+    });
 
-    // WebSocket — KHÁC với REST routes
-    // app.ws() đăng ký WebSocket endpoint (không phải app.get/post)
-    app.ws(
-        "/ws/auction/{id}",
-        ws -> {
-          ws.onConnect(wsHandler::onConnect);
-          ws.onClose(wsHandler::onClose);
-          ws.onError(wsHandler::onError);
-        });
-    // ══════════════════════════════════════════
+    app.exception(DuplicateException.class, (e, ctx) -> {
+      LOGGER.warn("Xung đột dữ liệu: {}", e.getMessage());
+      ctx.status(409).json(ErrorResponse.of("DUPLICATE", e.getMessage()));
+    });
 
-    // 7. Khởi động server
-    app.start(8080);
-    System.out.println("🚀 Server started on http://localhost:8080");
+    app.exception(Exception.class, (e, ctx) -> {
+      LOGGER.error("Lỗi server không xác định", e);
+      ctx.status(500).json(ErrorResponse.of("INTERNAL_ERROR",
+          "Lỗi hệ thống, vui lòng thử lại sau."));
+    });
   }
 }
