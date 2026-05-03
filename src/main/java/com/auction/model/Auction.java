@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 public class Auction extends Entity {
 
   private Long itemId; // foreign key → bảng items
+  private Long sellerId; // lấy từ bảng items (JOIN) — dùng để kiểm tra seller tự bid
   private BigDecimal startingPrice;
   private BigDecimal currentPrice;
   private Long leadingBidderId; // foreign key → bảng users (ai đang dẫn đầu)
@@ -112,6 +113,14 @@ public class Auction extends Entity {
 
   public void setItemId(Long itemId) {
     this.itemId = itemId;
+  }
+
+  public Long getSellerId() {
+    return sellerId;
+  }
+
+  public void setSellerId(Long sellerId) {
+    this.sellerId = sellerId;
   }
 
   public BigDecimal getStartingPrice() {
