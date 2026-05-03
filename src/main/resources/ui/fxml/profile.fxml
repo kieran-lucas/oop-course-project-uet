@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane styleClass="main-layout"
+            xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.auction.ui.controller.ProfileController">
+
+   <!-- ===== TOP BAR ===== -->
+   <top>
+      <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="top-bar">
+         <padding>
+            <Insets bottom="12.0" left="20.0" right="20.0" top="12.0" />
+         </padding>
+         <Button text="&lt;- Quay lại" styleClass="back-button" onAction="#goBack" />
+         <Label styleClass="app-logo" text="Hồ sơ cá nhân" />
+         <Region HBox.hgrow="ALWAYS" />
+      </HBox>
+   </top>
+
+   <!-- ===== CENTER ===== -->
+   <center>
+      <VBox alignment="TOP_CENTER" spacing="20.0">
+         <padding>
+            <Insets bottom="24.0" left="40.0" right="40.0" top="24.0" />
+         </padding>
+
+         <VBox maxWidth="460.0" spacing="14.0" styleClass="info-card">
+            <padding>
+               <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+            </padding>
+
+            <Label styleClass="section-title" text="Thông tin tài khoản" />
+
+            <HBox spacing="8.0">
+               <Label styleClass="field-label" text="Tên đăng nhập:" />
+               <Label fx:id="usernameLabel" styleClass="detail-text" text="—" />
+            </HBox>
+            <HBox spacing="8.0">
+               <Label styleClass="field-label" text="Vai trò:" />
+               <Label fx:id="roleLabel" styleClass="detail-text" text="—" />
+            </HBox>
+
+            <Button text="Đổi mật khẩu" styleClass="secondary-button"
+                    maxWidth="Infinity" onAction="#goToChangePassword" />
+            <Button fx:id="depositButton" text="Nạp tiền" styleClass="secondary-button"
+                    maxWidth="Infinity" onAction="#goToDeposit"
+                    visible="false" managed="false" />
+            <Button text="Đăng xuất" styleClass="logout-button"
+                    maxWidth="Infinity" onAction="#handleLogout" />
+         </VBox>
+      </VBox>
+   </center>
+
+</BorderPane>
