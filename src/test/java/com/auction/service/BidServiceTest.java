@@ -110,7 +110,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thành công → currentPrice cập nhật bằng giá bid")
-    void testBidSuccess_currentPriceUpdated() {
+    void testBidSuccessCurrentPriceUpdated() {
       BigDecimal bidAmount = new BigDecimal("2000000"); // 2 triệu > 1 triệu
 
       bidService.placeBid(AUCTION_ID, BIDDER_ID, bidAmount, false);
@@ -125,7 +125,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thành công → leadingBidderId là người vừa bid")
-    void testBidSuccess_leadingBidderUpdated() {
+    void testBidSuccessLeadingBidderUpdated() {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       ArgumentCaptor<Auction> captor = ArgumentCaptor.forClass(Auction.class);
@@ -137,7 +137,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thành công → BidTransaction được lưu vào DB")
-    void testBidSuccess_transactionSaved() {
+    void testBidSuccessTransactionSaved() {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       verify(bidTransactionDao, times(1)).insert(any(BidTransaction.class));
@@ -145,7 +145,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thành công → BidTransaction ghi đúng bidderId và amount")
-    void testBidSuccess_transactionCorrectData() {
+    void testBidSuccessTransactionCorrectData() {
       BigDecimal bidAmount = new BigDecimal("5000000");
       bidService.placeBid(AUCTION_ID, BIDDER_ID, bidAmount, false);
 
@@ -163,7 +163,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thành công → Observer nhận BID_UPDATE notification")
-    void testBidSuccess_observerNotified() {
+    void testBidSuccessObserverNotified() {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       verify(eventManager, times(1))
@@ -172,7 +172,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thành công → auctionDao.update() được gọi đúng 1 lần")
-    void testBidSuccess_auctionUpdatedOnce() {
+    void testBidSuccessAuctionUpdatedOnce() {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       verify(auctionDao, times(1)).update(any(Auction.class));
@@ -180,7 +180,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid bằng đúng startingPrice → hợp lệ (edge case)")
-    void testBidEqualToStartingPrice_valid() {
+    void testBidEqualToStartingPriceValid() {
       // currentPrice = startingPrice = 1.000.000, bid đúng bằng → OK hay lỗi?
       // Theo rule: amount > currentPrice → bid BẰNG là KHÔNG hợp lệ
       // Test này document behavior rõ ràng
@@ -208,7 +208,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thấp hơn giá hiện tại → InvalidBidException")
-    void testBidTooLow_throwsInvalidBidException() {
+    void testBidTooLowThrowsInvalidBidException() {
       BigDecimal lowBid = new BigDecimal("500000"); // 500k < 1 triệu
 
       assertThrows(InvalidBidException.class,
@@ -219,7 +219,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thấp hơn → DB không bị update")
-    void testBidTooLow_noDatabaseUpdate() {
+    void testBidTooLowNoDatabaseUpdate() {
       try {
         bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("500000"), false);
       } catch (InvalidBidException ignored) { }
@@ -230,7 +230,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid thấp hơn → Observer không được notify")
-    void testBidTooLow_observerNotNotified() {
+    void testBidTooLowObserverNotNotified() {
       try {
         bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("500000"), false);
       } catch (InvalidBidException ignored) { }
@@ -240,7 +240,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid giá âm → InvalidBidException")
-    void testBidNegativeAmount_throwsInvalidBidException() {
+    void testBidNegativeAmountThrowsInvalidBidException() {
       assertThrows(InvalidBidException.class,
           () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("-100000"), false),
           "Giá âm phải throw InvalidBidException"
@@ -249,7 +249,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid giá null → NullPointerException hoặc InvalidBidException")
-    void testBidNullAmount_throwsException() {
+    void testBidNullAmountThrowsException() {
       assertThrows(RuntimeException.class,
           () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, null, false),
           "Giá null phải throw exception"
@@ -267,7 +267,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid khi FINISHED → AuctionClosedException")
-    void testBidWhenFinished_throwsAuctionClosedException() {
+    void testBidWhenFinishedThrowsAuctionClosedException() {
       when(auctionDao.findById(AUCTION_ID))
           .thenReturn(Optional.of(buildAuction("FINISHED", -3600)));
 
@@ -279,7 +279,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid khi OPEN → AuctionClosedException với message 'chưa bắt đầu'")
-    void testBidWhenOpen_throwsAuctionClosedException() {
+    void testBidWhenOpenThrowsAuctionClosedException() {
       when(auctionDao.findById(AUCTION_ID))
           .thenReturn(Optional.of(buildAuction("OPEN", 3600)));
 
@@ -295,7 +295,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid khi CANCELED → AuctionClosedException")
-    void testBidWhenCanceled_throwsAuctionClosedException() {
+    void testBidWhenCanceledThrowsAuctionClosedException() {
       when(auctionDao.findById(AUCTION_ID))
           .thenReturn(Optional.of(buildAuction("CANCELED", 0)));
 
@@ -306,7 +306,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid sai trạng thái → DB không bị update")
-    void testBidWrongState_noDatabaseSideEffects() {
+    void testBidWrongStateNoDatabaseSideEffects() {
       when(auctionDao.findById(AUCTION_ID))
           .thenReturn(Optional.of(buildAuction("FINISHED", 0)));
 
@@ -335,7 +335,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Seller bid phiên của mình → InvalidBidException")
-    void testBidOwnAuction_throwsInvalidBidException() {
+    void testBidOwnAuctionThrowsInvalidBidException() {
       // SELLER_ID (= 1) là người tạo phiên và cũng là người bid
       InvalidBidException ex = assertThrows(
           InvalidBidException.class,
@@ -348,7 +348,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Seller bid của mình → message đề cập 'sản phẩm của mình'")
-    void testBidOwnAuction_meaningfulMessage() {
+    void testBidOwnAuctionMeaningfulMessage() {
       InvalidBidException ex = assertThrows(
           InvalidBidException.class,
           () -> bidService.placeBid(AUCTION_ID, SELLER_ID, new BigDecimal("2000000"), false)
@@ -378,7 +378,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid khi còn 20 giây → endTime được gia hạn thêm 60 giây")
-    void testAntiSniping_endTimeExtended() {
+    void testAntiSnipingEndTimeExtended() {
       Auction auction = buildAuction("RUNNING", 20); // còn 20 giây
       LocalDateTime originalEndTime = auction.getEndTime();
       when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(auction));
@@ -406,7 +406,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid khi còn 20 giây → broadcast TIME_EXTENDED cho client")
-    void testAntiSniping_timeExtendedBroadcast() {
+    void testAntiSnipingTimeExtendedBroadcast() {
       when(auctionDao.findById(AUCTION_ID))
           .thenReturn(Optional.of(buildAuction("RUNNING", 20)));
 
@@ -419,7 +419,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid khi còn 60 giây → endTime KHÔNG thay đổi")
-    void testAntiSniping_notTriggered_when60SecRemaining() {
+    void testAntiSnipingNotTriggeredWhen60SecRemaining() {
       Auction auction = buildAuction("RUNNING", 60); // còn 60 giây, trên ngưỡng 30
       LocalDateTime originalEndTime = auction.getEndTime();
       when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(auction));
@@ -433,7 +433,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid khi còn đúng 30 giây → trigger anti-sniping (boundary)")
-    void testAntiSniping_exactBoundary_30Seconds() {
+    void testAntiSnipingExactBoundary_30Seconds() {
       when(auctionDao.findById(AUCTION_ID))
           .thenReturn(Optional.of(buildAuction("RUNNING", 29))); // 29 giây < 30 → trigger
 
@@ -461,7 +461,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Manual bid → BidTransaction.autoBid = false")
-    void testManualBid_autoBidFlagFalse() {
+    void testManualBidAutoBidFlagFalse() {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       ArgumentCaptor<BidTransaction> captor = ArgumentCaptor.forClass(BidTransaction.class);
@@ -473,7 +473,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Auto bid → BidTransaction.autoBid = true")
-    void testAutoBid_autoBidFlagTrue() {
+    void testAutoBidAutoBidFlagTrue() {
       bidService.placeBid(AUCTION_ID, BIDDER_B_ID, new BigDecimal("2000000"), true);
 
       ArgumentCaptor<BidTransaction> captor = ArgumentCaptor.forClass(BidTransaction.class);
@@ -494,7 +494,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("auctionId không có trong DB → NotFoundException")
-    void testBid_auctionNotFound_throwsNotFoundException() {
+    void testBidAuctionNotFoundThrowsNotFoundException() {
       when(auctionDao.findById(999L)).thenReturn(Optional.empty());
 
       assertThrows(
@@ -515,7 +515,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("BID_UPDATE message chứa đúng auctionId, price, bidderId")
-    void testObserverMessage_correctContent() {
+    void testObserverMessageCorrectContent() {
       when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(runningAuction()));
       doNothing().when(auctionDao).update(any(Auction.class));
       doNothing().when(bidTransactionDao).insert(any(BidTransaction.class));

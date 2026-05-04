@@ -105,10 +105,18 @@ public class ChangePasswordController implements Navigable {
   }
 
   private void clearForm() {
-    if (currentPasswordField != null) currentPasswordField.clear();
-    if (newPasswordField != null) newPasswordField.clear();
-    if (confirmPasswordField != null) confirmPasswordField.clear();
+    if (currentPasswordField != null) {
+        currentPasswordField.clear();
+    }
+    if (newPasswordField != null) {
+        newPasswordField.clear();
+    }
+    if (confirmPasswordField != null) {
+        confirmPasswordField.clear();
+    }
     hideStatus();
-    if (changeButton != null) changeButton.setDisable(false);
+    if (changeButton != null) {
+        changeButton.setDisable(false);
+    }
   }
 }

@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  */
 public class AuctionScheduler {
 
-  private static final Logger log = LoggerFactory.getLogger(AuctionScheduler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AuctionScheduler.class);
 
   /** Chu kỳ quét (giây) — đủ nhạy mà không overload DB */
   private static final int SCAN_INTERVAL_SECONDS = 5;
@@ -81,7 +81,7 @@ public class AuctionScheduler {
    */
   public void start() {
     if (!running.compareAndSet(false, true)) {
-      log.warn("AuctionScheduler đã chạy rồi, bỏ qua lệnh start() thứ hai");
+      LOG.warn("AuctionScheduler đã chạy rồi, bỏ qua lệnh start() thứ hai");
       return;
     }
 
@@ -92,7 +92,7 @@ public class AuctionScheduler {
             SCAN_INTERVAL_SECONDS,
             TimeUnit.SECONDS);
 
-    log.info("AuctionScheduler đã khởi động — quét mỗi {}s", SCAN_INTERVAL_SECONDS);
+    LOG.info("AuctionScheduler đã khởi động — quét mỗi {}s", SCAN_INTERVAL_SECONDS);
   }
 
   /**
@@ -106,7 +106,7 @@ public class AuctionScheduler {
     }
     scheduler.shutdown();
     running.set(false);
-    log.info("AuctionScheduler đã dừng");
+    LOG.info("AuctionScheduler đã dừng");
   }
 
   // ── Core scan logic ──────────────────────────────────────
@@ -120,7 +120,7 @@ public class AuctionScheduler {
   void scanAndTransition() {
     try {
       LocalDateTime now = LocalDateTime.now();
-      log.debug("Scheduler scan tại {}", now);
+      LOG.debug("Scheduler scan tại {}", now);
 
       openToRunning(now);
       runningToFinished(now);
@@ -128,7 +128,7 @@ public class AuctionScheduler {
     } catch (Exception e) {
       // Bắt tất cả exception để scheduler không chết âm thầm.
       // Nếu không có try-catch này, một RuntimeException sẽ cancel scheduledTask.
-      log.error("Lỗi trong AuctionScheduler.scanAndTransition()", e);
+      LOG.error("Lỗi trong AuctionScheduler.scanAndTransition()", e);
     }
   }
 
@@ -151,12 +151,12 @@ public class AuctionScheduler {
         try {
           auction.setStatus("RUNNING");
           auctionDao.update(auction);
-          log.info(
+          LOG.info(
               "Phiên #{} chuyển OPEN → RUNNING (startTime={})",
               auction.getId(),
               auction.getStartTime());
         } catch (Exception e) {
-          log.error("Không thể chuyển phiên #{} sang RUNNING", auction.getId(), e);
+          LOG.error("Không thể chuyển phiên #{} sang RUNNING", auction.getId(), e);
         }
       }
     }
@@ -185,7 +185,7 @@ public class AuctionScheduler {
           auction.setStatus("FINISHED");
           auctionDao.update(auction);
 
-          log.info(
+          LOG.info(
               "Phiên #{} chuyển RUNNING → FINISHED (endTime={}, winner={})",
               auction.getId(),
               auction.getEndTime(),
@@ -194,7 +194,7 @@ public class AuctionScheduler {
           notifyAuctionEnded(auction);
 
         } catch (Exception e) {
-          log.error("Không thể chuyển phiên #{} sang FINISHED", auction.getId(), e);
+          LOG.error("Không thể chuyển phiên #{} sang FINISHED", auction.getId(), e);
         }
       }
     }
@@ -222,7 +222,7 @@ public class AuctionScheduler {
       eventManager.notifyAuctionEnd(auction.getId(), msg);
 
     } catch (Exception e) {
-      log.error("Không thể broadcast AUCTION_ENDED cho phiên #{}", auction.getId(), e);
+      LOG.error("Không thể broadcast AUCTION_ENDED cho phiên #{}", auction.getId(), e);
     }
   }
 

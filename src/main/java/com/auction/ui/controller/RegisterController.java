@@ -167,12 +167,24 @@ public class RegisterController implements Navigable {
   }
 
   private void clearForm() {
-    if (usernameField != null) usernameField.clear();
-    if (emailField != null) emailField.clear();
-    if (passwordField != null) passwordField.clear();
-    if (confirmPasswordField != null) confirmPasswordField.clear();
-    if (roleCombo != null) roleCombo.setValue(null);
+    if (usernameField != null) {
+        usernameField.clear();
+    }
+    if (emailField != null) {
+        emailField.clear();
+    }
+    if (passwordField != null) {
+        passwordField.clear();
+    }
+    if (confirmPasswordField != null) {
+        confirmPasswordField.clear();
+    }
+    if (roleCombo != null) {
+        roleCombo.setValue(null);
+    }
     hideError();
-    if (registerButton != null) registerButton.setDisable(false);
+    if (registerButton != null) {
+        registerButton.setDisable(false);
+    }
   }
 }

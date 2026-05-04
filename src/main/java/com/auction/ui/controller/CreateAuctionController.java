@@ -225,14 +225,28 @@ public class CreateAuctionController implements Navigable {
   }
 
   private void clearForm() {
-    if (itemCombo != null) itemCombo.setValue(null);
-    if (startingPriceField != null) startingPriceField.clear();
-    if (startDatePicker != null) startDatePicker.setValue(null);
-    if (startTimeField != null) startTimeField.clear();
-    if (endDatePicker != null) endDatePicker.setValue(null);
-    if (endTimeField != null) endTimeField.clear();
+    if (itemCombo != null) {
+        itemCombo.setValue(null);
+    }
+    if (startingPriceField != null) {
+        startingPriceField.clear();
+    }
+    if (startDatePicker != null) {
+        startDatePicker.setValue(null);
+    }
+    if (startTimeField != null) {
+        startTimeField.clear();
+    }
+    if (endDatePicker != null) {
+        endDatePicker.setValue(null);
+    }
+    if (endTimeField != null) {
+        endTimeField.clear();
+    }
     hideStatus();
-    if (createButton != null) createButton.setDisable(false);
+    if (createButton != null) {
+        createButton.setDisable(false);
+    }
   }
 
   private String extractMessage(String body, String fallback) {

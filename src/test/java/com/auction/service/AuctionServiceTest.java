@@ -114,7 +114,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Phiên mới tạo phải có status = OPEN")
-    void testCreateAuction_statusIsOpen() {
+    void testCreateAuctionStatusIsOpen() {
       CreateAuctionRequest req = new CreateAuctionRequest();
       req.setItemId(ITEM_ID);
       req.setStartingPrice(new BigDecimal("2000000"));
@@ -129,7 +129,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Giá khởi điểm được gán đúng từ request")
-    void testCreateAuction_startingPriceCorrect() {
+    void testCreateAuctionStartingPriceCorrect() {
       BigDecimal startingPrice = new BigDecimal("5000000");
       CreateAuctionRequest req = new CreateAuctionRequest();
       req.setItemId(ITEM_ID);
@@ -145,7 +145,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Item không tồn tại → NotFoundException")
-    void testCreateAuction_itemNotFound_throwsNotFoundException() {
+    void testCreateAuctionItemNotFoundThrowsNotFoundException() {
       when(itemDao.findById(999L)).thenReturn(Optional.empty());
 
       CreateAuctionRequest req = new CreateAuctionRequest();
@@ -161,7 +161,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Item không thuộc seller → UnauthorizedException hoặc NotFoundException")
-    void testCreateAuction_itemNotOwnedBySeller_throwsException() {
+    void testCreateAuctionItemNotOwnedBySellerThrowsException() {
       // Item thuộc seller khác (sellerId = 999 ≠ SELLER_ID = 1)
       Item foreignItem = buildItem();
       foreignItem.setSellerId(999L);
@@ -180,7 +180,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("auctionDao.insert() được gọi đúng 1 lần")
-    void testCreateAuction_daoInsertCalledOnce() {
+    void testCreateAuctionDaoInsertCalledOnce() {
       CreateAuctionRequest req = new CreateAuctionRequest();
       req.setItemId(ITEM_ID);
       req.setStartingPrice(new BigDecimal("1000000"));
@@ -203,7 +203,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Sửa thông tin phiên khi OPEN → thành công")
-    void testEditOpenAuction_success() {
+    void testEditOpenAuctionSuccess() {
       Auction auction = buildAuction("OPEN");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -216,7 +216,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Đặt giá khi OPEN → AuctionClosedException với message 'chưa bắt đầu'")
-    void testBidOpenAuction_throwsAuctionClosedException() {
+    void testBidOpenAuctionThrowsAuctionClosedException() {
       Auction auction = buildAuction("OPEN");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -247,7 +247,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Sửa thông tin khi RUNNING → AuctionClosedException")
-    void testEditRunningAuction_throwsAuctionClosedException() {
+    void testEditRunningAuctionThrowsAuctionClosedException() {
       Auction auction = buildAuction("RUNNING");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -260,7 +260,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Đặt giá khi RUNNING và giá hợp lệ → không throw")
-    void testBidRunningAuction_validAmount_success() {
+    void testBidRunningAuctionValidAmountSuccess() {
       Auction auction = buildAuction("RUNNING");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -274,7 +274,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Đặt giá thấp hơn giá hiện tại khi RUNNING → InvalidBidException")
-    void testBidRunningAuction_tooLow_throwsInvalidBidException() {
+    void testBidRunningAuctionTooLowThrowsInvalidBidException() {
       Auction auction = buildAuction("RUNNING"); // currentPrice = 1.000.000
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -298,7 +298,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Đặt giá khi FINISHED → AuctionClosedException")
-    void testBidFinishedAuction_throwsAuctionClosedException() {
+    void testBidFinishedAuctionThrowsAuctionClosedException() {
       Auction auction = buildAuction("FINISHED");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -311,7 +311,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Sửa thông tin khi FINISHED → AuctionClosedException")
-    void testEditFinishedAuction_throwsAuctionClosedException() {
+    void testEditFinishedAuctionThrowsAuctionClosedException() {
       Auction auction = buildAuction("FINISHED");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -324,7 +324,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Đặt giá khi CANCELED → AuctionClosedException")
-    void testBidCanceledAuction_throwsAuctionClosedException() {
+    void testBidCanceledAuctionThrowsAuctionClosedException() {
       Auction auction = buildAuction("CANCELED");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -346,7 +346,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("OPEN → RUNNING: transitionToRunning() thành công")
-    void testTransition_openToRunning() {
+    void testTransitionOpenToRunning() {
       Auction auction = buildAuction("OPEN");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
       doNothing().when(auctionDao).update(any(Auction.class));
@@ -360,7 +360,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("RUNNING → FINISHED: transitionToFinished() thành công")
-    void testTransition_runningToFinished() {
+    void testTransitionRunningToFinished() {
       Auction auction = buildAuction("RUNNING");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
       doNothing().when(auctionDao).update(any(Auction.class));
@@ -373,7 +373,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("FINISHED → RUNNING: không hợp lệ → throw exception")
-    void testTransition_finishedToRunning_invalid() {
+    void testTransitionFinishedToRunningInvalid() {
       Auction auction = buildAuction("FINISHED");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -385,7 +385,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("getState() trả đúng State object cho từng status string")
-    void testGetState_returnsCorrectStateInstance() {
+    void testGetStateReturnsCorrectStateInstance() {
       // Gọi trực tiếp getState() để verify mapping status → State class
       // Dùng reflection hoặc package-private method nếu cần
       assertAll("getState() mapping",
@@ -439,7 +439,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Seller xóa phiên OPEN của mình → thành công")
-    void testDelete_openAuction_byOwner_success() {
+    void testDeleteOpenAuctionByOwnerSuccess() {
       Auction auction = buildAuction("OPEN");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
       doNothing().when(auctionDao).delete(99L);
@@ -453,7 +453,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Seller xóa phiên RUNNING → không được phép")
-    void testDelete_runningAuction_throwsException() {
+    void testDeleteRunningAuctionThrowsException() {
       Auction auction = buildAuction("RUNNING");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
@@ -465,7 +465,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Admin xóa phiên của seller khác → thành công")
-    void testDelete_byAdmin_success() {
+    void testDeleteByAdminSuccess() {
       Auction auction = buildAuction("OPEN"); // sellerId = SELLER_ID = 1
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
       doNothing().when(auctionDao).delete(99L);
@@ -479,7 +479,7 @@ class AuctionServiceTest {
 
     @Test
     @DisplayName("Seller xóa phiên của seller khác → UnauthorizedException")
-    void testDelete_notOwner_throwsUnauthorizedException() {
+    void testDeleteNotOwnerThrowsUnauthorizedException() {
       Auction auction = buildAuction("OPEN"); // sellerId = 1
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 

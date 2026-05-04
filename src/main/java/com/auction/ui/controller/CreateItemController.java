@@ -67,7 +67,9 @@ public class CreateItemController implements Navigable {
   @FXML
   public void handleCategoryChange() {
     String category = categoryCombo.getValue();
-    if (category == null) return;
+    if (category == null) {
+        return;
+    }
     switch (category) {
       case "ELECTRONICS" -> {
         categoryDetailLabel.setText("Thương hiệu *");
@@ -166,13 +168,25 @@ public class CreateItemController implements Navigable {
   }
 
   private void clearForm() {
-    if (nameField != null) nameField.clear();
-    if (descriptionField != null) descriptionField.clear();
-    if (categoryCombo != null) categoryCombo.setValue(null);
-    if (categoryDetailField != null) categoryDetailField.clear();
-    if (categoryDetailLabel != null) categoryDetailLabel.setText("Chi tiết danh mục *");
+    if (nameField != null) {
+        nameField.clear();
+    }
+    if (descriptionField != null) {
+        descriptionField.clear();
+    }
+    if (categoryCombo != null) {
+        categoryCombo.setValue(null);
+    }
+    if (categoryDetailField != null) {
+        categoryDetailField.clear();
+    }
+    if (categoryDetailLabel != null) {
+        categoryDetailLabel.setText("Chi tiết danh mục *");
+    }
     hideStatus();
-    if (createButton != null) createButton.setDisable(false);
+    if (createButton != null) {
+        createButton.setDisable(false);
+    }
   }
 
   private String extractMessage(String body, String fallback) {

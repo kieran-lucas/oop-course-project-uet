@@ -54,7 +54,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Trả về đúng instance Electronics với brand chính xác")
-    void testCreateElectronics_returnsCorrectInstance() {
+    void testCreateElectronicsReturnsCorrectInstance() {
       CreateItemRequest req =
           buildRequest("Laptop Dell XPS 15", "Laptop cao cấp dành cho lập trình viên",
               "ELECTRONICS", "Dell");
@@ -70,7 +70,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Các trường dùng chung được gán đúng cho Electronics")
-    void testCreateElectronics_commonFieldsCorrect() {
+    void testCreateElectronicsCommonFieldsCorrect() {
       CreateItemRequest req =
           buildRequest("iPhone 16 Pro", "Điện thoại Apple mới nhất", "ELECTRONICS", "Apple");
 
@@ -86,7 +86,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Category không phân biệt hoa thường — 'electronics' vẫn tạo được")
-    void testCreateElectronics_caseInsensitive() {
+    void testCreateElectronicsCaseInsensitive() {
       CreateItemRequest req =
           buildRequest("Samsung TV", "Smart TV 4K", "electronics", "Samsung");
 
@@ -107,7 +107,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Trả về đúng instance Art với artist chính xác")
-    void testCreateArt_returnsCorrectInstance() {
+    void testCreateArtReturnsCorrectInstance() {
       CreateItemRequest req =
           buildRequest("Bức tranh Hồ Gươm", "Tranh sơn dầu vẽ tay, 60x80cm", "ART",
               "Nguyễn Văn Nghĩa");
@@ -123,7 +123,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Các trường dùng chung được gán đúng cho Art")
-    void testCreateArt_commonFieldsCorrect() {
+    void testCreateArtCommonFieldsCorrect() {
       CreateItemRequest req =
           buildRequest("Tượng gốm cổ", "Tượng gốm thời Lý, thế kỷ XI", "ART", "Vô danh");
 
@@ -139,7 +139,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Artist có thể là tên dài có dấu — Unicode")
-    void testCreateArt_unicodeArtistName() {
+    void testCreateArtUnicodeArtistName() {
       String unicodeName = "Lê Văn Tự - Họa sĩ trường Mỹ Thuật Hà Nội";
       CreateItemRequest req =
           buildRequest("Phong cảnh mùa thu", "...", "ART", unicodeName);
@@ -161,7 +161,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Trả về đúng instance Vehicle với năm sản xuất chính xác")
-    void testCreateVehicle_returnsCorrectInstance() {
+    void testCreateVehicleReturnsCorrectInstance() {
       CreateItemRequest req =
           buildRequest("Toyota Camry 2022", "Xe sedan 5 chỗ, màu trắng", "VEHICLE", "2022");
 
@@ -176,7 +176,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Các trường dùng chung được gán đúng cho Vehicle")
-    void testCreateVehicle_commonFieldsCorrect() {
+    void testCreateVehicleCommonFieldsCorrect() {
       CreateItemRequest req =
           buildRequest("Honda Wave Alpha 2019", "Xe số, odo 12.000km", "VEHICLE", "2019");
 
@@ -192,7 +192,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("categoryDetail không phải số nguyên → NumberFormatException")
-    void testCreateVehicle_invalidYearFormat_throwsException() {
+    void testCreateVehicleInvalidYearFormatThrowsException() {
       CreateItemRequest req =
           buildRequest("Xe máy Honda", "...", "VEHICLE", "hai-nghìn-hai-mươi");
 
@@ -213,7 +213,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Category lạ → IllegalArgumentException")
-    void testInvalidCategory_throwsIllegalArgumentException() {
+    void testInvalidCategoryThrowsIllegalArgumentException() {
       CreateItemRequest req =
           buildRequest("Sản phẩm lạ", "...", "FURNITURE", "gỗ sồi");
 
@@ -229,7 +229,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Category null → IllegalArgumentException hoặc NullPointerException")
-    void testNullCategory_throwsException() {
+    void testNullCategoryThrowsException() {
       CreateItemRequest req = buildRequest("Item", "...", null, "detail");
 
       assertThrows(RuntimeException.class, () -> ItemFactory.create(req, SELLER_ID),
@@ -238,7 +238,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Category rỗng → IllegalArgumentException")
-    void testEmptyCategory_throwsIllegalArgumentException() {
+    void testEmptyCategoryThrowsIllegalArgumentException() {
       CreateItemRequest req = buildRequest("Item", "...", "", "detail");
 
       assertThrows(IllegalArgumentException.class, () -> ItemFactory.create(req, SELLER_ID),
@@ -247,7 +247,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Message exception phải chứa category không hợp lệ để dễ debug")
-    void testInvalidCategory_messageContainsBadValue() {
+    void testInvalidCategoryMessageContainsBadValue() {
       String badCategory = "SPACESHIP";
       CreateItemRequest req = buildRequest("Tên quặng", "...", badCategory, "detail");
 
@@ -274,7 +274,7 @@ class ItemFactoryTest {
 
     @Test
     @DisplayName("Mỗi subclass getCategory() trả đúng string tương ứng")
-    void testGetCategory_polymorphism() {
+    void testGetCategoryPolymorphism() {
       Item electronics = ItemFactory.create(
           buildRequest("TV", "...", "ELECTRONICS", "Sony"), SELLER_ID);
       Item art = ItemFactory.create(

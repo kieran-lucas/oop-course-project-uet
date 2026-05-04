@@ -39,7 +39,9 @@ public class DepositController implements Navigable {
 
   @Override
   public void onNavigatedTo() {
-    if (amountField != null) amountField.clear();
+    if (amountField != null) {
+        amountField.clear();
+    }
     hideStatus();
     loadBalance();
   }
@@ -121,6 +123,8 @@ public class DepositController implements Navigable {
   }
 
   private void hideStatus() {
-    if (statusLabel != null) statusLabel.setVisible(false);
+    if (statusLabel != null) {
+        statusLabel.setVisible(false);
+    }
   }
 }

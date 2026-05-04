@@ -26,7 +26,9 @@ public class ForgotPasswordController implements Navigable {
 
   @Override
   public void onNavigatedTo() {
-    if (emailField != null) emailField.clear();
+    if (emailField != null) {
+        emailField.clear();
+    }
     hideStatus();
   }
 
@@ -59,6 +61,8 @@ public class ForgotPasswordController implements Navigable {
   }
 
   private void hideStatus() {
-    if (statusLabel != null) statusLabel.setVisible(false);
+    if (statusLabel != null) {
+        statusLabel.setVisible(false);
+    }
   }
 }
