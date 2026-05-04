@@ -47,6 +47,8 @@ public class LoginController implements Navigable {
   @FXML private Label roleHintLabel;
   @FXML private Button loginButton;
 
+  private String expectedRole;
+
   // ========== NAVIGABLE LIFECYCLE ==========
 
   /**
@@ -56,8 +58,15 @@ public class LoginController implements Navigable {
   @Override
   public void onDataReceived(Object data) {
     if (data instanceof String role) {
+      expectedRole = role;
       if (roleHintLabel != null) {
-        roleHintLabel.setText("Đăng nhập với vai trò: " + role);
+        String label = switch (role) {
+          case "ADMIN"  -> "Đăng nhập với vai trò: Quản trị viên";
+          case "SELLER" -> "Đăng nhập với vai trò: Người bán";
+          case "BIDDER" -> "Đăng nhập với vai trò: Người đặt giá";
+          default       -> "Đăng nhập với vai trò: " + role;
+        };
+        roleHintLabel.setText(label);
       }
     }
   }
@@ -152,6 +161,20 @@ public class LoginController implements Navigable {
 
   /** Lưu session và điều hướng đến màn hình phù hợp theo role. */
   private void onLoginSuccess(String token, String role, String username, long userId) {
+    // Kiểm tra role thực tế có khớp với cổng đã chọn không
+    if (expectedRole != null && !expectedRole.equals(role)) {
+      String portalName = switch (expectedRole) {
+        case "ADMIN"  -> "Quản trị viên";
+        case "SELLER" -> "Người bán";
+        case "BIDDER" -> "Người đặt giá";
+        default       -> expectedRole;
+      };
+      showError("Tài khoản này không phải " + portalName
+          + ". Vui lòng chọn đúng vai trò ở màn hình chào.");
+      loginButton.setDisable(false);
+      return;
+    }
+
     SceneManager sm = SceneManager.getInstance();
     sm.setJwtToken(token);
     sm.setCurrentUsername(username);
@@ -177,8 +200,10 @@ public class LoginController implements Navigable {
   }
 
   private void clearForm() {
+    expectedRole = null;
     if (usernameField != null) usernameField.clear();
     if (passwordField != null) passwordField.clear();
+    if (roleHintLabel != null) roleHintLabel.setText("Đăng nhập");
     hideError();
     if (loginButton != null) loginButton.setDisable(false);
   }

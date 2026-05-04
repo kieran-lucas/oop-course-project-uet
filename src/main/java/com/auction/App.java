@@ -1,5 +1,6 @@
 package com.auction;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.auction.config.DatabaseConfig;
 import com.auction.controller.AuctionController;
 import com.auction.controller.AuctionWebSocketHandler;
@@ -11,6 +12,7 @@ import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
+import com.auction.model.Admin;
 import com.auction.dto.ErrorResponse;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.DuplicateException;
@@ -76,6 +78,9 @@ public class App {
     var bidTransactionDao = new BidTransactionDao(jdbi);
     var autoBidConfigDao = new AutoBidConfigDao(jdbi);
 
+    // ── 3b. Seed tài khoản admin mặc định ───────────────────
+    seedAdminIfNeeded(userDao);
+
     // ── 4. Khởi tạo Observer (EventManager) ─────────────────
     var eventManager = new AuctionEventManager();
 
@@ -132,6 +137,28 @@ public class App {
     // ── 13. Khởi động server ─────────────────────────────────
     app.start(SERVER_PORT);
     LOGGER.info("Server đang chạy tại http://localhost:{}", SERVER_PORT);
+  }
+
+  /**
+   * Tạo hoặc cập nhật tài khoản admin mặc định (admin / 123456) khi server khởi động.
+   * Đảm bảo admin luôn có thể đăng nhập trong môi trường dev/test.
+   */
+  private static void seedAdminIfNeeded(UserDao userDao) {
+    try {
+      String hash = BCrypt.withDefaults().hashToString(12, "123456".toCharArray());
+      var existing = userDao.findByUsername("admin");
+      if (existing.isEmpty()) {
+        Admin admin = new Admin("admin", hash, "admin@auction.com");
+        userDao.insert(admin);
+        LOGGER.info("Đã tạo tài khoản admin mặc định: username=admin, password=123456");
+      } else {
+        existing.get().setPasswordHash(hash);
+        userDao.update(existing.get());
+        LOGGER.info("Đã đồng bộ mật khẩu admin: username=admin, password=123456");
+      }
+    } catch (Exception e) {
+      LOGGER.warn("Không thể seed admin: {}", e.getMessage());
+    }
   }
 
   /**
