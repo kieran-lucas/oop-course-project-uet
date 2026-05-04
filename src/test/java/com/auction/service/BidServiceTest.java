@@ -433,7 +433,7 @@ class BidServiceTest {
 
     @Test
     @DisplayName("Bid khi còn đúng 30 giây → trigger anti-sniping (boundary)")
-    void testAntiSnipingExactBoundary_30Seconds() {
+    void testAntiSnipingExactBoundary30Seconds() {
       when(auctionDao.findById(AUCTION_ID))
           .thenReturn(Optional.of(buildAuction("RUNNING", 29))); // 29 giây < 30 → trigger
 

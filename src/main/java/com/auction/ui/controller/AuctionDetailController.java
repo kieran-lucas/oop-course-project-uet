@@ -222,7 +222,9 @@ public class AuctionDetailController implements Navigable {
   }
 
   private void connectWebSocket(String token) {
-    if (token == null || token.isEmpty()) return;
+    if (token == null || token.isEmpty()) {
+      return;
+    }
     wsClient.connect(auctionId, token, json -> {
       try {
         BidUpdateMessage msg = MAPPER.readValue(json, BidUpdateMessage.class);
