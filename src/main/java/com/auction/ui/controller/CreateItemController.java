@@ -127,9 +127,8 @@ public class CreateItemController implements Navigable {
         HttpResponse<String> response = RestClient.post("/api/items", body);
         if (response.statusCode() == 201) {
           Platform.runLater(() -> {
-            showStatus("Tạo sản phẩm thành công!", false);
-            clearForm();
-            createButton.setDisable(false);
+            // Quay về create-auction để seller chọn sản phẩm vừa tạo ngay
+            SceneManager.getInstance().navigateTo("create-auction.fxml");
           });
         } else {
           String msg = extractMessage(response.body(), "Tạo sản phẩm thất bại.");
@@ -148,10 +147,10 @@ public class CreateItemController implements Navigable {
     });
   }
 
-  /** Quay lại màn hình danh sách phiên. */
+  /** Quay lại màn hình tạo phiên đấu giá. */
   @FXML
   public void goBack() {
-    SceneManager.getInstance().navigateTo("auction-list.fxml");
+    SceneManager.getInstance().navigateTo("create-auction.fxml");
   }
 
   // ========== PRIVATE HELPERS ==========
