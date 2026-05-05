@@ -10,13 +10,11 @@ import javafx.scene.control.TextField;
 /**
  * Controller cho màn hình quên mật khẩu (forgot-password.fxml).
  *
- * <p><b>Mục đích:</b>
- * Cho phép người dùng chưa đăng nhập yêu cầu đặt lại mật khẩu qua email.
- * Trong phiên bản hiện tại, hiển thị hướng dẫn liên hệ admin vì hệ thống
- * chưa tích hợp email service.
+ * <p><b>Mục đích:</b> Cho phép người dùng chưa đăng nhập yêu cầu đặt lại mật khẩu qua email. Trong
+ * phiên bản hiện tại, hiển thị hướng dẫn liên hệ admin vì hệ thống chưa tích hợp email service.
  *
- * <p><b>Vị trí trong kiến trúc:</b>
- * Được điều hướng đến từ login.fxml qua Hyperlink "Quên mật khẩu?".
+ * <p><b>Vị trí trong kiến trúc:</b> Được điều hướng đến từ login.fxml qua Hyperlink "Quên mật
+ * khẩu?".
  */
 public class ForgotPasswordController implements Navigable {
 
@@ -27,14 +25,13 @@ public class ForgotPasswordController implements Navigable {
   @Override
   public void onNavigatedTo() {
     if (emailField != null) {
-        emailField.clear();
+      emailField.clear();
     }
     hideStatus();
   }
 
   /**
-   * Xử lý yêu cầu đặt lại mật khẩu.
-   * Hiển thị thông báo hướng dẫn (tính năng email chưa triển khai).
+   * Xử lý yêu cầu đặt lại mật khẩu. Hiển thị thông báo hướng dẫn (tính năng email chưa triển khai).
    */
   @FXML
   public void handleSubmit() {
@@ -44,8 +41,7 @@ public class ForgotPasswordController implements Navigable {
       return;
     }
     showStatus(
-        "Yêu cầu đã được ghi nhận. Vui lòng liên hệ admin để đặt lại mật khẩu cho email: "
-            + email,
+        "Yêu cầu đã được ghi nhận. Vui lòng liên hệ admin để đặt lại mật khẩu cho email: " + email,
         false);
   }
 
@@ -62,7 +58,7 @@ public class ForgotPasswordController implements Navigable {
 
   private void hideStatus() {
     if (statusLabel != null) {
-        statusLabel.setVisible(false);
+      statusLabel.setVisible(false);
     }
   }
 }

@@ -9,13 +9,11 @@ import javafx.scene.control.Label;
 /**
  * Controller cho màn hình hồ sơ cá nhân (profile.fxml).
  *
- * <p><b>Mục đích:</b>
- * Hiển thị thông tin tài khoản của người dùng đang đăng nhập (username, role).
+ * <p><b>Mục đích:</b> Hiển thị thông tin tài khoản của người dùng đang đăng nhập (username, role).
  * Cung cấp điều hướng đến các chức năng: đổi mật khẩu, nạp tiền (BIDDER), đăng xuất.
  *
- * <p><b>Vị trí trong kiến trúc:</b>
- * Màn hình phụ trợ có thể điều hướng đến từ thanh điều hướng của auction-list.
- * Lấy thông tin từ {@link SceneManager} session state (không cần gọi thêm API).
+ * <p><b>Vị trí trong kiến trúc:</b> Màn hình phụ trợ có thể điều hướng đến từ thanh điều hướng của
+ * auction-list. Lấy thông tin từ {@link SceneManager} session state (không cần gọi thêm API).
  */
 public class ProfileController implements Navigable {
 

@@ -7,11 +7,11 @@ import java.math.BigDecimal;
 /**
  * Trạng thái PAID — phiên đã hoàn tất, thanh toán đã được xác nhận.
  *
- * <p>Đây là trạng thái cuối cùng tích cực. Mọi hành động đều bị từ chối vì
- * giao dịch đã hoàn tất và không thể thay đổi — bảo toàn tính toàn vẹn
- * của lịch sử giao dịch.
+ * <p>Đây là trạng thái cuối cùng tích cực. Mọi hành động đều bị từ chối vì giao dịch đã hoàn tất và
+ * không thể thay đổi — bảo toàn tính toàn vẹn của lịch sử giao dịch.
  *
  * <h2>Hành động được phép / bị từ chối</h2>
+ *
  * <p>Tất cả hành động đều từ chối với message "Phiên đã được thanh toán".
  */
 public class PaidState implements AuctionState {
@@ -39,4 +39,3 @@ public class PaidState implements AuctionState {
     throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
   }
 }
-

@@ -7,16 +7,18 @@ import java.math.BigDecimal;
 /**
  * Trạng thái CANCELED — phiên bị hủy (từ OPEN hoặc RUNNING).
  *
- * <p>Phiên có thể bị hủy bởi Seller (khi OPEN) hoặc Admin (bất kỳ lúc nào).
- * Đây là trạng thái cuối cùng tiêu cực — mọi hành động đều bị từ chối.
+ * <p>Phiên có thể bị hủy bởi Seller (khi OPEN) hoặc Admin (bất kỳ lúc nào). Đây là trạng thái cuối
+ * cùng tiêu cực — mọi hành động đều bị từ chối.
  *
  * <p><b>Khác với FINISHED:</b>
+ *
  * <ul>
- *   <li>FINISHED: phiên diễn ra bình thường và kết thúc đúng hạn, có người thắng</li>
- *   <li>CANCELED: phiên bị dừng giữa chừng bởi con người, không có người thắng</li>
+ *   <li>FINISHED: phiên diễn ra bình thường và kết thúc đúng hạn, có người thắng
+ *   <li>CANCELED: phiên bị dừng giữa chừng bởi con người, không có người thắng
  * </ul>
  *
  * <h2>Hành động được phép / bị từ chối</h2>
+ *
  * <p>Tất cả hành động đều từ chối với message "Phiên đã bị hủy".
  */
 public class CanceledState implements AuctionState {
@@ -44,4 +46,3 @@ public class CanceledState implements AuctionState {
     throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
   }
 }
-

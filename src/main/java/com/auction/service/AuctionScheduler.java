@@ -18,27 +18,28 @@ import org.slf4j.LoggerFactory;
  * Bộ lập lịch nền — tự động chuyển trạng thái phiên đấu giá theo thời gian.
  *
  * <p><b>Vai trò trong hệ thống:</b> AuctionScheduler là "đồng hồ" của hệ thống. Nó chạy liên tục
- * trong nền (background thread), cứ mỗi {@value #SCAN_INTERVAL_SECONDS} giây lại quét toàn bộ
- * các phiên đấu giá đang hoạt động và thực hiện chuyển trạng thái nếu điều kiện thỏa mãn:
+ * trong nền (background thread), cứ mỗi {@value #SCAN_INTERVAL_SECONDS} giây lại quét toàn bộ các
+ * phiên đấu giá đang hoạt động và thực hiện chuyển trạng thái nếu điều kiện thỏa mãn:
  *
  * <pre>
  *   OPEN ──(startTime đến)──► RUNNING ──(endTime qua)──► FINISHED
  * </pre>
  *
  * <p><b>Tại sao cần class này?</b> Trạng thái phiên không tự thay đổi — nếu không có scheduler,
- * phiên sẽ mãi ở OPEN hoặc RUNNING dù thời gian đã qua. AuctionScheduler thay thế cron job ở
- * tầng application, phù hợp với project không deploy production server riêng.
+ * phiên sẽ mãi ở OPEN hoặc RUNNING dù thời gian đã qua. AuctionScheduler thay thế cron job ở tầng
+ * application, phù hợp với project không deploy production server riêng.
  *
  * <p><b>Concurrency note:</b> ScheduledExecutorService đảm bảo mỗi lần chỉ chạy 1 task (không
  * overlap). Dùng {@code scheduleAtFixedRate} thay vì {@code scheduleWithFixedDelay} để giữ chu kỳ
  * ổn định dù task mất bao lâu.
  *
  * <p><b>Liên kết file khác:</b>
+ *
  * <ul>
- *   <li>{@link AuctionDao} — query + update trạng thái trong DB</li>
- *   <li>{@link AuctionEventManager} — broadcast thông báo đến client qua WebSocket</li>
- *   <li>{@link BidUpdateMessage} — định dạng message gửi khi phiên kết thúc</li>
- *   <li>{@link com.auction.App} — khởi động scheduler khi server start</li>
+ *   <li>{@link AuctionDao} — query + update trạng thái trong DB
+ *   <li>{@link AuctionEventManager} — broadcast thông báo đến client qua WebSocket
+ *   <li>{@link BidUpdateMessage} — định dạng message gửi khi phiên kết thúc
+ *   <li>{@link com.auction.App} — khởi động scheduler khi server start
  * </ul>
  */
 public class AuctionScheduler {
@@ -76,8 +77,8 @@ public class AuctionScheduler {
   /**
    * Khởi động scheduler. Gọi một lần duy nhất khi server start.
    *
-   * <p>Dùng {@code scheduleAtFixedRate} để task chạy đều đặn mỗi
-   * {@value #SCAN_INTERVAL_SECONDS} giây, bất kể task trước mất bao lâu.
+   * <p>Dùng {@code scheduleAtFixedRate} để task chạy đều đặn mỗi {@value #SCAN_INTERVAL_SECONDS}
+   * giây, bất kể task trước mất bao lâu.
    */
   public void start() {
     if (!running.compareAndSet(false, true)) {
@@ -114,8 +115,8 @@ public class AuctionScheduler {
   /**
    * Hàm chính được gọi mỗi {@value #SCAN_INTERVAL_SECONDS} giây.
    *
-   * <p>Thứ tự xử lý: chuyển OPEN→RUNNING trước, rồi RUNNING→FINISHED.
-   * Điều này xử lý đúng edge case startTime == endTime.
+   * <p>Thứ tự xử lý: chuyển OPEN→RUNNING trước, rồi RUNNING→FINISHED. Điều này xử lý đúng edge case
+   * startTime == endTime.
    */
   void scanAndTransition() {
     try {
@@ -167,8 +168,8 @@ public class AuctionScheduler {
   /**
    * Chuyển các phiên từ RUNNING sang FINISHED khi hết giờ.
    *
-   * <p>Sau khi cập nhật DB, broadcast AUCTION_ENDED qua WebSocket để tất cả client
-   * đang xem phiên nhận được thông báo ngay lập tức.
+   * <p>Sau khi cập nhật DB, broadcast AUCTION_ENDED qua WebSocket để tất cả client đang xem phiên
+   * nhận được thông báo ngay lập tức.
    *
    * @param now thời điểm hiện tại
    */
@@ -205,8 +206,8 @@ public class AuctionScheduler {
   /**
    * Gửi thông báo AUCTION_ENDED đến tất cả client đang xem phiên này.
    *
-   * <p>Message chứa: auctionId, winnerId, winningPrice.
-   * Client nhận message → disable nút bid → hiển thị "Người thắng: ...".
+   * <p>Message chứa: auctionId, winnerId, winningPrice. Client nhận message → disable nút bid →
+   * hiển thị "Người thắng: ...".
    *
    * @param auction phiên vừa kết thúc
    */

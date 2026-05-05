@@ -13,13 +13,14 @@ import org.slf4j.LoggerFactory;
  * Controller xử lý các endpoint đặt giá và lịch sử bid.
  *
  * <p>Danh sách endpoints:
+ *
  * <ul>
- *   <li>{@code POST /api/auctions/{id}/bid} — Đặt giá, chỉ BIDDER.</li>
- *   <li>{@code GET  /api/auctions/{id}/bids} — Lấy lịch sử bid của phiên (để vẽ chart).</li>
+ *   <li>{@code POST /api/auctions/{id}/bid} — Đặt giá, chỉ BIDDER.
+ *   <li>{@code GET /api/auctions/{id}/bids} — Lấy lịch sử bid của phiên (để vẽ chart).
  * </ul>
  *
- * <p>Controller này delegate toàn bộ business logic sang {@link BidService}:
- * validate giá, anti-sniping, auto-bid chain, và WebSocket broadcast.
+ * <p>Controller này delegate toàn bộ business logic sang {@link BidService}: validate giá,
+ * anti-sniping, auto-bid chain, và WebSocket broadcast.
  */
 public class BidController {
 
@@ -49,8 +50,7 @@ public class BidController {
           BidRequest request = ctx.bodyAsClass(BidRequest.class);
 
           // Gọi BidService với signature mới
-          BidTransaction bid = bidService.placeBid(
-              auctionId, bidderId, request.getAmount(), false);
+          BidTransaction bid = bidService.placeBid(auctionId, bidderId, request.getAmount(), false);
 
           LOGGER.info("Bid đặt thành công qua API: auction={}, bidder={}", auctionId, bidderId);
           ctx.status(201).json(bid);

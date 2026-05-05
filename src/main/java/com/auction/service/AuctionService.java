@@ -244,8 +244,8 @@ public class AuctionService {
   // ========== Methods required by AuctionServiceTest ==========
 
   /**
-   * Tạo phiên đấu giá (simplified — không check role, dùng cho test).
-   * Delegate sang createAuction() với role="SELLER".
+   * Tạo phiên đấu giá (simplified — không check role, dùng cho test). Delegate sang createAuction()
+   * với role="SELLER".
    */
   public Auction create(CreateAuctionRequest req, Long sellerId) {
     if (req.getItemId() == null) {
@@ -261,15 +261,17 @@ public class AuctionService {
       throw new IllegalArgumentException("End time must be after start time");
     }
 
-    Item item = itemDao.findById(req.getItemId())
-        .orElseThrow(() -> new NotFoundException("Item not found with id: " + req.getItemId()));
+    Item item =
+        itemDao
+            .findById(req.getItemId())
+            .orElseThrow(() -> new NotFoundException("Item not found with id: " + req.getItemId()));
 
     if (!item.getSellerId().equals(sellerId)) {
       throw new UnauthorizedException("You can only create auctions for your own items");
     }
 
-    Auction auction = new Auction(
-        req.getItemId(), req.getStartingPrice(), req.getStartTime(), req.getEndTime());
+    Auction auction =
+        new Auction(req.getItemId(), req.getStartingPrice(), req.getStartTime(), req.getEndTime());
     auction.setSellerId(sellerId);
     auctionDao.insert(auction);
     LOGGER.info("Auction created (via create): itemId={}, seller={}", req.getItemId(), sellerId);
@@ -277,12 +279,14 @@ public class AuctionService {
   }
 
   /**
-   * Cập nhật giá khởi điểm của phiên (simplified — chỉ nhận BigDecimal).
-   * Kiểm tra trạng thái qua State pattern trước khi sửa.
+   * Cập nhật giá khởi điểm của phiên (simplified — chỉ nhận BigDecimal). Kiểm tra trạng thái qua
+   * State pattern trước khi sửa.
    */
   public Auction update(Long auctionId, BigDecimal newPrice, Long sellerId) {
-    Auction auction = auctionDao.findById(auctionId)
-        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+    Auction auction =
+        auctionDao
+            .findById(auctionId)
+            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
 
     // Dùng State pattern để validate — OpenState cho phép, RunningState/FinishedState từ chối
     getState(auction).edit(auction);
@@ -299,8 +303,8 @@ public class AuctionService {
    * <p>Delegate sang {@link #updateAuction} rồi enrich kết quả.
    *
    * @param auctionId ID phiên cần sửa
-   * @param request   dữ liệu mới (startingPrice, startTime, endTime)
-   * @param userId    ID seller từ JWT
+   * @param request dữ liệu mới (startingPrice, startTime, endTime)
+   * @param userId ID seller từ JWT
    * @return AuctionResponse đã cập nhật
    */
   public AuctionResponse update(Long auctionId, CreateAuctionRequest request, Long userId) {
@@ -309,12 +313,14 @@ public class AuctionService {
   }
 
   /**
-   * Xóa phiên đấu giá (delegate sang deleteAuction với tên ngắn hơn).
-   * Không cho phép xóa phiên đang RUNNING.
+   * Xóa phiên đấu giá (delegate sang deleteAuction với tên ngắn hơn). Không cho phép xóa phiên đang
+   * RUNNING.
    */
   public void delete(Long auctionId, Long userId, String role) {
-    Auction auction = auctionDao.findById(auctionId)
-        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+    Auction auction =
+        auctionDao
+            .findById(auctionId)
+            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
 
     // Không xóa được phiên đang RUNNING (trừ ADMIN)
     if ("RUNNING".equals(auction.getStatus()) && !"ADMIN".equals(role)) {
@@ -330,8 +336,10 @@ public class AuctionService {
     Long auctionSellerId = auction.getSellerId();
     if (auctionSellerId == null) {
       // Fallback: kiểm tra qua item
-      Item item = itemDao.findById(auction.getItemId())
-          .orElseThrow(() -> new NotFoundException("Item not found"));
+      Item item =
+          itemDao
+              .findById(auction.getItemId())
+              .orElseThrow(() -> new NotFoundException("Item not found"));
       auctionSellerId = item.getSellerId();
     }
     if (!auctionSellerId.equals(userId)) {
@@ -342,24 +350,27 @@ public class AuctionService {
   }
 
   /**
-   * Đặt giá thông qua State pattern (dùng trong test và AuctionScheduler).
-   * Không persist xuống DB — chỉ validate state và update in-memory.
+   * Đặt giá thông qua State pattern (dùng trong test và AuctionScheduler). Không persist xuống DB —
+   * chỉ validate state và update in-memory.
    */
   public void placeBidViaState(Long auctionId, Long bidderId, BigDecimal amount) {
-    Auction auction = auctionDao.findById(auctionId)
-        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+    Auction auction =
+        auctionDao
+            .findById(auctionId)
+            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
     getState(auction).placeBid(auction, amount, bidderId);
   }
 
   /**
-   * Chuyển trạng thái OPEN → RUNNING.
-   * Chỉ hợp lệ khi auction đang ở OPEN. Gọi bởi AuctionScheduler.
+   * Chuyển trạng thái OPEN → RUNNING. Chỉ hợp lệ khi auction đang ở OPEN. Gọi bởi AuctionScheduler.
    *
    * @throws AuctionClosedException nếu auction không ở trạng thái OPEN
    */
   public void transitionToRunning(Long auctionId) {
-    Auction auction = auctionDao.findById(auctionId)
-        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+    Auction auction =
+        auctionDao
+            .findById(auctionId)
+            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
 
     if (!"OPEN".equals(auction.getStatus())) {
       throw new AuctionClosedException(
@@ -372,12 +383,14 @@ public class AuctionService {
   }
 
   /**
-   * Chuyển trạng thái RUNNING → FINISHED.
-   * Chỉ hợp lệ khi auction đang ở RUNNING. Gọi bởi AuctionScheduler.
+   * Chuyển trạng thái RUNNING → FINISHED. Chỉ hợp lệ khi auction đang ở RUNNING. Gọi bởi
+   * AuctionScheduler.
    */
   public void transitionToFinished(Long auctionId) {
-    Auction auction = auctionDao.findById(auctionId)
-        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+    Auction auction =
+        auctionDao
+            .findById(auctionId)
+            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
 
     if (!"RUNNING".equals(auction.getStatus())) {
       throw new AuctionClosedException(
@@ -390,18 +403,18 @@ public class AuctionService {
   }
 
   /**
-   * Trả về AuctionState tương ứng với trạng thái hiện tại của auction.
-   * Dùng để delegate behavior theo State pattern.
+   * Trả về AuctionState tương ứng với trạng thái hiện tại của auction. Dùng để delegate behavior
+   * theo State pattern.
    *
    * @param auction auction cần resolve state
    * @return AuctionState implementation tương ứng
    */
   public AuctionState getState(Auction auction) {
     return switch (auction.getStatus()) {
-      case "OPEN"     -> new OpenState();
-      case "RUNNING"  -> new RunningState();
+      case "OPEN" -> new OpenState();
+      case "RUNNING" -> new RunningState();
       case "FINISHED" -> new FinishedState();
-      case "PAID"     -> new PaidState();
+      case "PAID" -> new PaidState();
       case "CANCELED" -> new CanceledState();
       default -> throw new IllegalStateException("Unknown auction status: " + auction.getStatus());
     };
