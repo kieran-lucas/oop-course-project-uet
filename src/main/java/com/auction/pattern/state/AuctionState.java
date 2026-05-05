@@ -94,3 +94,4 @@ public interface AuctionState {
    */
   void extend(Auction auction, long extraSeconds);
 }
+

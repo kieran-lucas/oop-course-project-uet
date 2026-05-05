@@ -211,7 +211,7 @@ tasks.register<JavaExec>("runClient") {
     val javafxLibPath =
         configurations.runtimeClasspath.get()
             .filter { it.name.contains("javafx") && it.name.contains(platform) }
-            .joinToString(";") { it.absolutePath }
+            .joinToString(File.pathSeparator) { it.absolutePath }
 
     jvmArgs = listOf(
         "--module-path", javafxLibPath,

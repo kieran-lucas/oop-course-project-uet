@@ -71,6 +71,7 @@ public abstract class User extends Entity {
     this.email = email;
   }
 
+
   @Override
   public String toString() {
     return getRole() + "{username='" + username + "', email='" + email + "'}";

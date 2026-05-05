@@ -161,6 +161,7 @@ public class App {
     }
   }
 
+
   /**
    * Đăng ký exception handlers — ánh xạ custom exception → HTTP status code.
    *

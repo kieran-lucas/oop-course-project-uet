@@ -57,3 +57,4 @@ public class FinishedState implements AuctionState {
     );
   }
 }
+
