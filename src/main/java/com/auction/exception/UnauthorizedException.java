@@ -1,6 +1,6 @@
 package com.auction.exception;
 
-public class UnauthorizedException extends RuntimeException {
+public class UnauthorizedException extends AuctionException {
   public UnauthorizedException(String message) {
     super(message);
   }
