@@ -47,7 +47,7 @@ public class RestClient {
   /** URL gốc của server — khớp với SERVER_PORT trong App.java */
   private static final String BASE_URL = "http://localhost:8080";
 
-  private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
       .connectTimeout(Duration.ofSeconds(5))
       .build();
 

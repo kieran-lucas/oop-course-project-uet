@@ -44,3 +44,4 @@ public class CanceledState implements AuctionState {
     throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
   }
 }
+

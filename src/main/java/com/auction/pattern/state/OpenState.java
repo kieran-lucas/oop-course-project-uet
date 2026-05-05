@@ -88,3 +88,4 @@ public class OpenState implements AuctionState {
     );
   }
 }
+

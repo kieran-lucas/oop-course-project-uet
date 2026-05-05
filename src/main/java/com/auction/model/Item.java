@@ -77,6 +77,7 @@ public abstract class Item extends Entity {
     this.sellerId = sellerId;
   }
 
+
   @Override
   public String toString() {
     return getCategory() + "{name='" + name + "', seller=" + sellerId + "}";
