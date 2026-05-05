@@ -139,6 +139,12 @@ public class AuctionListController implements Navigable {
     SceneManager.getInstance().navigateTo("create-auction.fxml");
   }
 
+  /** Chuyển sang màn hình hồ sơ cá nhân. */
+  @FXML
+  public void handleProfile() {
+    SceneManager.getInstance().navigateTo("profile.fxml");
+  }
+
   /** Đăng xuất — xóa session và quay về màn hình chào. */
   @FXML
   public void handleLogout() {

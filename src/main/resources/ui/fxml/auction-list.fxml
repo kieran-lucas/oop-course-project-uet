@@ -25,7 +25,7 @@
          </padding>
          <Label styleClass="app-logo" text="Auction House" />
          <Region HBox.hgrow="ALWAYS" />
-         <Label fx:id="usernameLabel" styleClass="username-label" text="Người dùng" />
+         <Label fx:id="usernameLabel" styleClass="username-label" text="Người dùng" style="-fx-cursor: hand;" onMouseClicked="#handleProfile" />
          <Button styleClass="logout-button" text="Đăng xuất" onAction="#handleLogout" />
       </HBox>
    </top>
