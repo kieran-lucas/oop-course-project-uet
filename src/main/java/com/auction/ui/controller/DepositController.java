@@ -20,12 +20,11 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller cho màn hình nạp tiền (deposit.fxml).
  *
- * <p><b>Mục đích:</b>
- * Cho phép BIDDER nạp tiền vào tài khoản để tham gia đấu giá.
- * Gửi request đến {@code POST /api/users/me/deposit}.
+ * <p><b>Mục đích:</b> Cho phép BIDDER nạp tiền vào tài khoản để tham gia đấu giá. Gửi request đến
+ * {@code POST /api/users/me/deposit}.
  *
- * <p><b>Vị trí trong kiến trúc:</b>
- * Được điều hướng đến từ màn hình Profile. Yêu cầu người dùng đã xác thực.
+ * <p><b>Vị trí trong kiến trúc:</b> Được điều hướng đến từ màn hình Profile. Yêu cầu người dùng đã
+ * xác thực.
  */
 public class DepositController implements Navigable {
 
@@ -40,7 +39,7 @@ public class DepositController implements Navigable {
   @Override
   public void onNavigatedTo() {
     if (amountField != null) {
-        amountField.clear();
+      amountField.clear();
     }
     hideStatus();
     loadBalance();
@@ -68,27 +67,31 @@ public class DepositController implements Navigable {
     Map<String, Object> body = new HashMap<>();
     body.put("amount", amount);
 
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.post("/api/users/me/deposit", body);
-        Platform.runLater(() -> {
-          if (response.statusCode() == 200) {
-            showStatus("Nạp tiền thành công: " + VND.format(amount), false);
-            amountField.clear();
-            loadBalance();
-          } else {
-            showStatus("Nạp tiền thất bại.", true);
-          }
-          depositButton.setDisable(false);
-        });
-      } catch (Exception e) {
-        LOGGER.error("Lỗi nạp tiền", e);
-        Platform.runLater(() -> {
-          showStatus("Không thể kết nối đến server.", true);
-          depositButton.setDisable(false);
-        });
-      }
-    });
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.post("/api/users/me/deposit", body);
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 200) {
+                        showStatus("Nạp tiền thành công: " + VND.format(amount), false);
+                        amountField.clear();
+                        loadBalance();
+                      } else {
+                        showStatus("Nạp tiền thất bại.", true);
+                      }
+                      depositButton.setDisable(false);
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi nạp tiền", e);
+                Platform.runLater(
+                    () -> {
+                      showStatus("Không thể kết nối đến server.", true);
+                      depositButton.setDisable(false);
+                    });
+              }
+            });
   }
 
   @FXML
@@ -97,23 +100,25 @@ public class DepositController implements Navigable {
   }
 
   private void loadBalance() {
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.get("/api/users/me");
-        if (response.statusCode() == 200) {
-          com.fasterxml.jackson.databind.ObjectMapper mapper =
-              new com.fasterxml.jackson.databind.ObjectMapper();
-          var node = mapper.readTree(response.body());
-          if (node.has("balance")) {
-            BigDecimal balance = node.get("balance").decimalValue();
-            Platform.runLater(() ->
-                balanceLabel.setText("Số dư hiện tại: " + VND.format(balance)));
-          }
-        }
-      } catch (Exception e) {
-        LOGGER.debug("Không thể load số dư: {}", e.getMessage());
-      }
-    });
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.get("/api/users/me");
+                if (response.statusCode() == 200) {
+                  com.fasterxml.jackson.databind.ObjectMapper mapper =
+                      new com.fasterxml.jackson.databind.ObjectMapper();
+                  var node = mapper.readTree(response.body());
+                  if (node.has("balance")) {
+                    BigDecimal balance = node.get("balance").decimalValue();
+                    Platform.runLater(
+                        () -> balanceLabel.setText("Số dư hiện tại: " + VND.format(balance)));
+                  }
+                }
+              } catch (Exception e) {
+                LOGGER.debug("Không thể load số dư: {}", e.getMessage());
+              }
+            });
   }
 
   private void showStatus(String msg, boolean isError) {
@@ -124,7 +129,7 @@ public class DepositController implements Navigable {
 
   private void hideStatus() {
     if (statusLabel != null) {
-        statusLabel.setVisible(false);
+      statusLabel.setVisible(false);
     }
   }
 }

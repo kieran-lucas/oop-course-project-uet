@@ -22,26 +22,28 @@ import org.slf4j.LoggerFactory;
 /**
  * WebSocket handler — quản lý kết nối realtime giữa server và client.
  *
- * <p><b>Vai trò trong hệ thống:</b>
- * AuctionWebSocketHandler là cầu nối giữa Observer pattern (AuctionEventManager)
- * và transport layer (WebSocket). Khi client kết nối:
+ * <p><b>Vai trò trong hệ thống:</b> AuctionWebSocketHandler là cầu nối giữa Observer pattern
+ * (AuctionEventManager) và transport layer (WebSocket). Khi client kết nối:
+ *
  * <ol>
- *   <li>Xác thực JWT token từ query parameter.</li>
- *   <li>Lưu WebSocket session vào map theo auctionId.</li>
- *   <li>Tạo {@link WebSocketObserver} và subscribe vào {@link AuctionEventManager}.</li>
+ *   <li>Xác thực JWT token từ query parameter.
+ *   <li>Lưu WebSocket session vào map theo auctionId.
+ *   <li>Tạo {@link WebSocketObserver} và subscribe vào {@link AuctionEventManager}.
  * </ol>
  *
  * <p>Khi có sự kiện (bid mới, gia hạn, kết thúc):
+ *
  * <pre>
  *   BidService → EventManager.notify() → WebSocketObserver.onBidUpdate()
  *     → AuctionWebSocketHandler.broadcast() → gửi JSON đến tất cả client
  * </pre>
  *
  * <p><b>Liên kết với các file khác:</b>
+ *
  * <ul>
- *   <li>{@link AuctionEventManager} — subscribe/unsubscribe observer khi client connect/disconnect</li>
- *   <li>{@link WebSocketObserver} — observer nhận events và gọi broadcast()</li>
- *   <li>{@link com.auction.App} — đăng ký WebSocket route /ws/auction/{id}</li>
+ *   <li>{@link AuctionEventManager} — subscribe/unsubscribe observer khi client connect/disconnect
+ *   <li>{@link WebSocketObserver} — observer nhận events và gọi broadcast()
+ *   <li>{@link com.auction.App} — đăng ký WebSocket route /ws/auction/{id}
  * </ul>
  */
 public class AuctionWebSocketHandler {
@@ -49,15 +51,12 @@ public class AuctionWebSocketHandler {
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionWebSocketHandler.class);
 
   /**
-   * Map auctionId → set WebSocket sessions đang kết nối.
-   * ConcurrentHashMap + CopyOnWriteArraySet để thread-safe.
+   * Map auctionId → set WebSocket sessions đang kết nối. ConcurrentHashMap + CopyOnWriteArraySet để
+   * thread-safe.
    */
   private final Map<Long, Set<WsContext>> connections = new ConcurrentHashMap<>();
 
-  /**
-   * Map session → WebSocketObserver tương ứng.
-   * Dùng để unsubscribe khi client disconnect.
-   */
+  /** Map session → WebSocketObserver tương ứng. Dùng để unsubscribe khi client disconnect. */
   private final Map<WsContext, WebSocketObserver> observers = new ConcurrentHashMap<>();
 
   private final AuctionEventManager eventManager;
@@ -73,11 +72,12 @@ public class AuctionWebSocketHandler {
    * Xử lý client kết nối WebSocket.
    *
    * <p>Luồng:
+   *
    * <ol>
-   *   <li>Lấy auctionId từ URL path ({@code /ws/auction/{id}}).</li>
-   *   <li>Verify JWT từ query param {@code token}.</li>
-   *   <li>Lưu session vào connections map.</li>
-   *   <li>Tạo WebSocketObserver và subscribe vào EventManager.</li>
+   *   <li>Lấy auctionId từ URL path ({@code /ws/auction/{id}}).
+   *   <li>Verify JWT từ query param {@code token}.
+   *   <li>Lưu session vào connections map.
+   *   <li>Tạo WebSocketObserver và subscribe vào EventManager.
    * </ol>
    */
   public void onConnect(WsConnectContext ctx) {
@@ -113,17 +113,13 @@ public class AuctionWebSocketHandler {
     }
   }
 
-  /**
-   * Xử lý client ngắt kết nối — dọn dẹp connection và unsubscribe observer.
-   */
+  /** Xử lý client ngắt kết nối — dọn dẹp connection và unsubscribe observer. */
   public void onClose(WsCloseContext ctx) {
     removeConnection(ctx);
     LOGGER.debug("WebSocket ngắt kết nối: status={}, reason={}", ctx.status(), ctx.reason());
   }
 
-  /**
-   * Xử lý lỗi WebSocket — dọn dẹp connection và unsubscribe observer.
-   */
+  /** Xử lý lỗi WebSocket — dọn dẹp connection và unsubscribe observer. */
   public void onError(WsErrorContext ctx) {
     removeConnection(ctx);
     if (ctx.error() != null) {
@@ -134,11 +130,11 @@ public class AuctionWebSocketHandler {
   /**
    * Gửi BidUpdateMessage JSON đến tất cả client đang xem phiên đấu giá.
    *
-   * <p>Serialize message 1 lần, gửi đến tất cả connections của phiên đó.
-   * Tự động dọn dẹp các session đã đóng.
+   * <p>Serialize message 1 lần, gửi đến tất cả connections của phiên đó. Tự động dọn dẹp các
+   * session đã đóng.
    *
    * @param auctionId ID phiên đấu giá
-   * @param message   message cần gửi (BID_UPDATE, TIME_EXTENDED, AUCTION_ENDED)
+   * @param message message cần gửi (BID_UPDATE, TIME_EXTENDED, AUCTION_ENDED)
    */
   public void broadcast(Long auctionId, BidUpdateMessage message) {
     Set<WsContext> auctionConnections = connections.get(auctionId);
@@ -162,17 +158,18 @@ public class AuctionWebSocketHandler {
         }
       }
 
-      LOGGER.debug("Broadcast {} đến {} client cho phiên #{}",
-          message.getType(), auctionConnections.size(), auctionId);
+      LOGGER.debug(
+          "Broadcast {} đến {} client cho phiên #{}",
+          message.getType(),
+          auctionConnections.size(),
+          auctionId);
 
     } catch (Exception e) {
       LOGGER.error("Lỗi serialize WebSocket message: {}", e.getMessage());
     }
   }
 
-  /**
-   * Xóa connection và unsubscribe observer khỏi EventManager.
-   */
+  /** Xóa connection và unsubscribe observer khỏi EventManager. */
   private void removeConnection(WsContext ctx) {
     connections.values().forEach(set -> set.remove(ctx));
 

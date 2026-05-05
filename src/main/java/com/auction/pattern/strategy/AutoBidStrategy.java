@@ -18,16 +18,19 @@ import org.slf4j.LoggerFactory;
  * <p><b>Pattern được áp dụng: Strategy (Behavioral Pattern)</b>
  *
  * <p>AutoBidStrategy xử lý chuỗi auto-bid sau khi có một bid thủ công:
+ *
  * <ol>
- *   <li>Lấy tất cả {@link AutoBidConfig} active của phiên từ database.</li>
- *   <li>Sắp xếp vào {@code PriorityQueue} theo {@code registeredAt} (ai đăng ký trước được ưu tiên).</li>
- *   <li>Duyệt queue: ai còn budget ({@code canBidAt(currentPrice) == true}) → tự động bid.</li>
- *   <li>Nếu budget bị vượt → đánh dấu config là {@code active = false} và cập nhật DB.</li>
- *   <li>Giới hạn tối đa {@value #MAX_AUTO_BIDS_PER_TRIGGER} lần auto-bid liên tiếp để
- *       tránh vòng lặp vô hạn.</li>
+ *   <li>Lấy tất cả {@link AutoBidConfig} active của phiên từ database.
+ *   <li>Sắp xếp vào {@code PriorityQueue} theo {@code registeredAt} (ai đăng ký trước được ưu
+ *       tiên).
+ *   <li>Duyệt queue: ai còn budget ({@code canBidAt(currentPrice) == true}) → tự động bid.
+ *   <li>Nếu budget bị vượt → đánh dấu config là {@code active = false} và cập nhật DB.
+ *   <li>Giới hạn tối đa {@value #MAX_AUTO_BIDS_PER_TRIGGER} lần auto-bid liên tiếp để tránh vòng
+ *       lặp vô hạn.
  * </ol>
  *
  * <p><b>Ví dụ chuỗi auto-bid:</b>
+ *
  * <pre>
  *   User C bid thủ công 5,000,000đ
  *   → AutoBidStrategy.executeAll()
@@ -37,21 +40,21 @@ import org.slf4j.LoggerFactory;
  *   → ... tiếp tục cho đến khi không còn ai đủ budget
  * </pre>
  *
- * <p><b>Lý do dùng PriorityQueue:</b>
- * Sắp xếp theo {@code registeredAt} đảm bảo tính công bằng:
+ * <p><b>Lý do dùng PriorityQueue:</b> Sắp xếp theo {@code registeredAt} đảm bảo tính công bằng:
  * user đăng ký auto-bid trước có ưu tiên khi cùng budget.
  *
- * <p><b>Functional interface AutoBidExecutor:</b>
- * Để tránh circular dependency (AutoBidStrategy → BidService → AutoBidStrategy),
- * class này nhận một callback {@link AutoBidExecutor} thay vì inject BidService trực tiếp.
- * BidService truyền {@code (aid, bid, amt) -> this.placeBid(aid, bid, amt, true)} khi gọi.
+ * <p><b>Functional interface AutoBidExecutor:</b> Để tránh circular dependency (AutoBidStrategy →
+ * BidService → AutoBidStrategy), class này nhận một callback {@link AutoBidExecutor} thay vì inject
+ * BidService trực tiếp. BidService truyền {@code (aid, bid, amt) -> this.placeBid(aid, bid, amt,
+ * true)} khi gọi.
  *
  * <p><b>Liên kết với các file khác:</b>
+ *
  * <ul>
- *   <li>{@link BidStrategy} — interface mà class này implements</li>
- *   <li>{@link ManualBidStrategy} — dùng logic validate tương tự cho từng auto-bid</li>
- *   <li>{@link AutoBidConfigDao} — lấy danh sách auto-bid configs từ database</li>
- *   <li>{@link com.auction.service.BidService} — gọi {@code executeAll()} sau mỗi manual bid</li>
+ *   <li>{@link BidStrategy} — interface mà class này implements
+ *   <li>{@link ManualBidStrategy} — dùng logic validate tương tự cho từng auto-bid
+ *   <li>{@link AutoBidConfigDao} — lấy danh sách auto-bid configs từ database
+ *   <li>{@link com.auction.service.BidService} — gọi {@code executeAll()} sau mỗi manual bid
  * </ul>
  */
 public class AutoBidStrategy implements BidStrategy {
@@ -66,7 +69,8 @@ public class AutoBidStrategy implements BidStrategy {
   /**
    * Functional interface để tránh circular dependency với BidService.
    *
-   * <p>BidService truyền lambda: {@code (auctionId, bidderId, amount) -> this.placeBid(auctionId, bidderId, amount, true)}
+   * <p>BidService truyền lambda: {@code (auctionId, bidderId, amount) -> this.placeBid(auctionId,
+   * bidderId, amount, true)}
    */
   @FunctionalInterface
   public interface AutoBidExecutor {
@@ -74,8 +78,8 @@ public class AutoBidStrategy implements BidStrategy {
      * Thực thi một lần auto-bid.
      *
      * @param auctionId ID phiên đấu giá
-     * @param bidderId  ID người được auto-bid thay
-     * @param amount    số tiền auto-bid
+     * @param bidderId ID người được auto-bid thay
+     * @param amount số tiền auto-bid
      * @return BidTransaction vừa được ghi lại
      */
     BidTransaction execute(Long auctionId, Long bidderId, BigDecimal amount);
@@ -88,18 +92,18 @@ public class AutoBidStrategy implements BidStrategy {
   /**
    * Thực thi một lần auto-bid đơn lẻ (implements BidStrategy).
    *
-   * <p>Logic giống ManualBidStrategy nhưng bỏ qua kiểm tra "seller tự bid" vì
-   * auto-bid chỉ áp dụng cho bidder (đã validate khi setup auto-bid config).
+   * <p>Logic giống ManualBidStrategy nhưng bỏ qua kiểm tra "seller tự bid" vì auto-bid chỉ áp dụng
+   * cho bidder (đã validate khi setup auto-bid config).
    *
-   * @param auction   phiên đấu giá đang RUNNING
-   * @param bidderId  ID người được auto-bid thay
-   * @param amount    số tiền auto-bid (= currentPrice + increment)
+   * @param auction phiên đấu giá đang RUNNING
+   * @param bidderId ID người được auto-bid thay
+   * @param amount số tiền auto-bid (= currentPrice + increment)
    * @param isAutoBid luôn {@code true} cho auto-bid
    * @return BidTransaction mới với autoBid = true
    */
   @Override
-  public BidTransaction execute(Auction auction, Long bidderId, BigDecimal amount,
-      boolean isAutoBid) {
+  public BidTransaction execute(
+      Auction auction, Long bidderId, BigDecimal amount, boolean isAutoBid) {
     if (amount == null || amount.signum() <= 0) {
       throw new InvalidBidException("Giá auto-bid phải lớn hơn 0");
     }
@@ -120,15 +124,15 @@ public class AutoBidStrategy implements BidStrategy {
   /**
    * Kích hoạt chuỗi auto-bid sau khi có bid thủ công thành công.
    *
-   * <p>Mỗi lần auto-bid thành công có thể kích hoạt thêm auto-bid của người khác,
-   * tạo thành chuỗi phản ứng. Chuỗi dừng khi không còn ai đủ budget.
+   * <p>Mỗi lần auto-bid thành công có thể kích hoạt thêm auto-bid của người khác, tạo thành chuỗi
+   * phản ứng. Chuỗi dừng khi không còn ai đủ budget.
    *
    * @param auctionId ID phiên đấu giá
    * @param currentPriceAfterBid giá hiện tại sau bid vừa xảy ra
-   * @param executor  callback để thực thi từng auto-bid (thường là BidService.placeBid)
+   * @param executor callback để thực thi từng auto-bid (thường là BidService.placeBid)
    */
-  public void executeAll(Long auctionId, BigDecimal currentPriceAfterBid,
-      AutoBidExecutor executor) {
+  public void executeAll(
+      Long auctionId, BigDecimal currentPriceAfterBid, AutoBidExecutor executor) {
     int autoBidCount = 0;
     BigDecimal currentPrice = currentPriceAfterBid;
     boolean anyBidPlaced = true;
@@ -140,8 +144,8 @@ public class AutoBidStrategy implements BidStrategy {
       List<AutoBidConfig> activeConfigs = autoBidConfigDao.findActiveByAuctionId(auctionId);
 
       // Dùng PriorityQueue để đảm bảo thứ tự ưu tiên (ai đăng ký trước được xử lý trước)
-      PriorityQueue<AutoBidConfig> queue = new PriorityQueue<>(
-          Comparator.comparing(AutoBidConfig::getRegisteredAt));
+      PriorityQueue<AutoBidConfig> queue =
+          new PriorityQueue<>(Comparator.comparing(AutoBidConfig::getRegisteredAt));
       queue.addAll(activeConfigs);
 
       while (!queue.isEmpty()) {
@@ -155,10 +159,13 @@ public class AutoBidStrategy implements BidStrategy {
           config.setActive(false);
           try {
             autoBidConfigDao.update(config);
-            LOGGER.info("Auto-bid hết budget cho bidder={} trong phiên={}",
-                config.getBidderId(), auctionId);
+            LOGGER.info(
+                "Auto-bid hết budget cho bidder={} trong phiên={}",
+                config.getBidderId(),
+                auctionId);
           } catch (Exception e) {
-            LOGGER.error("Không thể cập nhật auto-bid config id={}: {}", config.getId(), e.getMessage());
+            LOGGER.error(
+                "Không thể cập nhật auto-bid config id={}: {}", config.getId(), e.getMessage());
           }
           continue;
         }
@@ -171,8 +178,11 @@ public class AutoBidStrategy implements BidStrategy {
           currentPrice = nextAmount;
           anyBidPlaced = true;
           autoBidCount++;
-          LOGGER.info("Auto-bid thành công: bidder={}, amount={}, phiên={}",
-              config.getBidderId(), nextAmount, auctionId);
+          LOGGER.info(
+              "Auto-bid thành công: bidder={}, amount={}, phiên={}",
+              config.getBidderId(),
+              nextAmount,
+              auctionId);
           break; // Sau mỗi auto-bid, quét lại từ đầu (để kiểm tra người mới vào queue)
         } catch (Exception e) {
           LOGGER.warn("Auto-bid thất bại cho bidder={}: {}", config.getBidderId(), e.getMessage());

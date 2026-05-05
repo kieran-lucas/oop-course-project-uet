@@ -67,3 +67,6 @@ hs_err_pid*
 .env
 *.env.local
 gradle.properties
+
+# repowise API keys (local)
+.repowise/.env

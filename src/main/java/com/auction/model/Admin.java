@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
  * <p>Admin có quyền: quản lý tất cả user, xóa phiên đấu giá vi phạm, xem thống kê hệ thống. Admin
  * KHÔNG tham gia đấu giá.
  */
-
 public class Admin extends User {
 
   public Admin() {}

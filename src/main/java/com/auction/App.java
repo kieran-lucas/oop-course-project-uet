@@ -12,7 +12,6 @@ import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
-import com.auction.model.Admin;
 import com.auction.dto.ErrorResponse;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.DuplicateException;
@@ -20,8 +19,8 @@ import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.middleware.JwtMiddleware;
+import com.auction.model.Admin;
 import com.auction.pattern.observer.AuctionEventManager;
-import com.auction.pattern.observer.WebSocketObserver;
 import com.auction.service.AuctionScheduler;
 import com.auction.service.AuctionService;
 import com.auction.service.BidService;
@@ -41,19 +40,21 @@ import org.slf4j.LoggerFactory;
  * Điểm khởi động chính của server Javalin — Online Auction System.
  *
  * <p>Thứ tự khởi tạo:
+ *
  * <ol>
- *   <li>Jackson ObjectMapper (hỗ trợ LocalDateTime, BigDecimal).</li>
- *   <li>Database connection (HikariCP + JDBI).</li>
- *   <li>DAOs → Services → Controllers.</li>
- *   <li>Observer pattern: AuctionEventManager + WebSocketObserver.</li>
- *   <li>AuctionScheduler (OPEN→RUNNING→FINISHED transition).</li>
- *   <li>Javalin: Middleware → Exception handlers → Routes → Start.</li>
+ *   <li>Jackson ObjectMapper (hỗ trợ LocalDateTime, BigDecimal).
+ *   <li>Database connection (HikariCP + JDBI).
+ *   <li>DAOs → Services → Controllers.
+ *   <li>Observer pattern: AuctionEventManager + WebSocketObserver.
+ *   <li>AuctionScheduler (OPEN→RUNNING→FINISHED transition).
+ *   <li>Javalin: Middleware → Exception handlers → Routes → Start.
  * </ol>
  *
  * <p>Biến môi trường yêu cầu (đọc từ .env):
+ *
  * <ul>
- *   <li>DB_URL, DB_USER, DB_PASSWORD — kết nối PostgreSQL.</li>
- *   <li>JWT_SECRET — khóa ký JWT (default: "auction-secret-key-dev").</li>
+ *   <li>DB_URL, DB_USER, DB_PASSWORD — kết nối PostgreSQL.
+ *   <li>JWT_SECRET — khóa ký JWT (default: "auction-secret-key-dev").
  * </ul>
  */
 public class App {
@@ -98,17 +99,22 @@ public class App {
     scheduler.start();
 
     // Đăng ký shutdown hook để dừng scheduler khi server tắt
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      scheduler.stop();
-      LOGGER.info("Server đang tắt...");
-    }));
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  scheduler.stop();
+                  LOGGER.info("Server đang tắt...");
+                }));
 
     // ── 8. Tạo Javalin instance ──────────────────────────────
-    Javalin app = Javalin.create(config -> {
-      config.jsonMapper(new JavalinJackson(mapper, false));
-      config.http.defaultContentType = "application/json";
-      config.bundledPlugins.enableCors(cors -> cors.addRule(it -> it.anyHost()));
-    });
+    Javalin app =
+        Javalin.create(
+            config -> {
+              config.jsonMapper(new JavalinJackson(mapper, false));
+              config.http.defaultContentType = "application/json";
+              config.bundledPlugins.enableCors(cors -> cors.addRule(it -> it.anyHost()));
+            });
 
     // ── 9. Đăng ký JWT Middleware ────────────────────────────
     app.before("/api/*", JwtMiddleware::handle);
@@ -128,11 +134,13 @@ public class App {
     bidController.register(app);
 
     // ── 12. Đăng ký WebSocket ────────────────────────────────
-    app.ws("/ws/auction/{id}", ws -> {
-      ws.onConnect(wsHandler::onConnect);
-      ws.onClose(wsHandler::onClose);
-      ws.onError(wsHandler::onError);
-    });
+    app.ws(
+        "/ws/auction/{id}",
+        ws -> {
+          ws.onConnect(wsHandler::onConnect);
+          ws.onClose(wsHandler::onClose);
+          ws.onError(wsHandler::onError);
+        });
 
     // ── 13. Khởi động server ─────────────────────────────────
     app.start(SERVER_PORT);
@@ -140,8 +148,8 @@ public class App {
   }
 
   /**
-   * Tạo hoặc cập nhật tài khoản admin mặc định (admin / 123456) khi server khởi động.
-   * Đảm bảo admin luôn có thể đăng nhập trong môi trường dev/test.
+   * Tạo hoặc cập nhật tài khoản admin mặc định (admin / 123456) khi server khởi động. Đảm bảo admin
+   * luôn có thể đăng nhập trong môi trường dev/test.
    */
   private static void seedAdminIfNeeded(UserDao userDao) {
     try {
@@ -161,11 +169,11 @@ public class App {
     }
   }
 
-
   /**
    * Đăng ký exception handlers — ánh xạ custom exception → HTTP status code.
    *
    * <p>Bảng ánh xạ:
+   *
    * <pre>
    *   InvalidBidException      → 400 Bad Request
    *   AuctionClosedException   → 400 Bad Request
@@ -176,35 +184,47 @@ public class App {
    * </pre>
    */
   private static void registerExceptionHandlers(Javalin app) {
-    app.exception(InvalidBidException.class, (e, ctx) -> {
-      LOGGER.warn("Lỗi đặt giá: {}", e.getMessage());
-      ctx.status(400).json(ErrorResponse.of("INVALID_BID", e.getMessage()));
-    });
+    app.exception(
+        InvalidBidException.class,
+        (e, ctx) -> {
+          LOGGER.warn("Lỗi đặt giá: {}", e.getMessage());
+          ctx.status(400).json(ErrorResponse.of("INVALID_BID", e.getMessage()));
+        });
 
-    app.exception(AuctionClosedException.class, (e, ctx) -> {
-      LOGGER.warn("Lỗi trạng thái phiên: {}", e.getMessage());
-      ctx.status(400).json(ErrorResponse.of("AUCTION_CLOSED", e.getMessage()));
-    });
+    app.exception(
+        AuctionClosedException.class,
+        (e, ctx) -> {
+          LOGGER.warn("Lỗi trạng thái phiên: {}", e.getMessage());
+          ctx.status(400).json(ErrorResponse.of("AUCTION_CLOSED", e.getMessage()));
+        });
 
-    app.exception(UnauthorizedException.class, (e, ctx) -> {
-      LOGGER.warn("Lỗi xác thực: {}", e.getMessage());
-      ctx.status(401).json(ErrorResponse.of("UNAUTHORIZED", e.getMessage()));
-    });
+    app.exception(
+        UnauthorizedException.class,
+        (e, ctx) -> {
+          LOGGER.warn("Lỗi xác thực: {}", e.getMessage());
+          ctx.status(401).json(ErrorResponse.of("UNAUTHORIZED", e.getMessage()));
+        });
 
-    app.exception(NotFoundException.class, (e, ctx) -> {
-      LOGGER.warn("Không tìm thấy tài nguyên: {}", e.getMessage());
-      ctx.status(404).json(ErrorResponse.of("NOT_FOUND", e.getMessage()));
-    });
+    app.exception(
+        NotFoundException.class,
+        (e, ctx) -> {
+          LOGGER.warn("Không tìm thấy tài nguyên: {}", e.getMessage());
+          ctx.status(404).json(ErrorResponse.of("NOT_FOUND", e.getMessage()));
+        });
 
-    app.exception(DuplicateException.class, (e, ctx) -> {
-      LOGGER.warn("Xung đột dữ liệu: {}", e.getMessage());
-      ctx.status(409).json(ErrorResponse.of("DUPLICATE", e.getMessage()));
-    });
+    app.exception(
+        DuplicateException.class,
+        (e, ctx) -> {
+          LOGGER.warn("Xung đột dữ liệu: {}", e.getMessage());
+          ctx.status(409).json(ErrorResponse.of("DUPLICATE", e.getMessage()));
+        });
 
-    app.exception(Exception.class, (e, ctx) -> {
-      LOGGER.error("Lỗi server không xác định", e);
-      ctx.status(500).json(ErrorResponse.of("INTERNAL_ERROR",
-          "Lỗi hệ thống, vui lòng thử lại sau."));
-    });
+    app.exception(
+        Exception.class,
+        (e, ctx) -> {
+          LOGGER.error("Lỗi server không xác định", e);
+          ctx.status(500)
+              .json(ErrorResponse.of("INTERNAL_ERROR", "Lỗi hệ thống, vui lòng thử lại sau."));
+        });
   }
 }

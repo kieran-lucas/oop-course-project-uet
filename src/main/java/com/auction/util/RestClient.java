@@ -15,24 +15,24 @@ import org.slf4j.LoggerFactory;
 /**
  * Utility client HTTP dùng cho client JavaFX giao tiếp với server Javalin.
  *
- * <p><b>Mục đích:</b>
- * Cung cấp các phương thức gửi HTTP request (GET, POST, PUT, DELETE) đến REST API
- * của server, tự động gắn JWT token vào header {@code Authorization: Bearer <token>}
- * nếu người dùng đã đăng nhập (lấy từ {@link SceneManager}).
+ * <p><b>Mục đích:</b> Cung cấp các phương thức gửi HTTP request (GET, POST, PUT, DELETE) đến REST
+ * API của server, tự động gắn JWT token vào header {@code Authorization: Bearer <token>} nếu người
+ * dùng đã đăng nhập (lấy từ {@link SceneManager}).
  *
  * <p><b>Các phương thức chính:</b>
+ *
  * <ul>
- *   <li>{@link #get(String)} — Gửi GET request, trả về JSON string.</li>
- *   <li>{@link #post(String, Object)} — Gửi POST request với body JSON.</li>
- *   <li>{@link #put(String, Object)} — Gửi PUT request với body JSON.</li>
- *   <li>{@link #delete(String)} — Gửi DELETE request.</li>
+ *   <li>{@link #get(String)} — Gửi GET request, trả về JSON string.
+ *   <li>{@link #post(String, Object)} — Gửi POST request với body JSON.
+ *   <li>{@link #put(String, Object)} — Gửi PUT request với body JSON.
+ *   <li>{@link #delete(String)} — Gửi DELETE request.
  * </ul>
  *
- * <p><b>Vị trí trong kiến trúc:</b>
- * Tất cả UI Controller đều gọi RestClient để tương tác với server.
- * RestClient là cầu nối giữa tầng UI (JavaFX) và tầng API (Javalin REST).
+ * <p><b>Vị trí trong kiến trúc:</b> Tất cả UI Controller đều gọi RestClient để tương tác với
+ * server. RestClient là cầu nối giữa tầng UI (JavaFX) và tầng API (Javalin REST).
  *
  * <p><b>Ví dụ sử dụng:</b>
+ *
  * <pre>
  *   HttpResponse&lt;String&gt; resp = RestClient.get("/api/auctions");
  *   if (resp.statusCode() == 200) {
@@ -47,13 +47,13 @@ public class RestClient {
   /** URL gốc của server — khớp với SERVER_PORT trong App.java */
   private static final String BASE_URL = "http://localhost:8080";
 
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-      .connectTimeout(Duration.ofSeconds(5))
-      .build();
+  private static final HttpClient HTTP_CLIENT =
+      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
-  private static final ObjectMapper MAPPER = new ObjectMapper()
-      .registerModule(new JavaTimeModule())
-      .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModule(new JavaTimeModule())
+          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
   private RestClient() {}
 
@@ -67,37 +67,31 @@ public class RestClient {
    * @throws RuntimeException nếu gửi request thất bại
    */
   public static HttpResponse<String> get(String path) {
-    HttpRequest request = buildRequest(path)
-        .GET()
-        .build();
+    HttpRequest request = buildRequest(path).GET().build();
     return send(request);
   }
 
   /**
    * Gửi POST request với body JSON serialize từ {@code body}.
    *
-   * @param path  đường dẫn API
-   * @param body  object sẽ được serialize thành JSON
+   * @param path đường dẫn API
+   * @param body object sẽ được serialize thành JSON
    * @return HttpResponse chứa body JSON
    */
   public static HttpResponse<String> post(String path, Object body) {
-    HttpRequest request = buildRequest(path)
-        .POST(toBody(body))
-        .build();
+    HttpRequest request = buildRequest(path).POST(toBody(body)).build();
     return send(request);
   }
 
   /**
    * Gửi PUT request với body JSON serialize từ {@code body}.
    *
-   * @param path  đường dẫn API
-   * @param body  object sẽ được serialize thành JSON
+   * @param path đường dẫn API
+   * @param body object sẽ được serialize thành JSON
    * @return HttpResponse chứa body JSON
    */
   public static HttpResponse<String> put(String path, Object body) {
-    HttpRequest request = buildRequest(path)
-        .PUT(toBody(body))
-        .build();
+    HttpRequest request = buildRequest(path).PUT(toBody(body)).build();
     return send(request);
   }
 
@@ -108,16 +102,14 @@ public class RestClient {
    * @return HttpResponse chứa body JSON
    */
   public static HttpResponse<String> delete(String path) {
-    HttpRequest request = buildRequest(path)
-        .DELETE()
-        .build();
+    HttpRequest request = buildRequest(path).DELETE().build();
     return send(request);
   }
 
   /**
    * Parse JSON string thành object của kiểu {@code clazz}.
    *
-   * @param json  JSON string cần parse
+   * @param json JSON string cần parse
    * @param clazz kiểu đích
    * @return object đã parse
    */
@@ -132,7 +124,7 @@ public class RestClient {
   /**
    * Parse JSON string thành List của kiểu {@code clazz}.
    *
-   * @param json  JSON array string
+   * @param json JSON array string
    * @param clazz kiểu phần tử trong list
    * @return List đã parse
    */
@@ -148,14 +140,15 @@ public class RestClient {
   // ========== PRIVATE HELPERS ==========
 
   /**
-   * Tạo HttpRequest.Builder với URI đầy đủ, Content-Type JSON,
-   * và Authorization header nếu đã đăng nhập.
+   * Tạo HttpRequest.Builder với URI đầy đủ, Content-Type JSON, và Authorization header nếu đã đăng
+   * nhập.
    */
   private static HttpRequest.Builder buildRequest(String path) {
-    HttpRequest.Builder builder = HttpRequest.newBuilder()
-        .uri(URI.create(BASE_URL + path))
-        .header("Content-Type", "application/json")
-        .timeout(Duration.ofSeconds(10));
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder()
+            .uri(URI.create(BASE_URL + path))
+            .header("Content-Type", "application/json")
+            .timeout(Duration.ofSeconds(10));
 
     // Tự động gắn JWT token nếu đã đăng nhập
     try {
@@ -184,8 +177,8 @@ public class RestClient {
   private static HttpResponse<String> send(HttpRequest request) {
     try {
       LOGGER.debug("→ {} {}", request.method(), request.uri());
-      HttpResponse<String> response = HTTP_CLIENT.send(
-          request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response =
+          HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
       LOGGER.debug("← {} {}", response.statusCode(), request.uri());
       return response;
     } catch (Exception e) {

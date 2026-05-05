@@ -12,25 +12,27 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>Pattern được áp dụng: Strategy (Behavioral Pattern)</b>
  *
- * <p>ManualBidStrategy xử lý trường hợp người dùng tự nhập giá và bấm "Đặt giá".
- * Các validation quan trọng:
+ * <p>ManualBidStrategy xử lý trường hợp người dùng tự nhập giá và bấm "Đặt giá". Các validation
+ * quan trọng:
+ *
  * <ul>
- *   <li><b>Giá phải cao hơn giá hiện tại:</b> không cho phép bid bằng hoặc thấp hơn.</li>
- *   <li><b>Seller không được bid sản phẩm của mình:</b> tránh conflict of interest
- *       (seller tự đẩy giá lên để gian lận).</li>
- *   <li><b>Giá phải dương:</b> không cho phép giá âm hoặc bằng 0.</li>
+ *   <li><b>Giá phải cao hơn giá hiện tại:</b> không cho phép bid bằng hoặc thấp hơn.
+ *   <li><b>Seller không được bid sản phẩm của mình:</b> tránh conflict of interest (seller tự đẩy
+ *       giá lên để gian lận).
+ *   <li><b>Giá phải dương:</b> không cho phép giá âm hoặc bằng 0.
  * </ul>
  *
- * <p><b>Lưu ý:</b> Method {@code execute()} chỉ cập nhật đối tượng {@code auction} trong
- * bộ nhớ và trả về {@code BidTransaction} mới. BidService chịu trách nhiệm lưu vào database
- * và thông báo qua Observer. Điều này đảm bảo Single Responsibility.
+ * <p><b>Lưu ý:</b> Method {@code execute()} chỉ cập nhật đối tượng {@code auction} trong bộ nhớ và
+ * trả về {@code BidTransaction} mới. BidService chịu trách nhiệm lưu vào database và thông báo qua
+ * Observer. Điều này đảm bảo Single Responsibility.
  *
  * <p><b>Liên kết với các file khác:</b>
+ *
  * <ul>
- *   <li>{@link BidStrategy} — interface mà class này implements</li>
- *   <li>{@link com.auction.service.BidService} — sử dụng strategy này cho bid thủ công</li>
- *   <li>{@link com.auction.model.Auction} — model được cập nhật in-place</li>
- *   <li>{@link InvalidBidException} — thrown khi bid không hợp lệ</li>
+ *   <li>{@link BidStrategy} — interface mà class này implements
+ *   <li>{@link com.auction.service.BidService} — sử dụng strategy này cho bid thủ công
+ *   <li>{@link com.auction.model.Auction} — model được cập nhật in-place
+ *   <li>{@link InvalidBidException} — thrown khi bid không hợp lệ
  * </ul>
  */
 public class ManualBidStrategy implements BidStrategy {
@@ -41,22 +43,23 @@ public class ManualBidStrategy implements BidStrategy {
    * Validate và thực thi bid thủ công.
    *
    * <p>Thứ tự validate:
+   *
    * <ol>
-   *   <li>Giá không null và dương</li>
-   *   <li>Người bid không phải seller của phiên</li>
-   *   <li>Giá phải cao hơn currentPrice (strict: > chứ không phải >=)</li>
+   *   <li>Giá không null và dương
+   *   <li>Người bid không phải seller của phiên
+   *   <li>Giá phải cao hơn currentPrice (strict: > chứ không phải >=)
    * </ol>
    *
-   * @param auction   phiên đấu giá đang RUNNING (BidService đã kiểm tra trạng thái)
-   * @param bidderId  ID người đặt giá
-   * @param amount    số tiền muốn bid
+   * @param auction phiên đấu giá đang RUNNING (BidService đã kiểm tra trạng thái)
+   * @param bidderId ID người đặt giá
+   * @param amount số tiền muốn bid
    * @param isAutoBid false cho manual bid (dùng thêm flag để tạo BidTransaction đúng)
    * @return BidTransaction ghi lại thông tin bid (chưa lưu DB)
    * @throws InvalidBidException nếu giá không hợp lệ hoặc seller tự bid
    */
   @Override
-  public BidTransaction execute(Auction auction, Long bidderId, BigDecimal amount,
-      boolean isAutoBid) {
+  public BidTransaction execute(
+      Auction auction, Long bidderId, BigDecimal amount, boolean isAutoBid) {
     // 1. Validate giá
     if (amount == null || amount.signum() <= 0) {
       throw new InvalidBidException("Giá bid phải lớn hơn 0");
@@ -72,7 +75,8 @@ public class ManualBidStrategy implements BidStrategy {
       throw new InvalidBidException(
           "Giá bid phải cao hơn giá hiện tại: "
               + auction.getCurrentPrice()
-              + ". Giá bạn nhập: " + amount);
+              + ". Giá bạn nhập: "
+              + amount);
     }
 
     // 4. Cập nhật auction trong bộ nhớ

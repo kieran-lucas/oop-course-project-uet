@@ -105,8 +105,8 @@ public class SceneManager {
   /**
    * Chuyển sang màn hình khác (không truyền data).
    *
-   * <p>Luồng: 1. Gọi onNavigatedFrom() trên controller hiện tại 2. Kiểm tra cache → nếu chưa có
-   * thì lazy load FXML 3. Swap view trong StackPane 4. Gọi onNavigatedTo() trên controller mới
+   * <p>Luồng: 1. Gọi onNavigatedFrom() trên controller hiện tại 2. Kiểm tra cache → nếu chưa có thì
+   * lazy load FXML 3. Swap view trong StackPane 4. Gọi onNavigatedTo() trên controller mới
    *
    * @param fxmlName tên file FXML (ví dụ: "login.fxml", "auction-list.fxml")
    */
@@ -150,9 +150,9 @@ public class SceneManager {
   /**
    * Chuyển màn hình + truyền data cho controller đích.
    *
-   * <p>FIX: onDataReceived() được gọi TRƯỚC onNavigatedTo() để controller có đủ data
-   * khi onNavigatedTo() chạy. Ví dụ: AuctionDetailController cần auctionId trước
-   * khi onNavigatedTo() gọi loadAuctionDetail().
+   * <p>FIX: onDataReceived() được gọi TRƯỚC onNavigatedTo() để controller có đủ data khi
+   * onNavigatedTo() chạy. Ví dụ: AuctionDetailController cần auctionId trước khi onNavigatedTo()
+   * gọi loadAuctionDetail().
    *
    * @param fxmlName tên file FXML đích
    * @param data dữ liệu truyền sang (bất kỳ kiểu)
@@ -205,18 +205,20 @@ public class SceneManager {
   // ========== FXML LOADING ==========
 
   /**
-   * Load FXML từ resources, cache cả view lẫn controller.
-   * Chỉ gọi 1 lần cho mỗi FXML — từ lần thứ 2 trở đi lấy từ cache.
+   * Load FXML từ resources, cache cả view lẫn controller. Chỉ gọi 1 lần cho mỗi FXML — từ lần thứ 2
+   * trở đi lấy từ cache.
    *
-   * <p>FIX: kiểm tra URL null trước khi load để báo lỗi rõ ràng thay vì
-   * NullPointerException khó debug.
+   * <p>FIX: kiểm tra URL null trước khi load để báo lỗi rõ ràng thay vì NullPointerException khó
+   * debug.
    */
   private Parent loadFxml(String fxmlName) {
     // FIX: Kiểm tra URL tồn tại trước — nếu null thì path sai
     URL url = getClass().getResource("/ui/fxml/" + fxmlName);
     if (url == null) {
-      String msg = "Không tìm thấy FXML tại: /ui/fxml/" + fxmlName
-          + " — Kiểm tra file có nằm đúng trong src/main/resources/ui/fxml/ không.";
+      String msg =
+          "Không tìm thấy FXML tại: /ui/fxml/"
+              + fxmlName
+              + " — Kiểm tra file có nằm đúng trong src/main/resources/ui/fxml/ không.";
       LOGGER.error(msg);
       throw new RuntimeException(msg);
     }
@@ -251,10 +253,7 @@ public class SceneManager {
     }
   }
 
-  /**
-   * Hiển thị màn hình lỗi tạm thời thay vì crash im lặng.
-   * Giúp debug khi FXML không load được.
-   */
+  /** Hiển thị màn hình lỗi tạm thời thay vì crash im lặng. Giúp debug khi FXML không load được. */
   private void showErrorScreen(String message) {
     Label errorLabel = new Label("⚠ Lỗi điều hướng:\n" + message);
     errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 14px; -fx-padding: 20;");
@@ -271,17 +270,23 @@ public class SceneManager {
     currentUserId = null;
 
     // Xóa cache các view cần auth, giữ lại welcome + login + register
-    viewCache.keySet().removeIf(
-        k -> !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
-    controllerCache.keySet().removeIf(
-        k -> !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
+    viewCache
+        .keySet()
+        .removeIf(
+            k ->
+                !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
+    controllerCache
+        .keySet()
+        .removeIf(
+            k ->
+                !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
 
     navigateTo("welcome.fxml");
   }
 
   /**
-   * Xóa cache của 1 màn hình cụ thể.
-   * Dùng khi cần force reload FXML (ví dụ: sau khi tạo item mới cần reload create-auction).
+   * Xóa cache của 1 màn hình cụ thể. Dùng khi cần force reload FXML (ví dụ: sau khi tạo item mới
+   * cần reload create-auction).
    */
   public void invalidateCache(String fxmlName) {
     viewCache.remove(fxmlName);
