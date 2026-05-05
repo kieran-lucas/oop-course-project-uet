@@ -5,44 +5,69 @@ import com.auction.model.Auction;
 import java.math.BigDecimal;
 
 /**
- * Trạng thái CANCELED — phiên bị hủy (từ OPEN hoặc RUNNING).
+ * Trạng thái CANCELED — phiên đấu giá đã bị hủy bỏ.
  *
- * <p>Phiên có thể bị hủy bởi Seller (khi OPEN) hoặc Admin (bất kỳ lúc nào). Đây là trạng thái cuối
- * cùng tiêu cực — mọi hành động đều bị từ chối.
+ * <p>Một phiên có thể bị chuyển sang trạng thái này từ {@code OPEN} (khi seller hoặc
+ * admin hủy trước giờ bắt đầu) hoặc từ {@code RUNNING} (khi admin force-close vì vi
+ * phạm quy định). Đây là một trong hai trạng thái <em>cuối cùng</em> của phiên — không
+ * có đường ra khỏi đây, mọi thao tác đều bị chặn.
  *
- * <p><b>Khác với FINISHED:</b>
- *
+ * <p><b>Phân biệt với {@link FinishedState}:</b>
  * <ul>
- *   <li>FINISHED: phiên diễn ra bình thường và kết thúc đúng hạn, có người thắng
- *   <li>CANCELED: phiên bị dừng giữa chừng bởi con người, không có người thắng
+ *   <li>{@code FINISHED}: phiên kết thúc tự nhiên đúng hạn, có người thắng cuộc và
+ *       chuẩn bị bước sang giai đoạn thanh toán.</li>
+ *   <li>{@code CANCELED}: phiên bị một bên có thẩm quyền (seller/admin) chấm dứt giữa
+ *       chừng; không xác định người thắng và không phát sinh giao dịch tài chính.</li>
  * </ul>
  *
  * <h2>Hành động được phép / bị từ chối</h2>
  *
- * <p>Tất cả hành động đều từ chối với message "Phiên đã bị hủy".
+ * <p>Tất cả các hành động đều bị từ chối với cùng một message thống nhất, nhằm cho
+ * người gọi biết rõ phiên này đã đóng vĩnh viễn.
  */
 public class CanceledState implements AuctionState {
 
-  private static final String ERROR_MSG_TEMPLATE =
-      "Phiên đấu giá #%d đã bị hủy và không thể thực hiện thêm thao tác nào.";
+    /** Mẫu thông điệp lỗi dùng chung cho mọi method — đảm bảo phản hồi nhất quán. */
+    private static final String ERROR_MSG_TEMPLATE =
+        "Phiên đấu giá #%d đã bị hủy và không thể thực hiện thêm thao tác nào.";
 
-  @Override
-  public void placeBid(Auction auction, BigDecimal amount, Long bidderId) {
-    throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
-  }
+    /**
+     * {@inheritDoc}
+     *
+     * @throws AuctionClosedException luôn luôn ném — phiên đã bị hủy, không nhận giá
+     */
+    @Override
+    public void placeBid(Auction auction, BigDecimal amount, Long bidderId) {
+        throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
+    }
 
-  @Override
-  public void close(Auction auction) {
-    throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
-  }
+    /**
+     * {@inheritDoc}
+     *
+     * @throws AuctionClosedException luôn luôn ném — không thể đóng một phiên đã đóng
+     */
+    @Override
+    public void close(Auction auction) {
+        throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
+    }
 
-  @Override
-  public void edit(Auction auction) {
-    throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
-  }
+    /**
+     * {@inheritDoc}
+     *
+     * @throws AuctionClosedException luôn luôn ném — không cho phép chỉnh sửa phiên đã hủy
+     */
+    @Override
+    public void edit(Auction auction) {
+        throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
+    }
 
-  @Override
-  public void extend(Auction auction, long extraSeconds) {
-    throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
-  }
+    /**
+     * {@inheritDoc}
+     *
+     * @throws AuctionClosedException luôn luôn ném — phiên đã hủy không cần gia hạn
+     */
+    @Override
+    public void extend(Auction auction, long extraSeconds) {
+        throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId()));
+    }
 }
