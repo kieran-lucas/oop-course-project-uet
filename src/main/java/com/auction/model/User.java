@@ -3,77 +3,98 @@ package com.auction.model;
 import java.time.LocalDateTime;
 
 /**
- * Lớp trừu tượng cho người dùng hệ thống.
+ * Lớp trừu tượng đại diện cho một người dùng của hệ thống.
  *
- * <p>Ba loại user: Bidder (đấu giá), Seller (bán), Admin (quản lý). Phần chung (username, password,
- * email) nằm ở đây. Phần riêng (quyền hạn, hành vi) nằm ở subclass.
+ * <p>Có ba loại người dùng: {@code Bidder} (người tham gia đấu giá), {@code Seller}
+ * (người bán), và {@code Admin} (người quản trị). Các thuộc tính dùng chung như
+ * {@code username}, {@code passwordHash}, {@code email} được đặt tại lớp này; những
+ * khác biệt về quyền hạn và hành vi sẽ được xử lý tại các lớp con tương ứng.
  *
- * <p>Đây là INHERITANCE: User kế thừa id + createdAt từ Entity, rồi thêm username, passwordHash,
- * email.
+ * <p>Lớp {@code User} kế thừa {@code id} và {@code createdAt} từ {@link Entity}, sau đó
+ * mở rộng thêm các trường dành riêng cho người dùng — đây là INHERITANCE trong OOP.
  */
 public abstract class User extends Entity {
 
-  private String username;
-  private String passwordHash; // không bao giờ lưu password gốc, chỉ lưu hash (BCrypt)
-  private String email;
+    private String username;
+    private String passwordHash; // chỉ lưu giá trị đã hash (ví dụ: BCrypt), không lưu mật khẩu gốc
+    private String email;
 
-  /** Constructor mặc định — cho framework/JDBI tạo object. */
-  protected User() {}
+    /** Constructor mặc định — phục vụ framework/JDBI khi tạo object. */
+    protected User() {}
 
-  /** Constructor đầy đủ — dùng khi đăng ký user mới. */
-  protected User(String username, String passwordHash, String email) {
-    super(); // gọi Entity() → set createdAt = now
-    this.username = username;
-    this.passwordHash = passwordHash;
-    this.email = email;
-  }
+    /**
+     * Khởi tạo một người dùng mới khi đăng ký tài khoản.
+     *
+     * <p>Việc gọi {@code super()} sẽ kích hoạt constructor của {@link Entity}, qua đó gán
+     * {@code createdAt} bằng thời điểm hiện tại.
+     *
+     * @param username tên đăng nhập
+     * @param passwordHash mật khẩu đã hash
+     * @param email địa chỉ email
+     */
+    protected User(String username, String passwordHash, String email) {
+        super();
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.email = email;
+    }
 
-  /** Constructor từ database — đã có id và createdAt. */
-  protected User(
-      Long id, String username, String passwordHash, String email, LocalDateTime createdAt) {
-    super(id, createdAt);
-    this.username = username;
-    this.passwordHash = passwordHash;
-    this.email = email;
-  }
+    /**
+     * Khởi tạo một người dùng từ bản ghi đã có trong DB.
+     *
+     * @param id định danh người dùng
+     * @param username tên đăng nhập
+     * @param passwordHash mật khẩu đã hash
+     * @param email địa chỉ email
+     * @param createdAt thời điểm tài khoản được tạo
+     */
+    protected User(
+        Long id, String username, String passwordHash, String email, LocalDateTime createdAt) {
+        super(id, createdAt);
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.email = email;
+    }
 
-  /**
-   * Trả về vai trò của user: "BIDDER", "SELLER", hoặc "ADMIN".
-   *
-   * <p>Đây là POLYMORPHISM: mỗi subclass override method này trả về giá trị khác nhau. Khi bạn có
-   * List<User> users, gọi user.getRole() sẽ trả đúng vai trò mà không cần instanceof.
-   */
-  public abstract String getRole();
+    /**
+     * Trả về vai trò của người dùng: {@code "BIDDER"}, {@code "SELLER"}, hoặc {@code "ADMIN"}.
+     *
+     * <p>POLYMORPHISM: mỗi lớp con override method này để trả về giá trị tương ứng. Nhờ đó,
+     * khi duyệt một {@code List<User>} và gọi {@code user.getRole()}, ta luôn nhận được vai
+     * trò chính xác mà không cần dùng {@code instanceof} hay ép kiểu.
+     *
+     * @return chuỗi đại diện cho vai trò của người dùng
+     */
+    public abstract String getRole();
 
-  // === Getters & Setters ===
+    // === Getters & Setters ===
 
-  public String getUsername() {
-    return username;
-  }
+    public String getUsername() {
+        return username;
+    }
 
-  public void setUsername(String username) {
-    this.username = username;
-  }
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
-  public String getPasswordHash() {
-    return passwordHash;
-  }
+    public String getPasswordHash() {
+        return passwordHash;
+    }
 
-  public void setPasswordHash(String passwordHash) {
-    this.passwordHash = passwordHash;
-  }
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
 
-  public String getEmail() {
-    return email;
-  }
+    public String getEmail() {
+        return email;
+    }
 
-  public void setEmail(String email) {
-    this.email = email;
-  }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-
-  @Override
-  public String toString() {
-    return getRole() + "{username='" + username + "', email='" + email + "'}";
-  }
+    @Override
+    public String toString() {
+        return getRole() + "{username='" + username + "', email='" + email + "'}";
+    }
 }
