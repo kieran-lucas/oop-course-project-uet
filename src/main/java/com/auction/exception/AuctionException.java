@@ -47,4 +47,15 @@ public abstract class AuctionException extends RuntimeException {
     protected AuctionException(String message, Throwable cause) {
         super(message, cause);
     }
+    /**
+     * Returns a string representation suitable for logging:
+     * {@code [SimpleClassName] message}.
+     *
+     * @return formatted exception representation
+     */
+    @Override
+    public String toString() {
+        return "[" + getClass().getSimpleName() + "] "
+            + (getMessage() == null ? "" : getMessage());
+    }
 }
