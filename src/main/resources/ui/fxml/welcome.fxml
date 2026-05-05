@@ -14,7 +14,7 @@
            xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.auction.ui.controller.WelcomeController">
 
-   <VBox alignment="CENTER" spacing="40.0">
+   <VBox alignment="CENTER" spacing="75.0">
 
       <!-- Logo + Tiêu đề -->
       <VBox alignment="CENTER" spacing="12.0">
@@ -37,7 +37,7 @@
             <graphic>
                <VBox alignment="CENTER" spacing="16.0">
                   <StackPane styleClass="role-icon-circle role-icon-admin-circle">
-                     <ImageView fitHeight="40.0" fitWidth="40.0" pickOnBounds="true" preserveRatio="true">
+                     <ImageView fitHeight="75.0" fitWidth="75.0" pickOnBounds="true" preserveRatio="true">
                         <image><Image url="@../../icons/settings.png" /></image>
                      </ImageView>
                   </StackPane>
@@ -54,7 +54,7 @@
             <graphic>
                <VBox alignment="CENTER" spacing="16.0">
                   <StackPane styleClass="role-icon-circle role-icon-bidder-circle">
-                     <ImageView fitHeight="40.0" fitWidth="40.0" pickOnBounds="true" preserveRatio="true">
+                     <ImageView fitHeight="75.0" fitWidth="75.0" pickOnBounds="true" preserveRatio="true">
                         <image><Image url="@../../icons/computer.png" /></image>
                      </ImageView>
                   </StackPane>
@@ -71,8 +71,8 @@
             <graphic>
                <VBox alignment="CENTER" spacing="16.0">
                   <StackPane styleClass="role-icon-circle role-icon-seller-circle">
-                     <ImageView fitHeight="40.0" fitWidth="40.0" pickOnBounds="true" preserveRatio="true">
-                        <image><Image url="@../../icons/seller.png" /></image>
+                     <ImageView fitHeight="75.0" fitWidth="75.0" pickOnBounds="true" preserveRatio="true">
+                        <image><Image url="@../../icons/businessman.png" /></image>
                      </ImageView>
                   </StackPane>
                   <VBox alignment="CENTER" spacing="4.0">
