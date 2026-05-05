@@ -14,7 +14,6 @@ import java.util.Objects;
  */
 public abstract class Entity {
 
-  // === Fields ===
   // private = ENCAPSULATION: bên ngoài không truy cập trực tiếp,
   // phải dùng getId() / setId()
   private Long id;

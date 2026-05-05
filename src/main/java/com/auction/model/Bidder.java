@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
  * Người tham gia đấu giá.
  *
  * <p>Bidder có quyền: xem phiên đấu giá, đặt giá, thiết lập auto-bid. Bidder KHÔNG có quyền: tạo
- * sản phẩm, tạo phiên đấu giá, quản lý hệ thống.
+ * sản phẩm, tạo phiên đấu giá, quản lý hệ thống
  *
  * <p>Class này rất ngắn vì phần lớn logic nằm ở User (kế thừa). Đây chính là sức mạnh của
  * inheritance: Bidder không cần viết lại username, email, getter/setter — tất cả đã có từ User →

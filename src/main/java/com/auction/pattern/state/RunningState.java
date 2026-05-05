@@ -104,3 +104,4 @@ public class RunningState implements AuctionState {
     auction.setEndTime(auction.getEndTime().plusSeconds(extraSeconds));
   }
 }
+

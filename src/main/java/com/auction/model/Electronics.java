@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 /**
  * Sản phẩm điện tử — có thêm thông tin thương hiệu.
  *
- * <p>Ví dụ: iPhone 15 (brand = "Apple"), Galaxy S24 (brand = "Samsung"). Field brand là thông tin
+ * <p>Ví dụ: iPhone 15 (brand = "Apple"). Field brand là thông tin
  * riêng chỉ Electronics mới có — Art không có brand, Vehicle không có brand (có year thay thế).
  *
  * <p>Đây minh họa tại sao cần kế thừa: nếu gộp tất cả vào 1 class Item với brand + artist + year,

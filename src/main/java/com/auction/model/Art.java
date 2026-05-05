@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 /**
  * Tác phẩm nghệ thuật — có thêm thông tin nghệ sĩ.
  *
- * <p>Ví dụ: "Starry Night" (artist = "Van Gogh"). Thông tin nghệ sĩ quan trọng với Art nhưng vô
+ * <p>Ví dụ: "Starry Night" (artist = "Van Gogh"). Thông tin nghệ sĩ với Art nhưng vô
  * nghĩa với Electronics.
  */
 public class Art extends Item {

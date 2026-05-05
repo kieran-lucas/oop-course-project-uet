@@ -11,8 +11,7 @@ import java.time.LocalDateTime;
  *
  * <p>Cơ chế hoạt động (xử lý bởi AutoBidStrategy): 1. Có người bid thủ công 5 triệu 2. Server duyệt
  * danh sách AutoBidConfig của phiên đó 3. User A có maxBid = 10tr, increment = 100k → tự động bid
- * 5.1 triệu 4. User B có maxBid = 6tr, increment = 200k → tự động bid 5.3 triệu 5. User A → 5.4
- * triệu... cứ thế cho đến khi hết budget
+ * 5.1 triệu 4. User B có maxBid = 6tr, increment = 200k → tự động bid 5.3 triệu 5. cứ thế cho đến khi hết budget
  *
  * <p>registeredAt dùng để sắp xếp ưu tiên: ai đăng ký auto-bid trước thì được xử lý trước
  * (PriorityQueue sắp theo registeredAt).
