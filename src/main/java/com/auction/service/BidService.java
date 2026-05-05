@@ -22,14 +22,16 @@ import org.slf4j.LoggerFactory;
  * Service xử lý logic đặt giá — trung tâm của toàn bộ hệ thống đấu giá.
  *
  * <p><b>BidService là class phức tạp nhất trong project</b> vì nó kết hợp nhiều pattern:
+ *
  * <ul>
- *   <li><b>State pattern</b> — kiểm tra trạng thái phiên (chỉ RUNNING mới cho bid)</li>
- *   <li><b>Strategy pattern</b> — {@link ManualBidStrategy} validate và cập nhật giá</li>
- *   <li><b>Observer pattern</b> — {@link AuctionEventManager} notify client qua WebSocket</li>
- *   <li><b>Anti-sniping</b> — gia hạn phiên nếu bid trong 30 giây cuối</li>
+ *   <li><b>State pattern</b> — kiểm tra trạng thái phiên (chỉ RUNNING mới cho bid)
+ *   <li><b>Strategy pattern</b> — {@link ManualBidStrategy} validate và cập nhật giá
+ *   <li><b>Observer pattern</b> — {@link AuctionEventManager} notify client qua WebSocket
+ *   <li><b>Anti-sniping</b> — gia hạn phiên nếu bid trong 30 giây cuối
  * </ul>
  *
  * <p><b>Luồng xử lý {@code placeBid()}:</b>
+ *
  * <pre>
  *   1. Validate input (giá > 0)
  *   2. Lock theo auctionId (synchronized per auction — tránh block phiên khác nhau)
@@ -45,24 +47,25 @@ import org.slf4j.LoggerFactory;
  * </pre>
  *
  * <p><b>Concurrency — 2 tầng bảo vệ:</b>
+ *
  * <ul>
  *   <li><b>Tầng 1 (Application):</b> {@code synchronized(getLock(auctionId))} — lock theo từng
- *       phiên, các phiên khác nhau không block nhau, tránh race condition trong cùng JVM.</li>
- *   <li><b>Tầng 2 (Database):</b> {@code AuctionDao.update()} dùng {@code SELECT FOR UPDATE}
- *       trong transaction — bảo vệ khi nhiều server instance chạy song song.</li>
+ *       phiên, các phiên khác nhau không block nhau, tránh race condition trong cùng JVM.
+ *   <li><b>Tầng 2 (Database):</b> {@code AuctionDao.update()} dùng {@code SELECT FOR UPDATE} trong
+ *       transaction — bảo vệ khi nhiều server instance chạy song song.
  * </ul>
  *
- * <p><b>Tại sao auto-bid phải ngoài synchronized block:</b>
- * {@code triggerAutoBid()} gọi lại {@code placeBid()} → nếu để trong lock sẽ deadlock
- * ngay vì thread đang giữ lock cố acquire lại lock đó (non-reentrant per-auction lock).
+ * <p><b>Tại sao auto-bid phải ngoài synchronized block:</b> {@code triggerAutoBid()} gọi lại {@code
+ * placeBid()} → nếu để trong lock sẽ deadlock ngay vì thread đang giữ lock cố acquire lại lock đó
+ * (non-reentrant per-auction lock).
  *
  * <p><b>Liên kết với các file khác:</b>
+ *
  * <ul>
- *   <li>{@link ManualBidStrategy} — validate và update auction cho manual bid</li>
- *   <li>{@link AutoBidStrategy} — xử lý chuỗi auto-bid sau manual bid</li>
- *   <li>{@link AuctionEventManager} — broadcast sự kiện qua WebSocket</li>
- *   <li>{@link com.auction.controller.BidController} — gọi {@code placeBid()} khi nhận HTTP
- *       request</li>
+ *   <li>{@link ManualBidStrategy} — validate và update auction cho manual bid
+ *   <li>{@link AutoBidStrategy} — xử lý chuỗi auto-bid sau manual bid
+ *   <li>{@link AuctionEventManager} — broadcast sự kiện qua WebSocket
+ *   <li>{@link com.auction.controller.BidController} — gọi {@code placeBid()} khi nhận HTTP request
  * </ul>
  */
 public class BidService {
@@ -86,20 +89,20 @@ public class BidService {
   /**
    * Map lưu lock object cho từng auction.
    *
-   * <p>Dùng {@link ConcurrentHashMap} + {@code computeIfAbsent} để đảm bảo mỗi auctionId
-   * luôn có đúng một lock object duy nhất, ngay cả khi nhiều thread khởi tạo đồng thời.
-   * Lock theo từng auction thay vì lock toàn bộ method → các phiên khác nhau không block
-   * nhau, tăng throughput khi hệ thống có nhiều phiên đấu giá song song.
+   * <p>Dùng {@link ConcurrentHashMap} + {@code computeIfAbsent} để đảm bảo mỗi auctionId luôn có
+   * đúng một lock object duy nhất, ngay cả khi nhiều thread khởi tạo đồng thời. Lock theo từng
+   * auction thay vì lock toàn bộ method → các phiên khác nhau không block nhau, tăng throughput khi
+   * hệ thống có nhiều phiên đấu giá song song.
    */
   private final ConcurrentHashMap<Long, Object> auctionLocks = new ConcurrentHashMap<>();
 
   /**
    * Khởi tạo BidService với đầy đủ dependency.
    *
-   * @param auctionDao        DAO truy cập bảng auctions
+   * @param auctionDao DAO truy cập bảng auctions
    * @param bidTransactionDao DAO ghi lịch sử bid
-   * @param autoBidConfigDao  DAO quản lý cấu hình auto-bid
-   * @param eventManager      Observer Manager để broadcast sự kiện WebSocket
+   * @param autoBidConfigDao DAO quản lý cấu hình auto-bid
+   * @param eventManager Observer Manager để broadcast sự kiện WebSocket
    */
   public BidService(
       AuctionDao auctionDao,
@@ -117,23 +120,23 @@ public class BidService {
   /**
    * Đặt giá cho một phiên đấu giá.
    *
-   * <p>Method này là trung tâm xử lý bid. Tất cả validation, cập nhật DB, và thông báo
-   * đều diễn ra ở đây.
+   * <p>Method này là trung tâm xử lý bid. Tất cả validation, cập nhật DB, và thông báo đều diễn ra
+   * ở đây.
    *
-   * <p><b>Thread-safety:</b> Bước 3–8 được bảo vệ bởi lock theo từng {@code auctionId}.
-   * Bước 9 (auto-bid) được gọi <em>ngoài</em> synchronized block để tránh deadlock.
+   * <p><b>Thread-safety:</b> Bước 3–8 được bảo vệ bởi lock theo từng {@code auctionId}. Bước 9
+   * (auto-bid) được gọi <em>ngoài</em> synchronized block để tránh deadlock.
    *
    * @param auctionId ID phiên đấu giá
-   * @param bidderId  ID người đặt giá (từ JWT token)
-   * @param amount    số tiền đặt giá (phải > currentPrice)
+   * @param bidderId ID người đặt giá (từ JWT token)
+   * @param amount số tiền đặt giá (phải > currentPrice)
    * @param isAutoBid {@code true} nếu đây là auto-bid, {@code false} nếu manual
    * @return BidTransaction đã được lưu vào DB
-   * @throws NotFoundException       nếu auction không tồn tại
-   * @throws AuctionClosedException  nếu phiên chưa bắt đầu hoặc đã kết thúc
-   * @throws InvalidBidException     nếu giá không hợp lệ (thấp hơn giá hiện tại, seller tự bid)
+   * @throws NotFoundException nếu auction không tồn tại
+   * @throws AuctionClosedException nếu phiên chưa bắt đầu hoặc đã kết thúc
+   * @throws InvalidBidException nếu giá không hợp lệ (thấp hơn giá hiện tại, seller tự bid)
    */
-  public BidTransaction placeBid(Long auctionId, Long bidderId, BigDecimal amount,
-      boolean isAutoBid) {
+  public BidTransaction placeBid(
+      Long auctionId, Long bidderId, BigDecimal amount, boolean isAutoBid) {
 
     // 1. Validate input cơ bản — không cần lock vì chưa chạm shared state
     if (amount == null || amount.signum() <= 0) {
@@ -148,8 +151,10 @@ public class BidService {
     synchronized (getLock(auctionId)) {
 
       // 3. Lấy auction và kiểm tra trạng thái
-      Auction auction = auctionDao.findById(auctionId)
-          .orElseThrow(() -> new NotFoundException("Auction not found with id: " + auctionId));
+      Auction auction =
+          auctionDao
+              .findById(auctionId)
+              .orElseThrow(() -> new NotFoundException("Auction not found with id: " + auctionId));
 
       // 4. Kiểm tra trạng thái phiên (State pattern logic)
       checkAuctionStatus(auction);
@@ -161,15 +166,18 @@ public class BidService {
       auctionDao.update(auction);
       bidTransactionDao.insert(savedTransaction);
 
-      LOGGER.info("Bid đặt thành công: auction={}, bidder={}, amount={}, autoBid={}",
-          auctionId, bidderId, amount, isAutoBid);
+      LOGGER.info(
+          "Bid đặt thành công: auction={}, bidder={}, amount={}, autoBid={}",
+          auctionId,
+          bidderId,
+          amount,
+          isAutoBid);
 
       // 7. Anti-sniping: gia hạn nếu bid trong 30 giây cuối
       applyAntiSniping(auction, auctionId);
 
       // 8. Notify observers qua WebSocket (BID_UPDATE)
       notifyBidUpdate(auction, auctionId, bidderId, amount, isAutoBid);
-
     } // ← Giải phóng lock trước khi trigger auto-bid
 
     // 9. Kích hoạt chuỗi auto-bid SAU KHI ra khỏi synchronized block.
@@ -203,8 +211,8 @@ public class BidService {
   /**
    * Trả về lock object cho một auction cụ thể.
    *
-   * <p>{@code computeIfAbsent} đảm bảo thread-safe khi nhiều thread cùng tạo lock
-   * cho cùng một auctionId lần đầu tiên — chỉ một Object duy nhất được tạo ra.
+   * <p>{@code computeIfAbsent} đảm bảo thread-safe khi nhiều thread cùng tạo lock cho cùng một
+   * auctionId lần đầu tiên — chỉ một Object duy nhất được tạo ra.
    *
    * @param auctionId ID phiên đấu giá
    * @return Object dùng làm monitor lock cho {@code synchronized}
@@ -221,31 +229,29 @@ public class BidService {
    */
   private void checkAuctionStatus(Auction auction) {
     switch (auction.getStatus()) {
-      case "OPEN" -> throw new AuctionClosedException(
-          "Phiên chưa bắt đầu — vui lòng chờ đến giờ khai mạc");
-      case "FINISHED" -> throw new AuctionClosedException(
-          "Phiên đã kết thúc — không thể đặt giá");
-      case "CANCELED" -> throw new AuctionClosedException(
-          "Phiên đã bị hủy — không thể đặt giá");
-      case "PAID" -> throw new AuctionClosedException(
-          "Phiên đã thanh toán xong — không thể đặt giá");
-      case "RUNNING" -> { /* tiếp tục */ }
-      default -> throw new AuctionClosedException(
-          "Trạng thái phiên không hợp lệ: " + auction.getStatus());
+      case "OPEN" ->
+          throw new AuctionClosedException("Phiên chưa bắt đầu — vui lòng chờ đến giờ khai mạc");
+      case "FINISHED" -> throw new AuctionClosedException("Phiên đã kết thúc — không thể đặt giá");
+      case "CANCELED" -> throw new AuctionClosedException("Phiên đã bị hủy — không thể đặt giá");
+      case "PAID" ->
+          throw new AuctionClosedException("Phiên đã thanh toán xong — không thể đặt giá");
+      case "RUNNING" -> {
+        /* tiếp tục */
+      }
+      default ->
+          throw new AuctionClosedException("Trạng thái phiên không hợp lệ: " + auction.getStatus());
     }
   }
 
   /**
    * Anti-sniping: gia hạn phiên nếu bid trong 30 giây cuối.
    *
-   * <p>Nếu bid xảy ra khi còn &lt; {@value #ANTI_SNIPE_THRESHOLD_MS}ms:
-   * - endTime += {@value #ANTI_SNIPE_EXTENSION_SECONDS} giây
-   * - Lưu vào DB
-   * - Broadcast TIME_EXTENDED cho tất cả client
+   * <p>Nếu bid xảy ra khi còn &lt; {@value #ANTI_SNIPE_THRESHOLD_MS}ms: - endTime += {@value
+   * #ANTI_SNIPE_EXTENSION_SECONDS} giây - Lưu vào DB - Broadcast TIME_EXTENDED cho tất cả client
    *
    * <p><b>Gọi trong synchronized block</b> — auction đã được lock, an toàn để update.
    *
-   * @param auction   phiên vừa được bid
+   * @param auction phiên vừa được bid
    * @param auctionId ID phiên (để notify observer)
    */
   private void applyAntiSniping(Auction auction, Long auctionId) {
@@ -256,8 +262,10 @@ public class BidService {
       BidUpdateMessage timeMsg = BidUpdateMessage.timeExtended(auctionId, auction.getEndTime());
       eventManager.notifyTimeExtended(auctionId, timeMsg);
 
-      LOGGER.info("Anti-sniping kích hoạt cho phiên #{}: gia hạn thêm {}s",
-          auctionId, ANTI_SNIPE_EXTENSION_SECONDS);
+      LOGGER.info(
+          "Anti-sniping kích hoạt cho phiên #{}: gia hạn thêm {}s",
+          auctionId,
+          ANTI_SNIPE_EXTENSION_SECONDS);
     }
   }
 
@@ -266,23 +274,23 @@ public class BidService {
    *
    * <p><b>Gọi trong synchronized block</b> — đảm bảo client nhận update theo đúng thứ tự bid.
    *
-   * @param auction   phiên vừa được cập nhật
+   * @param auction phiên vừa được cập nhật
    * @param auctionId ID phiên
-   * @param bidderId  ID người vừa bid
-   * @param amount    giá bid mới
+   * @param bidderId ID người vừa bid
+   * @param amount giá bid mới
    * @param isAutoBid true nếu là auto-bid
    */
-  private void notifyBidUpdate(Auction auction, Long auctionId, Long bidderId,
-      BigDecimal amount, boolean isAutoBid) {
+  private void notifyBidUpdate(
+      Auction auction, Long auctionId, Long bidderId, BigDecimal amount, boolean isAutoBid) {
     try {
-      BidUpdateMessage msg = BidUpdateMessage.bidUpdate(
-          auctionId,
-          amount,
-          bidderId,
-          null, // username sẽ được lookup bởi WebSocketObserver nếu cần
-          auction.getEndTime(),
-          isAutoBid
-      );
+      BidUpdateMessage msg =
+          BidUpdateMessage.bidUpdate(
+              auctionId,
+              amount,
+              bidderId,
+              null, // username sẽ được lookup bởi WebSocketObserver nếu cần
+              auction.getEndTime(),
+              isAutoBid);
       eventManager.notifyBidUpdate(auctionId, msg);
     } catch (Exception e) {
       LOGGER.error("Lỗi khi notify BID_UPDATE cho phiên #{}: {}", auctionId, e.getMessage());
@@ -292,24 +300,20 @@ public class BidService {
   /**
    * Kích hoạt chuỗi auto-bid sau khi có manual bid thành công.
    *
-   * <p>Gọi {@link AutoBidStrategy#executeAll} với callback để thực thi từng auto-bid.
-   * Dùng lambda {@code (aid, bid, amt) -> this.placeBid(aid, bid, amt, true)}
-   * để tránh circular dependency.
+   * <p>Gọi {@link AutoBidStrategy#executeAll} với callback để thực thi từng auto-bid. Dùng lambda
+   * {@code (aid, bid, amt) -> this.placeBid(aid, bid, amt, true)} để tránh circular dependency.
    *
-   * <p><b>Quan trọng:</b> Method này phải được gọi <em>ngoài</em> {@code synchronized} block.
-   * Nếu gọi trong lock, {@code placeBid()} bên trong lambda sẽ cố acquire lại lock cùng
-   * {@code auctionId} → deadlock ngay lập tức.
+   * <p><b>Quan trọng:</b> Method này phải được gọi <em>ngoài</em> {@code synchronized} block. Nếu
+   * gọi trong lock, {@code placeBid()} bên trong lambda sẽ cố acquire lại lock cùng {@code
+   * auctionId} → deadlock ngay lập tức.
    *
-   * @param auctionId    ID phiên
+   * @param auctionId ID phiên
    * @param currentPrice giá hiện tại sau manual bid
    */
   private void triggerAutoBid(Long auctionId, BigDecimal currentPrice) {
     try {
       autoBidStrategy.executeAll(
-          auctionId,
-          currentPrice,
-          (aid, bid, amt) -> this.placeBid(aid, bid, amt, true)
-      );
+          auctionId, currentPrice, (aid, bid, amt) -> this.placeBid(aid, bid, amt, true));
     } catch (Exception e) {
       LOGGER.error("Lỗi khi xử lý auto-bid cho phiên #{}: {}", auctionId, e.getMessage());
     }

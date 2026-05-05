@@ -31,26 +31,26 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller cho màn hình tạo phiên đấu giá (create-auction.fxml).
  *
- * <p><b>Mục đích:</b>
- * Cho phép SELLER tạo phiên đấu giá mới bằng cách chọn sản phẩm, đặt giá khởi điểm
- * và lên lịch thời gian bắt đầu/kết thúc. Gửi request đến {@code POST /api/auctions}.
+ * <p><b>Mục đích:</b> Cho phép SELLER tạo phiên đấu giá mới bằng cách chọn sản phẩm, đặt giá khởi
+ * điểm và lên lịch thời gian bắt đầu/kết thúc. Gửi request đến {@code POST /api/auctions}.
  *
  * <p><b>Các phương thức chính:</b>
+ *
  * <ul>
- *   <li>{@link #onNavigatedTo()} — Load danh sách sản phẩm của seller vào ComboBox.</li>
- *   <li>{@link #handleCreate()} — Validate và gửi request tạo phiên.</li>
- *   <li>{@link #goToCreateItem()} — Chuyển sang màn hình tạo sản phẩm mới.</li>
+ *   <li>{@link #onNavigatedTo()} — Load danh sách sản phẩm của seller vào ComboBox.
+ *   <li>{@link #handleCreate()} — Validate và gửi request tạo phiên.
+ *   <li>{@link #goToCreateItem()} — Chuyển sang màn hình tạo sản phẩm mới.
  * </ul>
  *
- * <p><b>Vị trí trong kiến trúc:</b>
- * CreateAuctionController phụ thuộc vào ItemController (GET /api/items để lấy danh sách)
- * và AuctionController (POST /api/auctions để tạo phiên). AuctionScheduler phía server
- * sẽ tự động chuyển trạng thái phiên từ OPEN → RUNNING → FINISHED.
+ * <p><b>Vị trí trong kiến trúc:</b> CreateAuctionController phụ thuộc vào ItemController (GET
+ * /api/items để lấy danh sách) và AuctionController (POST /api/auctions để tạo phiên).
+ * AuctionScheduler phía server sẽ tự động chuyển trạng thái phiên từ OPEN → RUNNING → FINISHED.
  */
 public class CreateAuctionController implements Navigable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CreateAuctionController.class);
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper().registerModule(new JavaTimeModule());
   private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
   @FXML private ComboBox<Item> itemCombo;
@@ -74,8 +74,8 @@ public class CreateAuctionController implements Navigable {
   // ========== FXML ACTIONS ==========
 
   /**
-   * Xử lý tạo phiên đấu giá.
-   * Validate: sản phẩm đã chọn, giá > 0, thời gian hợp lệ, endTime > startTime.
+   * Xử lý tạo phiên đấu giá. Validate: sản phẩm đã chọn, giá > 0, thời gian hợp lệ, endTime >
+   * startTime.
    */
   @FXML
   public void handleCreate() {
@@ -136,30 +136,35 @@ public class CreateAuctionController implements Navigable {
     body.put("startTime", startTime.toString());
     body.put("endTime", endTime.toString());
 
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.post("/api/auctions", body);
-        if (response.statusCode() == 201) {
-          Platform.runLater(() -> {
-            showStatus("Tạo phiên đấu giá thành công!", false);
-            clearForm();
-            createButton.setDisable(false);
-          });
-        } else {
-          String msg = extractMessage(response.body(), "Tạo phiên thất bại.");
-          Platform.runLater(() -> {
-            showStatus(msg, true);
-            createButton.setDisable(false);
-          });
-        }
-      } catch (Exception e) {
-        LOGGER.error("Lỗi tạo phiên đấu giá", e);
-        Platform.runLater(() -> {
-          showStatus("Không thể kết nối đến server.", true);
-          createButton.setDisable(false);
-        });
-      }
-    });
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.post("/api/auctions", body);
+                if (response.statusCode() == 201) {
+                  Platform.runLater(
+                      () -> {
+                        showStatus("Tạo phiên đấu giá thành công!", false);
+                        clearForm();
+                        createButton.setDisable(false);
+                      });
+                } else {
+                  String msg = extractMessage(response.body(), "Tạo phiên thất bại.");
+                  Platform.runLater(
+                      () -> {
+                        showStatus(msg, true);
+                        createButton.setDisable(false);
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi tạo phiên đấu giá", e);
+                Platform.runLater(
+                    () -> {
+                      showStatus("Không thể kết nối đến server.", true);
+                      createButton.setDisable(false);
+                    });
+              }
+            });
   }
 
   /** Chuyển sang màn hình tạo sản phẩm mới. */
@@ -180,38 +185,47 @@ public class CreateAuctionController implements Navigable {
   private void loadMyItems() {
     Long sellerId = SceneManager.getInstance().getCurrentUserId();
     System.out.println(">>> sellerId = " + sellerId);
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.get("/api/items?sellerId=" + sellerId);
-        System.out.println(">>> response = " + response.body());
-        if (response.statusCode() == 200) {
-          List<Item> items = RestClient.parseList(response.body(), Item.class);
-          Platform.runLater(() -> {
-            itemCombo.setItems(FXCollections.observableArrayList(items));
-            itemCombo.setCellFactory(lv -> new ListCell<>() {
-              @Override
-              protected void updateItem(Item item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getName());
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.get("/api/items?sellerId=" + sellerId);
+                System.out.println(">>> response = " + response.body());
+                if (response.statusCode() == 200) {
+                  List<Item> items = RestClient.parseList(response.body(), Item.class);
+                  Platform.runLater(
+                      () -> {
+                        itemCombo.setItems(FXCollections.observableArrayList(items));
+                        itemCombo.setCellFactory(
+                            lv ->
+                                new ListCell<>() {
+                                  @Override
+                                  protected void updateItem(Item item, boolean empty) {
+                                    super.updateItem(item, empty);
+                                    setText(empty || item == null ? null : item.getName());
+                                  }
+                                });
+                        itemCombo.setButtonCell(
+                            new ListCell<>() {
+                              @Override
+                              protected void updateItem(Item item, boolean empty) {
+                                super.updateItem(item, empty);
+                                setText(
+                                    empty || item == null
+                                        ? "Chọn sản phẩm của bạn"
+                                        : item.getName());
+                              }
+                            });
+                        if (items.isEmpty()) {
+                          showStatus("Bạn chưa có sản phẩm nào. Hãy tạo sản phẩm trước.", true);
+                        }
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi load danh sách sản phẩm", e);
+                Platform.runLater(() -> showStatus("Không thể tải danh sách sản phẩm.", true));
               }
             });
-            itemCombo.setButtonCell(new ListCell<>() {
-              @Override
-              protected void updateItem(Item item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? "Chọn sản phẩm của bạn" : item.getName());
-              }
-            });
-            if (items.isEmpty()) {
-              showStatus("Bạn chưa có sản phẩm nào. Hãy tạo sản phẩm trước.", true);
-            }
-          });
-        }
-      } catch (Exception e) {
-        LOGGER.error("Lỗi load danh sách sản phẩm", e);
-        Platform.runLater(() -> showStatus("Không thể tải danh sách sản phẩm.", true));
-      }
-    });
   }
 
   // ========== PRIVATE HELPERS ==========
@@ -228,26 +242,26 @@ public class CreateAuctionController implements Navigable {
 
   private void clearForm() {
     if (itemCombo != null) {
-        itemCombo.setValue(null);
+      itemCombo.setValue(null);
     }
     if (startingPriceField != null) {
-        startingPriceField.clear();
+      startingPriceField.clear();
     }
     if (startDatePicker != null) {
-        startDatePicker.setValue(null);
+      startDatePicker.setValue(null);
     }
     if (startTimeField != null) {
-        startTimeField.clear();
+      startTimeField.clear();
     }
     if (endDatePicker != null) {
-        endDatePicker.setValue(null);
+      endDatePicker.setValue(null);
     }
     if (endTimeField != null) {
-        endTimeField.clear();
+      endTimeField.clear();
     }
     hideStatus();
     if (createButton != null) {
-        createButton.setDisable(false);
+      createButton.setDisable(false);
     }
   }
 

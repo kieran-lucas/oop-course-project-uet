@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
  * Điểm khởi động ứng dụng JavaFX (Client) — Online Auction System.
  *
  * <p><b>Kiến trúc Client:</b>
+ *
  * <pre>
  *   ClientApp (entry point)
  *     → SceneManager (singleton, quản lý navigation + session)
@@ -21,18 +22,20 @@ import org.slf4j.LoggerFactory;
  * </pre>
  *
  * <p><b>Cách chạy client:</b>
+ *
  * <pre>
  *   ./gradlew runClient
  * </pre>
  *
- * <p><b>Lưu ý:</b> Server phải đang chạy ({@code ./gradlew run}) trước khi khởi động client.
- * Server mặc định trên {@code http://localhost:8080}.
+ * <p><b>Lưu ý:</b> Server phải đang chạy ({@code ./gradlew run}) trước khi khởi động client. Server
+ * mặc định trên {@code http://localhost:8080}.
  *
  * <p><b>Liên kết với các file khác:</b>
+ *
  * <ul>
- *   <li>{@link SceneManager} — singleton quản lý toàn bộ màn hình và session JWT</li>
- *   <li>{@code /resources/fxml/} — tất cả file FXML (View trong MVC)</li>
- *   <li>{@code /resources/css/style.css} — dark theme áp dụng cho toàn bộ ứng dụng</li>
+ *   <li>{@link SceneManager} — singleton quản lý toàn bộ màn hình và session JWT
+ *   <li>{@code /resources/fxml/} — tất cả file FXML (View trong MVC)
+ *   <li>{@code /resources/css/style.css} — dark theme áp dụng cho toàn bộ ứng dụng
  * </ul>
  */
 public class ClientApp extends Application {
@@ -49,11 +52,12 @@ public class ClientApp extends Application {
    * Khởi động giao diện JavaFX.
    *
    * <p>Thứ tự khởi tạo:
+   *
    * <ol>
-   *   <li>Khởi tạo SceneManager với Stage chính.</li>
-   *   <li>Cài đặt kích thước tối thiểu cho cửa sổ.</li>
-   *   <li>Hiển thị màn hình chào mừng.</li>
-   *   <li>Show Stage.</li>
+   *   <li>Khởi tạo SceneManager với Stage chính.
+   *   <li>Cài đặt kích thước tối thiểu cho cửa sổ.
+   *   <li>Hiển thị màn hình chào mừng.
+   *   <li>Show Stage.
    * </ol>
    *
    * @param primaryStage Stage chính do JavaFX cung cấp
@@ -84,8 +88,8 @@ public class ClientApp extends Application {
   /**
    * Main method — entry point cho JVM.
    *
-   * <p>JavaFX Application cần gọi {@code Application.launch()} để khởi động
-   * Application Thread (JavaFX Thread). Không gọi {@code new ClientApp().start()} trực tiếp.
+   * <p>JavaFX Application cần gọi {@code Application.launch()} để khởi động Application Thread
+   * (JavaFX Thread). Không gọi {@code new ClientApp().start()} trực tiếp.
    *
    * @param args tham số dòng lệnh (không sử dụng)
    */

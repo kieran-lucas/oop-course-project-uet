@@ -1,14 +1,23 @@
 package com.auction.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
 import com.auction.dao.AuctionDao;
-import com.auction.dao.BidTransactionDao;
 import com.auction.dao.AutoBidConfigDao;
+import com.auction.dao.BidTransactionDao;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.InvalidBidException;
 import com.auction.model.Auction;
 import com.auction.model.BidTransaction;
 import com.auction.pattern.observer.AuctionEventManager;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -18,33 +27,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
-
 /**
  * Test toàn diện cho BidService — trọng tâm của tuần 3.
  *
  * <p><b>BidService là class phức tạp nhất trong project</b> vì nó kết hợp nhiều thành phần:
+ *
  * <ul>
- *   <li>State pattern — kiểm tra trạng thái phiên trước khi cho bid</li>
- *   <li>Strategy pattern — ManualBidStrategy validate + AutoBidStrategy chain</li>
- *   <li>Observer pattern — notify tất cả client qua WebSocket sau mỗi bid</li>
- *   <li>Concurrency — synchronized block (tầng 1)</li>
- *   <li>Anti-sniping — gia hạn phiên nếu bid trong 30 giây cuối</li>
+ *   <li>State pattern — kiểm tra trạng thái phiên trước khi cho bid
+ *   <li>Strategy pattern — ManualBidStrategy validate + AutoBidStrategy chain
+ *   <li>Observer pattern — notify tất cả client qua WebSocket sau mỗi bid
+ *   <li>Concurrency — synchronized block (tầng 1)
+ *   <li>Anti-sniping — gia hạn phiên nếu bid trong 30 giây cuối
  * </ul>
  *
- * <p><b>Chiến lược mock:</b> Mock toàn bộ DAO + EventManager. Chỉ test logic thuần —
- * không cần DB, không cần WebSocket server thật.
+ * <p><b>Chiến lược mock:</b> Mock toàn bộ DAO + EventManager. Chỉ test logic thuần — không cần DB,
+ * không cần WebSocket server thật.
  *
- * <p><b>Mỗi test case kiểm tra đúng 1 hành vi</b> (single assertion principle) để khi fail,
- * biết ngay vấn đề ở đâu mà không cần đọc stacktrace dài.
+ * <p><b>Mỗi test case kiểm tra đúng 1 hành vi</b> (single assertion principle) để khi fail, biết
+ * ngay vấn đề ở đâu mà không cần đọc stacktrace dài.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -61,18 +61,18 @@ class BidServiceTest {
   @InjectMocks private BidService bidService;
 
   // ── Constant test data ───────────────────────────────────
-  private static final Long   AUCTION_ID   = 5L;
-  private static final Long   SELLER_ID    = 1L;
-  private static final Long   BIDDER_ID    = 2L;
-  private static final Long   BIDDER_B_ID  = 3L;
-  private static final BigDecimal STARTING = new BigDecimal("1000000");  // 1 triệu
+  private static final Long AUCTION_ID = 5L;
+  private static final Long SELLER_ID = 1L;
+  private static final Long BIDDER_ID = 2L;
+  private static final Long BIDDER_B_ID = 3L;
+  private static final BigDecimal STARTING = new BigDecimal("1000000"); // 1 triệu
 
   // ── Helper ───────────────────────────────────────────────
 
   /**
    * Tạo Auction mẫu với trạng thái và thời gian còn lại cho trước.
    *
-   * @param status       trạng thái phiên: "OPEN", "RUNNING", "FINISHED", ...
+   * @param status trạng thái phiên: "OPEN", "RUNNING", "FINISHED", ...
    * @param remainingSec thời gian còn lại (giây). Âm → phiên đã hết giờ
    */
   private Auction buildAuction(String status, long remainingSec) {
@@ -119,7 +119,9 @@ class BidServiceTest {
       ArgumentCaptor<Auction> captor = ArgumentCaptor.forClass(Auction.class);
       verify(auctionDao).update(captor.capture());
 
-      assertEquals(0, bidAmount.compareTo(captor.getValue().getCurrentPrice()),
+      assertEquals(
+          0,
+          bidAmount.compareTo(captor.getValue().getCurrentPrice()),
           "currentPrice phải cập nhật thành giá bid mới");
     }
 
@@ -131,7 +133,9 @@ class BidServiceTest {
       ArgumentCaptor<Auction> captor = ArgumentCaptor.forClass(Auction.class);
       verify(auctionDao).update(captor.capture());
 
-      assertEquals(BIDDER_ID, captor.getValue().getLeadingBidderId(),
+      assertEquals(
+          BIDDER_ID,
+          captor.getValue().getLeadingBidderId(),
           "leadingBidderId phải là người vừa thắng bid");
     }
 
@@ -153,12 +157,12 @@ class BidServiceTest {
       verify(bidTransactionDao).insert(captor.capture());
 
       BidTransaction txn = captor.getValue();
-      assertAll("BidTransaction data",
+      assertAll(
+          "BidTransaction data",
           () -> assertEquals(AUCTION_ID, txn.getAuctionId()),
-          () -> assertEquals(BIDDER_ID,  txn.getBidderId()),
+          () -> assertEquals(BIDDER_ID, txn.getBidderId()),
           () -> assertEquals(0, bidAmount.compareTo(txn.getAmount())),
-          () -> assertFalse(txn.isAutoBid(), "Manual bid không phải auto-bid")
-      );
+          () -> assertFalse(txn.isAutoBid(), "Manual bid không phải auto-bid"));
     }
 
     @Test
@@ -166,8 +170,7 @@ class BidServiceTest {
     void testBidSuccessObserverNotified() {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
-      verify(eventManager, times(1))
-          .notifyBidUpdate(eq(AUCTION_ID), any(BidUpdateMessage.class));
+      verify(eventManager, times(1)).notifyBidUpdate(eq(AUCTION_ID), any(BidUpdateMessage.class));
     }
 
     @Test
@@ -186,10 +189,10 @@ class BidServiceTest {
       // Test này document behavior rõ ràng
       BigDecimal equalBid = STARTING; // đúng bằng 1.000.000
 
-      assertThrows(InvalidBidException.class,
+      assertThrows(
+          InvalidBidException.class,
           () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, equalBid, false),
-          "Bid bằng giá hiện tại không hợp lệ — phải bid CAO HƠN"
-      );
+          "Bid bằng giá hiện tại không hợp lệ — phải bid CAO HƠN");
     }
   }
 
@@ -211,10 +214,10 @@ class BidServiceTest {
     void testBidTooLowThrowsInvalidBidException() {
       BigDecimal lowBid = new BigDecimal("500000"); // 500k < 1 triệu
 
-      assertThrows(InvalidBidException.class,
+      assertThrows(
+          InvalidBidException.class,
           () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, lowBid, false),
-          "Bid thấp hơn currentPrice phải throw InvalidBidException"
-      );
+          "Bid thấp hơn currentPrice phải throw InvalidBidException");
     }
 
     @Test
@@ -222,7 +225,8 @@ class BidServiceTest {
     void testBidTooLowNoDatabaseUpdate() {
       try {
         bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("500000"), false);
-      } catch (InvalidBidException ignored) { }
+      } catch (InvalidBidException ignored) {
+      }
 
       verify(auctionDao, never()).update(any());
       verify(bidTransactionDao, never()).insert(any());
@@ -233,7 +237,8 @@ class BidServiceTest {
     void testBidTooLowObserverNotNotified() {
       try {
         bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("500000"), false);
-      } catch (InvalidBidException ignored) { }
+      } catch (InvalidBidException ignored) {
+      }
 
       verify(eventManager, never()).notifyBidUpdate(anyLong(), any());
     }
@@ -241,19 +246,19 @@ class BidServiceTest {
     @Test
     @DisplayName("Bid giá âm → InvalidBidException")
     void testBidNegativeAmountThrowsInvalidBidException() {
-      assertThrows(InvalidBidException.class,
+      assertThrows(
+          InvalidBidException.class,
           () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("-100000"), false),
-          "Giá âm phải throw InvalidBidException"
-      );
+          "Giá âm phải throw InvalidBidException");
     }
 
     @Test
     @DisplayName("Bid giá null → NullPointerException hoặc InvalidBidException")
     void testBidNullAmountThrowsException() {
-      assertThrows(RuntimeException.class,
+      assertThrows(
+          RuntimeException.class,
           () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, null, false),
-          "Giá null phải throw exception"
-      );
+          "Giá null phải throw exception");
     }
   }
 
@@ -271,48 +276,47 @@ class BidServiceTest {
       when(auctionDao.findById(AUCTION_ID))
           .thenReturn(Optional.of(buildAuction("FINISHED", -3600)));
 
-      assertThrows(AuctionClosedException.class,
+      assertThrows(
+          AuctionClosedException.class,
           () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false),
-          "Bid khi FINISHED phải throw AuctionClosedException"
-      );
+          "Bid khi FINISHED phải throw AuctionClosedException");
     }
 
     @Test
     @DisplayName("Bid khi OPEN → AuctionClosedException với message 'chưa bắt đầu'")
     void testBidWhenOpenThrowsAuctionClosedException() {
-      when(auctionDao.findById(AUCTION_ID))
-          .thenReturn(Optional.of(buildAuction("OPEN", 3600)));
+      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(buildAuction("OPEN", 3600)));
 
-      AuctionClosedException ex = assertThrows(
-          AuctionClosedException.class,
-          () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false)
-      );
+      AuctionClosedException ex =
+          assertThrows(
+              AuctionClosedException.class,
+              () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false));
 
       String msg = ex.getMessage().toLowerCase();
-      assertTrue(msg.contains("chưa") || msg.contains("open") || msg.contains("start"),
+      assertTrue(
+          msg.contains("chưa") || msg.contains("open") || msg.contains("start"),
           "Message phải nói rõ phiên chưa bắt đầu, hiện: " + ex.getMessage());
     }
 
     @Test
     @DisplayName("Bid khi CANCELED → AuctionClosedException")
     void testBidWhenCanceledThrowsAuctionClosedException() {
-      when(auctionDao.findById(AUCTION_ID))
-          .thenReturn(Optional.of(buildAuction("CANCELED", 0)));
+      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(buildAuction("CANCELED", 0)));
 
-      assertThrows(AuctionClosedException.class,
-          () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false)
-      );
+      assertThrows(
+          AuctionClosedException.class,
+          () -> bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false));
     }
 
     @Test
     @DisplayName("Bid sai trạng thái → DB không bị update")
     void testBidWrongStateNoDatabaseSideEffects() {
-      when(auctionDao.findById(AUCTION_ID))
-          .thenReturn(Optional.of(buildAuction("FINISHED", 0)));
+      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(buildAuction("FINISHED", 0)));
 
       try {
         bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
-      } catch (AuctionClosedException ignored) { }
+      } catch (AuctionClosedException ignored) {
+      }
 
       verify(auctionDao, never()).update(any());
       verify(bidTransactionDao, never()).insert(any());
@@ -337,11 +341,11 @@ class BidServiceTest {
     @DisplayName("Seller bid phiên của mình → InvalidBidException")
     void testBidOwnAuctionThrowsInvalidBidException() {
       // SELLER_ID (= 1) là người tạo phiên và cũng là người bid
-      InvalidBidException ex = assertThrows(
-          InvalidBidException.class,
-          () -> bidService.placeBid(AUCTION_ID, SELLER_ID, new BigDecimal("2000000"), false),
-          "Seller không thể bid phiên của chính mình"
-      );
+      InvalidBidException ex =
+          assertThrows(
+              InvalidBidException.class,
+              () -> bidService.placeBid(AUCTION_ID, SELLER_ID, new BigDecimal("2000000"), false),
+              "Seller không thể bid phiên của chính mình");
 
       assertNotNull(ex.getMessage(), "Exception phải có message giải thích lý do");
     }
@@ -349,16 +353,15 @@ class BidServiceTest {
     @Test
     @DisplayName("Seller bid của mình → message đề cập 'sản phẩm của mình'")
     void testBidOwnAuctionMeaningfulMessage() {
-      InvalidBidException ex = assertThrows(
-          InvalidBidException.class,
-          () -> bidService.placeBid(AUCTION_ID, SELLER_ID, new BigDecimal("2000000"), false)
-      );
+      InvalidBidException ex =
+          assertThrows(
+              InvalidBidException.class,
+              () -> bidService.placeBid(AUCTION_ID, SELLER_ID, new BigDecimal("2000000"), false));
 
       String msg = ex.getMessage().toLowerCase();
       assertTrue(
           msg.contains("mình") || msg.contains("own") || msg.contains("seller"),
-          "Message phải giải thích vì sao seller không được bid, hiện: " + ex.getMessage()
-      );
+          "Message phải giải thích vì sao seller không được bid, hiện: " + ex.getMessage());
     }
   }
 
@@ -393,22 +396,20 @@ class BidServiceTest {
 
       assertTrue(
           updatedAuction.getEndTime().isAfter(originalEndTime),
-          "endTime phải được gia hạn khi bid trong 30 giây cuối"
-      );
+          "endTime phải được gia hạn khi bid trong 30 giây cuối");
 
       // Kiểm tra gia hạn ít nhất 50 giây (để margin cho test timing)
-      long extendedSeconds = java.time.Duration
-          .between(originalEndTime, updatedAuction.getEndTime())
-          .getSeconds();
-      assertTrue(extendedSeconds >= 50,
+      long extendedSeconds =
+          java.time.Duration.between(originalEndTime, updatedAuction.getEndTime()).getSeconds();
+      assertTrue(
+          extendedSeconds >= 50,
           "Phải gia hạn ít nhất 50 giây, thực tế gia hạn: " + extendedSeconds + "s");
     }
 
     @Test
     @DisplayName("Bid khi còn 20 giây → broadcast TIME_EXTENDED cho client")
     void testAntiSnipingTimeExtendedBroadcast() {
-      when(auctionDao.findById(AUCTION_ID))
-          .thenReturn(Optional.of(buildAuction("RUNNING", 20)));
+      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(buildAuction("RUNNING", 20)));
 
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
@@ -427,8 +428,7 @@ class BidServiceTest {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       // notifyTimeExtended KHÔNG được gọi
-      verify(eventManager, never())
-          .notifyTimeExtended(anyLong(), any(BidUpdateMessage.class));
+      verify(eventManager, never()).notifyTimeExtended(anyLong(), any(BidUpdateMessage.class));
     }
 
     @Test
@@ -467,8 +467,8 @@ class BidServiceTest {
       ArgumentCaptor<BidTransaction> captor = ArgumentCaptor.forClass(BidTransaction.class);
       verify(bidTransactionDao).insert(captor.capture());
 
-      assertFalse(captor.getValue().isAutoBid(),
-          "Manual bid phải có autoBid = false trong BidTransaction");
+      assertFalse(
+          captor.getValue().isAutoBid(), "Manual bid phải có autoBid = false trong BidTransaction");
     }
 
     @Test
@@ -479,8 +479,8 @@ class BidServiceTest {
       ArgumentCaptor<BidTransaction> captor = ArgumentCaptor.forClass(BidTransaction.class);
       verify(bidTransactionDao).insert(captor.capture());
 
-      assertTrue(captor.getValue().isAutoBid(),
-          "Auto bid phải có autoBid = true trong BidTransaction");
+      assertTrue(
+          captor.getValue().isAutoBid(), "Auto bid phải có autoBid = true trong BidTransaction");
     }
   }
 
@@ -500,8 +500,7 @@ class BidServiceTest {
       assertThrows(
           com.auction.exception.NotFoundException.class,
           () -> bidService.placeBid(999L, BIDDER_ID, new BigDecimal("2000000"), false),
-          "Bid phiên không tồn tại → phải throw NotFoundException"
-      );
+          "Bid phiên không tồn tại → phải throw NotFoundException");
     }
   }
 
@@ -523,21 +522,22 @@ class BidServiceTest {
       BigDecimal bidAmount = new BigDecimal("3500000");
       bidService.placeBid(AUCTION_ID, BIDDER_ID, bidAmount, false);
 
-      ArgumentCaptor<BidUpdateMessage> msgCaptor =
-          ArgumentCaptor.forClass(BidUpdateMessage.class);
+      ArgumentCaptor<BidUpdateMessage> msgCaptor = ArgumentCaptor.forClass(BidUpdateMessage.class);
       verify(eventManager).notifyBidUpdate(eq(AUCTION_ID), msgCaptor.capture());
 
       BidUpdateMessage msg = msgCaptor.getValue();
-      assertAll("BID_UPDATE message fields",
-          () -> assertEquals(AUCTION_ID, msg.getAuctionId(),
-              "auctionId phải khớp"),
-          () -> assertEquals(0, bidAmount.compareTo(msg.getCurrentPrice()),
-              "currentPrice phải là giá bid mới"),
-          () -> assertEquals(BIDDER_ID, msg.getLeadingBidderId(),
-              "leadingBidderId phải là người vừa bid"),
-          () -> assertEquals("BID_UPDATE", msg.getType(),
-              "type phải là 'BID_UPDATE'")
-      );
+      assertAll(
+          "BID_UPDATE message fields",
+          () -> assertEquals(AUCTION_ID, msg.getAuctionId(), "auctionId phải khớp"),
+          () ->
+              assertEquals(
+                  0,
+                  bidAmount.compareTo(msg.getCurrentPrice()),
+                  "currentPrice phải là giá bid mới"),
+          () ->
+              assertEquals(
+                  BIDDER_ID, msg.getLeadingBidderId(), "leadingBidderId phải là người vừa bid"),
+          () -> assertEquals("BID_UPDATE", msg.getType(), "type phải là 'BID_UPDATE'"));
     }
   }
 }

@@ -130,7 +130,8 @@ class BidTransactionDaoTest {
 
     // Tạo bid mới với giá cao hơn/thời gian sau
     BidTransaction last =
-        new BidTransaction(testAuction.getId(), testBidder.getId(), new BigDecimal("250000"), false);
+        new BidTransaction(
+            testAuction.getId(), testBidder.getId(), new BigDecimal("250000"), false);
     bidDao.insert(last);
 
     Optional<BidTransaction> found = bidDao.findLastBid(testAuction.getId());

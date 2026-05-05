@@ -46,6 +46,12 @@ plugins {
     // Plugin spotless: tự động format code theo Google Java Style
     // Thêm task: spotlessApply (tự sửa), spotlessCheck (chỉ kiểm tra, CI dùng)
     id("com.diffplug.spotless") version "7.0.2"
+
+    // Plugin spotbugs: phát hiện bug patterns trong bytecode
+    // Thêm task: spotbugsMain, spotbugsTest
+    // Tìm: null dereference, resource leak, concurrency issues, bad practice
+    // Report HTML tại build/reports/spotbugs/spotbugsMain.html
+    id("com.github.spotbugs") version "6.0.9"
 }
 
 // Thông tin project — hiện trong output build và trong file .jar khi đóng gói
@@ -167,6 +173,11 @@ dependencies {
     // Liên kết: BidServiceTest.java, AuctionServiceTest.java dùng @Mock.
     testImplementation("org.mockito:mockito-core:5.14.2")
     testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
+
+    // SpotBugs annotations: dùng @SuppressFBWarnings để tắt cảnh báo cụ thể
+    // khi bạn chắc chắn một đoạn code không có bug dù SpotBugs báo.
+    // compileOnly = không đóng gói vào .jar, chỉ dùng khi compile.
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.8.6")
 }
 
 // ============================================================================
@@ -229,7 +240,7 @@ tasks.register<JavaExec>("runClient") {
 // testLogging với FULL exception format: hiện chi tiết lỗi SQL từ PostgreSQL
 tasks.test {
     useJUnitPlatform()
-    
+
     testLogging {
         events("passed", "skipped", "failed", "standardOut", "standardError")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
@@ -280,4 +291,40 @@ spotless {
         trimTrailingWhitespace()
         endWithNewline()
     }
+}
+
+// ============================================================================
+// SPOTBUGS — Phát hiện bug patterns trong bytecode
+// ============================================================================
+// SpotBugs phân tích bytecode (.class) sau khi compile để tìm:
+//   - Null dereference: dùng biến có thể null mà không kiểm tra
+//   - Resource leak: mở stream/connection mà không đóng
+//   - Concurrency issues: race condition, incorrect synchronization
+//   - Bad practice: equals() không nhất quán với hashCode(), v.v.
+//
+// effort = MAX: phân tích kỹ nhất (chậm hơn ~30s nhưng tìm được nhiều hơn)
+// reportLevel = HIGH: chỉ báo HIGH confidence bugs, bỏ qua LOW/MEDIUM
+//   → Giảm false positive — chỉ báo những gì thực sự đáng lo
+//
+// Chạy: ./gradlew spotbugsMain
+// Report: build/reports/spotbugs/spotbugsMain.html (mở bằng browser)
+//
+// Nếu muốn tắt một cảnh báo cụ thể (khi chắc chắn không phải bug):
+//   @SuppressFBWarnings("NP_NULL_ON_SOME_PATH")
+//   private void myMethod() { ... }
+spotbugs {
+    effort = com.github.spotbugs.snom.Effort.MAX
+    reportLevel = com.github.spotbugs.snom.Confidence.HIGH
+    ignoreFailures = false
+}
+
+tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
+    reports.create("html") {
+        required = true
+        outputLocation =
+            layout.buildDirectory.file("reports/spotbugs/${name}.html")
+    }
+}
+tasks.compileJava {
+    options.compilerArgs.add("-Xlint:deprecation")
 }

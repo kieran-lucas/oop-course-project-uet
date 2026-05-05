@@ -9,6 +9,7 @@ import java.math.BigDecimal;
  * Trạng thái RUNNING — phiên đang diễn ra, nhận đặt giá.
  *
  * <h2>Hành động được phép / bị từ chối</h2>
+ *
  * <table border="1">
  *   <tr><th>Hành động</th><th>Kết quả</th><th>Lý do</th></tr>
  *   <tr><td>placeBid()</td><td>✅ Cho phép</td><td>Phiên đang nhận giá</td></tr>
@@ -17,17 +18,19 @@ import java.math.BigDecimal;
  *   <tr><td>edit()</td><td>❌ Từ chối</td><td>Không công bằng khi đang có người tham gia</td></tr>
  * </table>
  *
- * <p><b>Validation trong placeBid():</b> RunningState kiểm tra các điều kiện cơ bản.
- * Validation phức tạp hơn (anti-sniping, auto-bid trigger) do {@code BidService} xử lý
- * sau khi state đã cho phép.
+ * <p><b>Validation trong placeBid():</b> RunningState kiểm tra các điều kiện cơ bản. Validation
+ * phức tạp hơn (anti-sniping, auto-bid trigger) do {@code BidService} xử lý sau khi state đã cho
+ * phép.
  *
  * <p><b>Chuyển trạng thái:</b>
+ *
  * <ul>
- *   <li>RUNNING → FINISHED: tự động khi đến {@code endTime} (do {@code AuctionScheduler})</li>
- *   <li>RUNNING → CANCELED: admin force-close phiên vi phạm</li>
+ *   <li>RUNNING → FINISHED: tự động khi đến {@code endTime} (do {@code AuctionScheduler})
+ *   <li>RUNNING → CANCELED: admin force-close phiên vi phạm
  * </ul>
  *
  * <p><b>Ví dụ luồng sử dụng trong BidService:</b>
+ *
  * <pre>{@code
  * AuctionState state = auctionService.getState(auction); // → new RunningState()
  * state.placeBid(auction, amount, bidderId);  // OK nếu amount > currentPrice
@@ -39,9 +42,9 @@ public class RunningState implements AuctionState {
   /**
    * {@inheritDoc}
    *
-   * <p>Validate giá đặt và kiểm tra seller không tự bid. Nếu hợp lệ, cập nhật giá trên
-   * auction object (in-memory). {@code BidService} chịu trách nhiệm persist xuống DB
-   * và notify observers sau khi method này trả về thành công.
+   * <p>Validate giá đặt và kiểm tra seller không tự bid. Nếu hợp lệ, cập nhật giá trên auction
+   * object (in-memory). {@code BidService} chịu trách nhiệm persist xuống DB và notify observers
+   * sau khi method này trả về thành công.
    *
    * @throws InvalidBidException nếu amount ≤ currentPrice hoặc seller tự bid
    */
@@ -50,8 +53,7 @@ public class RunningState implements AuctionState {
     // Validate: giá phải cao hơn giá hiện tại
     if (amount.compareTo(auction.getCurrentPrice()) <= 0) {
       throw new InvalidBidException(
-          "Giá đặt " + amount + " phải cao hơn giá hiện tại " + auction.getCurrentPrice()
-      );
+          "Giá đặt " + amount + " phải cao hơn giá hiện tại " + auction.getCurrentPrice());
     }
 
     // Validate: seller không được tự bid phiên của mình
@@ -67,8 +69,7 @@ public class RunningState implements AuctionState {
   /**
    * {@inheritDoc}
    *
-   * <p>Cho phép admin/scheduler đóng phiên sớm hoặc khi đến endTime.
-   * Không ném exception.
+   * <p>Cho phép admin/scheduler đóng phiên sớm hoặc khi đến endTime. Không ném exception.
    */
   @Override
   public void close(Auction auction) {
@@ -85,17 +86,17 @@ public class RunningState implements AuctionState {
   @Override
   public void edit(Auction auction) {
     throw new AuctionClosedException(
-        "Không thể chỉnh sửa phiên #" + auction.getId()
-            + " khi đang diễn ra. Dừng phiên trước khi chỉnh sửa."
-    );
+        "Không thể chỉnh sửa phiên #"
+            + auction.getId()
+            + " khi đang diễn ra. Dừng phiên trước khi chỉnh sửa.");
   }
 
   /**
    * {@inheritDoc}
    *
-   * <p>Gia hạn thời gian kết thúc. Được gọi bởi {@code BidService} khi phát hiện
-   * bid trong 30 giây cuối (anti-sniping). Cập nhật endTime in-memory;
-   * {@code BidService} persist và broadcast {@code TIME_EXTENDED} qua WebSocket.
+   * <p>Gia hạn thời gian kết thúc. Được gọi bởi {@code BidService} khi phát hiện bid trong 30 giây
+   * cuối (anti-sniping). Cập nhật endTime in-memory; {@code BidService} persist và broadcast {@code
+   * TIME_EXTENDED} qua WebSocket.
    *
    * @param extraSeconds số giây gia hạn (thường là 60)
    */
@@ -104,4 +105,3 @@ public class RunningState implements AuctionState {
     auction.setEndTime(auction.getEndTime().plusSeconds(extraSeconds));
   }
 }
-

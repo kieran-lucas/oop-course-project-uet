@@ -1,8 +1,8 @@
 package com.auction.ui.controller;
 
 import com.auction.dto.AuctionResponse;
-import com.auction.model.BidTransaction;
 import com.auction.dto.BidUpdateMessage;
+import com.auction.model.BidTransaction;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
@@ -34,29 +34,29 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller cho màn hình chi tiết phiên đấu giá (auction-detail.fxml).
  *
- * <p><b>Mục đích:</b>
- * Hiển thị thông tin đầy đủ của một phiên: tên sản phẩm, giá hiện tại, người dẫn đầu,
- * đồng hồ đếm ngược, lịch sử bid, và form đặt giá realtime.
- * Kết nối WebSocket để nhận BID_UPDATE / TIME_EXTENDED / AUCTION_ENDED từ server.
+ * <p><b>Mục đích:</b> Hiển thị thông tin đầy đủ của một phiên: tên sản phẩm, giá hiện tại, người
+ * dẫn đầu, đồng hồ đếm ngược, lịch sử bid, và form đặt giá realtime. Kết nối WebSocket để nhận
+ * BID_UPDATE / TIME_EXTENDED / AUCTION_ENDED từ server.
  *
  * <p><b>Các phương thức chính:</b>
+ *
  * <ul>
- *   <li>{@link #onDataReceived(Object)} — Nhận auctionId từ AuctionListController.</li>
- *   <li>{@link #onNavigatedTo()} — Load dữ liệu, kết nối WebSocket, bật countdown.</li>
- *   <li>{@link #onNavigatedFrom()} — Đóng WebSocket, dừng countdown.</li>
- *   <li>{@link #handleBid()} — Đặt giá thủ công qua REST API.</li>
+ *   <li>{@link #onDataReceived(Object)} — Nhận auctionId từ AuctionListController.
+ *   <li>{@link #onNavigatedTo()} — Load dữ liệu, kết nối WebSocket, bật countdown.
+ *   <li>{@link #onNavigatedFrom()} — Đóng WebSocket, dừng countdown.
+ *   <li>{@link #handleBid()} — Đặt giá thủ công qua REST API.
  * </ul>
  *
- * <p><b>Vị trí trong kiến trúc:</b>
- * AuctionDetailController kết hợp cả REST (load dữ liệu ban đầu, đặt giá) và
- * WebSocket (nhận realtime updates). Mỗi BidUpdateMessage nhận được sẽ cập nhật
- * UI trên JavaFX Application Thread qua {@code Platform.runLater()}.
+ * <p><b>Vị trí trong kiến trúc:</b> AuctionDetailController kết hợp cả REST (load dữ liệu ban đầu,
+ * đặt giá) và WebSocket (nhận realtime updates). Mỗi BidUpdateMessage nhận được sẽ cập nhật UI trên
+ * JavaFX Application Thread qua {@code Platform.runLater()}.
  */
 public class AuctionDetailController implements Navigable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionDetailController.class);
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
-  private static final NumberFormat VND = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper().registerModule(new JavaTimeModule());
+  private static final NumberFormat VND = NumberFormat.getCurrencyInstance(Locale.of("vi", "VN"));
 
   @FXML private Label usernameLabel;
   @FXML private Label itemNameLabel;
@@ -119,8 +119,8 @@ public class AuctionDetailController implements Navigable {
   // ========== FXML ACTIONS ==========
 
   /**
-   * Xử lý đặt giá — gọi {@code POST /api/auctions/{id}/bid}.
-   * Chỉ chấp nhận số dương, validate cơ bản phía client trước khi gửi.
+   * Xử lý đặt giá — gọi {@code POST /api/auctions/{id}/bid}. Chỉ chấp nhận số dương, validate cơ
+   * bản phía client trước khi gửi.
    */
   @FXML
   public void handleBid() {
@@ -148,32 +148,37 @@ public class AuctionDetailController implements Navigable {
     Map<String, Object> body = new HashMap<>();
     body.put("amount", amount);
 
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.post(
-            "/api/auctions/" + auctionId + "/bid", body);
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.post("/api/auctions/" + auctionId + "/bid", body);
 
-        if (response.statusCode() == 201) {
-          Platform.runLater(() -> {
-            bidAmountField.clear();
-            bidButton.setDisable(false);
-            loadBidHistory();
-          });
-        } else {
-          String msg = extractErrorMessage(response.body());
-          Platform.runLater(() -> {
-            showBidError(msg);
-            bidButton.setDisable(false);
-          });
-        }
-      } catch (Exception e) {
-        LOGGER.error("Lỗi đặt giá", e);
-        Platform.runLater(() -> {
-          showBidError("Không thể kết nối đến server.");
-          bidButton.setDisable(false);
-        });
-      }
-    });
+                if (response.statusCode() == 201) {
+                  Platform.runLater(
+                      () -> {
+                        bidAmountField.clear();
+                        bidButton.setDisable(false);
+                        loadBidHistory();
+                      });
+                } else {
+                  String msg = extractErrorMessage(response.body());
+                  Platform.runLater(
+                      () -> {
+                        showBidError(msg);
+                        bidButton.setDisable(false);
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi đặt giá", e);
+                Platform.runLater(
+                    () -> {
+                      showBidError("Không thể kết nối đến server.");
+                      bidButton.setDisable(false);
+                    });
+              }
+            });
   }
 
   /** Quay lại danh sách phiên đấu giá. */
@@ -185,54 +190,67 @@ public class AuctionDetailController implements Navigable {
   // ========== DATA LOADING ==========
 
   private void loadAuctionDetail() {
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.get("/api/auctions/" + auctionId);
-        if (response.statusCode() == 200) {
-          AuctionResponse auction = MAPPER.readValue(response.body(), AuctionResponse.class);
-          Platform.runLater(() -> updateAuctionUI(auction));
-        }
-      } catch (Exception e) {
-        LOGGER.error("Lỗi load chi tiết phiên", e);
-      }
-    });
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.get("/api/auctions/" + auctionId);
+                if (response.statusCode() == 200) {
+                  AuctionResponse auction =
+                      MAPPER.readValue(response.body(), AuctionResponse.class);
+                  Platform.runLater(() -> updateAuctionUI(auction));
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi load chi tiết phiên", e);
+              }
+            });
   }
 
   private void loadBidHistory() {
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.get("/api/auctions/" + auctionId + "/bids");
-        if (response.statusCode() == 200) {
-          List<BidTransaction> bids = RestClient.parseList(response.body(), BidTransaction.class);
-          Platform.runLater(() -> {
-            bidHistoryItems.clear();
-            for (int i = bids.size() - 1; i >= 0; i--) {
-              BidTransaction bid = bids.get(i);
-              String entry = String.format("%s — %s",
-                  bid.getBidderId() != null ? "Bidder #" + bid.getBidderId() : "?",
-                  bid.getAmount() != null ? VND.format(bid.getAmount()) : "?");
-              bidHistoryItems.add(entry);
-            }
-          });
-        }
-      } catch (Exception e) {
-        LOGGER.error("Lỗi load lịch sử bid", e);
-      }
-    });
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.get("/api/auctions/" + auctionId + "/bids");
+                if (response.statusCode() == 200) {
+                  List<BidTransaction> bids =
+                      RestClient.parseList(response.body(), BidTransaction.class);
+                  Platform.runLater(
+                      () -> {
+                        bidHistoryItems.clear();
+                        for (int i = bids.size() - 1; i >= 0; i--) {
+                          BidTransaction bid = bids.get(i);
+                          String entry =
+                              String.format(
+                                  "%s — %s",
+                                  bid.getBidderId() != null ? "Bidder #" + bid.getBidderId() : "?",
+                                  bid.getAmount() != null ? VND.format(bid.getAmount()) : "?");
+                          bidHistoryItems.add(entry);
+                        }
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi load lịch sử bid", e);
+              }
+            });
   }
 
   private void connectWebSocket(String token) {
     if (token == null || token.isEmpty()) {
       return;
     }
-    wsClient.connect(auctionId, token, json -> {
-      try {
-        BidUpdateMessage msg = MAPPER.readValue(json, BidUpdateMessage.class);
-        Platform.runLater(() -> handleWsMessage(msg));
-      } catch (Exception e) {
-        LOGGER.error("Lỗi parse WS message", e);
-      }
-    });
+    wsClient.connect(
+        auctionId,
+        token,
+        json -> {
+          try {
+            BidUpdateMessage msg = MAPPER.readValue(json, BidUpdateMessage.class);
+            Platform.runLater(() -> handleWsMessage(msg));
+          } catch (Exception e) {
+            LOGGER.error("Lỗi parse WS message", e);
+          }
+        });
   }
 
   // ========== WEBSOCKET MESSAGE HANDLING ==========
@@ -247,15 +265,17 @@ public class AuctionDetailController implements Navigable {
           leadingBidderLabel.setText(msg.getLeadingBidderUsername());
         }
         if (msg.getEndTime() != null) {
-          endTimeMs = java.time.Duration.between(
-              java.time.LocalDateTime.now(), msg.getEndTime()).toMillis();
+          endTimeMs =
+              java.time.Duration.between(java.time.LocalDateTime.now(), msg.getEndTime())
+                  .toMillis();
         }
         loadBidHistory();
       }
       case BidUpdateMessage.TYPE_TIME_EXTENDED -> {
         if (msg.getEndTime() != null) {
-          endTimeMs = java.time.Duration.between(
-              java.time.LocalDateTime.now(), msg.getEndTime()).toMillis();
+          endTimeMs =
+              java.time.Duration.between(java.time.LocalDateTime.now(), msg.getEndTime())
+                  .toMillis();
           LOGGER.info("Anti-sniping: thời gian gia hạn đến {}", msg.getEndTime());
         }
       }
@@ -267,8 +287,10 @@ public class AuctionDetailController implements Navigable {
         bidBox.setManaged(false);
         endedBox.setVisible(true);
         endedBox.setManaged(true);
-        String winner = msg.getLeadingBidderUsername() != null
-            ? msg.getLeadingBidderUsername() : "Không có người thắng";
+        String winner =
+            msg.getLeadingBidderUsername() != null
+                ? msg.getLeadingBidderUsername()
+                : "Không có người thắng";
         String price = msg.getCurrentPrice() != null ? VND.format(msg.getCurrentPrice()) : "—";
         winnerLabel.setText("Người thắng: " + winner + " — Giá cuối: " + price);
       }
@@ -279,7 +301,8 @@ public class AuctionDetailController implements Navigable {
   // ========== UI UPDATE HELPERS ==========
 
   private void updateAuctionUI(AuctionResponse auction) {
-    itemNameLabel.setText(auction.getItemName() != null ? auction.getItemName() : "Sản phẩm #" + auction.getItemId());
+    itemNameLabel.setText(
+        auction.getItemName() != null ? auction.getItemName() : "Sản phẩm #" + auction.getItemId());
     itemCategoryLabel.setText(auction.getItemCategory() != null ? auction.getItemCategory() : "");
     auctionStatusLabel.setText(auction.getStatus() != null ? auction.getStatus() : "");
 
@@ -287,7 +310,9 @@ public class AuctionDetailController implements Navigable {
       currentPriceLabel.setText(VND.format(auction.getCurrentPrice()));
     }
     leadingBidderLabel.setText(
-        auction.getLeadingBidderUsername() != null ? auction.getLeadingBidderUsername() : "Chưa có");
+        auction.getLeadingBidderUsername() != null
+            ? auction.getLeadingBidderUsername()
+            : "Chưa có");
 
     endTimeMs = auction.getRemainingTimeMs();
     startCountdown();
@@ -299,8 +324,10 @@ public class AuctionDetailController implements Navigable {
       if ("FINISHED".equals(auction.getStatus()) || "CANCELED".equals(auction.getStatus())) {
         endedBox.setVisible(true);
         endedBox.setManaged(true);
-        String winner = auction.getLeadingBidderUsername() != null
-            ? auction.getLeadingBidderUsername() : "Không có người thắng";
+        String winner =
+            auction.getLeadingBidderUsername() != null
+                ? auction.getLeadingBidderUsername()
+                : "Không có người thắng";
         winnerLabel.setText("Người thắng: " + winner);
       }
     }
@@ -308,18 +335,22 @@ public class AuctionDetailController implements Navigable {
 
   private void startCountdown() {
     stopCountdown();
-    countdownTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-      if (endTimeMs != null && endTimeMs > 0) {
-        endTimeMs -= 1000;
-        long h = endTimeMs / 3_600_000;
-        long m = (endTimeMs % 3_600_000) / 60_000;
-        long s = (endTimeMs % 60_000) / 1000;
-        countdownLabel.setText(String.format("%02d:%02d:%02d", h, m, s));
-      } else {
-        countdownLabel.setText("Đã kết thúc");
-        stopCountdown();
-      }
-    }));
+    countdownTimeline =
+        new Timeline(
+            new KeyFrame(
+                Duration.seconds(1),
+                e -> {
+                  if (endTimeMs != null && endTimeMs > 0) {
+                    endTimeMs -= 1000;
+                    long h = endTimeMs / 3_600_000;
+                    long m = (endTimeMs % 3_600_000) / 60_000;
+                    long s = (endTimeMs % 60_000) / 1000;
+                    countdownLabel.setText(String.format("%02d:%02d:%02d", h, m, s));
+                  } else {
+                    countdownLabel.setText("Đã kết thúc");
+                    stopCountdown();
+                  }
+                }));
     countdownTimeline.setCycleCount(Timeline.INDEFINITE);
     countdownTimeline.play();
   }

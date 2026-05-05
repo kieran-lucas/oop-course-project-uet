@@ -19,22 +19,21 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller cho màn hình tạo sản phẩm mới (create-item.fxml).
  *
- * <p><b>Mục đích:</b>
- * Cho phép SELLER tạo sản phẩm mới để đưa vào đấu giá. Gửi request đến
- * {@code POST /api/items} với thông tin tên, mô tả, danh mục và chi tiết
- * danh mục (brand/artist/năm sản xuất tùy loại sản phẩm).
+ * <p><b>Mục đích:</b> Cho phép SELLER tạo sản phẩm mới để đưa vào đấu giá. Gửi request đến {@code
+ * POST /api/items} với thông tin tên, mô tả, danh mục và chi tiết danh mục (brand/artist/năm sản
+ * xuất tùy loại sản phẩm).
  *
  * <p><b>Các phương thức chính:</b>
+ *
  * <ul>
- *   <li>{@link #handleCategoryChange()} — Cập nhật label "Chi tiết danh mục" theo loại chọn.</li>
- *   <li>{@link #handleCreate()} — Validate và gửi request tạo sản phẩm.</li>
- *   <li>{@link #goBack()} — Quay lại màn hình tạo phiên hoặc danh sách.</li>
+ *   <li>{@link #handleCategoryChange()} — Cập nhật label "Chi tiết danh mục" theo loại chọn.
+ *   <li>{@link #handleCreate()} — Validate và gửi request tạo sản phẩm.
+ *   <li>{@link #goBack()} — Quay lại màn hình tạo phiên hoặc danh sách.
  * </ul>
  *
- * <p><b>Vị trí trong kiến trúc:</b>
- * CreateItemController sử dụng Factory Method Pattern (qua ItemService/ItemController phía server)
- * để tạo đúng subclass Item (Electronics, Art, Vehicle) dựa trên category.
- * SELLER có thể tạo sản phẩm trước, sau đó chọn sản phẩm đó khi tạo phiên đấu giá.
+ * <p><b>Vị trí trong kiến trúc:</b> CreateItemController sử dụng Factory Method Pattern (qua
+ * ItemService/ItemController phía server) để tạo đúng subclass Item (Electronics, Art, Vehicle) dựa
+ * trên category. SELLER có thể tạo sản phẩm trước, sau đó chọn sản phẩm đó khi tạo phiên đấu giá.
  */
 public class CreateItemController implements Navigable {
 
@@ -59,16 +58,15 @@ public class CreateItemController implements Navigable {
   // ========== FXML ACTIONS ==========
 
   /**
-   * Cập nhật label và prompt của trường chi tiết danh mục theo category đã chọn.
-   * - ELECTRONICS → "Thương hiệu" (vd: Apple, Samsung)
-   * - ART         → "Nghệ sĩ" (vd: Van Gogh)
-   * - VEHICLE     → "Năm sản xuất" (vd: 2022)
+   * Cập nhật label và prompt của trường chi tiết danh mục theo category đã chọn. - ELECTRONICS →
+   * "Thương hiệu" (vd: Apple, Samsung) - ART → "Nghệ sĩ" (vd: Van Gogh) - VEHICLE → "Năm sản xuất"
+   * (vd: 2022)
    */
   @FXML
   public void handleCategoryChange() {
     String category = categoryCombo.getValue();
     if (category == null) {
-        return;
+      return;
     }
     switch (category) {
       case "ELECTRONICS" -> {
@@ -91,9 +89,8 @@ public class CreateItemController implements Navigable {
   }
 
   /**
-   * Xử lý tạo sản phẩm mới.
-   * Validate phía client: tên không trống, category đã chọn, categoryDetail không trống.
-   * Gửi {@code POST /api/items} với body JSON, hiển thị kết quả.
+   * Xử lý tạo sản phẩm mới. Validate phía client: tên không trống, category đã chọn, categoryDetail
+   * không trống. Gửi {@code POST /api/items} với body JSON, hiển thị kết quả.
    */
   @FXML
   public void handleCreate() {
@@ -124,30 +121,35 @@ public class CreateItemController implements Navigable {
     body.put("category", category);
     body.put("categoryDetail", categoryDetail);
 
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.post("/api/items", body);
-        if (response.statusCode() == 201) {
-          Platform.runLater(() -> {
-            // Invalidate cache create-auction để nó reload lại danh sách item mới tạo
-            SceneManager.getInstance().invalidateCache("create-auction.fxml");
-            SceneManager.getInstance().navigateTo("create-auction.fxml");
-          });
-        } else {
-          String msg = extractMessage(response.body(), "Tạo sản phẩm thất bại.");
-          Platform.runLater(() -> {
-            showStatus(msg, true);
-            createButton.setDisable(false);
-          });
-        }
-      } catch (Exception e) {
-        LOGGER.error("Lỗi tạo sản phẩm", e);
-        Platform.runLater(() -> {
-          showStatus("Không thể kết nối đến server.", true);
-          createButton.setDisable(false);
-        });
-      }
-    });
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.post("/api/items", body);
+                if (response.statusCode() == 201) {
+                  Platform.runLater(
+                      () -> {
+                        // Invalidate cache create-auction để nó reload lại danh sách item mới tạo
+                        SceneManager.getInstance().invalidateCache("create-auction.fxml");
+                        SceneManager.getInstance().navigateTo("create-auction.fxml");
+                      });
+                } else {
+                  String msg = extractMessage(response.body(), "Tạo sản phẩm thất bại.");
+                  Platform.runLater(
+                      () -> {
+                        showStatus(msg, true);
+                        createButton.setDisable(false);
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi tạo sản phẩm", e);
+                Platform.runLater(
+                    () -> {
+                      showStatus("Không thể kết nối đến server.", true);
+                      createButton.setDisable(false);
+                    });
+              }
+            });
   }
 
   /** Quay lại màn hình tạo phiên đấu giá. */
@@ -170,23 +172,23 @@ public class CreateItemController implements Navigable {
 
   private void clearForm() {
     if (nameField != null) {
-        nameField.clear();
+      nameField.clear();
     }
     if (descriptionField != null) {
-        descriptionField.clear();
+      descriptionField.clear();
     }
     if (categoryCombo != null) {
-        categoryCombo.setValue(null);
+      categoryCombo.setValue(null);
     }
     if (categoryDetailField != null) {
-        categoryDetailField.clear();
+      categoryDetailField.clear();
     }
     if (categoryDetailLabel != null) {
-        categoryDetailLabel.setText("Chi tiết danh mục *");
+      categoryDetailLabel.setText("Chi tiết danh mục *");
     }
     hideStatus();
     if (createButton != null) {
-        createButton.setDisable(false);
+      createButton.setDisable(false);
     }
   }
 

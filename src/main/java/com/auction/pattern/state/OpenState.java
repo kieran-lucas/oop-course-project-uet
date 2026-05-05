@@ -8,6 +8,7 @@ import java.math.BigDecimal;
  * Trạng thái OPEN — phiên đã được tạo nhưng chưa bắt đầu.
  *
  * <h2>Hành động được phép / bị từ chối</h2>
+ *
  * <table border="1">
  *   <tr><th>Hành động</th><th>Kết quả</th><th>Lý do</th></tr>
  *   <tr><td>edit()</td><td>✅ Cho phép</td><td>Phiên chưa có người tham gia, seller còn điều chỉnh được</td></tr>
@@ -17,12 +18,14 @@ import java.math.BigDecimal;
  * </table>
  *
  * <p><b>Chuyển trạng thái:</b>
+ *
  * <ul>
- *   <li>OPEN → RUNNING: tự động khi đến {@code startTime} (do {@code AuctionScheduler} xử lý)</li>
- *   <li>OPEN → CANCELED: seller/admin hủy trước khi bắt đầu</li>
+ *   <li>OPEN → RUNNING: tự động khi đến {@code startTime} (do {@code AuctionScheduler} xử lý)
+ *   <li>OPEN → CANCELED: seller/admin hủy trước khi bắt đầu
  * </ul>
  *
  * <p><b>Ví dụ luồng sử dụng trong AuctionService:</b>
+ *
  * <pre>{@code
  * AuctionState state = getState(auction); // → new OpenState()
  * state.edit(auction);   // OK: seller sửa giá khởi điểm
@@ -41,16 +44,18 @@ public class OpenState implements AuctionState {
   @Override
   public void placeBid(Auction auction, BigDecimal amount, Long bidderId) {
     throw new AuctionClosedException(
-        "Phiên đấu giá #" + auction.getId() + " chưa bắt đầu. "
-            + "Thời gian bắt đầu: " + auction.getStartTime()
-    );
+        "Phiên đấu giá #"
+            + auction.getId()
+            + " chưa bắt đầu. "
+            + "Thời gian bắt đầu: "
+            + auction.getStartTime());
   }
 
   /**
    * {@inheritDoc}
    *
-   * <p>Cho phép đóng/hủy phiên khi còn ở OPEN. Phương thức này chỉ validate state,
-   * việc cập nhật status thực tế do {@code AuctionService} thực hiện sau khi gọi method này.
+   * <p>Cho phép đóng/hủy phiên khi còn ở OPEN. Phương thức này chỉ validate state, việc cập nhật
+   * status thực tế do {@code AuctionService} thực hiện sau khi gọi method này.
    *
    * @param auction phiên cần đóng — không throw exception
    */
@@ -63,8 +68,8 @@ public class OpenState implements AuctionState {
   /**
    * {@inheritDoc}
    *
-   * <p>Cho phép chỉnh sửa thông tin phiên vì chưa có người tham gia.
-   * Seller có thể thay đổi giá khởi điểm, thời gian, v.v.
+   * <p>Cho phép chỉnh sửa thông tin phiên vì chưa có người tham gia. Seller có thể thay đổi giá
+   * khởi điểm, thời gian, v.v.
    *
    * @param auction phiên cần chỉnh sửa — không throw exception
    */
@@ -84,8 +89,6 @@ public class OpenState implements AuctionState {
   @Override
   public void extend(Auction auction, long extraSeconds) {
     throw new AuctionClosedException(
-        "Không thể gia hạn phiên #" + auction.getId() + " vì phiên chưa bắt đầu"
-    );
+        "Không thể gia hạn phiên #" + auction.getId() + " vì phiên chưa bắt đầu");
   }
 }
-
