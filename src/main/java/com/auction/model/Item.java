@@ -1,5 +1,6 @@
 package com.auction.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
  * <p>Tương tự User, Item cũng có abstract method getCategory() để polymorphism quyết định loại sản
  * phẩm.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "category", visible = true)
 @JsonSubTypes({
   @JsonSubTypes.Type(value = Electronics.class, name = "ELECTRONICS"),

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.lang.String?>
 <?import javafx.collections.FXCollections?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
@@ -62,9 +63,9 @@
                          promptText="Chọn danh mục" onAction="#handleCategoryChange">
                   <items>
                      <FXCollections fx:factory="observableArrayList">
-                        <fx:value value="ELECTRONICS" />
-                        <fx:value value="ART" />
-                        <fx:value value="VEHICLE" />
+                        <String fx:value="ELECTRONICS" />
+                        <String fx:value="ART" />
+                        <String fx:value="VEHICLE" />
                      </FXCollections>
                   </items>
                </ComboBox>

@@ -22,7 +22,7 @@
          <padding>
             <Insets bottom="12.0" left="20.0" right="20.0" top="12.0" />
          </padding>
-         <Button text="&lt;- Quay lại" styleClass="back-button" onAction="#goBack" />
+         <Button text="← Quay lại" styleClass="back-button" onAction="#goBack" />
          <Label styleClass="app-logo" text="Tạo phiên đấu giá" />
          <Region HBox.hgrow="ALWAYS" />
       </HBox>

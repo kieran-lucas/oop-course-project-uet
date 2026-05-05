@@ -1,11 +1,13 @@
 package com.auction.ui.util;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
@@ -73,7 +75,6 @@ public class SceneManager {
   private String currentFxml;
 
   // ========== SESSION STATE ==========
-  // Lưu thông tin đăng nhập toàn cục, mọi controller đều truy cập được
 
   private String jwtToken;
   private String currentUsername;
@@ -88,8 +89,13 @@ public class SceneManager {
     this.scene = new Scene(rootContainer, width, height);
 
     // Load CSS theme 1 lần duy nhất — áp dụng cho tất cả FXML
-    String css = getClass().getResource("/css/style.css").toExternalForm();
-    scene.getStylesheets().add(css);
+    URL cssUrl = getClass().getResource("/css/style.css");
+    if (cssUrl != null) {
+      scene.getStylesheets().add(cssUrl.toExternalForm());
+    } else {
+      // FIX: Không crash nếu thiếu CSS, chỉ log warning
+      LOGGER.warn("Không tìm thấy /css/style.css — ứng dụng chạy không có theme.");
+    }
 
     primaryStage.setScene(scene);
   }
@@ -99,9 +105,8 @@ public class SceneManager {
   /**
    * Chuyển sang màn hình khác (không truyền data).
    *
-   * <p>Luồng: 1. Gọi onNavigatedFrom() trên controller hiện tại (nếu có) 2. Kiểm tra cache → nếu
-   * chưa có thì lazy load FXML 3. Swap view trong StackPane (instant, < 5ms) 4. Gọi onNavigatedTo()
-   * trên controller mới
+   * <p>Luồng: 1. Gọi onNavigatedFrom() trên controller hiện tại 2. Kiểm tra cache → nếu chưa có
+   * thì lazy load FXML 3. Swap view trong StackPane 4. Gọi onNavigatedTo() trên controller mới
    *
    * @param fxmlName tên file FXML (ví dụ: "login.fxml", "auction-list.fxml")
    */
@@ -110,9 +115,18 @@ public class SceneManager {
     notifyNavigatedFrom();
 
     // Bước 2: Lấy view từ cache hoặc lazy load
-    Parent view = viewCache.get(fxmlName);
-    if (view == null) {
-      view = loadFxml(fxmlName);
+    // FIX: bọc try-catch để exception không bị JavaFX nuốt im lặng
+    Parent view;
+    try {
+      view = viewCache.get(fxmlName);
+      if (view == null) {
+        view = loadFxml(fxmlName);
+      }
+    } catch (Exception e) {
+      LOGGER.error("navigateTo thất bại khi load '{}': {}", fxmlName, e.getMessage(), e);
+      // Hiện thông báo lỗi trực tiếp trên màn hình thay vì crash im lặng
+      showErrorScreen("Không thể load màn hình: " + fxmlName + "\n" + e.getMessage());
+      return;
     }
 
     // Bước 3: Swap — thao tác cực nhanh, chỉ thay DOM node
@@ -122,7 +136,12 @@ public class SceneManager {
     // Bước 4: Thông báo controller mới rằng đã navigate tới
     Object controller = controllerCache.get(fxmlName);
     if (controller instanceof Navigable nav) {
-      nav.onNavigatedTo();
+      try {
+        nav.onNavigatedTo();
+      } catch (Exception e) {
+        // FIX: onNavigatedTo() throw exception không được crash toàn app
+        LOGGER.error("onNavigatedTo() lỗi ở '{}': {}", fxmlName, e.getMessage(), e);
+      }
     }
 
     LOGGER.debug("Navigated to: {}", fxmlName);
@@ -131,59 +150,116 @@ public class SceneManager {
   /**
    * Chuyển màn hình + truyền data cho controller đích.
    *
-   * <p>Ví dụ: từ auction-list, click vào 1 auction:
-   * SceneManager.getInstance().navigateTo("auction-detail.fxml", auctionId);
-   *
-   * <p>Controller đích nhận data trong onDataReceived(): public void onDataReceived(Object data) {
-   * Long auctionId = (Long) data; loadAuctionDetail(auctionId); }
+   * <p>FIX: onDataReceived() được gọi TRƯỚC onNavigatedTo() để controller có đủ data
+   * khi onNavigatedTo() chạy. Ví dụ: AuctionDetailController cần auctionId trước
+   * khi onNavigatedTo() gọi loadAuctionDetail().
    *
    * @param fxmlName tên file FXML đích
    * @param data dữ liệu truyền sang (bất kỳ kiểu)
    */
   public void navigateTo(String fxmlName, Object data) {
-    navigateTo(fxmlName);
-    Object controller = controllerCache.get(fxmlName);
-    if (controller instanceof Navigable nav) {
-      nav.onDataReceived(data);
+    // Bước 1: Thông báo controller cũ
+    notifyNavigatedFrom();
+
+    // Bước 2: Load FXML nếu chưa cache
+    Parent view;
+    try {
+      view = viewCache.get(fxmlName);
+      if (view == null) {
+        view = loadFxml(fxmlName);
+      }
+    } catch (Exception e) {
+      LOGGER.error("navigateTo(data) thất bại khi load '{}': {}", fxmlName, e.getMessage(), e);
+      showErrorScreen("Không thể load màn hình: " + fxmlName + "\n" + e.getMessage());
+      return;
     }
+
+    // Bước 3: Swap view
+    rootContainer.getChildren().setAll(view);
+    currentFxml = fxmlName;
+
+    Object controller = controllerCache.get(fxmlName);
+
+    // Bước 4: FIX — truyền data TRƯỚC khi gọi onNavigatedTo()
+    // Lý do: onNavigatedTo() thường dùng data (ví dụ auctionId) ngay lập tức
+    if (controller instanceof Navigable nav) {
+      try {
+        nav.onDataReceived(data);
+      } catch (Exception e) {
+        LOGGER.error("onDataReceived() lỗi ở '{}': {}", fxmlName, e.getMessage(), e);
+      }
+    }
+
+    // Bước 5: Sau khi có data rồi mới gọi onNavigatedTo()
+    if (controller instanceof Navigable nav) {
+      try {
+        nav.onNavigatedTo();
+      } catch (Exception e) {
+        LOGGER.error("onNavigatedTo() lỗi ở '{}': {}", fxmlName, e.getMessage(), e);
+      }
+    }
+
+    LOGGER.debug("Navigated to: {} (with data: {})", fxmlName, data);
   }
 
   // ========== FXML LOADING ==========
 
   /**
-   * Load FXML từ resources, cache cả view lẫn controller. Chỉ gọi 1 lần cho mỗi FXML — từ lần thứ 2
-   * trở đi lấy từ cache.
+   * Load FXML từ resources, cache cả view lẫn controller.
+   * Chỉ gọi 1 lần cho mỗi FXML — từ lần thứ 2 trở đi lấy từ cache.
+   *
+   * <p>FIX: kiểm tra URL null trước khi load để báo lỗi rõ ràng thay vì
+   * NullPointerException khó debug.
    */
   private Parent loadFxml(String fxmlName) {
+    // FIX: Kiểm tra URL tồn tại trước — nếu null thì path sai
+    URL url = getClass().getResource("/ui/fxml/" + fxmlName);
+    if (url == null) {
+      String msg = "Không tìm thấy FXML tại: /ui/fxml/" + fxmlName
+          + " — Kiểm tra file có nằm đúng trong src/main/resources/ui/fxml/ không.";
+      LOGGER.error(msg);
+      throw new RuntimeException(msg);
+    }
+
     try {
-      FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/fxml/" + fxmlName));
+      FXMLLoader loader = new FXMLLoader(url);
       Parent view = loader.load();
 
-      // Cache cả view và controller
       viewCache.put(fxmlName, view);
       controllerCache.put(fxmlName, loader.getController());
 
       LOGGER.info("Lazy loaded FXML: {}", fxmlName);
       return view;
     } catch (IOException e) {
-      LOGGER.error("Không thể load FXML: {}", fxmlName, e);
+      LOGGER.error("Không thể load FXML '{}': {}", fxmlName, e.getMessage(), e);
       throw new RuntimeException("Load FXML thất bại: " + fxmlName, e);
     }
   }
 
   // ========== LIFECYCLE HELPERS ==========
 
-  /**
-   * Gọi onNavigatedFrom() trên controller đang hiển thị. Controller dùng method này để cleanup
-   * (đóng WebSocket, hủy Timer...).
-   */
   private void notifyNavigatedFrom() {
     if (currentFxml != null) {
       Object controller = controllerCache.get(currentFxml);
       if (controller instanceof Navigable nav) {
-        nav.onNavigatedFrom();
+        try {
+          nav.onNavigatedFrom();
+        } catch (Exception e) {
+          LOGGER.error("onNavigatedFrom() lỗi ở '{}': {}", currentFxml, e.getMessage(), e);
+        }
       }
     }
+  }
+
+  /**
+   * Hiển thị màn hình lỗi tạm thời thay vì crash im lặng.
+   * Giúp debug khi FXML không load được.
+   */
+  private void showErrorScreen(String message) {
+    Label errorLabel = new Label("⚠ Lỗi điều hướng:\n" + message);
+    errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 14px; -fx-padding: 20;");
+    errorLabel.setWrapText(true);
+    rootContainer.getChildren().setAll(errorLabel);
   }
 
   // ========== SESSION MANAGEMENT ==========
@@ -195,22 +271,17 @@ public class SceneManager {
     currentUserId = null;
 
     // Xóa cache các view cần auth, giữ lại welcome + login + register
-    viewCache
-        .keySet()
-        .removeIf(
-            k ->
-                !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
-    controllerCache
-        .keySet()
-        .removeIf(
-            k ->
-                !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
+    viewCache.keySet().removeIf(
+        k -> !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
+    controllerCache.keySet().removeIf(
+        k -> !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
 
     navigateTo("welcome.fxml");
   }
 
   /**
-   * Xóa cache của 1 màn hình cụ thể. Dùng khi cần force reload FXML (ví dụ: sau khi thay đổi role).
+   * Xóa cache của 1 màn hình cụ thể.
+   * Dùng khi cần force reload FXML (ví dụ: sau khi tạo item mới cần reload create-auction).
    */
   public void invalidateCache(String fxmlName) {
     viewCache.remove(fxmlName);
@@ -256,13 +327,6 @@ public class SceneManager {
     return primaryStage;
   }
 
-  /**
-   * Lấy controller đã cache theo tên FXML. Dùng khi cần giao tiếp giữa 2 controller.
-   *
-   * <p>Ví dụ: từ CreateAuctionController cần refresh AuctionListController: AuctionListController
-   * ctrl = (AuctionListController) SceneManager.getInstance().getController("auction-list.fxml");
-   * ctrl.refreshList();
-   */
   @SuppressWarnings("unchecked")
   public <T> T getController(String fxmlName) {
     return (T) controllerCache.get(fxmlName);
