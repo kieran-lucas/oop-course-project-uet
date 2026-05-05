@@ -129,7 +129,8 @@ public class CreateItemController implements Navigable {
         HttpResponse<String> response = RestClient.post("/api/items", body);
         if (response.statusCode() == 201) {
           Platform.runLater(() -> {
-            // Quay về create-auction để seller chọn sản phẩm vừa tạo ngay
+            // Invalidate cache create-auction để nó reload lại danh sách item mới tạo
+            SceneManager.getInstance().invalidateCache("create-auction.fxml");
             SceneManager.getInstance().navigateTo("create-auction.fxml");
           });
         } else {
