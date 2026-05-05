@@ -1,13 +1,45 @@
 package com.auction.exception;
 
+/**
+ * Thrown when a bid violates business rules:
+ *
+ * <ul>
+ *   <li>Amount is non-positive (≤ 0)</li>
+ *   <li>Amount is lower than or equal to current price</li>
+ *   <li>Bidder is the seller of the item (self-bidding)</li>
+ *   <li>Bid increment is below the minimum allowed</li>
+ * </ul>
+ *
+ * <p>Typical usage:
+ * <pre>{@code
+ * if (amount.compareTo(auction.getCurrentPrice()) <= 0) {
+ *     throw new InvalidBidException(
+ *         "Bid " + amount + " must exceed current price " + auction.getCurrentPrice());
+ * }
+ * }</pre>
+ *
+ * @see AuctionException
+ */
 public class InvalidBidException extends AuctionException {
 
     private static final long serialVersionUID = 1L;
-  public InvalidBidException(String message) {
-    super(message);
-  }
 
-  public InvalidBidException(String message, Throwable cause) {
-    super(message, cause);
-  }
+    /**
+     * Constructs a new InvalidBidException with the specified message.
+     *
+     * @param message description of why the bid is invalid
+     */
+    public InvalidBidException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new InvalidBidException with the specified message and cause.
+     *
+     * @param message description of why the bid is invalid
+     * @param cause   the underlying exception
+     */
+    public InvalidBidException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
