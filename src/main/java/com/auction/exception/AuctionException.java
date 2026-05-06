@@ -47,6 +47,7 @@ public abstract class AuctionException extends RuntimeException {
     protected AuctionException(String message, Throwable cause) {
         super(message, cause);
     }
+
     /**
      * Returns a string representation suitable for logging:
      * {@code [SimpleClassName] message}.
