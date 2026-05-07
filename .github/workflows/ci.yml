@@ -75,6 +75,14 @@ jobs:
           psql -h localhost -U auction_user -d auction_test \
             -f src/main/resources/db/migration/V1__initial_schema.sql
 
+          echo "=== Running migration V2__seed_admin.sql ==="
+          psql -h localhost -U auction_user -d auction_test \
+            -f src/main/resources/db/migration/V2__seed_admin.sql
+
+          echo "=== Running migration V3__add_balance.sql ==="
+          psql -h localhost -U auction_user -d auction_test \
+            -f src/main/resources/db/migration/V3__add_balance.sql
+
           echo "=== Verifying tables exist (phải có đúng 5 bảng) ==="
           psql -h localhost -U auction_user -d auction_test -c "\dt"
         env:
