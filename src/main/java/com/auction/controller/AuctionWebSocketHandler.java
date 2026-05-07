@@ -69,7 +69,7 @@ public class AuctionWebSocketHandler {
   }
 
   /**
-   * Xử lý client kết nối WebSocket.
+   * Xử lý client kết nối WebSocket
    *
    * <p>Luồng:
    *
