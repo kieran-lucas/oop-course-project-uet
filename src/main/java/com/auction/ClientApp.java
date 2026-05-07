@@ -2,6 +2,7 @@ package com.auction;
 
 import com.auction.ui.util.SceneManager;
 import javafx.application.Application;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +66,8 @@ public class ClientApp extends Application {
   @Override
   public void start(Stage primaryStage) {
     try {
+      loadFonts();
+
       // Khởi tạo SceneManager singleton
       SceneManager sceneManager = SceneManager.init(primaryStage, MIN_WIDTH, MIN_HEIGHT);
 
@@ -83,6 +86,34 @@ public class ClientApp extends Application {
       LOGGER.error("Lỗi khởi động ứng dụng JavaFX", e);
       throw new RuntimeException("Không thể khởi động ứng dụng", e);
     }
+  }
+
+  private static void loadFonts() {
+    String[] variants = {
+      "Lexend-Thin", "Lexend-ExtraLight", "Lexend-Light",
+      "Lexend-Regular", "Lexend-Medium", "Lexend-SemiBold",
+      "Lexend-Bold", "Lexend-ExtraBold", "Lexend-Black"
+    };
+    int loaded = 0;
+    for (String variant : variants) {
+      String path = "/fonts/" + variant + ".ttf";
+      try (var stream = ClientApp.class.getResourceAsStream(path)) {
+        if (stream == null) {
+          LOGGER.warn("Không tìm thấy font file: {}", path);
+          continue;
+        }
+        Font font = Font.loadFont(stream, 12);
+        if (font != null) {
+          LOGGER.info("Font loaded: {} → family=\"{}\"", variant, font.getFamily());
+          loaded++;
+        } else {
+          LOGGER.warn("Font.loadFont trả về null cho: {}", path);
+        }
+      } catch (Exception e) {
+        LOGGER.warn("Không thể load font {}: {}", path, e.getMessage());
+      }
+    }
+    LOGGER.info("Đã load {}/{} biến thể font Lexend", loaded, variants.length);
   }
 
   /**

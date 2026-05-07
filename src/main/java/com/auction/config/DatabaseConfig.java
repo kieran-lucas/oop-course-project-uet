@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 public class DatabaseConfig {
   private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseConfig.class);
-  private static Jdbi jdbi;
+  private static volatile Jdbi jdbi;
   private static HikariDataSource dataSource;
 
   /** Khởi tạo hoặc trả về Jdbi instance duy nhất (Thread-safe) */

@@ -12,6 +12,8 @@ import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
+import com.auction.dto.ChangePasswordRequest;
+import com.auction.dto.DepositRequest;
 import com.auction.dto.ErrorResponse;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.DuplicateException;
@@ -20,6 +22,7 @@ import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.middleware.JwtMiddleware;
 import com.auction.model.Admin;
+import com.auction.model.AutoBidConfig;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.service.AuctionScheduler;
 import com.auction.service.AuctionService;
@@ -31,6 +34,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.javalin.Javalin;
 import io.javalin.json.JavalinJackson;
+import java.math.BigDecimal;
 import java.util.Map;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
@@ -92,7 +96,9 @@ public class App {
     var userService = new UserService(userDao);
     var itemService = new ItemService(itemDao);
     var auctionService = new AuctionService(auctionDao, itemDao, userDao);
-    var bidService = new BidService(auctionDao, bidTransactionDao, autoBidConfigDao, eventManager);
+    var bidService =
+        new BidService(
+            auctionDao, bidTransactionDao, autoBidConfigDao, eventManager, jdbi, auctionService);
 
     // ── 7. Khởi tạo Scheduler (tự chuyển trạng thái phiên) ──
     var scheduler = new AuctionScheduler(auctionDao, eventManager);
@@ -132,6 +138,99 @@ public class App {
     // Đăng ký BidController với BidService mới
     var bidController = new BidController(bidService);
     bidController.register(app);
+
+    // ── User profile endpoints ────────────────────────────
+    app.get(
+        "/api/users/me",
+        ctx -> {
+          Long userId = ctx.attribute("userId");
+          ctx.json(userService.findById(userId));
+        });
+
+    app.put(
+        "/api/users/me/password",
+        ctx -> {
+          Long userId = ctx.attribute("userId");
+          ChangePasswordRequest req = ctx.bodyAsClass(ChangePasswordRequest.class);
+          userService.changePassword(userId, req);
+          ctx.status(204);
+        });
+
+    app.post(
+        "/api/users/me/deposit",
+        ctx -> {
+          Long userId = ctx.attribute("userId");
+          DepositRequest req = ctx.bodyAsClass(DepositRequest.class);
+          userService.deposit(userId, req.getAmount());
+          ctx.json(userService.findById(userId));
+        });
+
+    // ── Admin user management endpoints ──────────────────
+    app.get(
+        "/api/admin/users",
+        ctx -> {
+          String role = ctx.attribute("role");
+          if (!"ADMIN".equals(role)) {
+            throw new UnauthorizedException("Chỉ ADMIN mới có quyền truy cập");
+          }
+          ctx.json(userService.getAll());
+        });
+
+    app.delete(
+        "/api/admin/users/{id}",
+        ctx -> {
+          String role = ctx.attribute("role");
+          if (!"ADMIN".equals(role)) {
+            throw new UnauthorizedException("Chỉ ADMIN mới có quyền xóa user");
+          }
+          Long userId = Long.parseLong(ctx.pathParam("id"));
+          userService.delete(userId);
+          ctx.status(204);
+        });
+
+    // ── Auto-bid endpoints ────────────────────────────────
+    app.post(
+        "/api/auctions/{id}/auto-bid",
+        ctx -> {
+          String role = ctx.attribute("role");
+          if (!"BIDDER".equals(role)) {
+            throw new UnauthorizedException("Chỉ BIDDER mới được bật auto-bid");
+          }
+          Long auctionId = Long.parseLong(ctx.pathParam("id"));
+          Long bidderId = ctx.attribute("userId");
+          var body = ctx.bodyAsClass(Map.class);
+          BigDecimal maxBid = new BigDecimal(body.get("maxBid").toString());
+          BigDecimal increment = new BigDecimal(body.get("increment").toString());
+
+          var existing = autoBidConfigDao.findByAuctionAndBidder(auctionId, bidderId);
+          if (existing.isPresent()) {
+            AutoBidConfig config = existing.get();
+            config.setMaxBid(maxBid);
+            config.setIncrement(increment);
+            config.setActive(true);
+            autoBidConfigDao.update(config);
+            ctx.status(200).json(config);
+          } else {
+            AutoBidConfig config = new AutoBidConfig(auctionId, bidderId, maxBid, increment);
+            autoBidConfigDao.insert(config);
+            ctx.status(201).json(config);
+          }
+        });
+
+    app.delete(
+        "/api/auctions/{id}/auto-bid",
+        ctx -> {
+          Long auctionId = Long.parseLong(ctx.pathParam("id"));
+          Long bidderId = ctx.attribute("userId");
+          autoBidConfigDao
+              .findByAuctionAndBidder(auctionId, bidderId)
+              .ifPresent(
+                  config -> {
+                    config.setActive(false);
+                    autoBidConfigDao.update(config);
+                  });
+          ctx.status(204);
+        });
 
     // ── 12. Đăng ký WebSocket ────────────────────────────────
     app.ws(

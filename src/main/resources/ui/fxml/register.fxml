@@ -18,46 +18,40 @@
            xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.auction.ui.controller.RegisterController">
 
-   <VBox alignment="CENTER" maxWidth="420.0" spacing="14.0" styleClass="login-card">
+   <VBox alignment="CENTER" maxWidth="480.0" spacing="14.0" styleClass="login-card">
       <padding>
-         <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+         <Insets bottom="40.0" left="44.0" right="44.0" top="36.0" />
       </padding>
 
-      <!-- Tiêu đề -->
       <Label styleClass="app-title" text="Online Auction" />
       <Label styleClass="app-subtitle" text="Tạo tài khoản mới" />
 
-      <!-- Tên đăng nhập -->
-      <VBox spacing="4.0">
-         <Label styleClass="field-label" text="Tên đăng nhập" />
+      <VBox spacing="6.0">
+         <Label styleClass="field-label" text="TÊN ĐĂNG NHẬP" />
          <TextField fx:id="usernameField" promptText="Nhập tên đăng nhập"
                     styleClass="text-field" />
       </VBox>
 
-      <!-- Email -->
-      <VBox spacing="4.0">
-         <Label styleClass="field-label" text="Email" />
+      <VBox spacing="6.0">
+         <Label styleClass="field-label" text="EMAIL" />
          <TextField fx:id="emailField" promptText="Nhập địa chỉ email"
                     styleClass="text-field" />
       </VBox>
 
-      <!-- Mật khẩu -->
-      <VBox spacing="4.0">
-         <Label styleClass="field-label" text="Mật khẩu" />
+      <VBox spacing="6.0">
+         <Label styleClass="field-label" text="MẬT KHẨU" />
          <PasswordField fx:id="passwordField" promptText="Ít nhất 6 ký tự"
                         styleClass="text-field" />
       </VBox>
 
-      <!-- Xác nhận mật khẩu -->
-      <VBox spacing="4.0">
-         <Label styleClass="field-label" text="Xác nhận mật khẩu" />
+      <VBox spacing="6.0">
+         <Label styleClass="field-label" text="XÁC NHẬN MẬT KHẨU" />
          <PasswordField fx:id="confirmPasswordField" promptText="Nhập lại mật khẩu"
                         styleClass="text-field" />
       </VBox>
 
-      <!-- Vai trò -->
-      <VBox spacing="4.0">
-         <Label styleClass="field-label" text="Vai trò" />
+      <VBox spacing="6.0">
+         <Label styleClass="field-label" text="VAI TRÒ" />
          <ComboBox fx:id="roleCombo" maxWidth="Infinity" styleClass="combo-box"
                    promptText="Chọn vai trò">
             <items>
@@ -69,15 +63,12 @@
          </ComboBox>
       </VBox>
 
-      <!-- Thông báo lỗi -->
       <Label fx:id="errorLabel" styleClass="error-label" text=""
-             visible="false" wrapText="true" />
+             visible="false" managed="false" wrapText="true" />
 
-      <!-- Nút đăng ký -->
       <Button fx:id="registerButton" styleClass="primary-button" text="Đăng ký"
               maxWidth="Infinity" onAction="#handleRegister" />
 
-      <!-- Liên kết quay lại đăng nhập -->
       <HBox alignment="CENTER">
          <Hyperlink text="Đã có tài khoản? Đăng nhập" onAction="#goToLogin"
                     styleClass="link" />

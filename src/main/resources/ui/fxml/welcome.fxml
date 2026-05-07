@@ -14,7 +14,7 @@
            xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.auction.ui.controller.WelcomeController">
 
-   <VBox alignment="CENTER" spacing="75.0">
+   <VBox alignment="CENTER" spacing="60.0">
 
       <!-- Logo + Tiêu đề -->
       <VBox alignment="CENTER" spacing="12.0">

@@ -1,6 +1,7 @@
 package com.auction.ui.controller;
 
 import com.auction.dto.AuctionResponse;
+import com.auction.dto.UserResponse;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
@@ -57,11 +58,21 @@ public class AdminPanelController implements Navigable {
   @FXML private TextField searchField;
   @FXML private Label statusLabel;
 
+  @FXML private TableView<UserResponse> userTable;
+  @FXML private TableColumn<UserResponse, Long> userIdCol;
+  @FXML private TableColumn<UserResponse, String> usernameCol;
+  @FXML private TableColumn<UserResponse, String> emailCol;
+  @FXML private TableColumn<UserResponse, String> roleCol;
+  @FXML private TableColumn<UserResponse, BigDecimal> balanceCol;
+  @FXML private TableColumn<UserResponse, Void> userActionCol;
+
   private final ObservableList<AuctionResponse> allAuctions = FXCollections.observableArrayList();
+  private final ObservableList<UserResponse> allUsers = FXCollections.observableArrayList();
 
   @FXML
   public void initialize() {
     setupColumns();
+    setupUserColumns();
   }
 
   // ========== NAVIGABLE LIFECYCLE ==========
@@ -72,6 +83,7 @@ public class AdminPanelController implements Navigable {
     usernameLabel.setText(
         sm.getCurrentUsername() != null ? sm.getCurrentUsername() + " (ADMIN)" : "ADMIN");
     loadAuctions();
+    loadUsers();
   }
 
   // ========== FXML ACTIONS ==========
@@ -151,6 +163,49 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  private void loadUsers() {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.get("/api/admin/users");
+                if (response.statusCode() == 200) {
+                  List<UserResponse> list =
+                      RestClient.parseList(response.body(), UserResponse.class);
+                  Platform.runLater(
+                      () -> {
+                        allUsers.setAll(list);
+                        userTable.setItems(FXCollections.observableArrayList(allUsers));
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi load users", e);
+              }
+            });
+  }
+
+  private void deleteUser(Long id) {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.delete("/api/admin/users/" + id);
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 204 || response.statusCode() == 200) {
+                        setStatus("Đã xóa user #" + id);
+                        loadUsers();
+                      } else {
+                        setStatus("Xóa user thất bại: " + response.statusCode());
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi xóa user {}", id, e);
+                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+              }
+            });
+  }
+
   // ========== UI SETUP ==========
 
   private void setupColumns() {
@@ -212,6 +267,44 @@ public class AdminPanelController implements Navigable {
               protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : box);
+              }
+            });
+  }
+
+  private void setupUserColumns() {
+    userIdCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+    usernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+    emailCol.setCellValueFactory(new PropertyValueFactory<>("email"));
+    roleCol.setCellValueFactory(new PropertyValueFactory<>("role"));
+
+    balanceCol.setCellValueFactory(new PropertyValueFactory<>("balance"));
+    balanceCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              @Override
+              protected void updateItem(BigDecimal balance, boolean empty) {
+                super.updateItem(balance, empty);
+                setText(empty || balance == null ? null : VND.format(balance));
+              }
+            });
+
+    userActionCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              private final Button deleteBtn = new Button("Xóa");
+
+              {
+                deleteBtn.setOnAction(
+                    e -> {
+                      UserResponse u = getTableView().getItems().get(getIndex());
+                      deleteUser(u.getId());
+                    });
+              }
+
+              @Override
+              protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : deleteBtn);
               }
             });
   }

@@ -33,6 +33,7 @@ public class AuctionResponse {
   private Long itemId;
   private String itemName;
   private String itemCategory;
+  private String itemDescription;
   private BigDecimal startingPrice;
   private BigDecimal currentPrice;
   private Long leadingBidderId;
@@ -99,6 +100,14 @@ public class AuctionResponse {
 
   public void setItemCategory(String itemCategory) {
     this.itemCategory = itemCategory;
+  }
+
+  public String getItemDescription() {
+    return itemDescription;
+  }
+
+  public void setItemDescription(String itemDescription) {
+    this.itemDescription = itemDescription;
   }
 
   public BigDecimal getStartingPrice() {

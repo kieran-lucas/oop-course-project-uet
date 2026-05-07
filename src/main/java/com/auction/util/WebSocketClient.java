@@ -6,6 +6,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,40 +16,32 @@ import org.slf4j.LoggerFactory;
 /**
  * Client WebSocket cho ứng dụng JavaFX — nhận realtime updates từ server Javalin.
  *
- * <p><b>Mục đích:</b> Kết nối WebSocket đến {@code
- * ws://localhost:8080/ws/auction/{id}?token=<jwt>}, nhận JSON message từ server (BID_UPDATE,
- * TIME_EXTENDED, AUCTION_ENDED), và gọi callback để AuctionDetailController xử lý cập nhật UI.
- *
- * <p><b>Các phương thức chính:</b>
- *
- * <ul>
- *   <li>{@link #connect(Long, String, Consumer)} — Mở kết nối WS, đăng ký callback nhận message.
- *   <li>{@link #disconnect()} — Đóng kết nối WS (gọi khi rời màn hình auction-detail).
- *   <li>{@link #isConnected()} — Kiểm tra trạng thái kết nối.
- * </ul>
- *
- * <p><b>Vị trí trong kiến trúc:</b> WebSocketClient được dùng bởi {@code AuctionDetailController}
- * để nhận realtime bid updates từ server. Kết nối được mở khi vào màn hình chi tiết và đóng khi rời
- * màn hình (qua {@code Navigable.onNavigatedFrom()}).
- *
- * <p><b>Luồng dữ liệu:</b>
- *
- * <pre>
- *   Server BidService → AuctionEventManager → WebSocketObserver
- *     → AuctionWebSocketHandler.broadcast()
- *     → WebSocketClient.onMessage() → callback (AuctionDetailController)
- *     → Platform.runLater() → cập nhật UI JavaFX
- * </pre>
+ * <p>Hỗ trợ tự động reconnect với exponential backoff khi mất kết nối (tối đa {@value #MAX_RETRIES}
+ * lần thử lại).
  */
 public class WebSocketClient {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(WebSocketClient.class);
   private static final String WS_BASE_URL = "ws://localhost:8080/ws/auction/";
+  private static final int MAX_RETRIES = 5;
 
   private static final ObjectMapper MAPPER =
       new ObjectMapper().registerModule(new JavaTimeModule());
 
   private WebSocket webSocket;
+  private Long currentAuctionId;
+  private String currentToken;
+  private Consumer<String> currentOnMessage;
+  private int retryCount;
+  private boolean intentionalClose;
+
+  private final ScheduledExecutorService scheduler =
+      Executors.newSingleThreadScheduledExecutor(
+          r -> {
+            Thread t = new Thread(r, "ws-reconnect");
+            t.setDaemon(true);
+            return t;
+          });
 
   /**
    * Mở kết nối WebSocket đến server và đăng ký callback.
@@ -56,7 +51,16 @@ public class WebSocketClient {
    * @param onMessage callback nhận JSON string khi có message từ server
    */
   public void connect(Long auctionId, String jwtToken, Consumer<String> onMessage) {
-    String uri = WS_BASE_URL + auctionId + "?token=" + jwtToken;
+    this.currentAuctionId = auctionId;
+    this.currentToken = jwtToken;
+    this.currentOnMessage = onMessage;
+    this.retryCount = 0;
+    this.intentionalClose = false;
+    doConnect();
+  }
+
+  private void doConnect() {
+    String uri = WS_BASE_URL + currentAuctionId + "?token=" + currentToken;
 
     HttpClient.newHttpClient()
         .newWebSocketBuilder()
@@ -67,7 +71,8 @@ public class WebSocketClient {
               @Override
               public void onOpen(WebSocket ws) {
                 webSocket = ws;
-                LOGGER.info("WebSocket kết nối thành công: phiên #{}", auctionId);
+                retryCount = 0;
+                LOGGER.info("WebSocket kết nối thành công: phiên #{}", currentAuctionId);
                 ws.request(1);
               }
 
@@ -75,7 +80,7 @@ public class WebSocketClient {
               public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
                 String json = data.toString();
                 LOGGER.debug("WS nhận message: {}", json);
-                onMessage.accept(json);
+                currentOnMessage.accept(json);
                 ws.request(1);
                 return null;
               }
@@ -84,6 +89,9 @@ public class WebSocketClient {
               public CompletionStage<?> onClose(WebSocket ws, int statusCode, String reason) {
                 LOGGER.info("WebSocket đóng kết nối: status={}, reason={}", statusCode, reason);
                 webSocket = null;
+                if (!intentionalClose) {
+                  scheduleReconnect();
+                }
                 return null;
               }
 
@@ -91,20 +99,36 @@ public class WebSocketClient {
               public void onError(WebSocket ws, Throwable error) {
                 LOGGER.error("Lỗi WebSocket: {}", error.getMessage());
                 webSocket = null;
+                if (!intentionalClose) {
+                  scheduleReconnect();
+                }
               }
             })
         .exceptionally(
             e -> {
               LOGGER.error("Không thể kết nối WebSocket: {}", e.getMessage());
+              if (!intentionalClose) {
+                scheduleReconnect();
+              }
               return null;
             });
   }
 
-  /**
-   * Đóng kết nối WebSocket nếu đang mở. Nên gọi trong {@code Navigable.onNavigatedFrom()} để giải
-   * phóng tài nguyên.
-   */
+  private void scheduleReconnect() {
+    if (retryCount >= MAX_RETRIES) {
+      LOGGER.warn("WebSocket: đã thử {} lần, dừng kết nối lại.", MAX_RETRIES);
+      return;
+    }
+    // Exponential backoff: 2, 4, 8, 16, 30 seconds (capped at 30)
+    long delaySec = Math.min(30L, 1L << (retryCount + 1));
+    retryCount++;
+    LOGGER.info("WebSocket: thử kết nối lại lần {} sau {}s...", retryCount, delaySec);
+    scheduler.schedule(this::doConnect, delaySec, TimeUnit.SECONDS);
+  }
+
+  /** Đóng kết nối WebSocket nếu đang mở. Nên gọi trong {@code Navigable.onNavigatedFrom()}. */
   public void disconnect() {
+    intentionalClose = true;
     if (webSocket != null && !webSocket.isInputClosed()) {
       webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Client rời màn hình");
       webSocket = null;

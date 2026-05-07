@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
@@ -17,7 +18,7 @@
    <top>
       <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="top-bar">
          <padding>
-            <Insets bottom="12.0" left="20.0" right="20.0" top="12.0" />
+            <Insets bottom="0.0" left="20.0" right="20.0" top="0.0" />
          </padding>
          <Button text="← Quay lại" styleClass="back-button" onAction="#goBack" />
          <Label styleClass="app-logo" text="Hồ sơ cá nhân" />
@@ -27,34 +28,53 @@
 
    <!-- ===== CENTER ===== -->
    <center>
-      <VBox alignment="TOP_CENTER" spacing="20.0">
+      <VBox alignment="TOP_CENTER" spacing="0.0">
          <padding>
-            <Insets bottom="24.0" left="40.0" right="40.0" top="24.0" />
+            <Insets bottom="32.0" left="40.0" right="40.0" top="28.0" />
          </padding>
 
-         <VBox maxWidth="460.0" spacing="14.0" styleClass="info-card">
-            <padding>
-               <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
-            </padding>
+         <VBox maxWidth="480.0" spacing="0.0" styleClass="form-card">
 
-            <Label styleClass="section-title" text="Thông tin tài khoản" />
+            <!-- Account info -->
+            <VBox spacing="12.0">
+               <padding><Insets bottom="20.0" left="24.0" right="24.0" top="24.0" /></padding>
 
-            <HBox spacing="8.0">
-               <Label styleClass="field-label" text="Tên đăng nhập:" />
-               <Label fx:id="usernameLabel" styleClass="detail-text" text="—" />
-            </HBox>
-            <HBox spacing="8.0">
-               <Label styleClass="field-label" text="Vai trò:" />
-               <Label fx:id="roleLabel" styleClass="detail-text" text="—" />
-            </HBox>
+               <Label styleClass="section-title" text="Thông tin tài khoản" />
 
-            <Button text="Đổi mật khẩu" styleClass="secondary-button"
-                    maxWidth="Infinity" onAction="#goToChangePassword" />
-            <Button fx:id="depositButton" text="Nạp tiền" styleClass="secondary-button"
-                    maxWidth="Infinity" onAction="#goToDeposit"
-                    visible="false" managed="false" />
-            <Button text="Đăng xuất" styleClass="logout-button"
-                    maxWidth="Infinity" onAction="#handleLogout" />
+               <HBox spacing="16.0" alignment="CENTER_LEFT">
+                  <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                     <Label styleClass="field-label" text="TÊN ĐĂNG NHẬP" />
+                     <Label fx:id="usernameLabel" styleClass="detail-text" text="—" />
+                  </VBox>
+                  <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                     <Label styleClass="field-label" text="VAI TRÒ" />
+                     <Label fx:id="roleLabel" styleClass="detail-text" text="—" />
+                  </VBox>
+               </HBox>
+            </VBox>
+
+            <Separator />
+
+            <!-- Actions -->
+            <VBox spacing="10.0">
+               <padding><Insets bottom="20.0" left="24.0" right="24.0" top="20.0" /></padding>
+
+               <Button text="Đổi mật khẩu" styleClass="secondary-button"
+                       maxWidth="Infinity" onAction="#goToChangePassword" />
+               <Button fx:id="depositButton" text="Nạp tiền vào ví" styleClass="secondary-button"
+                       maxWidth="Infinity" onAction="#goToDeposit"
+                       visible="false" managed="false" />
+            </VBox>
+
+            <Separator />
+
+            <!-- Danger zone -->
+            <VBox spacing="0.0">
+               <padding><Insets bottom="20.0" left="24.0" right="24.0" top="16.0" /></padding>
+               <Button text="Đăng xuất" styleClass="card-logout-button"
+                       maxWidth="Infinity" onAction="#handleLogout" />
+            </VBox>
+
          </VBox>
       </VBox>
    </center>
