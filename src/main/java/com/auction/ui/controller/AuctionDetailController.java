@@ -120,9 +120,9 @@ public class AuctionDetailController implements Navigable {
           @Override
           public String toString(Number v) {
             long n = v.longValue();
-            if (n >= 1_000_000_000) return String.format("%.1fT", n / 1_000_000_000.0);
-            if (n >= 1_000_000) return String.format("%.1fM", n / 1_000_000.0);
-            if (n >= 1_000) return (n / 1_000) + "K";
+            if (n >= 1_000_000_000) { return String.format("%.1fT", n / 1_000_000_000.0); }
+            if (n >= 1_000_000) { return String.format("%.1fM", n / 1_000_000.0); }
+            if (n >= 1_000) { return (n / 1_000) + "K"; }
             return Long.toString(n);
           }
 
@@ -225,7 +225,8 @@ public class AuctionDetailController implements Navigable {
       return;
     }
 
-    BigDecimal maxBid, increment;
+    BigDecimal maxBid;
+    BigDecimal increment;
     try {
       maxBid = new BigDecimal(maxBidText.replace(",", ""));
       increment = new BigDecimal(incrementText.replace(",", ""));
