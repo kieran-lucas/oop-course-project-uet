@@ -10,13 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Controller xử lý các endpoint đặt giá và lịch sử bid.
+ * Controller xử lý các endpoint đặt giá và lịch sử bid
  *
  * <p>Danh sách endpoints:
  *
  * <ul>
- *   <li>{@code POST /api/auctions/{id}/bid} — Đặt giá, chỉ BIDDER.
- *   <li>{@code GET /api/auctions/{id}/bids} — Lấy lịch sử bid của phiên (để vẽ chart).
+ *   <li>{@code POST /api/auctions/{id}/bid} — Đặt giá, chỉ BIDDER
+ *   <li>{@code GET /api/auctions/{id}/bids} — Lấy lịch sử bid của phiên (để vẽ chart)
  * </ul>
  *
  * <p>Controller này delegate toàn bộ business logic sang {@link BidService}: validate giá,
