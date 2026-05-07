@@ -9,6 +9,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
 import java.net.http.HttpResponse;
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import javafx.animation.KeyFrame;
@@ -71,6 +72,7 @@ public class AuctionListController implements Navigable {
 
   private final ObservableList<AuctionResponse> allAuctions = FXCollections.observableArrayList();
   private Timeline autoRefreshTimeline;
+  private Timeline tableCountdownTimeline;
 
   // ========== JAVAFX INITIALIZE ==========
 
@@ -96,12 +98,14 @@ public class AuctionListController implements Navigable {
 
     loadAuctions();
     startAutoRefresh();
+    startTableCountdown();
   }
 
   /** Dừng auto-refresh khi rời màn hình. */
   @Override
   public void onNavigatedFrom() {
     stopAutoRefresh();
+    stopTableCountdown();
   }
 
   // ========== FXML ACTIONS ==========
@@ -201,16 +205,36 @@ public class AuctionListController implements Navigable {
               }
             });
 
-    // Cột thời gian còn lại
+    // Cột thời gian còn lại — tính realtime từ endTime mỗi giây
     timeCol.setCellValueFactory(new PropertyValueFactory<>("remainingTimeMs"));
     timeCol.setCellFactory(
         col ->
             new TableCell<>() {
               @Override
-              protected void updateItem(Long ms, boolean empty) {
-                super.updateItem(ms, empty);
-                if (empty || ms == null || ms <= 0) {
-                  setText(empty ? null : "Đã kết thúc");
+              protected void updateItem(Long ignored, boolean empty) {
+                super.updateItem(ignored, empty);
+                if (empty) {
+                  setText(null);
+                  return;
+                }
+                AuctionResponse a = getTableRow() != null ? getTableRow().getItem() : null;
+                if (a == null) {
+                  setText(null);
+                  return;
+                }
+                String st = a.getStatus();
+                if ("FINISHED".equals(st) || "CANCELED".equals(st) || "PAID".equals(st)) {
+                  setText("Đã kết thúc");
+                  return;
+                }
+                LocalDateTime endTime = a.getEndTime();
+                if (endTime == null) {
+                  setText("—");
+                  return;
+                }
+                long ms = java.time.Duration.between(LocalDateTime.now(), endTime).toMillis();
+                if (ms <= 0) {
+                  setText("Đã kết thúc");
                 } else {
                   long totalSec = ms / 1000;
                   long h = totalSec / 3600;
@@ -287,6 +311,21 @@ public class AuctionListController implements Navigable {
     if (autoRefreshTimeline != null) {
       autoRefreshTimeline.stop();
       autoRefreshTimeline = null;
+    }
+  }
+
+  private void startTableCountdown() {
+    stopTableCountdown();
+    tableCountdownTimeline =
+        new Timeline(new KeyFrame(Duration.seconds(1), e -> auctionTable.refresh()));
+    tableCountdownTimeline.setCycleCount(Timeline.INDEFINITE);
+    tableCountdownTimeline.play();
+  }
+
+  private void stopTableCountdown() {
+    if (tableCountdownTimeline != null) {
+      tableCountdownTimeline.stop();
+      tableCountdownTimeline = null;
     }
   }
 

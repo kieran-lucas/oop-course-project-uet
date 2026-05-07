@@ -133,60 +133,47 @@ public class AutoBidStrategy implements BidStrategy {
    */
   public void executeAll(
       Long auctionId, BigDecimal currentPriceAfterBid, AutoBidExecutor executor) {
+    // Load configs once — avoids N+1 query inside the loop
+    List<AutoBidConfig> activeConfigs = autoBidConfigDao.findActiveByAuctionId(auctionId);
+
+    PriorityQueue<AutoBidConfig> queue =
+        new PriorityQueue<>(Comparator.comparing(AutoBidConfig::getRegisteredAt));
+    queue.addAll(activeConfigs);
+
     int autoBidCount = 0;
     BigDecimal currentPrice = currentPriceAfterBid;
-    boolean anyBidPlaced = true;
 
-    while (anyBidPlaced && autoBidCount < MAX_AUTO_BIDS_PER_TRIGGER) {
-      anyBidPlaced = false;
+    while (!queue.isEmpty() && autoBidCount < MAX_AUTO_BIDS_PER_TRIGGER) {
+      AutoBidConfig config = queue.poll();
 
-      // Lấy danh sách auto-bid configs active, sắp xếp theo thời gian đăng ký
-      List<AutoBidConfig> activeConfigs = autoBidConfigDao.findActiveByAuctionId(auctionId);
-
-      // Dùng PriorityQueue để đảm bảo thứ tự ưu tiên (ai đăng ký trước được xử lý trước)
-      PriorityQueue<AutoBidConfig> queue =
-          new PriorityQueue<>(Comparator.comparing(AutoBidConfig::getRegisteredAt));
-      queue.addAll(activeConfigs);
-
-      while (!queue.isEmpty()) {
-        AutoBidConfig config = queue.poll();
-
-        // Bỏ qua người đang dẫn đầu — không cần auto-bid cho chính mình
-        // (currentLeadingBidder sẽ được kiểm tra trong executor)
-
-        if (!config.canBidAt(currentPrice)) {
-          // Hết budget — tắt auto-bid config này
-          config.setActive(false);
-          try {
-            autoBidConfigDao.update(config);
-            LOGGER.info(
-                "Auto-bid hết budget cho bidder={} trong phiên={}",
-                config.getBidderId(),
-                auctionId);
-          } catch (Exception e) {
-            LOGGER.error(
-                "Không thể cập nhật auto-bid config id={}: {}", config.getId(), e.getMessage());
-          }
-          continue;
-        }
-
-        // Tính giá auto-bid tiếp theo
-        BigDecimal nextAmount = config.getNextBidAmount(currentPrice);
-
+      if (!config.canBidAt(currentPrice)) {
+        config.setActive(false);
         try {
-          executor.execute(auctionId, config.getBidderId(), nextAmount);
-          currentPrice = nextAmount;
-          anyBidPlaced = true;
-          autoBidCount++;
+          autoBidConfigDao.update(config);
           LOGGER.info(
-              "Auto-bid thành công: bidder={}, amount={}, phiên={}",
-              config.getBidderId(),
-              nextAmount,
-              auctionId);
-          break; // Sau mỗi auto-bid, quét lại từ đầu (để kiểm tra người mới vào queue)
+              "Auto-bid hết budget cho bidder={} trong phiên={}", config.getBidderId(), auctionId);
         } catch (Exception e) {
-          LOGGER.warn("Auto-bid thất bại cho bidder={}: {}", config.getBidderId(), e.getMessage());
+          LOGGER.error(
+              "Không thể cập nhật auto-bid config id={}: {}", config.getId(), e.getMessage());
         }
+        continue;
+      }
+
+      BigDecimal nextAmount = config.getNextBidAmount(currentPrice);
+
+      try {
+        executor.execute(auctionId, config.getBidderId(), nextAmount);
+        currentPrice = nextAmount;
+        autoBidCount++;
+        // Re-add so this bidder can respond to subsequent bids from others
+        queue.offer(config);
+        LOGGER.info(
+            "Auto-bid thành công: bidder={}, amount={}, phiên={}",
+            config.getBidderId(),
+            nextAmount,
+            auctionId);
+      } catch (Exception e) {
+        LOGGER.warn("Auto-bid thất bại cho bidder={}: {}", config.getBidderId(), e.getMessage());
       }
     }
 

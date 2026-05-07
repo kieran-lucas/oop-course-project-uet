@@ -1,18 +1,18 @@
 /* ================================================================
-   Online Auction System — Blue Design System + Lexend
+   Online Auction System — Design System v3
    ================================================================
    Palette
-     navy     #0D47A1   deep navy  — top bar, pressed states
-     primary  #1565C0   main blue  — headings, active states
+     navy     #0D47A1   deep navy  — top bar pressed / gradients
+     primary  #1565C0   main blue  — headings, active, primary btn
      medium   #1976D2   mid blue   — hover
      sky      #42A5F5   sky blue   — accents
-     bg       #EFF6FF   page bg    — very light blue tint
+     bg       #EFF6FF   page bg
      surface  #FFFFFF   card bg
-     border   #BFDBFE   input / card borders
-     row-alt  #F8FBFF   table odd row
+     border   #E8F0FE   card / input border (softer)
+     row-alt  #FAFCFF   table alternate row
      text     #1E293B   body text
      muted    #64748B   secondary text
-     subtle   #94A3B8   placeholder
+     subtle   #94A3B8   placeholder / tertiary
      error    #DC2626   error red
      success  #16A34A   success green
      price    #D97706   price amber
@@ -20,7 +20,7 @@
    ================================================================ */
 
 /* ----------------------------------------------------------------
-   ROOT — global font + bg
+   ROOT
    ---------------------------------------------------------------- */
 .root {
     -fx-font-family: 'Lexend';
@@ -37,20 +37,17 @@
 }
 
 .welcome-title {
-    -fx-font-family: 'Lexend';
-    -fx-font-size: 36px;
+    -fx-font-size: 40px;
     -fx-font-weight: bold;
     -fx-text-fill: #FFFFFF;
 }
 
 .welcome-subtitle {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 15px;
     -fx-text-fill: rgba(255,255,255,0.72);
 }
 
 .welcome-prompt {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 15px;
     -fx-text-fill: rgba(255,255,255,0.88);
 }
@@ -61,31 +58,29 @@
     -fx-border-width: 1.5;
     -fx-background-radius: 20;
     -fx-border-radius: 20;
-    -fx-padding: 26 22 26 22;
-    -fx-pref-width: 165;
-    -fx-pref-height: 198;
+    -fx-padding: 28 24 28 24;
+    -fx-pref-width: 180;
+    -fx-pref-height: 212;
     -fx-cursor: hand;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 14, 0, 0, 4);
     -fx-alignment: CENTER;
 }
 
 .role-card:hover {
-    -fx-background-color: rgba(255,255,255,0.26);
-    -fx-border-color: rgba(255,255,255,0.62);
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.32), 20, 0, 0, 5);
-    -fx-scale-x: 1.05;
-    -fx-scale-y: 1.05;
+    -fx-background-color: rgba(255,255,255,0.24);
+    -fx-border-color: rgba(255,255,255,0.60);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.30), 22, 0, 0, 6);
+    -fx-scale-x: 1.04;
+    -fx-scale-y: 1.04;
 }
 
 .role-card:pressed {
     -fx-background-color: rgba(255,255,255,0.08);
     -fx-scale-x: 0.97;
     -fx-scale-y: 0.97;
-    -fx-effect: innershadow(gaussian, rgba(0,0,0,0.2), 4, 0, 0, 1);
 }
 
 .role-label {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
     -fx-font-weight: bold;
     -fx-text-fill: #FFFFFF;
@@ -93,9 +88,8 @@
 }
 
 .role-desc {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 11px;
-    -fx-text-fill: rgba(255,255,255,0.58);
+    -fx-text-fill: rgba(255,255,255,0.60);
     -fx-alignment: CENTER;
 }
 
@@ -133,7 +127,7 @@
 }
 
 /* ================================================================
-   AUTH SCREENS  (login / register / deposit / change-password / etc.)
+   AUTH SCREENS  (login / register / deposit / change-password)
    ================================================================ */
 
 .login-root {
@@ -142,8 +136,8 @@
 
 .login-card {
     -fx-background-color: #FFFFFF;
-    -fx-background-radius: 18;
-    -fx-effect: dropshadow(gaussian, rgba(13,71,161,0.28), 34, 0.08, 0, 7);
+    -fx-background-radius: 20;
+    -fx-effect: dropshadow(gaussian, rgba(13,71,161,0.30), 48, 0.05, 0, 10);
 }
 
 /* ================================================================
@@ -151,7 +145,6 @@
    ================================================================ */
 
 .app-title {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 28px;
     -fx-font-weight: bold;
     -fx-text-fill: #1565C0;
@@ -160,115 +153,176 @@
 }
 
 .app-subtitle {
-    -fx-font-family: 'Lexend';
-    -fx-font-size: 15px;
+    -fx-font-size: 14px;
     -fx-text-fill: #64748B;
     -fx-alignment: CENTER;
     -fx-max-width: Infinity;
 }
 
 .app-logo {
-    -fx-font-family: 'Lexend';
-    -fx-font-size: 20px;
+    -fx-font-size: 18px;
     -fx-font-weight: bold;
     -fx-text-fill: #FFFFFF;
 }
 
 .username-label {
-    -fx-font-family: 'Lexend';
-    -fx-font-size: 14px;
-    -fx-font-weight: bold;
-    -fx-text-fill: rgba(255,255,255,0.92);
-}
-
-.field-label {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
     -fx-font-weight: bold;
-    -fx-text-fill: #374151;
+    -fx-text-fill: rgba(255,255,255,0.92);
+    -fx-background-color: rgba(255,255,255,0.14);
+    -fx-background-radius: 20;
+    -fx-padding: 6 14 6 14;
+    -fx-cursor: hand;
 }
 
-.section-title {
-    -fx-font-family: 'Lexend';
-    -fx-font-size: 17px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #1565C0;
-}
+/* ----------------------------------------------------------------
+   Hierarchy: detail-title > section-title > field-label
+   ---------------------------------------------------------------- */
 
 .detail-title {
-    -fx-font-family: 'Lexend';
-    -fx-font-size: 20px;
+    -fx-font-size: 22px;
     -fx-font-weight: bold;
     -fx-text-fill: #1E293B;
     -fx-wrap-text: true;
 }
 
-.detail-subtitle {
-    -fx-font-family: 'Lexend';
+.section-title {
     -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1565C0;
+}
+
+.field-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #94A3B8;
+    -fx-padding: 0 0 2 0;
+}
+
+/* Stat strip — uppercase metric labels */
+.stat-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #94A3B8;
+}
+
+.detail-subtitle {
+    -fx-font-size: 13px;
     -fx-text-fill: #64748B;
 }
 
 .detail-text {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-text-fill: #1E293B;
 }
 
+.muted-text {
+    -fx-font-size: 13px;
+    -fx-text-fill: #64748B;
+}
+
+/* ----------------------------------------------------------------
+   Key metric displays
+   ---------------------------------------------------------------- */
+
 .price-highlight {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 22px;
     -fx-font-weight: bold;
     -fx-text-fill: #D97706;
 }
 
 .countdown-label {
-    -fx-font-family: 'Lexend';
-    -fx-font-size: 18px;
+    -fx-font-size: 20px;
     -fx-font-weight: bold;
     -fx-text-fill: #9333EA;
 }
 
 .winner-label {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 15px;
     -fx-font-weight: bold;
     -fx-text-fill: #16A34A;
     -fx-wrap-text: true;
 }
 
+/* ----------------------------------------------------------------
+   Status badges
+   ---------------------------------------------------------------- */
+
 .status-badge {
-    -fx-font-family: 'Lexend';
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: #64748B;
+    -fx-background-radius: 20;
+    -fx-padding: 4 12 4 12;
+}
+
+.badge-open {
     -fx-font-size: 11px;
     -fx-font-weight: bold;
     -fx-text-fill: #FFFFFF;
     -fx-background-color: #1565C0;
     -fx-background-radius: 20;
-    -fx-padding: 3 10 3 10;
+    -fx-padding: 4 12 4 12;
 }
 
+.badge-running {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: #16A34A;
+    -fx-background-radius: 20;
+    -fx-padding: 4 12 4 12;
+}
+
+.badge-finished {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: #64748B;
+    -fx-background-radius: 20;
+    -fx-padding: 4 12 4 12;
+}
+
+.badge-canceled {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: #DC2626;
+    -fx-background-radius: 20;
+    -fx-padding: 4 12 4 12;
+}
+
+/* ----------------------------------------------------------------
+   Feedback labels
+   ---------------------------------------------------------------- */
+
 .error-label {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
-    -fx-text-fill: #DC2626;
+    -fx-text-fill: #991B1B;
     -fx-background-color: #FEF2F2;
-    -fx-background-radius: 6;
-    -fx-padding: 7 11 7 11;
+    -fx-border-color: #FECACA;
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 10 14 10 14;
     -fx-wrap-text: true;
 }
 
 .status-label {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
-    -fx-text-fill: #16A34A;
+    -fx-text-fill: #14532D;
     -fx-background-color: #F0FDF4;
-    -fx-background-radius: 6;
-    -fx-padding: 7 11 7 11;
+    -fx-border-color: #BBF7D0;
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 10 14 10 14;
     -fx-wrap-text: true;
 }
 
 /* ================================================================
-   BUTTONS
+   BUTTONS  — all normalized to 40px height
    ================================================================ */
 
 .button {
@@ -280,31 +334,30 @@
 }
 
 .primary-button {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-font-weight: bold;
     -fx-text-fill: #FFFFFF;
-    -fx-background-color: linear-gradient(to bottom, #1976D2, #1565C0);
+    -fx-background-color: #1565C0;
     -fx-background-radius: 8;
-    -fx-border-radius: 8;
     -fx-border-color: transparent;
-    -fx-padding: 11 26 11 26;
+    -fx-padding: 0 24 0 24;
+    -fx-pref-height: 40;
+    -fx-min-height: 40;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.42), 8, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.32), 8, 0, 0, 2);
 }
 
 .primary-button:hover {
-    -fx-background-color: linear-gradient(to bottom, #1E88E5, #1976D2);
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.58), 12, 0, 0, 3);
+    -fx-background-color: #1976D2;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.48), 12, 0, 0, 3);
 }
 
 .primary-button:pressed {
     -fx-background-color: #0D47A1;
-    -fx-effect: innershadow(gaussian, rgba(0,0,0,0.28), 4, 0, 0, 1);
+    -fx-effect: none;
 }
 
 .secondary-button {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-text-fill: #1565C0;
     -fx-background-color: transparent;
@@ -312,49 +365,102 @@
     -fx-border-width: 1.5;
     -fx-background-radius: 8;
     -fx-border-radius: 8;
-    -fx-padding: 9 22 9 22;
+    -fx-padding: 0 20 0 20;
+    -fx-pref-height: 40;
+    -fx-min-height: 40;
     -fx-cursor: hand;
 }
 
 .secondary-button:hover {
     -fx-background-color: #EFF6FF;
-    -fx-border-color: #1565C0;
-    -fx-text-fill: #1565C0;
+    -fx-border-color: #93C5FD;
 }
 
 .secondary-button:pressed {
     -fx-background-color: #DBEAFE;
+    -fx-border-color: #1565C0;
+}
+
+/* Red variant — delete / destructive actions */
+.danger-button {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #DC2626;
+    -fx-background-color: transparent;
+    -fx-border-color: #FECACA;
+    -fx-border-width: 1.5;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 0 16 0 16;
+    -fx-pref-height: 34;
+    -fx-min-height: 34;
+    -fx-cursor: hand;
+}
+
+.danger-button:hover {
+    -fx-background-color: #FEF2F2;
+    -fx-border-color: #F87171;
+}
+
+.danger-button:pressed {
+    -fx-background-color: #FEE2E2;
+}
+
+/* Profile-context logout — neutral, full-width inside white card */
+.card-logout-button {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #DC2626;
+    -fx-background-color: #FEF2F2;
+    -fx-border-color: #FECACA;
+    -fx-border-width: 1.5;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 0 20 0 20;
+    -fx-pref-height: 40;
+    -fx-min-height: 40;
+    -fx-cursor: hand;
+}
+
+.card-logout-button:hover {
+    -fx-background-color: #FEE2E2;
+    -fx-border-color: #F87171;
+}
+
+.card-logout-button:pressed {
+    -fx-background-color: #FECACA;
 }
 
 .logout-button {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
     -fx-text-fill: #FFFFFF;
-    -fx-background-color: rgba(255,255,255,0.18);
-    -fx-border-color: rgba(255,255,255,0.45);
+    -fx-background-color: rgba(255,255,255,0.14);
+    -fx-border-color: rgba(255,255,255,0.32);
     -fx-border-width: 1;
-    -fx-background-radius: 7;
-    -fx-border-radius: 7;
-    -fx-padding: 7 15 7 15;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 0 16 0 16;
+    -fx-pref-height: 34;
+    -fx-min-height: 34;
     -fx-cursor: hand;
 }
 
 .logout-button:hover {
-    -fx-background-color: rgba(255,255,255,0.30);
-    -fx-border-color: rgba(255,255,255,0.70);
+    -fx-background-color: rgba(255,255,255,0.24);
+    -fx-border-color: rgba(255,255,255,0.55);
 }
 
 .logout-button:pressed {
-    -fx-background-color: rgba(255,255,255,0.10);
+    -fx-background-color: rgba(255,255,255,0.08);
 }
 
 .back-button {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
-    -fx-text-fill: rgba(255,255,255,0.88);
+    -fx-text-fill: rgba(255,255,255,0.82);
     -fx-background-color: transparent;
     -fx-border-color: transparent;
-    -fx-padding: 6 10 6 6;
+    -fx-padding: 0 12 0 8;
+    -fx-pref-height: 34;
     -fx-cursor: hand;
 }
 
@@ -366,13 +472,12 @@
 }
 
 .link-button {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
     -fx-text-fill: #1565C0;
     -fx-background-color: transparent;
     -fx-border-color: transparent;
     -fx-cursor: hand;
-    -fx-padding: 2 0 2 0;
+    -fx-padding: 3 0 3 0;
 }
 
 .link-button:hover {
@@ -385,7 +490,6 @@
    ================================================================ */
 
 .link {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
     -fx-text-fill: #1565C0;
     -fx-border-color: transparent;
@@ -402,9 +506,8 @@
 }
 
 .back-link {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
-    -fx-text-fill: #64748B;
+    -fx-text-fill: #94A3B8;
     -fx-border-color: transparent;
     -fx-underline: false;
     -fx-alignment: CENTER;
@@ -416,108 +519,108 @@
 }
 
 /* ================================================================
-   INPUT FIELDS
+   INPUT FIELDS  — normalized to 40px height
    ================================================================ */
 
 .text-field {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-text-fill: #1E293B;
     -fx-background-color: #FFFFFF;
-    -fx-border-color: #BFDBFE;
+    -fx-border-color: #E2E8F0;
     -fx-border-width: 1.5;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
-    -fx-padding: 9 12 9 12;
-    -fx-prompt-text-fill: #94A3B8;
+    -fx-padding: 0 12 0 12;
+    -fx-pref-height: 40;
+    -fx-min-height: 40;
+    -fx-prompt-text-fill: #CBD5E1;
 }
 
 .text-field:focused {
     -fx-border-color: #1565C0;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.20), 6, 0, 0, 0);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.16), 6, 0, 0, 0);
 }
 
 .text-area {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-text-fill: #1E293B;
     -fx-background-color: #FFFFFF;
-    -fx-border-color: #BFDBFE;
+    -fx-border-color: #E2E8F0;
     -fx-border-width: 1.5;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
-    -fx-prompt-text-fill: #94A3B8;
+    -fx-prompt-text-fill: #CBD5E1;
 }
 
 .text-area:focused {
     -fx-border-color: #1565C0;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.20), 6, 0, 0, 0);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.16), 6, 0, 0, 0);
 }
 
 .text-area .content {
     -fx-background-color: #FFFFFF;
     -fx-background-radius: 6;
-    -fx-padding: 8 10 8 10;
+    -fx-padding: 10 12 10 12;
 }
 
 .search-field {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-text-fill: #1E293B;
     -fx-background-color: #FFFFFF;
-    -fx-border-color: #BFDBFE;
+    -fx-border-color: #E2E8F0;
     -fx-border-width: 1.5;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
-    -fx-padding: 8 12 8 12;
-    -fx-prompt-text-fill: #94A3B8;
+    -fx-padding: 0 12 0 12;
+    -fx-pref-height: 40;
+    -fx-min-height: 40;
+    -fx-prompt-text-fill: #CBD5E1;
 }
 
 .search-field:focused {
     -fx-border-color: #1565C0;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.20), 6, 0, 0, 0);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.16), 6, 0, 0, 0);
 }
 
 /* ================================================================
-   COMBO BOX
+   COMBO BOX  — normalized to 40px height
    ================================================================ */
 
 .combo-box {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-background-color: #FFFFFF;
-    -fx-border-color: #BFDBFE;
+    -fx-border-color: #E2E8F0;
     -fx-border-width: 1.5;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
+    -fx-pref-height: 40;
+    -fx-min-height: 40;
 }
 
 .combo-box:focused {
     -fx-border-color: #1565C0;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.20), 6, 0, 0, 0);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.16), 6, 0, 0, 0);
 }
 
 .combo-box .list-cell {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-text-fill: #1E293B;
     -fx-background-color: transparent;
-    -fx-padding: 5 10 5 10;
+    -fx-padding: 0 10 0 10;
 }
 
 .combo-box-popup .list-view {
     -fx-background-color: #FFFFFF;
-    -fx-border-color: #BFDBFE;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.18), 10, 0, 0, 3);
+    -fx-border-color: #DBEAFE;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.18), 16, 0, 0, 4);
 }
 
 .combo-box-popup .list-view .list-cell {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-text-fill: #1E293B;
-    -fx-padding: 8 12 8 12;
+    -fx-padding: 10 14 10 14;
     -fx-background-color: #FFFFFF;
 }
 
@@ -532,17 +635,18 @@
 }
 
 /* ================================================================
-   DATE PICKER
+   DATE PICKER  — normalized to 40px height
    ================================================================ */
 
 .date-picker {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-background-color: #FFFFFF;
-    -fx-border-color: #BFDBFE;
+    -fx-border-color: #E2E8F0;
     -fx-border-width: 1.5;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
+    -fx-pref-height: 40;
+    -fx-min-height: 40;
 }
 
 .date-picker:focused {
@@ -554,6 +658,8 @@
     -fx-border-color: transparent;
     -fx-background-color: transparent;
     -fx-effect: none;
+    -fx-pref-height: 36;
+    -fx-min-height: 36;
 }
 
 .date-picker .arrow-button {
@@ -575,8 +681,21 @@
 }
 
 .top-bar {
-    -fx-background-color: linear-gradient(to right, #0D47A1, #1565C0);
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 8, 0, 0, 2);
+    -fx-background-color: linear-gradient(to right, #0D47A1, #1565C0 60%, #1976D2);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 8, 0, 0, 2);
+    -fx-min-height: 60;
+    -fx-pref-height: 60;
+}
+
+/* Transparent scroll pane for admin panel overflow */
+.page-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.page-scroll > .viewport {
+    -fx-background-color: transparent;
 }
 
 /* ================================================================
@@ -586,19 +705,59 @@
 .info-card {
     -fx-background-color: #FFFFFF;
     -fx-background-radius: 12;
-    -fx-border-color: #DBEAFE;
+    -fx-border-color: #E8F0FE;
     -fx-border-width: 1;
     -fx-border-radius: 12;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.09), 12, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.08), 14, 0, 0, 2);
 }
 
 .form-card {
     -fx-background-color: #FFFFFF;
-    -fx-background-radius: 14;
+    -fx-background-radius: 16;
+    -fx-border-color: #E8F0FE;
+    -fx-border-width: 1;
+    -fx-border-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.12), 20, 0, 0, 4);
+}
+
+/* ----------------------------------------------------------------
+   Stat strip cards — used in auction-detail for key metrics
+   ---------------------------------------------------------------- */
+
+.stat-card {
+    -fx-background-color: #F8FBFF;
+    -fx-background-radius: 10;
     -fx-border-color: #DBEAFE;
     -fx-border-width: 1;
-    -fx-border-radius: 14;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.12), 16, 0, 0, 3);
+    -fx-border-radius: 10;
+    -fx-padding: 12 16 12 16;
+}
+
+.stat-card-price {
+    -fx-background-color: #FFFDF5;
+    -fx-background-radius: 10;
+    -fx-border-color: #FDE68A;
+    -fx-border-width: 1;
+    -fx-border-radius: 10;
+    -fx-padding: 12 16 12 16;
+}
+
+.stat-card-timer {
+    -fx-background-color: #FAF5FF;
+    -fx-background-radius: 10;
+    -fx-border-color: #E9D5FF;
+    -fx-border-width: 1;
+    -fx-border-radius: 10;
+    -fx-padding: 12 16 12 16;
+}
+
+/* ================================================================
+   SEPARATOR
+   ================================================================ */
+
+.separator .line {
+    -fx-border-color: #E8F0FE transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
 }
 
 /* ================================================================
@@ -607,16 +766,16 @@
 
 .auction-table {
     -fx-background-color: #FFFFFF;
-    -fx-border-color: #DBEAFE;
+    -fx-border-color: #E8F0FE;
     -fx-border-radius: 12;
     -fx-background-radius: 12;
     -fx-border-width: 1;
-    -fx-table-cell-border-color: #EFF6FF;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.08), 10, 0, 0, 2);
+    -fx-table-cell-border-color: #F1F5F9;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.08), 12, 0, 0, 2);
 }
 
 .auction-table .column-header-background {
-    -fx-background-color: linear-gradient(to bottom, #1976D2, #1565C0);
+    -fx-background-color: #1565C0;
     -fx-background-radius: 11 11 0 0;
 }
 
@@ -626,29 +785,29 @@
 
 .auction-table .column-header {
     -fx-background-color: transparent;
-    -fx-size: 42;
+    -fx-size: 46;
 }
 
 .auction-table .column-header .label {
-    -fx-text-fill: #FFFFFF;
-    -fx-font-family: 'Lexend';
-    -fx-font-size: 13px;
+    -fx-text-fill: rgba(255,255,255,0.90);
+    -fx-font-size: 12px;
     -fx-font-weight: bold;
-    -fx-padding: 10 8 10 8;
+    -fx-padding: 12 10 12 12;
     -fx-alignment: CENTER_LEFT;
 }
 
 .auction-table .table-row-cell {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
     -fx-text-fill: #1E293B;
     -fx-background-color: #FFFFFF;
-    -fx-border-color: transparent transparent #EFF6FF transparent;
+    -fx-border-color: transparent transparent #F1F5F9 transparent;
     -fx-border-width: 0 0 1 0;
+    -fx-pref-height: 46;
+    -fx-min-height: 46;
 }
 
 .auction-table .table-row-cell:odd {
-    -fx-background-color: #F8FBFF;
+    -fx-background-color: #FAFCFF;
 }
 
 .auction-table .table-row-cell:hover {
@@ -664,14 +823,12 @@
 }
 
 .auction-table .table-cell {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
-    -fx-padding: 9 8 9 8;
+    -fx-padding: 11 12 11 12;
     -fx-text-fill: #1E293B;
 }
 
 .auction-table .placeholder .label {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 14px;
     -fx-text-fill: #94A3B8;
 }
@@ -682,25 +839,24 @@
 
 .bid-history-list {
     -fx-background-color: #FFFFFF;
-    -fx-border-color: #DBEAFE;
+    -fx-border-color: #E8F0FE;
     -fx-border-radius: 12;
     -fx-background-radius: 12;
     -fx-border-width: 1;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.08), 8, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.06), 8, 0, 0, 1);
 }
 
 .bid-history-list .list-cell {
-    -fx-font-family: 'Lexend';
     -fx-font-size: 13px;
     -fx-text-fill: #1E293B;
-    -fx-padding: 9 14 9 14;
+    -fx-padding: 11 16 11 16;
     -fx-background-color: #FFFFFF;
-    -fx-border-color: transparent transparent #EFF6FF transparent;
+    -fx-border-color: transparent transparent #F1F5F9 transparent;
     -fx-border-width: 0 0 1 0;
 }
 
 .bid-history-list .list-cell:odd {
-    -fx-background-color: #F8FBFF;
+    -fx-background-color: #FAFCFF;
 }
 
 .bid-history-list .list-cell:selected {
@@ -713,14 +869,104 @@
 }
 
 /* ================================================================
+   CHART  (AreaChart — bid price history)
+   ================================================================ */
+
+/* Plot area background */
+.chart-plot-background {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent;
+}
+
+/* Grid lines — very subtle hairlines */
+.chart-vertical-grid-lines {
+    -fx-stroke: #F1F5F9;
+    -fx-stroke-width: 1;
+}
+
+.chart-horizontal-grid-lines {
+    -fx-stroke: #F1F5F9;
+    -fx-stroke-width: 1;
+    -fx-stroke-dash-array: 4 4;
+}
+
+/* Zero reference lines */
+.chart-vertical-zero-line,
+.chart-horizontal-zero-line {
+    -fx-stroke: #DBEAFE;
+    -fx-stroke-width: 1;
+}
+
+/* Area fill — translucent blue under the line */
+.default-color0.chart-area-fill {
+    -fx-fill: rgba(21, 101, 192, 0.08);
+    -fx-stroke: transparent;
+}
+
+/* Area line — solid blue, 2.5px */
+.default-color0.chart-area-line {
+    -fx-stroke: #1565C0;
+    -fx-stroke-width: 2.5;
+}
+
+/* Data-point symbols — filled blue dot, white ring */
+.default-color0.chart-area-symbol {
+    -fx-background-color: #1565C0, #FFFFFF;
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 6;
+    -fx-padding: 5;
+}
+
+/* Axis labels */
+.axis-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 11px;
+    -fx-text-fill: #94A3B8;
+}
+
+/* Tick value labels */
+.axis .tick-label {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 10px;
+    -fx-fill: #94A3B8;
+}
+
+/* Tick marks — light */
+.axis-tick-mark {
+    -fx-stroke: #E2E8F0;
+    -fx-stroke-width: 1;
+}
+
+.axis-minor-tick-mark {
+    -fx-stroke: transparent;
+}
+
+/* Legend — hidden (redundant with single series + our section title) */
+.chart-legend {
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+/* Built-in chart title — hidden (we use our own section-title Label) */
+.chart-title {
+    -fx-font-size: 0;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+}
+
+/* ================================================================
    SCROLL BARS — thin, minimal
    ================================================================ */
 
 .scroll-bar:vertical,
 .scroll-bar:horizontal {
     -fx-background-color: transparent;
-    -fx-pref-width: 7;
-    -fx-pref-height: 7;
+    -fx-pref-width: 8;
+    -fx-pref-height: 8;
 }
 
 .scroll-bar:vertical .track,

@@ -6,7 +6,6 @@ import com.auction.model.BidTransaction;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
-import com.auction.util.WebSocketClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
@@ -22,34 +21,24 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.chart.AreaChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Controller cho màn hình chi tiết phiên đấu giá (auction-detail.fxml).
  *
- * <p><b>Mục đích:</b> Hiển thị thông tin đầy đủ của một phiên: tên sản phẩm, giá hiện tại, người
- * dẫn đầu, đồng hồ đếm ngược, lịch sử bid, và form đặt giá realtime. Kết nối WebSocket để nhận
- * BID_UPDATE / TIME_EXTENDED / AUCTION_ENDED từ server.
- *
- * <p><b>Các phương thức chính:</b>
- *
- * <ul>
- *   <li>{@link #onDataReceived(Object)} — Nhận auctionId từ AuctionListController.
- *   <li>{@link #onNavigatedTo()} — Load dữ liệu, kết nối WebSocket, bật countdown.
- *   <li>{@link #onNavigatedFrom()} — Đóng WebSocket, dừng countdown.
- *   <li>{@link #handleBid()} — Đặt giá thủ công qua REST API.
- * </ul>
- *
- * <p><b>Vị trí trong kiến trúc:</b> AuctionDetailController kết hợp cả REST (load dữ liệu ban đầu,
- * đặt giá) và WebSocket (nhận realtime updates). Mỗi BidUpdateMessage nhận được sẽ cập nhật UI trên
- * JavaFX Application Thread qua {@code Platform.runLater()}.
+ * <p>Hiển thị thông tin đầy đủ: tên/mô tả sản phẩm, giá hiện tại, người dẫn đầu, đồng hồ đếm ngược,
+ * form đặt giá thủ công, cấu hình auto-bid, biểu đồ giá theo thời gian, và lịch sử bid.
  */
 public class AuctionDetailController implements Navigable {
 
@@ -58,30 +47,50 @@ public class AuctionDetailController implements Navigable {
       new ObjectMapper().registerModule(new JavaTimeModule());
   private static final NumberFormat VND = NumberFormat.getCurrencyInstance(Locale.of("vi", "VN"));
 
+  // ── Item info ──
   @FXML private Label usernameLabel;
   @FXML private Label itemNameLabel;
   @FXML private Label itemCategoryLabel;
+  @FXML private Label itemDescriptionLabel;
   @FXML private Label auctionStatusLabel;
+
+  // ── Price & countdown ──
   @FXML private Label currentPriceLabel;
   @FXML private Label leadingBidderLabel;
   @FXML private Label countdownLabel;
+
+  // ── Manual bid form ──
   @FXML private VBox bidBox;
   @FXML private TextField bidAmountField;
   @FXML private Button bidButton;
   @FXML private Label bidErrorLabel;
+
+  // ── Auto-bid form ──
+  @FXML private TextField maxBidField;
+  @FXML private TextField incrementField;
+  @FXML private Button autoBidButton;
+  @FXML private Label autoBidStatusLabel;
+  @FXML private Button cancelAutoBidButton;
+
+  // ── Ended state ──
   @FXML private VBox endedBox;
   @FXML private Label winnerLabel;
+
+  // ── Bid history ──
   @FXML private ListView<String> bidHistoryList;
+
+  // ── Bid chart ──
+  @FXML private AreaChart<Number, Number> bidChart;
+  private final XYChart.Series<Number, Number> bidSeries = new XYChart.Series<>();
 
   private Long auctionId;
   private Long endTimeMs;
-  private final WebSocketClient wsClient = new WebSocketClient();
+  private final com.auction.util.WebSocketClient wsClient = new com.auction.util.WebSocketClient();
   private final ObservableList<String> bidHistoryItems = FXCollections.observableArrayList();
   private Timeline countdownTimeline;
 
   // ========== NAVIGABLE LIFECYCLE ==========
 
-  /** Nhận auctionId từ AuctionListController khi người dùng click "Vào". */
   @Override
   public void onDataReceived(Object data) {
     if (data instanceof Long id) {
@@ -89,14 +98,44 @@ public class AuctionDetailController implements Navigable {
     }
   }
 
-  /** Load chi tiết phiên, lịch sử bid, kết nối WebSocket, bật countdown. */
   @Override
   public void onNavigatedTo() {
     SceneManager sm = SceneManager.getInstance();
     usernameLabel.setText(sm.getCurrentUsername() != null ? sm.getCurrentUsername() : "");
     bidHistoryList.setItems(bidHistoryItems);
 
-    // Chỉ BIDDER mới thấy form đặt giá
+    bidSeries.setName("Giá bid");
+    bidSeries.getData().clear();
+    if (bidChart.getData().isEmpty()) {
+      bidChart.getData().add(bidSeries);
+    }
+
+    // Hide legend (single series) and configure axes for VND amounts
+    bidChart.setLegendVisible(false);
+
+    NumberAxis yAxis = (NumberAxis) bidChart.getYAxis();
+    yAxis.setForceZeroInRange(false);
+    yAxis.setTickLabelFormatter(
+        new StringConverter<>() {
+          @Override
+          public String toString(Number v) {
+            long n = v.longValue();
+            if (n >= 1_000_000_000) return String.format("%.1fT", n / 1_000_000_000.0);
+            if (n >= 1_000_000) return String.format("%.1fM", n / 1_000_000.0);
+            if (n >= 1_000) return (n / 1_000) + "K";
+            return Long.toString(n);
+          }
+
+          @Override
+          public Number fromString(String s) {
+            return 0;
+          }
+        });
+
+    NumberAxis xAxis = (NumberAxis) bidChart.getXAxis();
+    xAxis.setTickUnit(1);
+    xAxis.setMinorTickCount(0);
+
     boolean isBidder = "BIDDER".equals(sm.getCurrentRole());
     bidBox.setVisible(isBidder);
     bidBox.setManaged(isBidder);
@@ -108,7 +147,6 @@ public class AuctionDetailController implements Navigable {
     }
   }
 
-  /** Đóng WebSocket và dừng countdown khi rời màn hình. */
   @Override
   public void onNavigatedFrom() {
     wsClient.disconnect();
@@ -118,10 +156,6 @@ public class AuctionDetailController implements Navigable {
 
   // ========== FXML ACTIONS ==========
 
-  /**
-   * Xử lý đặt giá — gọi {@code POST /api/auctions/{id}/bid}. Chỉ chấp nhận số dương, validate cơ
-   * bản phía client trước khi gửi.
-   */
   @FXML
   public void handleBid() {
     String amountText = bidAmountField.getText().trim();
@@ -181,7 +215,82 @@ public class AuctionDetailController implements Navigable {
             });
   }
 
-  /** Quay lại danh sách phiên đấu giá. */
+  @FXML
+  public void handleAutoBid() {
+    String maxBidText = maxBidField.getText().trim();
+    String incrementText = incrementField.getText().trim();
+
+    if (maxBidText.isEmpty() || incrementText.isEmpty()) {
+      autoBidStatusLabel.setText("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
+    BigDecimal maxBid, increment;
+    try {
+      maxBid = new BigDecimal(maxBidText.replace(",", ""));
+      increment = new BigDecimal(incrementText.replace(",", ""));
+    } catch (NumberFormatException e) {
+      autoBidStatusLabel.setText("Giá trị không hợp lệ.");
+      return;
+    }
+
+    autoBidButton.setDisable(true);
+    Map<String, Object> body = new HashMap<>();
+    body.put("maxBid", maxBid);
+    body.put("increment", increment);
+
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.post("/api/auctions/" + auctionId + "/auto-bid", body);
+                Platform.runLater(
+                    () -> {
+                      autoBidButton.setDisable(false);
+                      if (response.statusCode() == 200 || response.statusCode() == 201) {
+                        autoBidStatusLabel.setText("Auto-bid đã được bật.");
+                      } else {
+                        autoBidStatusLabel.setText(
+                            "Bật auto-bid thất bại: " + response.statusCode());
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi bật auto-bid", e);
+                Platform.runLater(
+                    () -> {
+                      autoBidButton.setDisable(false);
+                      autoBidStatusLabel.setText("Không thể kết nối đến server.");
+                    });
+              }
+            });
+  }
+
+  @FXML
+  public void handleCancelAutoBid() {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.delete("/api/auctions/" + auctionId + "/auto-bid");
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 204 || response.statusCode() == 200) {
+                        autoBidStatusLabel.setText("Auto-bid đã được tắt.");
+                        maxBidField.clear();
+                        incrementField.clear();
+                      } else {
+                        autoBidStatusLabel.setText("Tắt auto-bid thất bại.");
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi tắt auto-bid", e);
+                Platform.runLater(() -> autoBidStatusLabel.setText("Không thể kết nối."));
+              }
+            });
+  }
+
   @FXML
   public void goBack() {
     SceneManager.getInstance().navigateTo("auction-list.fxml");
@@ -219,14 +328,22 @@ public class AuctionDetailController implements Navigable {
                   Platform.runLater(
                       () -> {
                         bidHistoryItems.clear();
-                        for (int i = bids.size() - 1; i >= 0; i--) {
+                        bidSeries.getData().clear();
+                        for (int i = 0; i < bids.size(); i++) {
                           BidTransaction bid = bids.get(i);
-                          String entry =
+                          // ListView entry
+                          bidHistoryItems.add(
+                              0,
                               String.format(
                                   "%s — %s",
                                   bid.getBidderId() != null ? "Bidder #" + bid.getBidderId() : "?",
-                                  bid.getAmount() != null ? VND.format(bid.getAmount()) : "?");
-                          bidHistoryItems.add(entry);
+                                  bid.getAmount() != null ? VND.format(bid.getAmount()) : "?"));
+                          // Chart data
+                          if (bid.getAmount() != null) {
+                            bidSeries
+                                .getData()
+                                .add(new XYChart.Data<>(i + 1, bid.getAmount().doubleValue()));
+                          }
                         }
                       });
                 }
@@ -260,6 +377,12 @@ public class AuctionDetailController implements Navigable {
       case BidUpdateMessage.TYPE_BID_UPDATE -> {
         if (msg.getCurrentPrice() != null) {
           currentPriceLabel.setText(VND.format(msg.getCurrentPrice()));
+          // Append new data point to chart
+          bidSeries
+              .getData()
+              .add(
+                  new XYChart.Data<>(
+                      bidSeries.getData().size() + 1, msg.getCurrentPrice().doubleValue()));
         }
         if (msg.getLeadingBidderUsername() != null) {
           leadingBidderLabel.setText(msg.getLeadingBidderUsername());
@@ -304,6 +427,8 @@ public class AuctionDetailController implements Navigable {
     itemNameLabel.setText(
         auction.getItemName() != null ? auction.getItemName() : "Sản phẩm #" + auction.getItemId());
     itemCategoryLabel.setText(auction.getItemCategory() != null ? auction.getItemCategory() : "");
+    itemDescriptionLabel.setText(
+        auction.getItemDescription() != null ? auction.getItemDescription() : "");
     auctionStatusLabel.setText(auction.getStatus() != null ? auction.getStatus() : "");
 
     if (auction.getCurrentPrice() != null) {

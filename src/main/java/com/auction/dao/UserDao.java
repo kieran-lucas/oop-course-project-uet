@@ -4,6 +4,7 @@ import com.auction.model.Admin;
 import com.auction.model.Bidder;
 import com.auction.model.Seller;
 import com.auction.model.User;
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -55,9 +56,9 @@ public class UserDao {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UserDao.class);
 
-  /** Danh sách cột SELECT dùng chung, tránh copy-paste. [FIX #10] */
+  /** Danh sách cột SELECT dùng chung, tránh copy-paste. */
   private static final String SELECT_COLUMNS =
-      "id, username, password_hash, email, role, created_at";
+      "id, username, password_hash, email, role, created_at, balance";
 
   private final Jdbi jdbi;
 
@@ -106,21 +107,26 @@ public class UserDao {
       var createdAt = rs.getTimestamp("created_at").toLocalDateTime();
 
       // POLYMORPHISM: tạo đúng subclass dựa vào role
-      return switch (role) {
-        case "BIDDER" -> new Bidder(id, username, passwordHash, email, createdAt);
-        case "SELLER" -> new Seller(id, username, passwordHash, email, createdAt);
-        case "ADMIN" -> new Admin(id, username, passwordHash, email, createdAt);
-        default ->
-            throw new IllegalStateException(
-                "Role không hợp lệ trong database: '"
-                    + role
-                    + "' (user id="
-                    + id
-                    + ", username="
-                    + username
-                    + "). "
-                    + "Kiểm tra dữ liệu bảng users hoặc thêm case mới vào UserMapper.");
-      };
+      User user =
+          switch (role) {
+            case "BIDDER" -> new Bidder(id, username, passwordHash, email, createdAt);
+            case "SELLER" -> new Seller(id, username, passwordHash, email, createdAt);
+            case "ADMIN" -> new Admin(id, username, passwordHash, email, createdAt);
+            default ->
+                throw new IllegalStateException(
+                    "Role không hợp lệ trong database: '"
+                        + role
+                        + "' (user id="
+                        + id
+                        + ", username="
+                        + username
+                        + "). "
+                        + "Kiểm tra dữ liệu bảng users hoặc thêm case mới vào UserMapper.");
+          };
+
+      BigDecimal balance = rs.getBigDecimal("balance");
+      user.setBalance(balance != null ? balance : BigDecimal.ZERO);
+      return user;
     }
   }
 
@@ -151,8 +157,8 @@ public class UserDao {
   public User insert(User user) {
     String sql =
         """
-        INSERT INTO users (username, password_hash, email, role, created_at)
-        VALUES (:username, :passwordHash, :email, :role, :createdAt)
+        INSERT INTO users (username, password_hash, email, role, created_at, balance)
+        VALUES (:username, :passwordHash, :email, :role, :createdAt, :balance)
         RETURNING id
         """;
 
@@ -166,6 +172,9 @@ public class UserDao {
                   .bind("email", user.getEmail())
                   .bind("role", user.getRole())
                   .bind("createdAt", user.getCreatedAt())
+                  .bind(
+                      "balance",
+                      user.getBalance() != null ? user.getBalance() : java.math.BigDecimal.ZERO)
                   .mapTo(Long.class)
                   .one();
 
@@ -281,7 +290,8 @@ public class UserDao {
         """
         UPDATE users
         SET password_hash = :passwordHash,
-            email = :email
+            email = :email,
+            balance = :balance
         WHERE id = :id
         """;
 
@@ -292,6 +302,9 @@ public class UserDao {
                     .createUpdate(sql)
                     .bind("passwordHash", user.getPasswordHash())
                     .bind("email", user.getEmail())
+                    .bind(
+                        "balance",
+                        user.getBalance() != null ? user.getBalance() : java.math.BigDecimal.ZERO)
                     .bind("id", user.getId())
                     .execute());
 

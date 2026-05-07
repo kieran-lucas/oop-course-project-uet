@@ -12,12 +12,19 @@ import com.auction.dao.BidTransactionDao;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.InvalidBidException;
+import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
 import com.auction.model.BidTransaction;
 import com.auction.pattern.observer.AuctionEventManager;
+import com.auction.pattern.state.CanceledState;
+import com.auction.pattern.state.FinishedState;
+import com.auction.pattern.state.OpenState;
+import com.auction.pattern.state.PaidState;
+import com.auction.pattern.state.RunningState;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Optional;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,17 +41,11 @@ import org.mockito.quality.Strictness;
  *
  * <ul>
  *   <li>State pattern — kiểm tra trạng thái phiên trước khi cho bid
- *   <li>Strategy pattern — ManualBidStrategy validate + AutoBidStrategy chain
+ *   <li>Strategy pattern — AutoBidStrategy chain
  *   <li>Observer pattern — notify tất cả client qua WebSocket sau mỗi bid
- *   <li>Concurrency — synchronized block (tầng 1)
+ *   <li>Concurrency — SELECT FOR UPDATE trong DB transaction
  *   <li>Anti-sniping — gia hạn phiên nếu bid trong 30 giây cuối
  * </ul>
- *
- * <p><b>Chiến lược mock:</b> Mock toàn bộ DAO + EventManager. Chỉ test logic thuần — không cần DB,
- * không cần WebSocket server thật.
- *
- * <p><b>Mỗi test case kiểm tra đúng 1 hành vi</b> (single assertion principle) để khi fail, biết
- * ngay vấn đề ở đâu mà không cần đọc stacktrace dài.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -56,6 +57,9 @@ class BidServiceTest {
   @Mock private BidTransactionDao bidTransactionDao;
   @Mock private AutoBidConfigDao autoBidConfigDao;
   @Mock private AuctionEventManager eventManager;
+  @Mock private Jdbi jdbi;
+  @Mock private AuctionService auctionService;
+  @Mock private Handle mockHandle;
 
   // ── System Under Test ────────────────────────────────────
   @InjectMocks private BidService bidService;
@@ -69,12 +73,6 @@ class BidServiceTest {
 
   // ── Helper ───────────────────────────────────────────────
 
-  /**
-   * Tạo Auction mẫu với trạng thái và thời gian còn lại cho trước.
-   *
-   * @param status trạng thái phiên: "OPEN", "RUNNING", "FINISHED", ...
-   * @param remainingSec thời gian còn lại (giây). Âm → phiên đã hết giờ
-   */
   private Auction buildAuction(String status, long remainingSec) {
     Auction a = new Auction();
     a.setId(AUCTION_ID);
@@ -88,9 +86,40 @@ class BidServiceTest {
     return a;
   }
 
-  /** Shortcut: phiên RUNNING còn nhiều giờ — trường hợp bình thường */
   private Auction runningAuction() {
-    return buildAuction("RUNNING", 3600); // còn 1 giờ
+    return buildAuction("RUNNING", 3600);
+  }
+
+  /**
+   * Global setup: stub jdbi.inTransaction() to execute the callback with mockHandle, and
+   * auctionService.getState() to return real State instances.
+   */
+  @BeforeEach
+  @SuppressWarnings("unchecked")
+  void globalSetup() throws Exception {
+    doAnswer(
+            invocation -> {
+              org.jdbi.v3.core.HandleCallback<Object, Exception> callback =
+                  invocation.getArgument(0);
+              return callback.withHandle(mockHandle);
+            })
+        .when(jdbi)
+        .inTransaction(any());
+
+    doAnswer(
+            invocation -> {
+              Auction a = invocation.getArgument(0);
+              return switch (a.getStatus()) {
+                case "OPEN" -> new OpenState();
+                case "RUNNING" -> new RunningState();
+                case "FINISHED" -> new FinishedState();
+                case "PAID" -> new PaidState();
+                case "CANCELED" -> new CanceledState();
+                default -> throw new IllegalStateException("Unknown: " + a.getStatus());
+              };
+            })
+        .when(auctionService)
+        .getState(any());
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -103,21 +132,21 @@ class BidServiceTest {
 
     @BeforeEach
     void setupMocks() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(runningAuction()));
-      doNothing().when(auctionDao).update(any(Auction.class));
-      doNothing().when(bidTransactionDao).insert(any(BidTransaction.class));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID)).thenReturn(runningAuction());
+      doNothing().when(auctionDao).updateInTransaction(eq(mockHandle), any(Auction.class));
+      when(bidTransactionDao.insert(eq(mockHandle), any(BidTransaction.class)))
+          .thenAnswer(inv -> inv.getArgument(1));
     }
 
     @Test
     @DisplayName("Bid thành công → currentPrice cập nhật bằng giá bid")
     void testBidSuccessCurrentPriceUpdated() {
-      BigDecimal bidAmount = new BigDecimal("2000000"); // 2 triệu > 1 triệu
+      BigDecimal bidAmount = new BigDecimal("2000000");
 
       bidService.placeBid(AUCTION_ID, BIDDER_ID, bidAmount, false);
 
-      // Dùng ArgumentCaptor để bắt đối tượng được truyền vào auctionDao.update()
       ArgumentCaptor<Auction> captor = ArgumentCaptor.forClass(Auction.class);
-      verify(auctionDao).update(captor.capture());
+      verify(auctionDao).updateInTransaction(eq(mockHandle), captor.capture());
 
       assertEquals(
           0,
@@ -131,7 +160,7 @@ class BidServiceTest {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       ArgumentCaptor<Auction> captor = ArgumentCaptor.forClass(Auction.class);
-      verify(auctionDao).update(captor.capture());
+      verify(auctionDao).updateInTransaction(eq(mockHandle), captor.capture());
 
       assertEquals(
           BIDDER_ID,
@@ -144,7 +173,7 @@ class BidServiceTest {
     void testBidSuccessTransactionSaved() {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
-      verify(bidTransactionDao, times(1)).insert(any(BidTransaction.class));
+      verify(bidTransactionDao, times(1)).insert(eq(mockHandle), any(BidTransaction.class));
     }
 
     @Test
@@ -154,7 +183,7 @@ class BidServiceTest {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, bidAmount, false);
 
       ArgumentCaptor<BidTransaction> captor = ArgumentCaptor.forClass(BidTransaction.class);
-      verify(bidTransactionDao).insert(captor.capture());
+      verify(bidTransactionDao).insert(eq(mockHandle), captor.capture());
 
       BidTransaction txn = captor.getValue();
       assertAll(
@@ -174,20 +203,17 @@ class BidServiceTest {
     }
 
     @Test
-    @DisplayName("Bid thành công → auctionDao.update() được gọi đúng 1 lần")
+    @DisplayName("Bid thành công → auctionDao.updateInTransaction() được gọi đúng 1 lần")
     void testBidSuccessAuctionUpdatedOnce() {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
-      verify(auctionDao, times(1)).update(any(Auction.class));
+      verify(auctionDao, times(1)).updateInTransaction(eq(mockHandle), any(Auction.class));
     }
 
     @Test
-    @DisplayName("Bid bằng đúng startingPrice → hợp lệ (edge case)")
+    @DisplayName("Bid bằng đúng startingPrice → không hợp lệ (phải bid CAO HƠN)")
     void testBidEqualToStartingPriceValid() {
-      // currentPrice = startingPrice = 1.000.000, bid đúng bằng → OK hay lỗi?
-      // Theo rule: amount > currentPrice → bid BẰNG là KHÔNG hợp lệ
-      // Test này document behavior rõ ràng
-      BigDecimal equalBid = STARTING; // đúng bằng 1.000.000
+      BigDecimal equalBid = STARTING;
 
       assertThrows(
           InvalidBidException.class,
@@ -206,13 +232,13 @@ class BidServiceTest {
 
     @BeforeEach
     void setupMocks() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(runningAuction()));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID)).thenReturn(runningAuction());
     }
 
     @Test
     @DisplayName("Bid thấp hơn giá hiện tại → InvalidBidException")
     void testBidTooLowThrowsInvalidBidException() {
-      BigDecimal lowBid = new BigDecimal("500000"); // 500k < 1 triệu
+      BigDecimal lowBid = new BigDecimal("500000");
 
       assertThrows(
           InvalidBidException.class,
@@ -228,8 +254,8 @@ class BidServiceTest {
       } catch (InvalidBidException ignored) {
       }
 
-      verify(auctionDao, never()).update(any());
-      verify(bidTransactionDao, never()).insert(any());
+      verify(auctionDao, never()).updateInTransaction(any(), any());
+      verify(bidTransactionDao, never()).insert(any(), any());
     }
 
     @Test
@@ -273,8 +299,8 @@ class BidServiceTest {
     @Test
     @DisplayName("Bid khi FINISHED → AuctionClosedException")
     void testBidWhenFinishedThrowsAuctionClosedException() {
-      when(auctionDao.findById(AUCTION_ID))
-          .thenReturn(Optional.of(buildAuction("FINISHED", -3600)));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID))
+          .thenReturn(buildAuction("FINISHED", -3600));
 
       assertThrows(
           AuctionClosedException.class,
@@ -285,7 +311,8 @@ class BidServiceTest {
     @Test
     @DisplayName("Bid khi OPEN → AuctionClosedException với message 'chưa bắt đầu'")
     void testBidWhenOpenThrowsAuctionClosedException() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(buildAuction("OPEN", 3600)));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID))
+          .thenReturn(buildAuction("OPEN", 3600));
 
       AuctionClosedException ex =
           assertThrows(
@@ -301,7 +328,8 @@ class BidServiceTest {
     @Test
     @DisplayName("Bid khi CANCELED → AuctionClosedException")
     void testBidWhenCanceledThrowsAuctionClosedException() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(buildAuction("CANCELED", 0)));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID))
+          .thenReturn(buildAuction("CANCELED", 0));
 
       assertThrows(
           AuctionClosedException.class,
@@ -311,15 +339,16 @@ class BidServiceTest {
     @Test
     @DisplayName("Bid sai trạng thái → DB không bị update")
     void testBidWrongStateNoDatabaseSideEffects() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(buildAuction("FINISHED", 0)));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID))
+          .thenReturn(buildAuction("FINISHED", 0));
 
       try {
         bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
       } catch (AuctionClosedException ignored) {
       }
 
-      verify(auctionDao, never()).update(any());
-      verify(bidTransactionDao, never()).insert(any());
+      verify(auctionDao, never()).updateInTransaction(any(), any());
+      verify(bidTransactionDao, never()).insert(any(), any());
       verify(eventManager, never()).notifyBidUpdate(anyLong(), any());
     }
   }
@@ -334,13 +363,12 @@ class BidServiceTest {
 
     @BeforeEach
     void setupMocks() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(runningAuction()));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID)).thenReturn(runningAuction());
     }
 
     @Test
     @DisplayName("Seller bid phiên của mình → InvalidBidException")
     void testBidOwnAuctionThrowsInvalidBidException() {
-      // SELLER_ID (= 1) là người tạo phiên và cũng là người bid
       InvalidBidException ex =
           assertThrows(
               InvalidBidException.class,
@@ -375,30 +403,29 @@ class BidServiceTest {
 
     @BeforeEach
     void setupMocks() {
-      doNothing().when(auctionDao).update(any(Auction.class));
-      doNothing().when(bidTransactionDao).insert(any(BidTransaction.class));
+      doNothing().when(auctionDao).updateInTransaction(eq(mockHandle), any(Auction.class));
+      when(bidTransactionDao.insert(eq(mockHandle), any(BidTransaction.class)))
+          .thenAnswer(inv -> inv.getArgument(1));
     }
 
     @Test
     @DisplayName("Bid khi còn 20 giây → endTime được gia hạn thêm 60 giây")
     void testAntiSnipingEndTimeExtended() {
-      Auction auction = buildAuction("RUNNING", 20); // còn 20 giây
+      Auction auction = buildAuction("RUNNING", 20);
       LocalDateTime originalEndTime = auction.getEndTime();
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(auction));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID)).thenReturn(auction);
 
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       ArgumentCaptor<Auction> captor = ArgumentCaptor.forClass(Auction.class);
-      verify(auctionDao, atLeastOnce()).update(captor.capture());
+      verify(auctionDao, atLeastOnce()).updateInTransaction(eq(mockHandle), captor.capture());
 
-      // Tìm lần update cuối (có thể update nhiều lần nếu auto-bid chain)
       Auction updatedAuction = captor.getAllValues().get(captor.getAllValues().size() - 1);
 
       assertTrue(
           updatedAuction.getEndTime().isAfter(originalEndTime),
           "endTime phải được gia hạn khi bid trong 30 giây cuối");
 
-      // Kiểm tra gia hạn ít nhất 50 giây (để margin cho test timing)
       long extendedSeconds =
           java.time.Duration.between(originalEndTime, updatedAuction.getEndTime()).getSeconds();
       assertTrue(
@@ -409,11 +436,11 @@ class BidServiceTest {
     @Test
     @DisplayName("Bid khi còn 20 giây → broadcast TIME_EXTENDED cho client")
     void testAntiSnipingTimeExtendedBroadcast() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(buildAuction("RUNNING", 20)));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID))
+          .thenReturn(buildAuction("RUNNING", 20));
 
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
-      // Kiểm tra eventManager.notifyTimeExtended() được gọi
       verify(eventManager, times(1))
           .notifyTimeExtended(eq(AUCTION_ID), any(BidUpdateMessage.class));
     }
@@ -421,21 +448,19 @@ class BidServiceTest {
     @Test
     @DisplayName("Bid khi còn 60 giây → endTime KHÔNG thay đổi")
     void testAntiSnipingNotTriggeredWhen60SecRemaining() {
-      Auction auction = buildAuction("RUNNING", 60); // còn 60 giây, trên ngưỡng 30
-      LocalDateTime originalEndTime = auction.getEndTime();
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(auction));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID))
+          .thenReturn(buildAuction("RUNNING", 60));
 
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
-      // notifyTimeExtended KHÔNG được gọi
       verify(eventManager, never()).notifyTimeExtended(anyLong(), any(BidUpdateMessage.class));
     }
 
     @Test
-    @DisplayName("Bid khi còn đúng 30 giây → trigger anti-sniping (boundary)")
+    @DisplayName("Bid khi còn đúng 29 giây → trigger anti-sniping (boundary)")
     void testAntiSnipingExactBoundary30Seconds() {
-      when(auctionDao.findById(AUCTION_ID))
-          .thenReturn(Optional.of(buildAuction("RUNNING", 29))); // 29 giây < 30 → trigger
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID))
+          .thenReturn(buildAuction("RUNNING", 29));
 
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
@@ -454,9 +479,10 @@ class BidServiceTest {
 
     @BeforeEach
     void setupMocks() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(runningAuction()));
-      doNothing().when(auctionDao).update(any(Auction.class));
-      doNothing().when(bidTransactionDao).insert(any(BidTransaction.class));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID)).thenReturn(runningAuction());
+      doNothing().when(auctionDao).updateInTransaction(eq(mockHandle), any(Auction.class));
+      when(bidTransactionDao.insert(eq(mockHandle), any(BidTransaction.class)))
+          .thenAnswer(inv -> inv.getArgument(1));
     }
 
     @Test
@@ -465,7 +491,7 @@ class BidServiceTest {
       bidService.placeBid(AUCTION_ID, BIDDER_ID, new BigDecimal("2000000"), false);
 
       ArgumentCaptor<BidTransaction> captor = ArgumentCaptor.forClass(BidTransaction.class);
-      verify(bidTransactionDao).insert(captor.capture());
+      verify(bidTransactionDao).insert(eq(mockHandle), captor.capture());
 
       assertFalse(
           captor.getValue().isAutoBid(), "Manual bid phải có autoBid = false trong BidTransaction");
@@ -477,7 +503,7 @@ class BidServiceTest {
       bidService.placeBid(AUCTION_ID, BIDDER_B_ID, new BigDecimal("2000000"), true);
 
       ArgumentCaptor<BidTransaction> captor = ArgumentCaptor.forClass(BidTransaction.class);
-      verify(bidTransactionDao).insert(captor.capture());
+      verify(bidTransactionDao).insert(eq(mockHandle), captor.capture());
 
       assertTrue(
           captor.getValue().isAutoBid(), "Auto bid phải có autoBid = true trong BidTransaction");
@@ -495,10 +521,11 @@ class BidServiceTest {
     @Test
     @DisplayName("auctionId không có trong DB → NotFoundException")
     void testBidAuctionNotFoundThrowsNotFoundException() {
-      when(auctionDao.findById(999L)).thenReturn(Optional.empty());
+      when(auctionDao.findByIdForUpdate(any(Handle.class), eq(999L)))
+          .thenThrow(new NotFoundException("Auction not found with id: 999"));
 
       assertThrows(
-          com.auction.exception.NotFoundException.class,
+          NotFoundException.class,
           () -> bidService.placeBid(999L, BIDDER_ID, new BigDecimal("2000000"), false),
           "Bid phiên không tồn tại → phải throw NotFoundException");
     }
@@ -515,9 +542,10 @@ class BidServiceTest {
     @Test
     @DisplayName("BID_UPDATE message chứa đúng auctionId, price, bidderId")
     void testObserverMessageCorrectContent() {
-      when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(runningAuction()));
-      doNothing().when(auctionDao).update(any(Auction.class));
-      doNothing().when(bidTransactionDao).insert(any(BidTransaction.class));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID)).thenReturn(runningAuction());
+      doNothing().when(auctionDao).updateInTransaction(eq(mockHandle), any(Auction.class));
+      when(bidTransactionDao.insert(eq(mockHandle), any(BidTransaction.class)))
+          .thenAnswer(inv -> inv.getArgument(1));
 
       BigDecimal bidAmount = new BigDecimal("3500000");
       bidService.placeBid(AUCTION_ID, BIDDER_ID, bidAmount, false);

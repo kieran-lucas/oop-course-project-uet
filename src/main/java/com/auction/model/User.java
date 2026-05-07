@@ -1,5 +1,7 @@
 package com.auction.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -16,8 +18,12 @@ import java.time.LocalDateTime;
 public abstract class User extends Entity {
 
   private String username;
+
+  @JsonIgnore
   private String passwordHash; // chỉ lưu giá trị đã hash (ví dụ: BCrypt), không lưu mật khẩu gốc
+
   private String email;
+  private BigDecimal balance = BigDecimal.ZERO;
 
   /** Constructor mặc định — phục vụ framework/JDBI khi tạo object. */
   protected User() {}
@@ -91,6 +97,14 @@ public abstract class User extends Entity {
 
   public void setEmail(String email) {
     this.email = email;
+  }
+
+  public BigDecimal getBalance() {
+    return balance;
+  }
+
+  public void setBalance(BigDecimal balance) {
+    this.balance = balance;
   }
 
   @Override
