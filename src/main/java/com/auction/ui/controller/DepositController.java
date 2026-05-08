@@ -57,9 +57,13 @@ public class DepositController implements Navigable {
 
   @Override
   public void onNavigatedTo() {
-    if (amountField != null) amountField.clear();
+    if (amountField != null) {
+      amountField.clear();
+    }
     hideStatus();
-    if (historyList != null) historyList.setItems(historyItems);
+    if (historyList != null) {
+      historyList.setItems(historyItems);
+    }
     knownStatuses.clear();
     loadBalance();
     loadHistory();
@@ -110,7 +114,9 @@ public class DepositController implements Navigable {
                         String errMsg = "Gửi yêu cầu thất bại (HTTP " + response.statusCode() + ").";
                         try {
                           var node = MAPPER.readTree(response.body());
-                          if (node.has("message")) errMsg = node.get("message").asText();
+                          if (node.has("message")) {
+                            errMsg = node.get("message").asText();
+                          }
                         } catch (Exception ignored) {}
                         showStatus(errMsg, true);
                       }
@@ -195,13 +201,17 @@ public class DepositController implements Navigable {
           };
           NotificationStore.getInstance().add(notif);
           showStatus(notif, "REJECTED".equals(curr));
-          if ("APPROVED".equals(curr)) balanceChanged = true;
+          if ("APPROVED".equals(curr)) {
+            balanceChanged = true;
+          }
         }
         knownStatuses.put(r.getId(), curr);
       }
     }
     historyItems.setAll(items);
-    if (balanceChanged) loadBalance();
+    if (balanceChanged) {
+      loadBalance();
+    }
   }
 
   private void startDepositPoll() {

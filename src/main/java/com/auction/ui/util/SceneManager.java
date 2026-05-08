@@ -113,7 +113,9 @@ public class SceneManager {
    * @param fxmlName tên file FXML đích (ví dụ: "auction-list.fxml")
    */
   public void navigateTo(String fxmlName) {
-    if (currentFxml != null) backStack.push(currentFxml);
+    if (currentFxml != null) {
+      backStack.push(currentFxml);
+    }
     performNavigate(fxmlName, null, false);
   }
 
@@ -125,7 +127,9 @@ public class SceneManager {
    * @param data dữ liệu truyền sang
    */
   public void navigateTo(String fxmlName, Object data) {
-    if (currentFxml != null) backStack.push(currentFxml);
+    if (currentFxml != null) {
+      backStack.push(currentFxml);
+    }
     performNavigate(fxmlName, data, true);
   }
 

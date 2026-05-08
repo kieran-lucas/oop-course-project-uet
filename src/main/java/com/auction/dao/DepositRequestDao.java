@@ -28,7 +28,9 @@ public class DepositRequestDao {
       r.setStatus(rs.getString("status"));
       r.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
       var reviewed = rs.getTimestamp("reviewed_at");
-      if (reviewed != null) r.setReviewedAt(reviewed.toLocalDateTime());
+      if (reviewed != null) {
+        r.setReviewedAt(reviewed.toLocalDateTime());
+      }
       // username từ JOIN với bảng users (có thể null nếu query không JOIN)
       try { r.setUsername(rs.getString("username")); } catch (SQLException ignored) {}
       return r;
@@ -99,7 +101,9 @@ public class DepositRequestDao {
               r.setStatus(rs.getString("status"));
               r.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
               var reviewed = rs.getTimestamp("reviewed_at");
-              if (reviewed != null) r.setReviewedAt(reviewed.toLocalDateTime());
+              if (reviewed != null) {
+        r.setReviewedAt(reviewed.toLocalDateTime());
+      }
               return r;
             }).list());
   }
