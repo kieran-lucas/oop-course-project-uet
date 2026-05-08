@@ -19,6 +19,30 @@
      timer    #9333EA   countdown purple
    ================================================================ */
 
+/* ================================================================
+   FONTS
+   Two @font-face rules — one per actual CSS weight used in this file
+   (normal and bold). Numeric weights 100-900 are NOT used here because
+   JavaFX CSS does not implement the full @font-face font-weight matching
+   algorithm: when multiple @font-face rules share the same font-family,
+   only the LAST one is retained, so declaring 9 numeric-weight variants
+   would silently replace all of them with the final entry (Lexend-Black).
+   Using keyword values lets JavaFX correctly select the right file via
+   the standard "normal vs bold" style matching it does support.
+   ================================================================ */
+
+@font-face {
+    font-family: 'Lexend';
+    src: url('../fonts/Lexend-Regular.ttf');
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'Lexend';
+    src: url('../fonts/Lexend-Bold.ttf');
+    font-weight: bold;
+}
+
 /* ----------------------------------------------------------------
    ROOT
    ---------------------------------------------------------------- */
@@ -232,7 +256,7 @@
 }
 
 .countdown-label {
-    -fx-font-size: 13px;
+    -fx-font-size: 18px;
     -fx-font-weight: bold;
     -fx-text-fill: #9333EA;
 }

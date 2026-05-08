@@ -114,6 +114,16 @@ public class ClientApp extends Application {
       }
     }
     LOGGER.info("Đã load {}/{} biến thể font Lexend", loaded, variants.length);
+
+    // Diagnostic: verify which font families JavaFX CSS can actually see
+    java.util.List<String> lexendFamilies =
+        Font.getFamilies().stream()
+            .filter(f -> f.toLowerCase().startsWith("lexend"))
+            .collect(java.util.stream.Collectors.toList());
+    LOGGER.info("=== Lexend families visible to CSS: {} ===", lexendFamilies);
+    for (String fam : lexendFamilies) {
+      LOGGER.info("  '{}' → names: {}", fam, Font.getFontNames(fam));
+    }
   }
 
   /**
