@@ -55,7 +55,9 @@ public class ProfileController implements Navigable {
     if (balanceBox != null) {
       balanceBox.setVisible(hasBalance);
       balanceBox.setManaged(hasBalance);
-      if (profileBalanceLabel != null) profileBalanceLabel.setText("Đang tải...");
+      if (profileBalanceLabel != null) {
+        profileBalanceLabel.setText("Đang tải...");
+      }
     }
     if (hasBalance) {
       loadBalance();
