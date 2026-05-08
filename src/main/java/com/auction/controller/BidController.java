@@ -34,27 +34,29 @@ public class BidController {
 
   public void register(Javalin app) {
     // POST /api/auctions/{id}/bid — Đặt giá
-    // Yêu cầu: role = BIDDER (SELLER không được tự bid)
+    // Yêu cầu: role = BIDDER (SELLER không được tự bid phiên của chính mình nhưng vẫn được bid phiên của người khác)
     // Body: {"amount": 500000}
     // Response 201: BidTransaction JSON
-    app.post(
-        "/api/auctions/{id}/bid",
-        ctx -> {
-          String role = ctx.attribute("role");
-          if (!"BIDDER".equals(role)) {
-            throw new UnauthorizedException("Chỉ BIDDER mới được đặt giá");
-          }
+      app.post(
+          "/api/auctions/{id}/bid",
+          ctx -> {
+              String role = ctx.attribute("role");
 
-          Long auctionId = Long.parseLong(ctx.pathParam("id"));
-          Long bidderId = ctx.attribute("userId");
-          BidRequest request = ctx.bodyAsClass(BidRequest.class);
+              // ✅ THAY ĐỔI: Cho phép cả BIDDER và SELLER được đi qua
+              if (!"BIDDER".equals(role) && !"SELLER".equals(role)) {
+                  throw new UnauthorizedException("Chỉ BIDDER hoặc SELLER mới được tham gia đặt giá");
+              }
 
-          // Gọi BidService với signature mới
-          BidTransaction bid = bidService.placeBid(auctionId, bidderId, request.getAmount(), false);
+              Long auctionId = Long.parseLong(ctx.pathParam("id"));
+              Long bidderId = ctx.attribute("userId");
+              BidRequest request = ctx.bodyAsClass(BidRequest.class);
 
-          LOGGER.info("Bid đặt thành công qua API: auction={}, bidder={}", auctionId, bidderId);
-          ctx.status(201).json(bid);
-        });
+              // Gọi BidService với signature mới
+              BidTransaction bid = bidService.placeBid(auctionId, bidderId, request.getAmount(), false);
+
+              LOGGER.info("Bid đặt thành công qua API: auction={}, bidder={}", auctionId, bidderId);
+              ctx.status(201).json(bid);
+          });
 
     // GET /api/auctions/{id}/bids — Lịch sử bid
     // Dùng cho Bid History Chart (trục X = thời gian, trục Y = giá)
