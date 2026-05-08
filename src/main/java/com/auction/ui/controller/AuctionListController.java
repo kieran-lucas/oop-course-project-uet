@@ -84,7 +84,9 @@ public class AuctionListController implements Navigable {
   private final ObservableList<AuctionResponse> allAuctions = FXCollections.observableArrayList();
   private Timeline autoRefreshTimeline;
   private Timeline tableCountdownTimeline;
+  private Timeline balancePollTimeline;
   private javafx.beans.value.ChangeListener<Number> notificationListener;
+  private BigDecimal lastKnownBalance;
 
   // ========== JAVAFX INITIALIZE ==========
 
@@ -128,6 +130,7 @@ public class AuctionListController implements Navigable {
     loadAuctions();
     startAutoRefresh();
     startTableCountdown();
+    startBalancePoll();
   }
 
   /** Dừng auto-refresh và gỡ listener thông báo khi rời màn hình. */
@@ -135,6 +138,7 @@ public class AuctionListController implements Navigable {
   public void onNavigatedFrom() {
     stopAutoRefresh();
     stopTableCountdown();
+    stopBalancePoll();
     if (notificationListener != null) {
       NotificationStore.getInstance().unreadCountProperty().removeListener(notificationListener);
       notificationListener = null;
@@ -465,6 +469,58 @@ public class AuctionListController implements Navigable {
     if (tableCountdownTimeline != null) {
       tableCountdownTimeline.stop();
       tableCountdownTimeline = null;
+    }
+  }
+
+  private void startBalancePoll() {
+    stopBalancePoll();
+    if (!"BIDDER".equals(SceneManager.getInstance().getCurrentRole())) return;
+    lastKnownBalance = null;
+    Thread.ofVirtual().start(() -> {
+      try {
+        HttpResponse<String> resp = RestClient.get("/api/users/me");
+        if (resp.statusCode() == 200) {
+          var node = MAPPER.readTree(resp.body());
+          if (node.has("balance")) {
+            BigDecimal bal = node.get("balance").decimalValue();
+            Platform.runLater(() -> lastKnownBalance = bal);
+          }
+        }
+      } catch (Exception ignored) {}
+    });
+    balancePollTimeline = new Timeline(
+        new KeyFrame(Duration.seconds(5), ev ->
+            Thread.ofVirtual().start(() -> {
+              try {
+                HttpResponse<String> resp = RestClient.get("/api/users/me");
+                if (resp.statusCode() == 200) {
+                  var node = MAPPER.readTree(resp.body());
+                  if (node.has("balance")) {
+                    BigDecimal bal = node.get("balance").decimalValue();
+                    Platform.runLater(() -> {
+                      if (lastKnownBalance != null && bal.compareTo(lastKnownBalance) > 0) {
+                        BigDecimal diff = bal.subtract(lastKnownBalance);
+                        NotificationStore.getInstance().add(
+                            "Số dư tăng +" + VND.format(diff) + " — yêu cầu nạp tiền được duyệt");
+                      }
+                      lastKnownBalance = bal;
+                    });
+                  }
+                }
+              } catch (Exception e) {
+                LOGGER.debug("Balance poll lỗi: {}", e.getMessage());
+              }
+            })
+        )
+    );
+    balancePollTimeline.setCycleCount(Timeline.INDEFINITE);
+    balancePollTimeline.play();
+  }
+
+  private void stopBalancePoll() {
+    if (balancePollTimeline != null) {
+      balancePollTimeline.stop();
+      balancePollTimeline = null;
     }
   }
 

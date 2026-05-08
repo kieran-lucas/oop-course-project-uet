@@ -3,8 +3,8 @@ package com.auction.ui.controller;
 import com.auction.model.DepositRecord;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
+import com.auction.util.NotificationStore;
 import com.auction.util.RestClient;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.http.HttpResponse;
@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -22,6 +24,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,14 +52,23 @@ public class DepositController implements Navigable {
   @FXML private ListView<String> historyList;
 
   private final ObservableList<String> historyItems = FXCollections.observableArrayList();
+  private Timeline depositPollTimeline;
+  private final Map<Long, String> knownStatuses = new HashMap<>();
 
   @Override
   public void onNavigatedTo() {
     if (amountField != null) amountField.clear();
     hideStatus();
     if (historyList != null) historyList.setItems(historyItems);
+    knownStatuses.clear();
     loadBalance();
     loadHistory();
+    startDepositPoll();
+  }
+
+  @Override
+  public void onNavigatedFrom() {
+    stopDepositPoll();
   }
 
   /** Xử lý nạp tiền — validate số tiền và gửi POST request. */
@@ -143,34 +155,82 @@ public class DepositController implements Navigable {
   }
 
   private void loadHistory() {
-    Thread.ofVirtual()
-        .start(
-            () -> {
+    Thread.ofVirtual().start(() -> {
+      try {
+        HttpResponse<String> response = RestClient.get("/api/users/me/deposit-requests");
+        if (response.statusCode() == 200) {
+          List<DepositRecord> records = RestClient.parseList(response.body(), DepositRecord.class);
+          Platform.runLater(() -> applyDepositRecords(records, false));
+        } else {
+          LOGGER.error("Lỗi load lịch sử nạp tiền: HTTP {}", response.statusCode());
+        }
+      } catch (Exception e) {
+        LOGGER.error("Không thể load lịch sử nạp tiền", e);
+      }
+    });
+  }
+
+  /** Áp dụng danh sách DepositRecord lên UI. Nếu notify=true thì so sánh trạng thái và gửi thông báo khi có thay đổi. */
+  private void applyDepositRecords(List<DepositRecord> records, boolean notify) {
+    var items = FXCollections.<String>observableArrayList();
+    boolean balanceChanged = false;
+    for (DepositRecord r : records) {
+      String curr = r.getStatus() != null ? r.getStatus() : "PENDING";
+      String statusText = switch (curr) {
+        case "APPROVED" -> "✓ Đã duyệt";
+        case "REJECTED" -> "✗ Từ chối";
+        default -> "⏳ Chờ duyệt";
+      };
+      String dateStr = r.getCreatedAt() != null ? r.getCreatedAt().format(DATE_FMT) : "—";
+      String amtStr = r.getAmount() != null ? VND.format(r.getAmount()) : "—";
+      items.add(amtStr + "  |  " + statusText + "  |  " + dateStr);
+
+      if (r.getId() != null) {
+        String prev = knownStatuses.get(r.getId());
+        if (notify && prev != null && !prev.equals(curr)) {
+          String notif = switch (curr) {
+            case "APPROVED" -> "Nạp tiền " + amtStr + " đã được duyệt ✓";
+            case "REJECTED" -> "Nạp tiền " + amtStr + " bị từ chối ✗";
+            default -> "Trạng thái nạp tiền " + amtStr + " đã thay đổi";
+          };
+          NotificationStore.getInstance().add(notif);
+          showStatus(notif, "REJECTED".equals(curr));
+          if ("APPROVED".equals(curr)) balanceChanged = true;
+        }
+        knownStatuses.put(r.getId(), curr);
+      }
+    }
+    historyItems.setAll(items);
+    if (balanceChanged) loadBalance();
+  }
+
+  private void startDepositPoll() {
+    stopDepositPoll();
+    depositPollTimeline = new Timeline(
+        new KeyFrame(Duration.seconds(4), e ->
+            Thread.ofVirtual().start(() -> {
               try {
                 HttpResponse<String> response = RestClient.get("/api/users/me/deposit-requests");
                 if (response.statusCode() == 200) {
                   List<DepositRecord> records =
                       RestClient.parseList(response.body(), DepositRecord.class);
-                  var items = FXCollections.<String>observableArrayList();
-                  for (DepositRecord r : records) {
-                    String statusText = switch (r.getStatus() != null ? r.getStatus() : "") {
-                      case "APPROVED" -> "✓ Đã duyệt";
-                      case "REJECTED" -> "✗ Từ chối";
-                      default -> "⏳ Chờ duyệt";
-                    };
-                    String dateStr = r.getCreatedAt() != null
-                        ? r.getCreatedAt().format(DATE_FMT) : "—";
-                    String amtStr = r.getAmount() != null ? VND.format(r.getAmount()) : "—";
-                    items.add(amtStr + "  |  " + statusText + "  |  " + dateStr);
-                  }
-                  Platform.runLater(() -> historyItems.setAll(items));
-                } else {
-                  LOGGER.error("Lỗi load lịch sử nạp tiền: HTTP {}", response.statusCode());
+                  Platform.runLater(() -> applyDepositRecords(records, true));
                 }
-              } catch (Exception e) {
-                LOGGER.error("Không thể load lịch sử nạp tiền", e);
+              } catch (Exception e2) {
+                LOGGER.debug("Deposit poll lỗi: {}", e2.getMessage());
               }
-            });
+            })
+        )
+    );
+    depositPollTimeline.setCycleCount(Timeline.INDEFINITE);
+    depositPollTimeline.play();
+  }
+
+  private void stopDepositPoll() {
+    if (depositPollTimeline != null) {
+      depositPollTimeline.stop();
+      depositPollTimeline = null;
+    }
   }
 
   private void showStatus(String msg, boolean isError) {

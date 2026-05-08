@@ -81,9 +81,13 @@ public class WebSocketClient {
 
               @Override
               public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
-                String json = data.toString();
-                LOGGER.debug("WS nhận message: {}", json);
-                currentOnMessage.accept(json);
+                // Discard messages that arrive after an intentional disconnect to prevent
+                // duplicates when a BackgroundBidWatcher connection is starting up in parallel.
+                if (!intentionalClose) {
+                  String json = data.toString();
+                  LOGGER.debug("WS nhận message: {}", json);
+                  currentOnMessage.accept(json);
+                }
                 ws.request(1);
                 return null;
               }

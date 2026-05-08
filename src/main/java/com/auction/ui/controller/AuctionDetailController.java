@@ -191,6 +191,8 @@ public class AuctionDetailController implements Navigable {
     bidBox.setManaged(isBidder);
 
     if (auctionId != null) {
+      // Stop background watcher for this auction before taking over with the detail WS
+      com.auction.util.BackgroundBidWatcher.getInstance().stopWatching(auctionId);
       loadAuctionDetail();
       loadBidHistory();
       connectWebSocket(sm.getJwtToken());
@@ -201,6 +203,9 @@ public class AuctionDetailController implements Navigable {
 
   @Override
   public void onNavigatedFrom() {
+    // Disconnect the detail WS FIRST so it stops receiving messages.
+    // Only after that, register the background watcher to avoid a dual-connection window
+    // where the same bid would trigger two notifications.
     wsClient.disconnect();
     stopCountdown();
     stopBalancePoll();
@@ -211,6 +216,15 @@ public class AuctionDetailController implements Navigable {
     leftScrollPane.prefWidthProperty().unbind();
     rightColumn.prefWidthProperty().unbind();
     endedBox.maxWidthProperty().unbind();
+    // Register background watcher AFTER disconnect to avoid dual-connection duplicates
+    if (userHasBid && auctionId != null) {
+      SceneManager sm = SceneManager.getInstance();
+      String token = sm.getJwtToken();
+      if (token != null) {
+        com.auction.util.BackgroundBidWatcher.getInstance()
+            .watch(auctionId, token, currentItemName, sm.getCurrentUserId());
+      }
+    }
     auctionId = null;
   }
 
