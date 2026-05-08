@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  */
 public class AuctionController {
 
-  /** Logger ghi lại các thao tác CRUD trên phiên đấu giá. */
+  /** Logger ghi lại các thao tác CRUD trên phiên đấu giá */
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionController.class);
 
   /** Hàm khởi tạo private — lớp này chỉ dùng static methods, không cần instance. */

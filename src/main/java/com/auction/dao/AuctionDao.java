@@ -14,16 +14,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * DAO (Data Access Object) cho bảng auctions.
+ * DAO (Data Access Object) cho bảng auctions
  *
  * <p>Class này chịu trách nhiệm giao tiếp với bảng auctions trong database. Đây là DAO quan trọng
  * nhất vì nó xử lý các thao tác đấu giá cốt lõi, bao gồm cả việc khóa row để tránh race condition
- * (SELECT FOR UPDATE).
+ * (SELECT FOR UPDATE)
  *
  * <h3>Vai trò trong hệ thống</h3>
  *
  * <p>AuctionDao nằm ở tầng dưới cùng, được AuctionService và BidService gọi. Mọi thao tác đọc/ghi
- * trên bảng auctions đều đi qua DAO này.
+ * trên bảng auctions đều đi qua DAO này
  *
  * <h3>Concurrency - SELECT FOR UPDATE</h3>
  *
