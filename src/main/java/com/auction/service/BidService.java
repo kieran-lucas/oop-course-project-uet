@@ -3,6 +3,7 @@ package com.auction.service;
 import com.auction.dao.AuctionDao;
 import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
+import com.auction.dao.UserDao;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
@@ -52,6 +53,7 @@ public class BidService {
   private final AuctionEventManager eventManager;
   private final Jdbi jdbi;
   private final AuctionService auctionService;
+  private final UserDao userDao;
   private final AutoBidStrategy autoBidStrategy;
 
   public BidService(
@@ -60,13 +62,15 @@ public class BidService {
       AutoBidConfigDao autoBidConfigDao,
       AuctionEventManager eventManager,
       Jdbi jdbi,
-      AuctionService auctionService) {
+      AuctionService auctionService,
+      UserDao userDao) {
     this.auctionDao = auctionDao;
     this.bidTransactionDao = bidTransactionDao;
     this.autoBidConfigDao = autoBidConfigDao;
     this.eventManager = eventManager;
     this.jdbi = jdbi;
     this.auctionService = auctionService;
+    this.userDao = userDao;
     this.autoBidStrategy = new AutoBidStrategy(autoBidConfigDao);
   }
 
@@ -161,9 +165,10 @@ public class BidService {
   private void notifyBidUpdate(
       Auction auction, Long auctionId, Long bidderId, BigDecimal amount, boolean isAutoBid) {
     try {
+      String username = userDao.findById(bidderId).map(u -> u.getUsername()).orElse(null);
       BidUpdateMessage msg =
           BidUpdateMessage.bidUpdate(
-              auctionId, amount, bidderId, null, auction.getEndTime(), isAutoBid);
+              auctionId, amount, bidderId, username, auction.getEndTime(), isAutoBid);
       eventManager.notifyBidUpdate(auctionId, msg);
     } catch (Exception e) {
       LOGGER.error("Lỗi khi notify BID_UPDATE cho phiên #{}: {}", auctionId, e.getMessage());

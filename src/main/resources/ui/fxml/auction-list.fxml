@@ -10,6 +10,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane styleClass="main-layout"
@@ -27,6 +28,16 @@
          <Region HBox.hgrow="ALWAYS" />
          <Label fx:id="usernameLabel" styleClass="username-label" text="Người dùng"
                 onMouseClicked="#handleProfile" />
+         <!-- Notification bell — only visible for BIDDER role -->
+         <StackPane fx:id="bellPane" visible="false" managed="false">
+            <Button fx:id="bellButton" styleClass="bell-button" onAction="#handleBellClick">
+               <graphic><Region styleClass="bell-icon" /></graphic>
+            </Button>
+            <Label fx:id="badgeLabel" text="0" styleClass="notification-badge"
+                   StackPane.alignment="TOP_RIGHT"
+                   translateX="5.0" translateY="9.0"
+                   visible="false" managed="false" />
+         </StackPane>
          <Button styleClass="logout-button" text="Đăng xuất" onAction="#handleLogout" />
       </HBox>
    </top>
@@ -40,11 +51,14 @@
 
          <!-- Toolbar: search + filter + actions -->
          <HBox alignment="CENTER_LEFT" spacing="10.0">
-            <TextField fx:id="searchField" promptText="Tìm kiếm theo tên sản phẩm..."
-                       prefWidth="320.0" styleClass="search-field"
+            <TextField fx:id="searchField" promptText="Tìm theo tên sản phẩm..."
+                       prefWidth="200.0" styleClass="search-field"
                        onAction="#handleSearch" />
             <ComboBox fx:id="statusFilter" promptText="Lọc trạng thái"
-                      prefWidth="170.0" styleClass="combo-box"
+                      prefWidth="150.0" styleClass="combo-box"
+                      onAction="#handleSearch" />
+            <ComboBox fx:id="categoryFilter" promptText="Lọc danh mục"
+                      prefWidth="150.0" styleClass="combo-box"
                       onAction="#handleSearch" />
             <Button text="Tìm" styleClass="secondary-button" onAction="#handleSearch" />
             <Button text="Làm mới" styleClass="secondary-button" onAction="#handleRefresh" />

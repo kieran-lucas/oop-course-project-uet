@@ -18,7 +18,6 @@ import com.auction.pattern.state.PaidState;
 import com.auction.pattern.state.RunningState;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +58,7 @@ public class AuctionService {
   public List<AuctionResponse> getAll(String status) {
     return getAllAuctions(status).stream()
         .map(this::enrichAuctionResponse)
-        .collect(Collectors.toList());
+        .toList();
   }
 
   /**

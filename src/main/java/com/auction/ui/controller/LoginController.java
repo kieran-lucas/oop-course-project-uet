@@ -71,6 +71,11 @@ public class LoginController implements Navigable {
     }
   }
 
+  @Override
+  public void onNavigatedFrom() {
+    expectedRole = null;
+  }
+
   /** Reset form khi navigate trở lại màn hình này. */
   @Override
   public void onNavigatedTo() {
@@ -203,26 +208,22 @@ public class LoginController implements Navigable {
   private void showError(String message) {
     errorLabel.setText(message);
     errorLabel.setVisible(true);
+    errorLabel.setManaged(true);
   }
 
   private void hideError() {
     errorLabel.setVisible(false);
+    errorLabel.setManaged(false);
   }
 
   private void clearForm() {
-    expectedRole = null;
-    if (usernameField != null) {
-      usernameField.clear();
-    }
-    if (passwordField != null) {
-      passwordField.clear();
-    }
-    if (roleHintLabel != null) {
+    if (usernameField != null) usernameField.clear();
+    if (passwordField != null) passwordField.clear();
+    // Only reset the hint label when there is no expected role — onDataReceived may have set it
+    if (roleHintLabel != null && expectedRole == null) {
       roleHintLabel.setText("Đăng nhập");
     }
     hideError();
-    if (loginButton != null) {
-      loginButton.setDisable(false);
-    }
+    if (loginButton != null) loginButton.setDisable(false);
   }
 }

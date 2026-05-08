@@ -51,6 +51,13 @@
                      <Label fx:id="roleLabel" styleClass="detail-text" text="—" />
                   </VBox>
                </HBox>
+
+               <!-- Balance — shown for BIDDER and SELLER -->
+               <VBox fx:id="balanceBox" spacing="4.0" visible="false" managed="false"
+                     style="-fx-background-color: #EFF6FF; -fx-padding: 12 16 12 16; -fx-background-radius: 8;">
+                  <Label styleClass="field-label" text="SỐ DƯ TÀI KHOẢN" />
+                  <Label fx:id="profileBalanceLabel" styleClass="price-text" text="—" />
+               </VBox>
             </VBox>
 
             <Separator />

@@ -8,6 +8,7 @@ import java.net.http.WebSocket;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -34,6 +35,7 @@ public class WebSocketClient {
   private Consumer<String> currentOnMessage;
   private int retryCount;
   private boolean intentionalClose;
+  private ScheduledFuture<?> pendingReconnect;
 
   private final ScheduledExecutorService scheduler =
       Executors.newSingleThreadScheduledExecutor(
@@ -51,6 +53,7 @@ public class WebSocketClient {
    * @param onMessage callback nhận JSON string khi có message từ server
    */
   public void connect(Long auctionId, String jwtToken, Consumer<String> onMessage) {
+    cancelPendingReconnect();
     this.currentAuctionId = auctionId;
     this.currentToken = jwtToken;
     this.currentOnMessage = onMessage;
@@ -119,16 +122,23 @@ public class WebSocketClient {
       LOGGER.warn("WebSocket: đã thử {} lần, dừng kết nối lại.", MAX_RETRIES);
       return;
     }
-    // Exponential backoff: 2, 4, 8, 16, 30 seconds (capped at 30)
     long delaySec = Math.min(30L, 1L << (retryCount + 1));
     retryCount++;
     LOGGER.info("WebSocket: thử kết nối lại lần {} sau {}s...", retryCount, delaySec);
-    scheduler.schedule(this::doConnect, delaySec, TimeUnit.SECONDS);
+    pendingReconnect = scheduler.schedule(this::doConnect, delaySec, TimeUnit.SECONDS);
+  }
+
+  private void cancelPendingReconnect() {
+    if (pendingReconnect != null && !pendingReconnect.isDone()) {
+      pendingReconnect.cancel(false);
+      pendingReconnect = null;
+    }
   }
 
   /** Đóng kết nối WebSocket nếu đang mở. Nên gọi trong {@code Navigable.onNavigatedFrom()}. */
   public void disconnect() {
     intentionalClose = true;
+    cancelPendingReconnect();
     if (webSocket != null && !webSocket.isInputClosed()) {
       webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Client rời màn hình");
       webSocket = null;

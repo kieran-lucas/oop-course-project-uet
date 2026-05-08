@@ -3,46 +3,87 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<StackPane styleClass="login-root"
-           xmlns="http://javafx.com/javafx/21"
-           xmlns:fx="http://javafx.com/fxml/1"
-           fx:controller="com.auction.ui.controller.DepositController">
+<BorderPane styleClass="main-layout"
+            xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.auction.ui.controller.DepositController">
 
-   <VBox alignment="CENTER" maxWidth="440.0" spacing="0.0" styleClass="login-card">
+   <!-- ===== TOP BAR ===== -->
+   <top>
+      <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="top-bar">
+         <padding>
+            <Insets bottom="0.0" left="20.0" right="20.0" top="0.0" />
+         </padding>
+         <Button text="← Quay lại" styleClass="back-button" onAction="#goBack" />
+         <Label styleClass="app-logo" text="Nạp tiền" />
+         <Region HBox.hgrow="ALWAYS" />
+      </HBox>
+   </top>
 
-      <!-- Header -->
-      <VBox spacing="6.0">
-         <padding><Insets bottom="20.0" left="40.0" right="40.0" top="36.0" /></padding>
-         <Label styleClass="app-title" text="Nạp tiền" />
-         <Label fx:id="balanceLabel" styleClass="app-subtitle" text="Số dư hiện tại: —" />
-      </VBox>
+   <!-- ===== CENTER ===== -->
+   <center>
+      <ScrollPane fitToWidth="true" styleClass="page-scroll">
+         <VBox alignment="TOP_CENTER" spacing="0.0">
+            <padding>
+               <Insets bottom="32.0" left="40.0" right="40.0" top="28.0" />
+            </padding>
 
-      <Separator />
+            <VBox maxWidth="480.0" spacing="0.0" styleClass="form-card">
 
-      <!-- Form -->
-      <VBox spacing="14.0">
-         <padding><Insets bottom="28.0" left="40.0" right="40.0" top="20.0" /></padding>
+               <!-- Balance header -->
+               <VBox spacing="6.0">
+                  <padding><Insets bottom="20.0" left="24.0" right="24.0" top="24.0" /></padding>
+                  <Label styleClass="section-title" text="Số dư tài khoản" />
+                  <Label fx:id="balanceLabel" styleClass="price-text" text="Đang tải..." />
+               </VBox>
 
-         <VBox spacing="6.0">
-            <Label styleClass="field-label" text="SỐ TIỀN NẠP (VND)" />
-            <TextField fx:id="amountField" promptText="Nhập số tiền cần nạp"
-                       styleClass="text-field" />
+               <Separator />
+
+               <!-- Deposit form -->
+               <VBox spacing="14.0">
+                  <padding><Insets bottom="20.0" left="24.0" right="24.0" top="20.0" /></padding>
+
+                  <Label styleClass="section-title" text="Yêu cầu nạp tiền" />
+
+                  <VBox spacing="6.0">
+                     <Label styleClass="field-label" text="SỐ TIỀN NẠP (VND)" />
+                     <TextField fx:id="amountField" promptText="Nhập số tiền cần nạp"
+                                styleClass="text-field" maxWidth="Infinity" />
+                  </VBox>
+
+                  <Label fx:id="statusLabel" styleClass="status-label" text=""
+                         visible="false" managed="false" wrapText="true" />
+
+                  <Button fx:id="depositButton" text="Gửi yêu cầu nạp tiền"
+                          styleClass="primary-button"
+                          maxWidth="Infinity" onAction="#handleDeposit" />
+               </VBox>
+
+               <Separator />
+
+               <!-- History -->
+               <VBox spacing="10.0">
+                  <padding><Insets bottom="20.0" left="24.0" right="24.0" top="20.0" /></padding>
+                  <Label styleClass="section-title" text="Lịch sử yêu cầu nạp tiền" />
+                  <ListView fx:id="historyList" prefHeight="200.0" styleClass="bid-history-list">
+                     <placeholder>
+                        <Label text="Chưa có yêu cầu nào." />
+                     </placeholder>
+                  </ListView>
+               </VBox>
+
+            </VBox>
          </VBox>
+      </ScrollPane>
+   </center>
 
-         <Label fx:id="statusLabel" styleClass="status-label" text=""
-                visible="false" managed="false" wrapText="true" />
-
-         <Button fx:id="depositButton" text="Nạp tiền" styleClass="primary-button"
-                 maxWidth="Infinity" onAction="#handleDeposit" />
-
-         <Button text="Quay lại" styleClass="secondary-button"
-                 maxWidth="Infinity" onAction="#goBack" />
-      </VBox>
-   </VBox>
-
-</StackPane>
+</BorderPane>
