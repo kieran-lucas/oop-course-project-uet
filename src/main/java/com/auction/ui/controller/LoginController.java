@@ -217,13 +217,19 @@ public class LoginController implements Navigable {
   }
 
   private void clearForm() {
-    if (usernameField != null) usernameField.clear();
-    if (passwordField != null) passwordField.clear();
+    if (usernameField != null) {
+      usernameField.clear();
+    }
+    if (passwordField != null) {
+      passwordField.clear();
+    }
     // Only reset the hint label when there is no expected role — onDataReceived may have set it
     if (roleHintLabel != null && expectedRole == null) {
       roleHintLabel.setText("Đăng nhập");
     }
     hideError();
-    if (loginButton != null) loginButton.setDisable(false);
+    if (loginButton != null) {
+      loginButton.setDisable(false);
+    }
   }
 }

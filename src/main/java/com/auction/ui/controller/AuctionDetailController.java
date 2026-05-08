@@ -132,7 +132,9 @@ public class AuctionDetailController implements Navigable {
     hideBidError();
     bidAmountField.clear();
     bidButton.setDisable(false);
-    if (balanceLabel != null) balanceLabel.setText("Số dư: đang tải...");
+    if (balanceLabel != null) {
+      balanceLabel.setText("Số dư: đang tải...");
+    }
     autoBidStatusLabel.setText("");
     maxBidField.clear();
     incrementField.clear();
@@ -170,9 +172,15 @@ public class AuctionDetailController implements Navigable {
           @Override
           public String toString(Number v) {
             long n = v.longValue();
-            if (n >= 1_000_000_000) return String.format("%.1fT", n / 1_000_000_000.0);
-            if (n >= 1_000_000) return String.format("%.1fM", n / 1_000_000.0);
-            if (n >= 1_000) return (n / 1_000) + "K";
+            if (n >= 1_000_000_000) {
+              return String.format("%.1fT", n / 1_000_000_000.0);
+            }
+            if (n >= 1_000_000) {
+              return String.format("%.1fM", n / 1_000_000.0);
+            }
+            if (n >= 1_000) {
+              return (n / 1_000) + "K";
+            }
             return Long.toString(n);
           }
 
@@ -278,7 +286,9 @@ public class AuctionDetailController implements Navigable {
                 if (response.statusCode() == 201) {
                   Platform.runLater(
                       () -> {
-                        if (!bidAuctionId.equals(auctionId)) return;
+                        if (!bidAuctionId.equals(auctionId)) {
+                          return;
+                        }
                         userHasBid = true;
                         bidAmountField.clear();
                         hideBidError();
@@ -290,7 +300,9 @@ public class AuctionDetailController implements Navigable {
                   String msg = extractErrorMessage(response.body());
                   Platform.runLater(
                       () -> {
-                        if (!bidAuctionId.equals(auctionId)) return;
+                        if (!bidAuctionId.equals(auctionId)) {
+                          return;
+                        }
                         showBidError(msg);
                         bidButton.setDisable(false);
                         bidAmountField.requestFocus();
@@ -300,7 +312,9 @@ public class AuctionDetailController implements Navigable {
                 LOGGER.error("Lỗi đặt giá", e);
                 Platform.runLater(
                     () -> {
-                      if (!bidAuctionId.equals(auctionId)) return;
+                      if (!bidAuctionId.equals(auctionId)) {
+                        return;
+                      }
                       showBidError("Không thể kết nối đến server.");
                       bidButton.setDisable(false);
                       bidAmountField.requestFocus();
@@ -453,7 +467,9 @@ public class AuctionDetailController implements Navigable {
   }
 
   private void connectWebSocket(String token) {
-    if (token == null || token.isEmpty()) return;
+    if (token == null || token.isEmpty()) {
+      return;
+    }
     wsClient.connect(
         auctionId,
         token,
@@ -534,7 +550,9 @@ public class AuctionDetailController implements Navigable {
    * Chỉ thêm vào NotificationStore nếu user đã bid hoặc là seller.
    */
   private void showBidNotification(BidUpdateMessage msg) {
-    if (bidNotificationLabel == null) return;
+    if (bidNotificationLabel == null) {
+      return;
+    }
 
     Long currentUserId = SceneManager.getInstance().getCurrentUserId();
     String currentRole = SceneManager.getInstance().getCurrentRole();
@@ -575,7 +593,9 @@ public class AuctionDetailController implements Navigable {
 
   /** Toast khi số dư tăng — màu xanh đậm, hiển thị 4 giây. */
   private void showBalanceChangeNotification(String amountText) {
-    if (bidNotificationLabel == null) return;
+    if (bidNotificationLabel == null) {
+      return;
+    }
     String text = "Số dư tăng " + amountText;
     NotificationStore.getInstance().add(text);
     displayToast(text, "#1B5E20", 4);
@@ -591,7 +611,9 @@ public class AuctionDetailController implements Navigable {
     bidNotificationLabel.setVisible(true);
     bidNotificationLabel.setManaged(true);
 
-    if (notificationTimeline != null) notificationTimeline.stop();
+    if (notificationTimeline != null) {
+      notificationTimeline.stop();
+    }
     notificationTimeline =
         new Timeline(
             new KeyFrame(
@@ -606,7 +628,9 @@ public class AuctionDetailController implements Navigable {
   // ========== BALANCE POLLING ==========
 
   private void updateBalanceLabel(BigDecimal balance) {
-    if (balanceLabel == null) return;
+    if (balanceLabel == null) {
+      return;
+    }
     balanceLabel.setText("Số dư: " + VND.format(balance));
     balanceLabel.setStyle(
         balance.compareTo(BigDecimal.ZERO) == 0

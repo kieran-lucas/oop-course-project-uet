@@ -47,7 +47,9 @@ public class BackgroundBidWatcher {
    * @param currentUserId ID người dùng hiện tại (để phân biệt bid của mình)
    */
   public void watch(Long auctionId, String token, String itemName, Long currentUserId) {
-    if (auctionId == null || token == null || watchers.containsKey(auctionId)) return;
+    if (auctionId == null || token == null || watchers.containsKey(auctionId)) {
+      return;
+    }
     String label = itemName != null ? itemName : "Phiên #" + auctionId;
     itemNames.put(auctionId, label);
     WebSocketClient ws = new WebSocketClient();
@@ -81,12 +83,16 @@ public class BackgroundBidWatcher {
   }
 
   private void handleMessage(Long auctionId, BidUpdateMessage msg, Long currentUserId) {
-    if (msg == null) return;
+    if (msg == null) {
+      return;
+    }
     String label = "[" + itemNames.getOrDefault(auctionId, "Phiên #" + auctionId) + "] ";
 
     switch (msg.getType()) {
       case BidUpdateMessage.TYPE_BID_UPDATE -> {
-        if (msg.getCurrentPrice() == null) return;
+        if (msg.getCurrentPrice() == null) {
+          return;
+        }
         boolean isOwnBid = msg.getLeadingBidderId() != null
             && msg.getLeadingBidderId().equals(currentUserId);
         String price = VND.format(msg.getCurrentPrice());

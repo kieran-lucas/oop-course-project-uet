@@ -294,7 +294,9 @@ public class AuctionListController implements Navigable {
   // ========== PRIVATE HELPERS ==========
 
   private void updateBadge() {
-    if (badgeLabel == null) return;
+    if (badgeLabel == null) {
+      return;
+    }
     int count = NotificationStore.getInstance().getUnreadCount();
     if (count > 0) {
       badgeLabel.setText(count > 99 ? "99+" : String.valueOf(count));
@@ -306,7 +308,9 @@ public class AuctionListController implements Navigable {
   }
 
   private void updateCategoryFilter(List<AuctionResponse> auctions) {
-    if (categoryFilter == null) return;
+    if (categoryFilter == null) {
+      return;
+    }
     String current = categoryFilter.getValue();
     java.util.List<String> categories = new java.util.ArrayList<>();
     categories.add("Tất cả");
@@ -474,7 +478,9 @@ public class AuctionListController implements Navigable {
 
   private void startBalancePoll() {
     stopBalancePoll();
-    if (!"BIDDER".equals(SceneManager.getInstance().getCurrentRole())) return;
+    if (!"BIDDER".equals(SceneManager.getInstance().getCurrentRole())) {
+      return;
+    }
     lastKnownBalance = null;
     Thread.ofVirtual().start(() -> {
       try {
