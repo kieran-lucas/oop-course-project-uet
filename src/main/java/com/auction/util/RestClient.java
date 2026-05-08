@@ -163,8 +163,11 @@ public class RestClient {
     return builder;
   }
 
-  /** Serialize object thành HttpRequest.BodyPublisher JSON. */
+  /** Serialize object thành HttpRequest.BodyPublisher JSON. Nếu body null → body rỗng. */
   private static HttpRequest.BodyPublisher toBody(Object body) {
+    if (body == null) {
+      return HttpRequest.BodyPublishers.noBody();
+    }
     try {
       String json = MAPPER.writeValueAsString(body);
       return HttpRequest.BodyPublishers.ofString(json);

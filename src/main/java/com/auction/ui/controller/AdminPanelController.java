@@ -2,14 +2,18 @@ package com.auction.ui.controller;
 
 import com.auction.dto.AuctionResponse;
 import com.auction.dto.UserResponse;
+import com.auction.model.DepositRecord;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
 import java.math.BigDecimal;
 import java.net.http.HttpResponse;
 import java.text.NumberFormat;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -22,6 +26,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,13 +71,23 @@ public class AdminPanelController implements Navigable {
   @FXML private TableColumn<UserResponse, BigDecimal> balanceCol;
   @FXML private TableColumn<UserResponse, Void> userActionCol;
 
+  @FXML private TableView<DepositRecord> depositTable;
+  @FXML private TableColumn<DepositRecord, Long> depositIdCol;
+  @FXML private TableColumn<DepositRecord, String> depositUserCol;
+  @FXML private TableColumn<DepositRecord, BigDecimal> depositAmountCol;
+  @FXML private TableColumn<DepositRecord, java.time.LocalDateTime> depositTimeCol;
+  @FXML private TableColumn<DepositRecord, Void> depositActionCol;
+
   private final ObservableList<AuctionResponse> allAuctions = FXCollections.observableArrayList();
   private final ObservableList<UserResponse> allUsers = FXCollections.observableArrayList();
+  private final ObservableList<DepositRecord> pendingDeposits = FXCollections.observableArrayList();
+  private Timeline depositRefreshTimeline;
 
   @FXML
   public void initialize() {
     setupColumns();
     setupUserColumns();
+    setupDepositColumns();
   }
 
   // ========== NAVIGABLE LIFECYCLE ==========
@@ -84,6 +99,13 @@ public class AdminPanelController implements Navigable {
         sm.getCurrentUsername() != null ? sm.getCurrentUsername() + " (ADMIN)" : "ADMIN");
     loadAuctions();
     loadUsers();
+    loadDepositRequests();
+    startDepositRefresh();
+  }
+
+  @Override
+  public void onNavigatedFrom() {
+    stopDepositRefresh();
   }
 
   // ========== FXML ACTIONS ==========
@@ -106,6 +128,16 @@ public class AdminPanelController implements Navigable {
   @FXML
   public void handleRefresh() {
     loadAuctions();
+  }
+
+  @FXML
+  public void handleRefreshDeposits() {
+    loadDepositRequests();
+  }
+
+  @FXML
+  public void handleProfile() {
+    SceneManager.getInstance().navigateTo("profile.fxml");
   }
 
   @FXML
@@ -227,6 +259,8 @@ public class AdminPanelController implements Navigable {
                           case "RUNNING" -> "-fx-text-fill: #00c853; -fx-font-weight: bold;";
                           case "OPEN" -> "-fx-text-fill: #2196f3; -fx-font-weight: bold;";
                           case "FINISHED" -> "-fx-text-fill: #9e9e9e;";
+                          case "CANCELED" -> "-fx-text-fill: #e53935;";
+                          case "PAID" -> "-fx-text-fill: #7b1fa2;";
                           default -> "";
                         });
               }
@@ -309,7 +343,151 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  private void loadDepositRequests() {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.get("/api/admin/deposit-requests");
+                if (response.statusCode() == 200) {
+                  List<DepositRecord> list =
+                      RestClient.parseList(response.body(), DepositRecord.class);
+                  Platform.runLater(
+                      () -> {
+                        pendingDeposits.setAll(list);
+                        depositTable.setItems(FXCollections.observableArrayList(pendingDeposits));
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi load deposit requests", e);
+              }
+            });
+  }
+
+  private void approveDeposit(Long id) {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.post("/api/admin/deposit-requests/" + id + "/approve", null);
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 200) {
+                        setStatus("Đã duyệt yêu cầu nạp tiền #" + id);
+                        loadDepositRequests();
+                        loadUsers();
+                      } else {
+                        setStatus("Duyệt thất bại: " + response.statusCode());
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi duyệt deposit {}", id, e);
+                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+              }
+            });
+  }
+
+  private void rejectDeposit(Long id) {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.post("/api/admin/deposit-requests/" + id + "/reject", null);
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 204) {
+                        setStatus("Đã từ chối yêu cầu nạp tiền #" + id);
+                        loadDepositRequests();
+                      } else {
+                        setStatus("Từ chối thất bại: " + response.statusCode());
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi từ chối deposit {}", id, e);
+                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+              }
+            });
+  }
+
+  private void setupDepositColumns() {
+    depositIdCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+    depositUserCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+
+    depositAmountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
+    depositAmountCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              @Override
+              protected void updateItem(BigDecimal amount, boolean empty) {
+                super.updateItem(amount, empty);
+                setText(empty || amount == null ? null : VND.format(amount));
+              }
+            });
+
+    depositTimeCol.setCellValueFactory(new PropertyValueFactory<>("createdAt"));
+    depositTimeCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              private final DateTimeFormatter fmt =
+                  DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+              @Override
+              protected void updateItem(java.time.LocalDateTime item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.format(fmt));
+              }
+            });
+
+    depositActionCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              private final Button approveBtn = new Button("Duyệt");
+              private final Button rejectBtn = new Button("Từ chối");
+              private final HBox box = new HBox(6, approveBtn, rejectBtn);
+
+              {
+                approveBtn.setStyle("-fx-background-color: #43a047; -fx-text-fill: white;");
+                rejectBtn.setStyle("-fx-background-color: #e53935; -fx-text-fill: white;");
+                approveBtn.setOnAction(
+                    e -> {
+                      DepositRecord r = getTableView().getItems().get(getIndex());
+                      approveDeposit(r.getId());
+                    });
+                rejectBtn.setOnAction(
+                    e -> {
+                      DepositRecord r = getTableView().getItems().get(getIndex());
+                      rejectDeposit(r.getId());
+                    });
+              }
+
+              @Override
+              protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : box);
+              }
+            });
+  }
+
+  private void startDepositRefresh() {
+    stopDepositRefresh();
+    depositRefreshTimeline = new Timeline(
+        new KeyFrame(Duration.seconds(15), e -> loadDepositRequests()));
+    depositRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
+    depositRefreshTimeline.play();
+  }
+
+  private void stopDepositRefresh() {
+    if (depositRefreshTimeline != null) {
+      depositRefreshTimeline.stop();
+      depositRefreshTimeline = null;
+    }
+  }
+
   private void setStatus(String text) {
     statusLabel.setText(text);
+    statusLabel.setVisible(true);
+    statusLabel.setManaged(true);
   }
 }

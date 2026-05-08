@@ -2,6 +2,8 @@ package com.auction.ui.util;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import javafx.fxml.FXMLLoader;
@@ -74,6 +76,9 @@ public class SceneManager {
   /** Tên FXML đang hiển thị hiện tại — dùng để gọi onNavigatedFrom() */
   private String currentFxml;
 
+  /** Stack lịch sử điều hướng — dùng cho navigateBack() */
+  private final Deque<String> backStack = new ArrayDeque<>();
+
   // ========== SESSION STATE ==========
 
   private String jwtToken;
@@ -103,19 +108,43 @@ public class SceneManager {
   // ========== NAVIGATION — CORE ==========
 
   /**
-   * Chuyển sang màn hình khác (không truyền data).
+   * Chuyển sang màn hình mới — ghi lại màn hình hiện tại vào backStack để có thể quay lại.
    *
-   * <p>Luồng: 1. Gọi onNavigatedFrom() trên controller hiện tại 2. Kiểm tra cache → nếu chưa có thì
-   * lazy load FXML 3. Swap view trong StackPane 4. Gọi onNavigatedTo() trên controller mới
-   *
-   * @param fxmlName tên file FXML (ví dụ: "login.fxml", "auction-list.fxml")
+   * @param fxmlName tên file FXML đích (ví dụ: "auction-list.fxml")
    */
   public void navigateTo(String fxmlName) {
-    // Bước 1: Thông báo controller cũ rằng sắp rời đi
+    if (currentFxml != null) backStack.push(currentFxml);
+    performNavigate(fxmlName, null, false);
+  }
+
+  /**
+   * Chuyển màn hình + truyền data cho controller đích.
+   * onDataReceived() được gọi TRƯỚC onNavigatedTo() để controller có đủ data.
+   *
+   * @param fxmlName tên file FXML đích
+   * @param data dữ liệu truyền sang
+   */
+  public void navigateTo(String fxmlName, Object data) {
+    if (currentFxml != null) backStack.push(currentFxml);
+    performNavigate(fxmlName, data, true);
+  }
+
+  /**
+   * Quay lại màn hình trước trong backStack. Nếu stack rỗng, dùng {@code defaultFxml}.
+   * KHÔNG ghi màn hình hiện tại vào stack (không tạo vòng lặp).
+   */
+  public void navigateBack(String defaultFxml) {
+    String target = backStack.isEmpty() ? defaultFxml : backStack.pop();
+    performNavigate(target, null, false);
+  }
+
+  /**
+   * Thực hiện điều hướng — dùng chung cho navigateTo, navigateBack, và logout.
+   * Gọi onNavigatedFrom() của controller cũ và onNavigatedTo() của controller mới.
+   */
+  private void performNavigate(String fxmlName, Object data, boolean hasData) {
     notifyNavigatedFrom();
 
-    // Bước 2: Lấy view từ cache hoặc lazy load
-    // FIX: bọc try-catch để exception không bị JavaFX nuốt im lặng
     Parent view;
     try {
       view = viewCache.get(fxmlName);
@@ -123,83 +152,31 @@ public class SceneManager {
         view = loadFxml(fxmlName);
       }
     } catch (Exception e) {
-      LOGGER.error("navigateTo thất bại khi load '{}': {}", fxmlName, e.getMessage(), e);
-      // Hiện thông báo lỗi trực tiếp trên màn hình thay vì crash im lặng
+      LOGGER.error("performNavigate thất bại khi load '{}': {}", fxmlName, e.getMessage(), e);
       showErrorScreen("Không thể load màn hình: " + fxmlName + "\n" + e.getMessage());
       return;
     }
 
-    // Bước 3: Swap — thao tác cực nhanh, chỉ thay DOM node
     rootContainer.getChildren().setAll(view);
     currentFxml = fxmlName;
 
-    // Bước 4: Thông báo controller mới rằng đã navigate tới
     Object controller = controllerCache.get(fxmlName);
     if (controller instanceof Navigable nav) {
+      if (hasData) {
+        try {
+          nav.onDataReceived(data);
+        } catch (Exception e) {
+          LOGGER.error("onDataReceived() lỗi ở '{}': {}", fxmlName, e.getMessage(), e);
+        }
+      }
       try {
         nav.onNavigatedTo();
       } catch (Exception e) {
-        // FIX: onNavigatedTo() throw exception không được crash toàn app
         LOGGER.error("onNavigatedTo() lỗi ở '{}': {}", fxmlName, e.getMessage(), e);
       }
     }
 
     LOGGER.debug("Navigated to: {}", fxmlName);
-  }
-
-  /**
-   * Chuyển màn hình + truyền data cho controller đích.
-   *
-   * <p>FIX: onDataReceived() được gọi TRƯỚC onNavigatedTo() để controller có đủ data khi
-   * onNavigatedTo() chạy. Ví dụ: AuctionDetailController cần auctionId trước khi onNavigatedTo()
-   * gọi loadAuctionDetail().
-   *
-   * @param fxmlName tên file FXML đích
-   * @param data dữ liệu truyền sang (bất kỳ kiểu)
-   */
-  public void navigateTo(String fxmlName, Object data) {
-    // Bước 1: Thông báo controller cũ
-    notifyNavigatedFrom();
-
-    // Bước 2: Load FXML nếu chưa cache
-    Parent view;
-    try {
-      view = viewCache.get(fxmlName);
-      if (view == null) {
-        view = loadFxml(fxmlName);
-      }
-    } catch (Exception e) {
-      LOGGER.error("navigateTo(data) thất bại khi load '{}': {}", fxmlName, e.getMessage(), e);
-      showErrorScreen("Không thể load màn hình: " + fxmlName + "\n" + e.getMessage());
-      return;
-    }
-
-    // Bước 3: Swap view
-    rootContainer.getChildren().setAll(view);
-    currentFxml = fxmlName;
-
-    Object controller = controllerCache.get(fxmlName);
-
-    // Bước 4: FIX — truyền data TRƯỚC khi gọi onNavigatedTo()
-    // Lý do: onNavigatedTo() thường dùng data (ví dụ auctionId) ngay lập tức
-    if (controller instanceof Navigable nav) {
-      try {
-        nav.onDataReceived(data);
-      } catch (Exception e) {
-        LOGGER.error("onDataReceived() lỗi ở '{}': {}", fxmlName, e.getMessage(), e);
-      }
-    }
-
-    // Bước 5: Sau khi có data rồi mới gọi onNavigatedTo()
-    if (controller instanceof Navigable nav) {
-      try {
-        nav.onNavigatedTo();
-      } catch (Exception e) {
-        LOGGER.error("onNavigatedTo() lỗi ở '{}': {}", fxmlName, e.getMessage(), e);
-      }
-    }
-
-    LOGGER.debug("Navigated to: {} (with data: {})", fxmlName, data);
   }
 
   // ========== FXML LOADING ==========
@@ -268,6 +245,8 @@ public class SceneManager {
     currentUsername = null;
     currentRole = null;
     currentUserId = null;
+    backStack.clear();
+    com.auction.util.NotificationStore.getInstance().clear();
 
     // Xóa cache các view cần auth, giữ lại welcome + login + register
     viewCache
@@ -281,7 +260,8 @@ public class SceneManager {
             k ->
                 !k.equals("welcome.fxml") && !k.equals("login.fxml") && !k.equals("register.fxml"));
 
-    navigateTo("welcome.fxml");
+    // Dùng performNavigate trực tiếp — không push vào backStack sau khi đã clear
+    performNavigate("welcome.fxml", null, false);
   }
 
   /**

@@ -10,10 +10,12 @@ import com.auction.controller.ItemController;
 import com.auction.dao.AuctionDao;
 import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
+import com.auction.dao.DepositRequestDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.ChangePasswordRequest;
 import com.auction.dto.DepositRequest;
+import com.auction.model.DepositRecord;
 import com.auction.dto.ErrorResponse;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.DuplicateException;
@@ -75,6 +77,7 @@ public class App {
     // ── 2. Khởi tạo Database ─────────────────────────────────
     Jdbi jdbi = DatabaseConfig.create();
     LOGGER.info("Kết nối database thành công");
+    ensureSchemaExists(jdbi);
 
     // ── 3. Khởi tạo DAOs ────────────────────────────────────
     var userDao = new UserDao(jdbi);
@@ -82,6 +85,7 @@ public class App {
     var auctionDao = new AuctionDao(jdbi);
     var bidTransactionDao = new BidTransactionDao(jdbi);
     var autoBidConfigDao = new AutoBidConfigDao(jdbi);
+    var depositRequestDao = new DepositRequestDao(jdbi);
 
     // ── 3b. Seed tài khoản admin mặc định ───────────────────
     seedAdminIfNeeded(userDao);
@@ -93,15 +97,16 @@ public class App {
     var wsHandler = new AuctionWebSocketHandler(eventManager);
 
     // ── 6. Khởi tạo Services ────────────────────────────────
-    var userService = new UserService(userDao);
+    var userService = new UserService(userDao, depositRequestDao);
     var itemService = new ItemService(itemDao);
     var auctionService = new AuctionService(auctionDao, itemDao, userDao);
     var bidService =
         new BidService(
-            auctionDao, bidTransactionDao, autoBidConfigDao, eventManager, jdbi, auctionService);
+            auctionDao, bidTransactionDao, autoBidConfigDao, eventManager, jdbi,
+            auctionService, userDao);
 
     // ── 7. Khởi tạo Scheduler (tự chuyển trạng thái phiên) ──
-    var scheduler = new AuctionScheduler(auctionDao, eventManager);
+    var scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager);
     scheduler.start();
 
     // Đăng ký shutdown hook để dừng scheduler khi server tắt
@@ -156,13 +161,53 @@ public class App {
           ctx.status(204);
         });
 
+    // Lịch sử yêu cầu nạp tiền của chính user
+    app.get(
+        "/api/users/me/deposit-requests",
+        ctx -> {
+          Long userId = ctx.attribute("userId");
+          ctx.json(depositRequestDao.findByUserId(userId));
+        });
+
+    // Bidder gửi yêu cầu nạp tiền — tạo PENDING record, chờ Admin duyệt
     app.post(
         "/api/users/me/deposit",
         ctx -> {
           Long userId = ctx.attribute("userId");
           DepositRequest req = ctx.bodyAsClass(DepositRequest.class);
-          userService.deposit(userId, req.getAmount());
-          ctx.json(userService.findById(userId));
+          DepositRecord record = userService.requestDeposit(userId, req.getAmount());
+          ctx.status(202).json(record);
+        });
+
+    // ── Admin deposit management endpoints ───────────────
+    app.get(
+        "/api/admin/deposit-requests",
+        ctx -> {
+          if (!"ADMIN".equals(ctx.attribute("role"))) {
+            throw new UnauthorizedException("Chỉ ADMIN mới có quyền truy cập");
+          }
+          ctx.json(userService.getPendingDeposits());
+        });
+
+    app.post(
+        "/api/admin/deposit-requests/{id}/approve",
+        ctx -> {
+          if (!"ADMIN".equals(ctx.attribute("role"))) {
+            throw new UnauthorizedException("Chỉ ADMIN mới có quyền phê duyệt");
+          }
+          Long requestId = Long.parseLong(ctx.pathParam("id"));
+          ctx.json(userService.approveDeposit(requestId));
+        });
+
+    app.post(
+        "/api/admin/deposit-requests/{id}/reject",
+        ctx -> {
+          if (!"ADMIN".equals(ctx.attribute("role"))) {
+            throw new UnauthorizedException("Chỉ ADMIN mới có quyền từ chối");
+          }
+          Long requestId = Long.parseLong(ctx.pathParam("id"));
+          userService.rejectDeposit(requestId);
+          ctx.status(204);
         });
 
     // ── Admin user management endpoints ──────────────────
@@ -199,8 +244,13 @@ public class App {
           Long auctionId = Long.parseLong(ctx.pathParam("id"));
           Long bidderId = ctx.attribute("userId");
           var body = ctx.bodyAsClass(Map.class);
-          BigDecimal maxBid = new BigDecimal(body.get("maxBid").toString());
-          BigDecimal increment = new BigDecimal(body.get("increment").toString());
+          Object rawMaxBid = body.get("maxBid");
+          Object rawIncrement = body.get("increment");
+          if (rawMaxBid == null || rawIncrement == null) {
+            throw new com.auction.exception.InvalidBidException("maxBid và increment là bắt buộc");
+          }
+          BigDecimal maxBid = new BigDecimal(rawMaxBid.toString());
+          BigDecimal increment = new BigDecimal(rawIncrement.toString());
 
           var existing = autoBidConfigDao.findByAuctionAndBidder(auctionId, bidderId);
           if (existing.isPresent()) {
@@ -265,6 +315,39 @@ public class App {
       }
     } catch (Exception e) {
       LOGGER.warn("Không thể seed admin: {}", e.getMessage());
+    }
+  }
+
+  /**
+   * Áp dụng các migration còn thiếu theo kiểu idempotent (IF NOT EXISTS).
+   * Thay thế cho Flyway vì project không cấu hình auto-migration.
+   * An toàn để gọi nhiều lần — không ảnh hưởng schema đã tồn tại.
+   */
+  private static void ensureSchemaExists(Jdbi jdbi) {
+    try {
+      jdbi.useHandle(handle -> {
+        // V3: cột balance cho users (nếu chưa có)
+        handle.execute(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) NOT NULL DEFAULT 0");
+
+        // V4: bảng deposit_requests (nếu chưa có)
+        handle.execute("""
+            CREATE TABLE IF NOT EXISTS deposit_requests (
+                id          BIGSERIAL PRIMARY KEY,
+                user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                amount      DECIMAL(15,2) NOT NULL,
+                status      VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+                            CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+                created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+                reviewed_at TIMESTAMP
+            )
+            """);
+        handle.execute(
+            "CREATE INDEX IF NOT EXISTS idx_deposit_requests_status ON deposit_requests(status)");
+      });
+      LOGGER.info("Schema kiểm tra xong — tất cả bảng tồn tại.");
+    } catch (Exception e) {
+      LOGGER.error("Lỗi khi đảm bảo schema: {}", e.getMessage(), e);
     }
   }
 

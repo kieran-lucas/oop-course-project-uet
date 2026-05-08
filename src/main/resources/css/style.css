@@ -226,7 +226,7 @@
    ---------------------------------------------------------------- */
 
 .price-highlight {
-    -fx-font-size: 22px;
+    -fx-font-size: 18px;
     -fx-font-weight: bold;
     -fx-text-fill: #D97706;
 }
@@ -455,20 +455,32 @@
 }
 
 .back-button {
-    -fx-font-size: 13px;
-    -fx-text-fill: rgba(255,255,255,0.82);
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-padding: 0 12 0 8;
-    -fx-pref-height: 34;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: rgba(255,255,255,0.15);
+    -fx-border-color: rgba(255,255,255,0.38);
+    -fx-border-width: 1.5;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 0 18 0 14;
+    -fx-pref-height: 38;
+    -fx-min-height: 38;
     -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 1);
 }
 
 .back-button:hover {
     -fx-text-fill: #FFFFFF;
-    -fx-background-color: rgba(255,255,255,0.13);
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
+    -fx-background-color: rgba(255,255,255,0.26);
+    -fx-border-color: rgba(255,255,255,0.62);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 10, 0, 0, 2);
+}
+
+.back-button:pressed {
+    -fx-background-color: rgba(255,255,255,0.08);
+    -fx-border-color: rgba(255,255,255,0.28);
+    -fx-effect: none;
 }
 
 .link-button {
@@ -999,4 +1011,52 @@
     -fx-shape: "";
     -fx-pref-height: 0;
     -fx-pref-width: 0;
+}
+
+/* ================================================================
+   NOTIFICATION BELL
+   ================================================================ */
+
+.bell-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 50%;
+    -fx-border-color: transparent;
+    -fx-padding: 6;
+    -fx-pref-width: 38;
+    -fx-pref-height: 38;
+    -fx-min-width: 38;
+    -fx-min-height: 38;
+    -fx-cursor: hand;
+}
+
+.bell-button:hover {
+    -fx-background-color: rgba(255,255,255,0.18);
+    -fx-background-radius: 50%;
+}
+
+.bell-button:pressed {
+    -fx-background-color: rgba(255,255,255,0.08);
+}
+
+/* Material Design bell path — 24×24 viewBox, scaled white */
+.bell-icon {
+    -fx-shape: "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z";
+    -fx-background-color: white;
+    -fx-min-width: 20;
+    -fx-min-height: 20;
+    -fx-pref-width: 20;
+    -fx-pref-height: 20;
+    -fx-scale-shape: true;
+}
+
+.notification-badge {
+    -fx-background-color: #e53935;
+    -fx-text-fill: white;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 1 4 1 4;
+    -fx-background-radius: 10;
+    -fx-min-width: 16;
+    -fx-min-height: 16;
+    -fx-alignment: CENTER;
 }

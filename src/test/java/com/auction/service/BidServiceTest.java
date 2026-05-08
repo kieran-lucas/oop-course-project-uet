@@ -9,12 +9,16 @@ import static org.mockito.Mockito.*;
 import com.auction.dao.AuctionDao;
 import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
+import com.auction.dao.UserDao;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
 import com.auction.model.BidTransaction;
+import com.auction.model.Bidder;
+import com.auction.model.Seller;
+import java.util.Optional;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.pattern.state.CanceledState;
 import com.auction.pattern.state.FinishedState;
@@ -56,6 +60,7 @@ class BidServiceTest {
   @Mock private AuctionDao auctionDao;
   @Mock private BidTransactionDao bidTransactionDao;
   @Mock private AutoBidConfigDao autoBidConfigDao;
+  @Mock private UserDao userDao;
   @Mock private AuctionEventManager eventManager;
   @Mock private Jdbi jdbi;
   @Mock private AuctionService auctionService;
@@ -97,6 +102,23 @@ class BidServiceTest {
   @BeforeEach
   @SuppressWarnings("unchecked")
   void globalSetup() throws Exception {
+    // Bidder có số dư đủ lớn để bid (100 triệu)
+    Bidder bidder = new Bidder();
+    bidder.setId(BIDDER_ID);
+    bidder.setBalance(new BigDecimal("100000000"));
+    when(userDao.findById(BIDDER_ID)).thenReturn(Optional.of(bidder));
+
+    Bidder bidderB = new Bidder();
+    bidderB.setId(BIDDER_B_ID);
+    bidderB.setBalance(new BigDecimal("100000000"));
+    when(userDao.findById(BIDDER_B_ID)).thenReturn(Optional.of(bidderB));
+
+    // Seller cũng có số dư (để balance check pass, rồi State pattern mới reject)
+    Seller seller = new Seller();
+    seller.setId(SELLER_ID);
+    seller.setBalance(new BigDecimal("100000000"));
+    when(userDao.findById(SELLER_ID)).thenReturn(Optional.of(seller));
+
     doAnswer(
             invocation -> {
               org.jdbi.v3.core.HandleCallback<Object, Exception> callback =

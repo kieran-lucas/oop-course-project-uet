@@ -1,10 +1,10 @@
 package com.auction.pattern.observer;
 
 import com.auction.dto.BidUpdateMessage;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +59,7 @@ public class AuctionEventManager {
    * @param listener listener sẽ nhận thông báo (thường là WebSocketObserver)
    */
   public void subscribe(Long auctionId, AuctionEventListener listener) {
-    listeners.computeIfAbsent(auctionId, k -> new ArrayList<>()).add(listener);
+    listeners.computeIfAbsent(auctionId, k -> new CopyOnWriteArrayList<>()).add(listener);
     LOGGER.debug(
         "Listener đã subscribe phiên #{}: {}", auctionId, listener.getClass().getSimpleName());
   }
@@ -142,13 +142,7 @@ public class AuctionEventManager {
       return;
     }
 
-    // Snapshot để tránh ConcurrentModificationException
-    List<AuctionEventListener> snapshot;
-    synchronized (list) {
-      snapshot = new ArrayList<>(list);
-    }
-
-    for (AuctionEventListener listener : snapshot) {
+    for (AuctionEventListener listener : list) {
       try {
         action.accept(listener);
       } catch (Exception e) {
@@ -162,6 +156,6 @@ public class AuctionEventManager {
     }
 
     LOGGER.debug(
-        "Đã notify {} listener(s) sự kiện {} cho phiên #{}", snapshot.size(), eventType, auctionId);
+        "Đã notify {} listener(s) sự kiện {} cho phiên #{}", list.size(), eventType, auctionId);
   }
 }

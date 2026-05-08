@@ -1,9 +1,13 @@
 package com.auction.service;
 
 import com.auction.dao.AuctionDao;
+import com.auction.dao.ItemDao;
+import com.auction.dao.UserDao;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.model.Auction;
+import com.auction.model.User;
 import com.auction.pattern.observer.AuctionEventManager;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -50,6 +54,8 @@ public class AuctionScheduler {
   private static final int SCAN_INTERVAL_SECONDS = 5;
 
   private final AuctionDao auctionDao;
+  private final UserDao userDao;
+  private final ItemDao itemDao;
   private final AuctionEventManager eventManager;
 
   /** Thread pool 1 thread — đủ cho scheduler đơn giản này */
@@ -67,8 +73,14 @@ public class AuctionScheduler {
   /** Guard tránh start() gọi nhiều lần */
   private final AtomicBoolean running = new AtomicBoolean(false);
 
-  public AuctionScheduler(AuctionDao auctionDao, AuctionEventManager eventManager) {
+  public AuctionScheduler(
+      AuctionDao auctionDao,
+      UserDao userDao,
+      ItemDao itemDao,
+      AuctionEventManager eventManager) {
     this.auctionDao = auctionDao;
+    this.userDao = userDao;
+    this.itemDao = itemDao;
     this.eventManager = eventManager;
   }
 
@@ -183,22 +195,54 @@ public class AuctionScheduler {
 
       if (!auction.getEndTime().isAfter(now)) {
         try {
-          auction.setStatus("FINISHED");
-          auctionDao.update(auction);
-
-          LOG.info(
-              "Phiên #{} chuyển RUNNING → FINISHED (endTime={}, winner={})",
-              auction.getId(),
-              auction.getEndTime(),
-              auction.getLeadingBidderId());
-
+          settleAndClose(auction);
           notifyAuctionEnded(auction);
-
         } catch (Exception e) {
-          LOG.error("Không thể chuyển phiên #{} sang FINISHED", auction.getId(), e);
+          LOG.error("Không thể kết thúc phiên #{}", auction.getId(), e);
         }
       }
     }
+  }
+
+  /**
+   * Thanh toán và đóng phiên:
+   * - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status → PAID.
+   * - Nếu không ai bid: status → FINISHED.
+   */
+  private void settleAndClose(Auction auction) {
+    Long winnerId = auction.getLeadingBidderId();
+
+    if (winnerId != null) {
+      BigDecimal price = auction.getCurrentPrice();
+
+      // Atomic balance deduction — avoids read-then-write race when multiple auctions
+      // settle simultaneously with the same bidder as winner.
+      if (userDao.findById(winnerId).isPresent()) {
+        userDao.updateBalance(winnerId, price.negate());
+        LOG.info("Phiên #{}: trừ {} từ bidder #{}", auction.getId(), price, winnerId);
+      }
+
+      // Cộng tiền seller (atomic — same race condition applies)
+      Long sellerId = auction.getSellerId();
+      if (sellerId == null) {
+        sellerId = itemDao.findById(auction.getItemId())
+            .map(item -> item.getSellerId())
+            .orElse(null);
+      }
+      if (sellerId != null) {
+        userDao.updateBalance(sellerId, price);
+        LOG.info("Phiên #{}: cộng {} cho seller #{}", auction.getId(), price, sellerId);
+      }
+
+      auction.setStatus("PAID");
+    } else {
+      auction.setStatus("FINISHED");
+    }
+
+    auctionDao.update(auction);
+    LOG.info(
+        "Phiên #{} → {} (endTime={}, winner={})",
+        auction.getId(), auction.getStatus(), auction.getEndTime(), winnerId);
   }
 
   // ── Notification ─────────────────────────────────────────
@@ -213,13 +257,18 @@ public class AuctionScheduler {
    */
   private void notifyAuctionEnded(Auction auction) {
     try {
+      String winnerName = null;
+      if (auction.getLeadingBidderId() != null) {
+        winnerName = userDao.findById(auction.getLeadingBidderId())
+            .map(User::getUsername)
+            .orElse(null);
+      }
       BidUpdateMessage msg =
           BidUpdateMessage.auctionEnded(
               auction.getId(),
               auction.getCurrentPrice(),
               auction.getLeadingBidderId(),
-              null // username không cần thiết cho server-side notification
-              );
+              winnerName);
       eventManager.notifyAuctionEnd(auction.getId(), msg);
 
     } catch (Exception e) {

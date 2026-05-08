@@ -2,26 +2,36 @@ package com.auction.ui.controller;
 
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
+import com.auction.util.RestClient;
+import java.math.BigDecimal;
+import java.net.http.HttpResponse;
+import java.text.NumberFormat;
+import java.util.Locale;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.VBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Controller cho màn hình hồ sơ cá nhân (profile.fxml).
  *
- * <p><b>Mục đích:</b> Hiển thị thông tin tài khoản của người dùng đang đăng nhập (username, role).
- * Cung cấp điều hướng đến các chức năng: đổi mật khẩu, nạp tiền (BIDDER), đăng xuất.
- *
- * <p><b>Vị trí trong kiến trúc:</b> Màn hình phụ trợ có thể điều hướng đến từ thanh điều hướng của
- * auction-list. Lấy thông tin từ {@link SceneManager} session state (không cần gọi thêm API).
+ * <p>Hiển thị thông tin tài khoản: username, role, số dư (BIDDER/SELLER).
+ * Cung cấp điều hướng đến đổi mật khẩu, nạp tiền (BIDDER), đăng xuất.
  */
 public class ProfileController implements Navigable {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ProfileController.class);
+  private static final NumberFormat VND = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
 
   @FXML private Label usernameLabel;
   @FXML private Label roleLabel;
   @FXML private Button depositButton;
+  @FXML private VBox balanceBox;
+  @FXML private Label profileBalanceLabel;
 
-  /** Cập nhật thông tin từ session khi vào màn hình. */
   @Override
   public void onNavigatedTo() {
     SceneManager sm = SceneManager.getInstance();
@@ -35,11 +45,20 @@ public class ProfileController implements Navigable {
       roleLabel.setText(role != null ? role : "—");
     }
 
-    // Chỉ BIDDER có thể nạp tiền
     boolean isBidder = "BIDDER".equals(role);
     if (depositButton != null) {
       depositButton.setVisible(isBidder);
       depositButton.setManaged(isBidder);
+    }
+
+    boolean hasBalance = "BIDDER".equals(role) || "SELLER".equals(role);
+    if (balanceBox != null) {
+      balanceBox.setVisible(hasBalance);
+      balanceBox.setManaged(hasBalance);
+      if (profileBalanceLabel != null) profileBalanceLabel.setText("Đang tải...");
+    }
+    if (hasBalance) {
+      loadBalance();
     }
   }
 
@@ -60,6 +79,30 @@ public class ProfileController implements Navigable {
 
   @FXML
   public void goBack() {
-    SceneManager.getInstance().navigateTo("auction-list.fxml");
+    SceneManager.getInstance().navigateBack("auction-list.fxml");
+  }
+
+  private void loadBalance() {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.get("/api/users/me");
+                if (response.statusCode() == 200) {
+                  var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                  var node = mapper.readTree(response.body());
+                  BigDecimal balance = node.has("balance") && !node.get("balance").isNull()
+                      ? node.get("balance").decimalValue()
+                      : BigDecimal.ZERO;
+                  Platform.runLater(() -> {
+                    if (profileBalanceLabel != null) {
+                      profileBalanceLabel.setText(VND.format(balance));
+                    }
+                  });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Không thể load số dư profile", e);
+              }
+            });
   }
 }

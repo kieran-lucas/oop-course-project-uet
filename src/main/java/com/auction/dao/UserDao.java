@@ -317,6 +317,23 @@ public class UserDao {
     return false;
   }
 
+  /**
+   * Cập nhật số dư bằng một giá trị delta (cộng hoặc trừ) theo cách atomic — tránh race condition
+   * khi nhiều phiên kết thúc cùng lúc với cùng một bidder.
+   *
+   * @param userId ID người dùng
+   * @param delta số tiền thay đổi (dương = cộng, âm = trừ)
+   */
+  public void updateBalance(Long userId, BigDecimal delta) {
+    jdbi.withHandle(
+        handle ->
+            handle
+                .createUpdate("UPDATE users SET balance = balance + :delta WHERE id = :userId")
+                .bind("delta", delta)
+                .bind("userId", userId)
+                .execute());
+  }
+
   // ============================================================
   // DELETE
   // ============================================================

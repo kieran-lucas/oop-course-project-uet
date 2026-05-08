@@ -2,6 +2,7 @@ package com.auction.service;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.auction.config.JwtUtil;
+import com.auction.dao.DepositRequestDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.ChangePasswordRequest;
 import com.auction.dto.LoginRequest;
@@ -11,6 +12,7 @@ import com.auction.exception.DuplicateException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.model.Bidder;
+import com.auction.model.DepositRecord;
 import com.auction.model.Seller;
 import com.auction.model.User;
 import java.math.BigDecimal;
@@ -19,9 +21,11 @@ import java.util.List;
 /** Service xử lý logic nghiệp vụ cho User. */
 public class UserService {
   private final UserDao userDao;
+  private final DepositRequestDao depositRequestDao;
 
-  public UserService(UserDao userDao) {
+  public UserService(UserDao userDao, DepositRequestDao depositRequestDao) {
     this.userDao = userDao;
+    this.depositRequestDao = depositRequestDao;
   }
 
   public User register(RegisterRequest req) {
@@ -133,26 +137,74 @@ public class UserService {
   }
 
   /**
-   * Nạp tiền vào tài khoản.
+   * Gửi yêu cầu nạp tiền — tạo bản ghi PENDING, chờ Admin xác nhận.
    *
    * @param userId ID user từ JWT
-   * @param amount số tiền nạp (phải > 0)
-   * @throws NotFoundException nếu user không tồn tại
-   * @throws IllegalArgumentException nếu số tiền <= 0
+   * @param amount số tiền muốn nạp (phải > 0)
+   * @return DepositRecord vừa tạo (status = PENDING)
    */
-  public void deposit(Long userId, BigDecimal amount) {
+  public DepositRecord requestDeposit(Long userId, BigDecimal amount) {
     if (amount == null || amount.signum() <= 0) {
       throw new IllegalArgumentException("Số tiền nạp phải lớn hơn 0.");
+    }
+    userDao
+        .findById(userId)
+        .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+    return depositRequestDao.insert(new DepositRecord(userId, amount));
+  }
+
+  /**
+   * Lấy danh sách yêu cầu nạp tiền đang chờ duyệt — dành cho Admin.
+   *
+   * @return danh sách DepositRecord có status = PENDING
+   */
+  public List<DepositRecord> getPendingDeposits() {
+    return depositRequestDao.findByStatus("PENDING");
+  }
+
+  /**
+   * Admin phê duyệt yêu cầu nạp tiền: cộng tiền vào số dư user, đổi status → APPROVED.
+   *
+   * @param requestId ID của deposit request
+   * @return UserResponse sau khi cập nhật số dư
+   */
+  public UserResponse approveDeposit(Long requestId) {
+    DepositRecord record =
+        depositRequestDao
+            .findById(requestId)
+            .orElseThrow(() -> new NotFoundException("Deposit request not found: " + requestId));
+
+    if (!"PENDING".equals(record.getStatus())) {
+      throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
     }
 
     User user =
         userDao
-            .findById(userId)
-            .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+            .findById(record.getUserId())
+            .orElseThrow(() -> new NotFoundException("User not found: " + record.getUserId()));
 
     BigDecimal current = user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO;
-    user.setBalance(current.add(amount));
+    user.setBalance(current.add(record.getAmount()));
     userDao.update(user);
+    depositRequestDao.updateStatus(requestId, "APPROVED");
+    return UserResponse.from(user);
+  }
+
+  /**
+   * Admin từ chối yêu cầu nạp tiền: đổi status → REJECTED, không cộng tiền.
+   *
+   * @param requestId ID của deposit request
+   */
+  public void rejectDeposit(Long requestId) {
+    DepositRecord record =
+        depositRequestDao
+            .findById(requestId)
+            .orElseThrow(() -> new NotFoundException("Deposit request not found: " + requestId));
+
+    if (!"PENDING".equals(record.getStatus())) {
+      throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+    }
+    depositRequestDao.updateStatus(requestId, "REJECTED");
   }
 
   /**

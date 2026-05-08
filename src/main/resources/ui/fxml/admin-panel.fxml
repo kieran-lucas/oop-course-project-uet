@@ -26,7 +26,8 @@
          </padding>
          <Label styleClass="app-logo" text="Admin Panel" />
          <Region HBox.hgrow="ALWAYS" />
-         <Label fx:id="usernameLabel" styleClass="username-label" text="" />
+         <Label fx:id="usernameLabel" styleClass="username-label" text=""
+                onMouseClicked="#handleProfile" />
          <Button text="Đăng xuất" styleClass="logout-button" onAction="#handleLogout" />
       </HBox>
    </top>
@@ -67,6 +68,28 @@
 
             <Label fx:id="statusLabel" styleClass="status-label" text=""
                    visible="false" managed="false" />
+
+            <Separator />
+
+            <!-- ===== Deposit request management ===== -->
+            <HBox alignment="CENTER_LEFT" spacing="12.0">
+               <Label styleClass="section-title" text="Yêu cầu nạp tiền (chờ duyệt)" />
+               <Region HBox.hgrow="ALWAYS" />
+               <Button text="Làm mới" styleClass="secondary-button" onAction="#handleRefreshDeposits" />
+            </HBox>
+
+            <TableView fx:id="depositTable" prefHeight="200.0" styleClass="auction-table">
+               <columns>
+                  <TableColumn fx:id="depositIdCol" text="ID" prefWidth="60.0" />
+                  <TableColumn fx:id="depositUserCol" text="Người dùng" prefWidth="160.0" />
+                  <TableColumn fx:id="depositAmountCol" text="Số tiền" prefWidth="150.0" />
+                  <TableColumn fx:id="depositTimeCol" text="Thời gian" prefWidth="170.0" />
+                  <TableColumn fx:id="depositActionCol" text="Hành động" prefWidth="180.0" />
+               </columns>
+               <placeholder>
+                  <Label text="Không có yêu cầu nạp tiền nào đang chờ." />
+               </placeholder>
+            </TableView>
 
             <Separator />
 

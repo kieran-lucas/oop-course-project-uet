@@ -6,6 +6,7 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
@@ -27,19 +28,32 @@
          <Button text="← Quay lại" styleClass="back-button" onAction="#goBack" />
          <Label styleClass="app-logo" text="Auction House" />
          <Region HBox.hgrow="ALWAYS" />
-         <Label fx:id="usernameLabel" styleClass="username-label" text="" />
+         <Label fx:id="usernameLabel" styleClass="username-label" text=""
+                onMouseClicked="#handleProfile" />
       </HBox>
    </top>
 
    <!-- ===== CENTER ===== -->
    <center>
-      <HBox spacing="20.0">
+      <VBox>
+      <!-- Notification toast — hiển thị tạm 3 giây khi có bid mới -->
+      <Label fx:id="bidNotificationLabel"
+             text=""
+             visible="false" managed="false"
+             alignment="CENTER"
+             maxWidth="Infinity"
+             style="-fx-background-color: #1565c0; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 10 20 10 20; -fx-font-weight: bold;" />
+      <HBox fx:id="contentHBox" spacing="20.0" VBox.vgrow="ALWAYS">
          <padding>
             <Insets bottom="24.0" left="24.0" right="24.0" top="22.0" />
          </padding>
 
-         <!-- ===== LEFT COLUMN ===== -->
-         <VBox spacing="14.0" HBox.hgrow="ALWAYS">
+         <!-- ===== LEFT COLUMN (scrollable) ===== -->
+         <ScrollPane fx:id="leftScrollPane" fitToWidth="true"
+                     HBox.hgrow="NEVER" minWidth="0"
+                     vbarPolicy="AS_NEEDED" hbarPolicy="NEVER"
+                     styleClass="page-scroll">
+         <VBox fx:id="leftColumn" spacing="14.0">
 
             <!-- Item header -->
             <VBox spacing="6.0" styleClass="info-card">
@@ -62,12 +76,12 @@
                   <Label fx:id="currentPriceLabel" styleClass="price-highlight" text="—" />
                </VBox>
                <VBox alignment="CENTER_LEFT" spacing="6.0" styleClass="stat-card"
-                     HBox.hgrow="ALWAYS">
+                     HBox.hgrow="SOMETIMES" prefWidth="160.0">
                   <Label styleClass="stat-label" text="NGƯỜI DẪN ĐẦU" />
                   <Label fx:id="leadingBidderLabel" styleClass="detail-text" text="—" />
                </VBox>
                <VBox alignment="CENTER_LEFT" spacing="6.0" styleClass="stat-card-timer"
-                     HBox.hgrow="ALWAYS">
+                     HBox.hgrow="NEVER" prefWidth="140.0">
                   <Label styleClass="stat-label" text="THỜI GIAN CÒN" />
                   <Label fx:id="countdownLabel" styleClass="countdown-label" text="—" />
                </VBox>
@@ -78,7 +92,12 @@
                <padding><Insets bottom="20.0" left="20.0" right="20.0" top="20.0" /></padding>
 
                <!-- Manual bid -->
-               <Label styleClass="section-title" text="Đặt giá thủ công" />
+               <HBox alignment="CENTER_LEFT" spacing="0.0">
+                  <Label styleClass="section-title" text="Đặt giá thủ công" />
+                  <Region HBox.hgrow="ALWAYS" />
+                  <Label fx:id="balanceLabel" text="Số dư: —"
+                         style="-fx-font-size: 11px; -fx-text-fill: #90a4ae;" />
+               </HBox>
                <HBox spacing="10.0" alignment="CENTER_LEFT">
                   <TextField fx:id="bidAmountField" promptText="Nhập số tiền (VND)"
                              styleClass="text-field" HBox.hgrow="ALWAYS" />
@@ -86,7 +105,7 @@
                           onAction="#handleBid" />
                </HBox>
                <Label fx:id="bidErrorLabel" styleClass="error-label" text=""
-                      visible="false" wrapText="true" />
+                      visible="false" managed="false" wrapText="true" />
 
                <Separator />
 
@@ -122,15 +141,16 @@
                <Label fx:id="winnerLabel" styleClass="winner-label" text="" />
             </VBox>
          </VBox>
+         </ScrollPane>
 
          <!-- ===== RIGHT COLUMN ===== -->
-         <VBox spacing="14.0" prefWidth="360.0">
+         <VBox fx:id="rightColumn" spacing="14.0" HBox.hgrow="NEVER" minWidth="0">
 
             <!-- Chart in card -->
             <VBox spacing="10.0" styleClass="info-card">
                <padding><Insets bottom="18.0" left="18.0" right="18.0" top="18.0" /></padding>
                <Label styleClass="section-title" text="Biểu đồ giá thầu" />
-               <AreaChart fx:id="bidChart" prefHeight="280.0" animated="false">
+               <AreaChart fx:id="bidChart" prefHeight="320.0" animated="false">
                   <xAxis>
                      <NumberAxis label="Lần đặt" />
                   </xAxis>
@@ -146,6 +166,7 @@
                       styleClass="bid-history-list" />
          </VBox>
       </HBox>
+      </VBox>
    </center>
 
 </BorderPane>
