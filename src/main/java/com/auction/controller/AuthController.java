@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Controller xử lý các endpoint xác thực người dùng: đăng ký và đăng nhập.
+ * Controller xử lý các endpoint xác thực người dùng: đăng ký và đăng nhập
  *
  * <p>Đây là các endpoint duy nhất trong hệ thống KHÔNG yêu cầu JWT token — vì đây là nơi người dùng
  * lần đầu tiên nhận token. Middleware {@code JwtMiddleware} được cấu hình trong {@link

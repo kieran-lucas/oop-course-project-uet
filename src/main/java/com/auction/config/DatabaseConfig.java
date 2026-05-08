@@ -11,7 +11,7 @@ public class DatabaseConfig {
   private static volatile Jdbi jdbi;
   private static HikariDataSource dataSource;
 
-  /** Khởi tạo hoặc trả về Jdbi instance duy nhất (Thread-safe) */
+  /** Khởi tạo hoặc trả về Jdbi instance duy nhất Thread-safe */
   public static Jdbi create() {
     if (jdbi == null) {
       synchronized (DatabaseConfig.class) {

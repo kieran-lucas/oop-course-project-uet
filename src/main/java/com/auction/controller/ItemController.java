@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Controller xử lý toàn bộ thao tác CRUD cho tài nguyên Item (sản phẩm đấu giá).
+ * Controller xử lý toàn bộ thao tác CRUD cho tài nguyên Item (sản phẩm đấu giá)
  *
  * <p>Danh sách endpoints và quyền truy cập:
  *
@@ -27,13 +27,13 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>JWT Middleware (cấu hình trong {@link com.auction.App}) đã xác thực token và set các
- *       attribute vào context: {@code userId}, {@code username}, {@code role}.
- *   <li>Controller đọc {@code ctx.attribute("role")} để kiểm tra role.
- *   <li>Controller đọc {@code ctx.attribute("userId")} để kiểm tra ownership.
+ *       attribute vào context: {@code userId}, {@code username}, {@code role}
+ *   <li>Controller đọc {@code ctx.attribute("role")} để kiểm tra role
+ *   <li>Controller đọc {@code ctx.attribute("userId")} để kiểm tra ownership
  * </ul>
  *
  * <p>Factory Method pattern được áp dụng trong {@link ItemService#create}: nhận {@code category} từ
- * request ("ELECTRONICS"/"ART"/"VEHICLE"), tạo đúng subclass tương ứng.
+ * request ("ELECTRONICS"/"ART"/"VEHICLE"), tạo đúng subclass tương ứng
  *
  * @see com.auction.service.ItemService
  * @see com.auction.pattern.factory.ItemFactory

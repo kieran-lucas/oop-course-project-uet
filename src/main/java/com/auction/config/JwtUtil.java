@@ -16,7 +16,7 @@ public class JwtUtil {
   private static final Algorithm ALGORITHM =
       Algorithm.HMAC256(
           SECRET_KEY); // Đây là thuật toán mã hóa đối xứng. Nghĩa là hệ thống dùng chung 1 cái
-  // SECRET_KEY vừa để "khóa" (tạo token) vừa để "mở khóa" (xác minh token).
+  // SECRET_KEY vừa để khóa (tạo token) vừa để mở khóa (xác minh token).
 
   private static final JWTVerifier VERIFIER =
       JWT.require(ALGORITHM)
