@@ -246,6 +246,7 @@ public class SceneManager {
     currentRole = null;
     currentUserId = null;
     backStack.clear();
+    com.auction.util.BackgroundBidWatcher.getInstance().stopAll();
     com.auction.util.NotificationStore.getInstance().clear();
 
     // Xóa cache các view cần auth, giữ lại welcome + login + register

@@ -7,8 +7,10 @@ import com.auction.model.AutoBidConfig;
 import com.auction.model.BidTransaction;
 import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,12 +129,17 @@ public class AutoBidStrategy implements BidStrategy {
    * <p>Mỗi lần auto-bid thành công có thể kích hoạt thêm auto-bid của người khác, tạo thành chuỗi
    * phản ứng. Chuỗi dừng khi không còn ai đủ budget.
    *
+   * <p>Người đang dẫn đầu (initialLeaderId) bị bỏ qua tạm thời để tránh tự bid lại chính mình.
+   * Nếu sau đó người khác bid và vượt qua họ, họ sẽ được xử lý lại trong cùng vòng lặp.
+   *
    * @param auctionId ID phiên đấu giá
    * @param currentPriceAfterBid giá hiện tại sau bid vừa xảy ra
+   * @param initialLeaderId ID người đang dẫn đầu (người vừa bid thủ công)
    * @param executor callback để thực thi từng auto-bid (thường là BidService.placeBid)
    */
   public void executeAll(
-      Long auctionId, BigDecimal currentPriceAfterBid, AutoBidExecutor executor) {
+      Long auctionId, BigDecimal currentPriceAfterBid, Long initialLeaderId,
+      AutoBidExecutor executor) {
     // Load configs once — avoids N+1 query inside the loop
     List<AutoBidConfig> activeConfigs = autoBidConfigDao.findActiveByAuctionId(auctionId);
 
@@ -142,9 +149,22 @@ public class AutoBidStrategy implements BidStrategy {
 
     int autoBidCount = 0;
     BigDecimal currentPrice = currentPriceAfterBid;
+    Long currentLeaderId = initialLeaderId;
+    // Tracks bidders skipped because they were the leader, reset when a bid is placed.
+    // If a bidder is seen as leader twice without any bid in between, the chain is stuck.
+    Set<Long> skippedAsLeader = new HashSet<>();
 
     while (!queue.isEmpty() && autoBidCount < MAX_AUTO_BIDS_PER_TRIGGER) {
       AutoBidConfig config = queue.poll();
+
+      // Skip if this bidder is already the current leader (don't bid against yourself).
+      // Re-add once so they can respond if someone else outbids them later in this chain.
+      if (config.getBidderId().equals(currentLeaderId)) {
+        if (skippedAsLeader.add(config.getBidderId())) {
+          queue.offer(config); // put back for a possible later response
+        }
+        continue;
+      }
 
       if (!config.canBidAt(currentPrice)) {
         config.setActive(false);
@@ -164,7 +184,9 @@ public class AutoBidStrategy implements BidStrategy {
       try {
         executor.execute(auctionId, config.getBidderId(), nextAmount);
         currentPrice = nextAmount;
+        currentLeaderId = config.getBidderId();
         autoBidCount++;
+        skippedAsLeader.clear(); // new bid → previous leader skip tracking is stale
         // Re-add so this bidder can respond to subsequent bids from others
         queue.offer(config);
         LOGGER.info(
