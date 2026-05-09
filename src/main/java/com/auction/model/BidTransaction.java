@@ -4,17 +4,17 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Ghi lại mỗi lần đặt giá trong một phiên đấu giá.
+ * Ghi lại mỗi lần đặt giá trong một phiên đấu giá
  *
  * <p>Mỗi khi ai đó bid thành công (giá hợp lệ, phiên đang mở), hệ thống tạo 1 BidTransaction ghi
- * lại: ai, phiên nào, giá bao nhiêu, lúc nào.
+ * lại: ai, phiên nào, giá bao nhiêu, lúc nào
  *
  * <p>BidTransaction không bao giờ bị sửa hay xóa — nó là lịch sử bất biến. Điều này quan trọng cho:
  * tính minh bạch đấu giá, bid history chart (trục X = thời gian, trục Y = giá lấy từ các
- * BidTransaction), và audit trail.
+ * BidTransaction), và audit trail
  *
  * <p>Field isAutoBid đánh dấu bid này do hệ thống tự đặt (auto-bidding) hay do người dùng tự tay
- * đặt. Dùng cho hiển thị trên chart và thống kê.
+ * đặt. Dùng cho hiển thị trên chart và thống kê
  */
 public class BidTransaction extends Entity {
 
