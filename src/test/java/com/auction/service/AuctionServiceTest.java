@@ -1,8 +1,11 @@
 package com.auction.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
 
 import com.auction.dao.AuctionDao;
 import com.auction.dao.ItemDao;
@@ -443,16 +446,19 @@ class AuctionServiceTest {
   class DeleteAuction {
 
     @Test
-    @DisplayName("Seller xóa phiên OPEN của mình → thành công")
+    @DisplayName("Seller xóa phiên OPEN của mình → thành công (soft-delete: status = CANCELED)")
     void testDeleteOpenAuctionByOwnerSuccess() {
       Auction auction = buildAuction("OPEN");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
-      doNothing().when(auctionDao).delete(99L);
 
       assertDoesNotThrow(
           () -> auctionService.delete(99L, SELLER_ID, "SELLER"),
           "Seller xóa phiên OPEN của mình phải thành công");
-      verify(auctionDao, times(1)).delete(99L);
+
+      // Soft-delete theo State Pattern: chỉ đổi status sang CANCELED, không xóa khỏi DB
+      verify(auctionDao, times(1)).update(any(Auction.class));
+      verify(auctionDao, never()).delete(anyLong());
+      assertEquals("CANCELED", auction.getStatus(), "Status phải được đổi sang CANCELED");
     }
 
     @Test
