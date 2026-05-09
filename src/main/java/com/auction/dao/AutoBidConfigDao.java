@@ -13,11 +13,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * DAO (Data Access Object) cho bảng auto_bid_configs.
+ * DAO (Data Access Object) cho bảng auto_bid_configs
  *
  * <p>Class này chịu trách nhiệm quản lý cấu hình đấu giá tự động (auto-bid). Auto-bid cho phép
  * người dùng đặt trước giá tối đa và bước giá, hệ thống sẽ tự động trả giá thay họ khi có người
- * khác bid.
+ * khác bid
  *
  * <h3>Vai trò trong hệ thống</h3>
  *
