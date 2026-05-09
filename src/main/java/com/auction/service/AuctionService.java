@@ -200,36 +200,50 @@ public class AuctionService {
    * RUNNING.
    */
   public void delete(Long auctionId, Long userId, String role) {
-    Auction auction =
-        auctionDao
-            .findById(auctionId)
-            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+      Auction auction =
+          auctionDao
+              .findById(auctionId)
+              .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
 
-    // Không xóa được phiên đang RUNNING (trừ ADMIN)
-    if ("RUNNING".equals(auction.getStatus()) && !"ADMIN".equals(role)) {
-      throw new AuctionClosedException("Không thể xóa phiên đang diễn ra.");
-    }
+      // 2. Logic dành riêng cho ADMIN: Được hủy bất chấp mọi trạng thái
+      if ("ADMIN".equals(role)) {
+          auction.setStatus("CANCELED");
+          auctionDao.update(auction); // Soft Delete
+          LOGGER.info("ADMIN (userId={}) đã cưỡng chế hủy phiên đấu giá {}", userId, auctionId);
+          return;
+      }
 
-    if ("ADMIN".equals(role)) {
-      auctionDao.delete(auctionId);
-      return;
-    }
+      // 3. Logic dành riêng cho SELLER: Phải kiểm tra chính chủ và trạng thái OPEN
+      if ("SELLER".equals(role)) {
 
-    // Kiểm tra ownership qua sellerId trên auction
-    Long auctionSellerId = auction.getSellerId();
-    if (auctionSellerId == null) {
-      // Fallback: kiểm tra qua item
-      Item item =
-          itemDao
-              .findById(auction.getItemId())
-              .orElseThrow(() -> new NotFoundException("Item not found"));
-      auctionSellerId = item.getSellerId();
-    }
-    if (!auctionSellerId.equals(userId)) {
-      throw new UnauthorizedException("You can only delete your own auctions");
-    }
 
-    auctionDao.delete(auctionId);
+          Long actualSellerId = auction.getSellerId();
+          if (actualSellerId == null) {
+              Item item = itemDao.findById(auction.getItemId())
+                  .orElseThrow(() -> new NotFoundException("Item not found"));
+              actualSellerId = item.getSellerId();
+          }
+
+          // Kiểm tra xem user đang đăng nhập có phải chủ món đồ không
+          if (!actualSellerId.equals(userId)) {
+              throw new UnauthorizedException("Bạn không có quyền hủy phiên đấu giá của người khác!");
+          }
+
+
+          // Kiểm tra trạng thái
+          if (!"OPEN".equals(auction.getStatus())) {
+              throw new IllegalStateException("Chỉ có thể hủy phiên đấu giá khi đang ở trạng thái OPEN (chờ bắt đầu).");
+          }
+
+          // Đổi trạng thái sang CANCELED
+          auction.setStatus("CANCELED");
+          auctionDao.update(auction);
+          LOGGER.info("SELLER (userId={}) đã tự hủy phiên đấu giá {}", userId, auctionId);
+          return;
+      }
+
+      // 4. Nếu lọt xuống đây (ví dụ role là BIDDER) thì chặn lại lập tức
+      throw new UnauthorizedException("Bạn không có quyền thực hiện thao tác này.");
   }
 
   /**
