@@ -1,8 +1,8 @@
 /**
- * Custom exception hierarchy for the auction domain.
+ * Custom exception hierarchy for the auction domain
  *
  * <p>All exceptions extend {@link com.auction.exception.AuctionException} to allow uniform handling
- * of domain-specific errors.
+ * of domain-specific errors
  *
  * <p><b>Exception types:</b>
  *
@@ -26,7 +26,7 @@
  * }</pre>
  *
  * <p><b>Why RuntimeException:</b> All auction exceptions are unchecked because they typically
- * represent unrecoverable business rule violations or programming errors. Forcing {@code throws}
- * declarations everywhere would add noise without practical benefit.
+ * represent unrecoverable business rule violations or programming errors.Forcing {@code throws}
+ * declarations everywhere would add noise without practical benefit
  */
 package com.auction.exception;
