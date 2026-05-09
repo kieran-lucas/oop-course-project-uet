@@ -26,7 +26,7 @@ public class InvalidBidException extends AuctionException {
   private static final long serialVersionUID = 1L;
 
   /**
-   * Constructs a new InvalidBidException with the specified message.
+   * Constructs a new InvalidBidException with the specified message
    *
    * @param message description of why the bid is invalid
    */
@@ -35,7 +35,7 @@ public class InvalidBidException extends AuctionException {
   }
 
   /**
-   * Constructs a new InvalidBidException with the specified message and cause.
+   * Constructs a new InvalidBidException with the specified message and cause
    *
    * @param message description of why the bid is invalid
    * @param cause the underlying exception
