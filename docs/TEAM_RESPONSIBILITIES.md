@@ -251,10 +251,4 @@ README.md                                   ← mỗi người viết 1 phần (
 
 ---
 
-## ⚠️ Việc cần làm ngay — Trước khi code tuần 1
 
-- [ ] **Thống nhất** đặt `util/` và `controller/client/` vào đâu → cập nhật `PROJECT_STRUCTURE.md`
-- [ ] **A + C** ngồi lại thống nhất interface DAO (method names, return types) trước khi ai code
-- [ ] **B + C** thống nhất format `BidUpdateMessage` JSON (các field, type enum values)
-- [ ] **A** expose interface `AuctionWebSocketHandler.broadcast()` để C dùng trong `WebSocketObserver`
-- [ ] **D** setup Gradle + CI trước → mọi người mới bắt đầu code trên nền đó
