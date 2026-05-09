@@ -178,7 +178,9 @@ public class BidService {
   private void triggerAutoBid(Long auctionId, BigDecimal currentPrice, Long leadingBidderId) {
     try {
       autoBidStrategy.executeAll(
-          auctionId, currentPrice, leadingBidderId,
+          auctionId,
+          currentPrice,
+          leadingBidderId,
           (aid, bid, amt) -> this.placeBid(aid, bid, amt, true));
     } catch (Exception e) {
       LOGGER.error("Lỗi khi xử lý auto-bid cho phiên #{}: {}", auctionId, e.getMessage());

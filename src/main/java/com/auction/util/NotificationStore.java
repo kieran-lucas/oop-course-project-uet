@@ -6,8 +6,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 /**
- * Singleton lưu trữ thông báo bid trong phiên — chỉ thêm từ FX thread.
- * Số lượng thông báo chưa đọc được reset khi người dùng mở panel.
+ * Singleton lưu trữ thông báo bid trong phiên — chỉ thêm từ FX thread. Số lượng thông báo chưa đọc
+ * được reset khi người dùng mở panel.
  */
 public class NotificationStore {
 

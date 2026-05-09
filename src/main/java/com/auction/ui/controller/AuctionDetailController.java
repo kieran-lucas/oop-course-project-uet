@@ -40,8 +40,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller cho màn hình chi tiết phiên đấu giá (auction-detail.fxml).
  *
- * <p>Hiển thị thông tin đầy đủ: tên/mô tả sản phẩm, giá hiện tại, người dẫn đầu, đồng hồ đếm
- * ngược, form đặt giá thủ công, cấu hình auto-bid, biểu đồ giá theo thời gian, và lịch sử bid.
+ * <p>Hiển thị thông tin đầy đủ: tên/mô tả sản phẩm, giá hiện tại, người dẫn đầu, đồng hồ đếm ngược,
+ * form đặt giá thủ công, cấu hình auto-bid, biểu đồ giá theo thời gian, và lịch sử bid.
  */
 public class AuctionDetailController implements Navigable {
 
@@ -144,10 +144,10 @@ public class AuctionDetailController implements Navigable {
     // 68 = 24 (left pad) + 24 (right pad) + 20 (column gap).
     leftScrollPane.prefWidthProperty().unbind();
     rightColumn.prefWidthProperty().unbind();
-    leftScrollPane.prefWidthProperty().bind(
-        contentHBox.widthProperty().subtract(68).multiply(0.60));
-    rightColumn.prefWidthProperty().bind(
-        contentHBox.widthProperty().subtract(68).multiply(0.40));
+    leftScrollPane
+        .prefWidthProperty()
+        .bind(contentHBox.widthProperty().subtract(68).multiply(0.60));
+    rightColumn.prefWidthProperty().bind(contentHBox.widthProperty().subtract(68).multiply(0.40));
 
     // Bind endedBox to 60% of left column width
     endedBox.maxWidthProperty().unbind();
@@ -264,8 +264,10 @@ public class AuctionDetailController implements Navigable {
     }
 
     if (lastKnownBalance != null && amount.compareTo(lastKnownBalance) > 0) {
-      showBidError("Số dư của bạn (" + VND.format(lastKnownBalance)
-          + ") không đủ. Hãy nạp tiền trước khi đặt giá.");
+      showBidError(
+          "Số dư của bạn ("
+              + VND.format(lastKnownBalance)
+              + ") không đủ. Hãy nạp tiền trước khi đặt giá.");
       return;
     }
 
@@ -441,11 +443,16 @@ public class AuctionDetailController implements Navigable {
                         bidSeries.getData().clear();
                         for (int i = 0; i < bids.size(); i++) {
                           BidTransaction bid = bids.get(i);
-                          boolean isMyBid = currentUserId != null && currentUserId.equals(bid.getBidderId());
+                          boolean isMyBid =
+                              currentUserId != null && currentUserId.equals(bid.getBidderId());
                           if (isMyBid) {
                             userHasBid = true;
                           }
-                          String bidderLabel = isMyBid ? "Bạn" : ("Bidder #" + (bid.getBidderId() != null ? bid.getBidderId() : "?"));
+                          String bidderLabel =
+                              isMyBid
+                                  ? "Bạn"
+                                  : ("Bidder #"
+                                      + (bid.getBidderId() != null ? bid.getBidderId() : "?"));
                           bidHistoryItems.add(
                               0,
                               String.format(
@@ -545,9 +552,8 @@ public class AuctionDetailController implements Navigable {
   // ========== NOTIFICATION ==========
 
   /**
-   * Toast 3–4 giây khi có bid mới qua WebSocket.
-   * Seller → "Có bid mới"; own bid → xanh lá; người khác → xanh dương.
-   * Chỉ thêm vào NotificationStore nếu user đã bid hoặc là seller.
+   * Toast 3–4 giây khi có bid mới qua WebSocket. Seller → "Có bid mới"; own bid → xanh lá; người
+   * khác → xanh dương. Chỉ thêm vào NotificationStore nếu user đã bid hoặc là seller.
    */
   private void showBidNotification(BidUpdateMessage msg) {
     if (bidNotificationLabel == null) {
@@ -649,10 +655,11 @@ public class AuctionDetailController implements Navigable {
                   var node = MAPPER.readTree(resp.body());
                   if (node.has("balance")) {
                     BigDecimal balance = node.get("balance").decimalValue();
-                    Platform.runLater(() -> {
-                      lastKnownBalance = balance;
-                      updateBalanceLabel(balance);
-                    });
+                    Platform.runLater(
+                        () -> {
+                          lastKnownBalance = balance;
+                          updateBalanceLabel(balance);
+                        });
                   }
                 }
               } catch (Exception e) {
@@ -778,8 +785,8 @@ public class AuctionDetailController implements Navigable {
 
   /**
    * Applies full badge style (background + text + shape) via inline style so it wins over CSS.
-   * Inline style must include font-size and shape properties since the override replaces
-   * all inline CSS but CSS-class properties still apply for anything NOT in the inline style.
+   * Inline style must include font-size and shape properties since the override replaces all inline
+   * CSS but CSS-class properties still apply for anything NOT in the inline style.
    */
   private void applyStatusStyle(Label label, String status) {
     if (status == null) {

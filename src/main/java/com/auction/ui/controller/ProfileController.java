@@ -18,8 +18,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller cho màn hình hồ sơ cá nhân (profile.fxml).
  *
- * <p>Hiển thị thông tin tài khoản: username, role, số dư (BIDDER/SELLER).
- * Cung cấp điều hướng đến đổi mật khẩu, nạp tiền (BIDDER), đăng xuất.
+ * <p>Hiển thị thông tin tài khoản: username, role, số dư (BIDDER/SELLER). Cung cấp điều hướng đến
+ * đổi mật khẩu, nạp tiền (BIDDER), đăng xuất.
  */
 public class ProfileController implements Navigable {
 
@@ -93,14 +93,16 @@ public class ProfileController implements Navigable {
                 if (response.statusCode() == 200) {
                   var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                   var node = mapper.readTree(response.body());
-                  BigDecimal balance = node.has("balance") && !node.get("balance").isNull()
-                      ? node.get("balance").decimalValue()
-                      : BigDecimal.ZERO;
-                  Platform.runLater(() -> {
-                    if (profileBalanceLabel != null) {
-                      profileBalanceLabel.setText(VND.format(balance));
-                    }
-                  });
+                  BigDecimal balance =
+                      node.has("balance") && !node.get("balance").isNull()
+                          ? node.get("balance").decimalValue()
+                          : BigDecimal.ZERO;
+                  Platform.runLater(
+                      () -> {
+                        if (profileBalanceLabel != null) {
+                          profileBalanceLabel.setText(VND.format(balance));
+                        }
+                      });
                 }
               } catch (Exception e) {
                 LOGGER.error("Không thể load số dư profile", e);
