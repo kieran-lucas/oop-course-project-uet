@@ -12,10 +12,11 @@ import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
 import com.auction.dao.DepositRequestDao;
 import com.auction.dao.ItemDao;
+import com.auction.dao.PasswordResetRequestDao;
 import com.auction.dao.UserDao;
+import com.auction.dto.AutoBidRequest;
 import com.auction.dto.ChangePasswordRequest;
 import com.auction.dto.DepositRequest;
-import com.auction.model.DepositRecord;
 import com.auction.dto.ErrorResponse;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.DuplicateException;
@@ -25,11 +26,13 @@ import com.auction.exception.UnauthorizedException;
 import com.auction.middleware.JwtMiddleware;
 import com.auction.model.Admin;
 import com.auction.model.AutoBidConfig;
+import com.auction.model.DepositRecord;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.service.AuctionScheduler;
 import com.auction.service.AuctionService;
 import com.auction.service.BidService;
 import com.auction.service.ItemService;
+import com.auction.service.PasswordResetService;
 import com.auction.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -86,6 +89,7 @@ public class App {
     var bidTransactionDao = new BidTransactionDao(jdbi);
     var autoBidConfigDao = new AutoBidConfigDao(jdbi);
     var depositRequestDao = new DepositRequestDao(jdbi);
+    var passwordResetRequestDao = new PasswordResetRequestDao(jdbi);
 
     // ── 3b. Seed tài khoản admin mặc định ───────────────────
     seedAdminIfNeeded(userDao);
@@ -98,12 +102,18 @@ public class App {
 
     // ── 6. Khởi tạo Services ────────────────────────────────
     var userService = new UserService(userDao, depositRequestDao);
+    var passwordResetService = new PasswordResetService(userDao, passwordResetRequestDao);
     var itemService = new ItemService(itemDao);
     var auctionService = new AuctionService(auctionDao, itemDao, userDao);
     var bidService =
         new BidService(
-            auctionDao, bidTransactionDao, autoBidConfigDao, eventManager, jdbi,
-            auctionService, userDao);
+            auctionDao,
+            bidTransactionDao,
+            autoBidConfigDao,
+            eventManager,
+            jdbi,
+            auctionService,
+            userDao);
 
     // ── 7. Khởi tạo Scheduler (tự chuyển trạng thái phiên) ──
     var scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager);
@@ -137,6 +147,7 @@ public class App {
     app.get("/api/health", ctx -> ctx.json(Map.of("status", "ok")));
 
     AuthController.register(app, userService);
+    AuthController.registerPasswordReset(app, passwordResetService);
     ItemController.register(app, itemService);
     AuctionController.register(app, auctionService);
 
@@ -183,18 +194,14 @@ public class App {
     app.get(
         "/api/admin/deposit-requests",
         ctx -> {
-          if (!"ADMIN".equals(ctx.attribute("role"))) {
-            throw new UnauthorizedException("Chỉ ADMIN mới có quyền truy cập");
-          }
+          requireAdmin(ctx);
           ctx.json(userService.getPendingDeposits());
         });
 
     app.post(
         "/api/admin/deposit-requests/{id}/approve",
         ctx -> {
-          if (!"ADMIN".equals(ctx.attribute("role"))) {
-            throw new UnauthorizedException("Chỉ ADMIN mới có quyền phê duyệt");
-          }
+          requireAdmin(ctx);
           Long requestId = Long.parseLong(ctx.pathParam("id"));
           ctx.json(userService.approveDeposit(requestId));
         });
@@ -202,11 +209,45 @@ public class App {
     app.post(
         "/api/admin/deposit-requests/{id}/reject",
         ctx -> {
-          if (!"ADMIN".equals(ctx.attribute("role"))) {
-            throw new UnauthorizedException("Chỉ ADMIN mới có quyền từ chối");
-          }
+          requireAdmin(ctx);
           Long requestId = Long.parseLong(ctx.pathParam("id"));
           userService.rejectDeposit(requestId);
+          ctx.status(204);
+        });
+
+    // ── Admin password reset endpoints ───────────────────
+    app.get(
+        "/api/admin/password-reset-requests",
+        ctx -> {
+          requireAdmin(ctx);
+          ctx.json(passwordResetService.getPendingRequests());
+        });
+
+    app.post(
+        "/api/admin/password-reset-requests/{id}/approve",
+        ctx -> {
+          requireAdmin(ctx);
+          Long requestId = Long.parseLong(ctx.pathParam("id"));
+          passwordResetService.approveReset(requestId);
+          ctx.status(200).json(Map.of("message", "Đã đặt lại mật khẩu về 123456."));
+        });
+
+    app.post(
+        "/api/admin/password-reset-requests/{id}/reject",
+        ctx -> {
+          requireAdmin(ctx);
+          Long requestId = Long.parseLong(ctx.pathParam("id"));
+          passwordResetService.rejectReset(requestId);
+          ctx.status(204);
+        });
+
+    // ── Admin hard-delete auction endpoint ───────────────
+    app.delete(
+        "/api/admin/auctions/{id}",
+        ctx -> {
+          requireAdmin(ctx);
+          Long auctionId = Long.parseLong(ctx.pathParam("id"));
+          auctionService.hardDelete(auctionId);
           ctx.status(204);
         });
 
@@ -214,20 +255,14 @@ public class App {
     app.get(
         "/api/admin/users",
         ctx -> {
-          String role = ctx.attribute("role");
-          if (!"ADMIN".equals(role)) {
-            throw new UnauthorizedException("Chỉ ADMIN mới có quyền truy cập");
-          }
+          requireAdmin(ctx);
           ctx.json(userService.getAll());
         });
 
     app.delete(
         "/api/admin/users/{id}",
         ctx -> {
-          String role = ctx.attribute("role");
-          if (!"ADMIN".equals(role)) {
-            throw new UnauthorizedException("Chỉ ADMIN mới có quyền xóa user");
-          }
+          requireAdmin(ctx);
           Long userId = Long.parseLong(ctx.pathParam("id"));
           userService.delete(userId);
           ctx.status(204);
@@ -243,14 +278,12 @@ public class App {
           }
           Long auctionId = Long.parseLong(ctx.pathParam("id"));
           Long bidderId = ctx.attribute("userId");
-          var body = ctx.bodyAsClass(Map.class);
-          Object rawMaxBid = body.get("maxBid");
-          Object rawIncrement = body.get("increment");
-          if (rawMaxBid == null || rawIncrement == null) {
-            throw new com.auction.exception.InvalidBidException("maxBid và increment là bắt buộc");
+          AutoBidRequest req = ctx.bodyAsClass(AutoBidRequest.class);
+          if (req.getMaxBid() == null || req.getIncrement() == null) {
+            throw new InvalidBidException("maxBid và increment là bắt buộc");
           }
-          BigDecimal maxBid = new BigDecimal(rawMaxBid.toString());
-          BigDecimal increment = new BigDecimal(rawIncrement.toString());
+          BigDecimal maxBid = req.getMaxBid();
+          BigDecimal increment = req.getIncrement();
 
           var existing = autoBidConfigDao.findByAuctionAndBidder(auctionId, bidderId);
           if (existing.isPresent()) {
@@ -270,6 +303,10 @@ public class App {
     app.delete(
         "/api/auctions/{id}/auto-bid",
         ctx -> {
+          String role = ctx.attribute("role");
+          if (!"BIDDER".equals(role)) {
+            throw new UnauthorizedException("Chỉ BIDDER mới được tắt auto-bid");
+          }
           Long auctionId = Long.parseLong(ctx.pathParam("id"));
           Long bidderId = ctx.attribute("userId");
           autoBidConfigDao
@@ -296,6 +333,13 @@ public class App {
     LOGGER.info("Server đang chạy tại http://localhost:{}", SERVER_PORT);
   }
 
+  /** Ném UnauthorizedException nếu request không đến từ ADMIN. */
+  private static void requireAdmin(io.javalin.http.Context ctx) {
+    if (!"ADMIN".equals(ctx.attribute("role"))) {
+      throw new UnauthorizedException("Chỉ ADMIN mới có quyền thực hiện thao tác này");
+    }
+  }
+
   /**
    * Tạo hoặc cập nhật tài khoản admin mặc định (admin / 123456) khi server khởi động. Đảm bảo admin
    * luôn có thể đăng nhập trong môi trường dev/test.
@@ -319,19 +363,21 @@ public class App {
   }
 
   /**
-   * Áp dụng các migration còn thiếu theo kiểu idempotent (IF NOT EXISTS).
-   * Thay thế cho Flyway vì project không cấu hình auto-migration.
-   * An toàn để gọi nhiều lần — không ảnh hưởng schema đã tồn tại.
+   * Áp dụng các migration còn thiếu theo kiểu idempotent (IF NOT EXISTS). Thay thế cho Flyway vì
+   * project không cấu hình auto-migration. An toàn để gọi nhiều lần — không ảnh hưởng schema đã tồn
+   * tại.
    */
   private static void ensureSchemaExists(Jdbi jdbi) {
     try {
-      jdbi.useHandle(handle -> {
-        // V3: cột balance cho users (nếu chưa có)
-        handle.execute(
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) NOT NULL DEFAULT 0");
+      jdbi.useHandle(
+          handle -> {
+            // V3: cột balance cho users (nếu chưa có)
+            handle.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) NOT NULL DEFAULT 0");
 
-        // V4: bảng deposit_requests (nếu chưa có)
-        handle.execute("""
+            // V4: bảng deposit_requests (nếu chưa có)
+            handle.execute(
+                """
             CREATE TABLE IF NOT EXISTS deposit_requests (
                 id          BIGSERIAL PRIMARY KEY,
                 user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -342,9 +388,22 @@ public class App {
                 reviewed_at TIMESTAMP
             )
             """);
-        handle.execute(
-            "CREATE INDEX IF NOT EXISTS idx_deposit_requests_status ON deposit_requests(status)");
-      });
+            handle.execute(
+                "CREATE INDEX IF NOT EXISTS idx_deposit_requests_status ON deposit_requests(status)");
+
+            // V5: bảng password_reset_requests (nếu chưa có)
+            handle.execute(
+                """
+            CREATE TABLE IF NOT EXISTS password_reset_requests (
+                id          BIGSERIAL PRIMARY KEY,
+                user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status      VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+                            CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+                created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+                reviewed_at TIMESTAMP
+            )
+            """);
+          });
       LOGGER.info("Schema kiểm tra xong — tất cả bảng tồn tại.");
     } catch (Exception e) {
       LOGGER.error("Lỗi khi đảm bảo schema: {}", e.getMessage(), e);
@@ -366,6 +425,20 @@ public class App {
    * </pre>
    */
   private static void registerExceptionHandlers(Javalin app) {
+    app.exception(
+        IllegalArgumentException.class,
+        (e, ctx) -> {
+          LOGGER.warn("Dữ liệu không hợp lệ: {}", e.getMessage());
+          ctx.status(400).json(ErrorResponse.of("BAD_REQUEST", e.getMessage()));
+        });
+
+    app.exception(
+        IllegalStateException.class,
+        (e, ctx) -> {
+          LOGGER.warn("Trạng thái không hợp lệ: {}", e.getMessage());
+          ctx.status(409).json(ErrorResponse.of("INVALID_STATE", e.getMessage()));
+        });
+
     app.exception(
         InvalidBidException.class,
         (e, ctx) -> {

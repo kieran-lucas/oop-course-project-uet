@@ -192,11 +192,12 @@ public class CreateItemController implements Navigable {
     }
   }
 
+  private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
+      new com.fasterxml.jackson.databind.ObjectMapper();
+
   private String extractMessage(String body, String fallback) {
     try {
-      com.fasterxml.jackson.databind.ObjectMapper mapper =
-          new com.fasterxml.jackson.databind.ObjectMapper();
-      return mapper.readTree(body).path("message").asText(fallback);
+      return MAPPER.readTree(body).path("message").asText(fallback);
     } catch (Exception e) {
       return fallback;
     }

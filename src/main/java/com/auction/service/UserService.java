@@ -147,9 +147,7 @@ public class UserService {
     if (amount == null || amount.signum() <= 0) {
       throw new IllegalArgumentException("Số tiền nạp phải lớn hơn 0.");
     }
-    userDao
-        .findById(userId)
-        .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+    userDao.findById(userId).orElseThrow(() -> new NotFoundException("User not found: " + userId));
     return depositRequestDao.insert(new DepositRecord(userId, amount));
   }
 
@@ -223,9 +221,7 @@ public class UserService {
    * @throws NotFoundException nếu user không tồn tại
    */
   public void delete(Long userId) {
-    if (!userDao.findById(userId).isPresent()) {
-      throw new NotFoundException("User not found: " + userId);
-    }
+    userDao.findById(userId).orElseThrow(() -> new NotFoundException("User not found: " + userId));
     userDao.delete(userId);
   }
 }

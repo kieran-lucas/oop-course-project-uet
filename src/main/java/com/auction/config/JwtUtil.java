@@ -9,9 +9,12 @@ import java.time.temporal.ChronoUnit;
 
 public class JwtUtil {
 
-  // Ưu tiên đọc từ biến môi trường, nếu null thì dùng default
-  private static final String SECRET_KEY =
-      System.getenv("JWT_SECRET") != null ? System.getenv("JWT_SECRET") : "auction-secret-key-dev";
+  private static final String SECRET_KEY;
+
+  static {
+    String envSecret = System.getenv("JWT_SECRET");
+    SECRET_KEY = (envSecret != null && !envSecret.isBlank()) ? envSecret : "auction-secret-key-dev";
+  }
 
   private static final Algorithm ALGORITHM =
       Algorithm.HMAC256(

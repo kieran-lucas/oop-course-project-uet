@@ -74,10 +74,7 @@ public class AuctionScheduler {
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   public AuctionScheduler(
-      AuctionDao auctionDao,
-      UserDao userDao,
-      ItemDao itemDao,
-      AuctionEventManager eventManager) {
+      AuctionDao auctionDao, UserDao userDao, ItemDao itemDao, AuctionEventManager eventManager) {
     this.auctionDao = auctionDao;
     this.userDao = userDao;
     this.itemDao = itemDao;
@@ -118,6 +115,14 @@ public class AuctionScheduler {
       scheduledTask.cancel(false); // không interrupt task đang chạy giữa chừng
     }
     scheduler.shutdown();
+    try {
+      if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+        scheduler.shutdownNow();
+      }
+    } catch (InterruptedException ie) {
+      scheduler.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
     running.set(false);
     LOG.info("AuctionScheduler đã dừng");
   }
@@ -205,9 +210,8 @@ public class AuctionScheduler {
   }
 
   /**
-   * Thanh toán và đóng phiên:
-   * - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status → PAID.
-   * - Nếu không ai bid: status → FINISHED.
+   * Thanh toán và đóng phiên: - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status →
+   * PAID. - Nếu không ai bid: status → FINISHED.
    */
   private void settleAndClose(Auction auction) {
     Long winnerId = auction.getLeadingBidderId();
@@ -215,19 +219,30 @@ public class AuctionScheduler {
     if (winnerId != null) {
       BigDecimal price = auction.getCurrentPrice();
 
-      // Atomic balance deduction — avoids read-then-write race when multiple auctions
-      // settle simultaneously with the same bidder as winner.
-      if (userDao.findById(winnerId).isPresent()) {
-        userDao.updateBalance(winnerId, price.negate());
-        LOG.info("Phiên #{}: trừ {} từ bidder #{}", auction.getId(), price, winnerId);
-      }
+      userDao
+          .findById(winnerId)
+          .ifPresent(
+              winner -> {
+                BigDecimal balance =
+                    winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
+                if (balance.compareTo(price) >= 0) {
+                  userDao.updateBalance(winnerId, price.negate());
+                  LOG.info("Phiên #{}: trừ {} từ bidder #{}", auction.getId(), price, winnerId);
+                } else {
+                  LOG.warn(
+                      "Phiên #{}: bidder #{} không đủ số dư ({}) để thanh toán {}. Không trừ.",
+                      auction.getId(),
+                      winnerId,
+                      balance,
+                      price);
+                }
+              });
 
       // Cộng tiền seller (atomic — same race condition applies)
       Long sellerId = auction.getSellerId();
       if (sellerId == null) {
-        sellerId = itemDao.findById(auction.getItemId())
-            .map(item -> item.getSellerId())
-            .orElse(null);
+        sellerId =
+            itemDao.findById(auction.getItemId()).map(item -> item.getSellerId()).orElse(null);
       }
       if (sellerId != null) {
         userDao.updateBalance(sellerId, price);
@@ -242,7 +257,10 @@ public class AuctionScheduler {
     auctionDao.update(auction);
     LOG.info(
         "Phiên #{} → {} (endTime={}, winner={})",
-        auction.getId(), auction.getStatus(), auction.getEndTime(), winnerId);
+        auction.getId(),
+        auction.getStatus(),
+        auction.getEndTime(),
+        winnerId);
   }
 
   // ── Notification ─────────────────────────────────────────
@@ -259,16 +277,12 @@ public class AuctionScheduler {
     try {
       String winnerName = null;
       if (auction.getLeadingBidderId() != null) {
-        winnerName = userDao.findById(auction.getLeadingBidderId())
-            .map(User::getUsername)
-            .orElse(null);
+        winnerName =
+            userDao.findById(auction.getLeadingBidderId()).map(User::getUsername).orElse(null);
       }
       BidUpdateMessage msg =
           BidUpdateMessage.auctionEnded(
-              auction.getId(),
-              auction.getCurrentPrice(),
-              auction.getLeadingBidderId(),
-              winnerName);
+              auction.getId(), auction.getCurrentPrice(), auction.getLeadingBidderId(), winnerName);
       eventManager.notifyAuctionEnd(auction.getId(), msg);
 
     } catch (Exception e) {

@@ -34,29 +34,30 @@ public class BidController {
 
   public void register(Javalin app) {
     // POST /api/auctions/{id}/bid — Đặt giá
-    // Yêu cầu: role = BIDDER (SELLER không được tự bid phiên của chính mình nhưng vẫn được bid phiên của người khác)
+    // Yêu cầu: role = BIDDER (SELLER không được tự bid phiên của chính mình nhưng vẫn được bid
+    // phiên của người khác)
     // Body: {"amount": 500000}
     // Response 201: BidTransaction JSON
-      app.post(
-          "/api/auctions/{id}/bid",
-          ctx -> {
-              String role = ctx.attribute("role");
+    app.post(
+        "/api/auctions/{id}/bid",
+        ctx -> {
+          String role = ctx.attribute("role");
 
-              // ✅ THAY ĐỔI: Cho phép cả BIDDER và SELLER được đi qua
-              if (!"BIDDER".equals(role) && !"SELLER".equals(role)) {
-                  throw new UnauthorizedException("Chỉ BIDDER hoặc SELLER mới được tham gia đặt giá");
-              }
+          // ✅ THAY ĐỔI: Cho phép cả BIDDER và SELLER được đi qua
+          if (!"BIDDER".equals(role) && !"SELLER".equals(role)) {
+            throw new UnauthorizedException("Chỉ BIDDER hoặc SELLER mới được tham gia đặt giá");
+          }
 
-              Long auctionId = Long.parseLong(ctx.pathParam("id"));
-              Long bidderId = ctx.attribute("userId");
-              BidRequest request = ctx.bodyAsClass(BidRequest.class);
+          Long auctionId = Long.parseLong(ctx.pathParam("id"));
+          Long bidderId = ctx.attribute("userId");
+          BidRequest request = ctx.bodyAsClass(BidRequest.class);
 
-              // Gọi BidService với signature mới
-              BidTransaction bid = bidService.placeBid(auctionId, bidderId, request.getAmount(), false);
+          // Gọi BidService với signature mới
+          BidTransaction bid = bidService.placeBid(auctionId, bidderId, request.getAmount(), false);
 
-              LOGGER.info("Bid đặt thành công qua API: auction={}, bidder={}", auctionId, bidderId);
-              ctx.status(201).json(bid);
-          });
+          LOGGER.info("Bid đặt thành công qua API: auction={}, bidder={}", auctionId, bidderId);
+          ctx.status(201).json(bid);
+        });
 
     // GET /api/auctions/{id}/bids — Lịch sử bid
     // Dùng cho Bid History Chart (trục X = thời gian, trục Y = giá)

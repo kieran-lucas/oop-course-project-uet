@@ -3,6 +3,7 @@ package com.auction.ui.controller;
 import com.auction.dto.AuctionResponse;
 import com.auction.dto.UserResponse;
 import com.auction.model.DepositRecord;
+import com.auction.model.PasswordResetRecord;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
@@ -78,9 +79,18 @@ public class AdminPanelController implements Navigable {
   @FXML private TableColumn<DepositRecord, java.time.LocalDateTime> depositTimeCol;
   @FXML private TableColumn<DepositRecord, Void> depositActionCol;
 
+  @FXML private TableView<PasswordResetRecord> passwordResetTable;
+  @FXML private TableColumn<PasswordResetRecord, Long> prIdCol;
+  @FXML private TableColumn<PasswordResetRecord, String> prUsernameCol;
+  @FXML private TableColumn<PasswordResetRecord, String> prEmailCol;
+  @FXML private TableColumn<PasswordResetRecord, java.time.LocalDateTime> prTimeCol;
+  @FXML private TableColumn<PasswordResetRecord, Void> prActionCol;
+
   private final ObservableList<AuctionResponse> allAuctions = FXCollections.observableArrayList();
   private final ObservableList<UserResponse> allUsers = FXCollections.observableArrayList();
   private final ObservableList<DepositRecord> pendingDeposits = FXCollections.observableArrayList();
+  private final ObservableList<PasswordResetRecord> pendingPasswordResets =
+      FXCollections.observableArrayList();
   private Timeline depositRefreshTimeline;
 
   @FXML
@@ -88,6 +98,7 @@ public class AdminPanelController implements Navigable {
     setupColumns();
     setupUserColumns();
     setupDepositColumns();
+    setupPasswordResetColumns();
   }
 
   // ========== NAVIGABLE LIFECYCLE ==========
@@ -100,6 +111,7 @@ public class AdminPanelController implements Navigable {
     loadAuctions();
     loadUsers();
     loadDepositRequests();
+    loadPasswordResetRequests();
     startDepositRefresh();
   }
 
@@ -136,6 +148,11 @@ public class AdminPanelController implements Navigable {
   }
 
   @FXML
+  public void handleRefreshPasswordResets() {
+    loadPasswordResetRequests();
+  }
+
+  @FXML
   public void handleProfile() {
     SceneManager.getInstance().navigateTo("profile.fxml");
   }
@@ -168,6 +185,28 @@ public class AdminPanelController implements Navigable {
                 }
               } catch (Exception e) {
                 LOGGER.error("Lỗi load auctions", e);
+                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+              }
+            });
+  }
+
+  private void hardDeleteAuction(Long id) {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.delete("/api/admin/auctions/" + id);
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 204 || response.statusCode() == 200) {
+                        setStatus("Đã xóa vĩnh viễn phiên #" + id);
+                        loadAuctions();
+                      } else {
+                        setStatus("Xóa thất bại: " + response.statusCode());
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi xóa phiên {}", id, e);
                 Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
               }
             });
@@ -238,6 +277,75 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  private void loadPasswordResetRequests() {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.get("/api/admin/password-reset-requests");
+                if (response.statusCode() == 200) {
+                  List<PasswordResetRecord> list =
+                      RestClient.parseList(response.body(), PasswordResetRecord.class);
+                  Platform.runLater(
+                      () -> {
+                        pendingPasswordResets.setAll(list);
+                        passwordResetTable.setItems(
+                            FXCollections.observableArrayList(pendingPasswordResets));
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi load password reset requests", e);
+              }
+            });
+  }
+
+  private void approvePasswordReset(Long id) {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.post("/api/admin/password-reset-requests/" + id + "/approve", null);
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 200) {
+                        setStatus("Đã reset mật khẩu về 123456 cho yêu cầu #" + id);
+                        loadPasswordResetRequests();
+                      } else {
+                        setStatus("Duyệt thất bại: " + response.statusCode());
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi duyệt password reset {}", id, e);
+                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+              }
+            });
+  }
+
+  private void rejectPasswordReset(Long id) {
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.post("/api/admin/password-reset-requests/" + id + "/reject", null);
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 204) {
+                        setStatus("Đã từ chối yêu cầu đặt lại mật khẩu #" + id);
+                        loadPasswordResetRequests();
+                      } else {
+                        setStatus("Từ chối thất bại: " + response.statusCode());
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi từ chối password reset {}", id, e);
+                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+              }
+            });
+  }
+
   // ========== UI SETUP ==========
 
   private void setupColumns() {
@@ -282,9 +390,12 @@ public class AdminPanelController implements Navigable {
             new TableCell<>() {
               private final Button viewBtn = new Button("Xem");
               private final Button cancelBtn = new Button("Hủy");
-              private final HBox box = new HBox(6, viewBtn, cancelBtn);
+              private final Button deleteBtn = new Button("Xóa");
+              private final HBox box = new HBox(6, viewBtn, cancelBtn, deleteBtn);
 
               {
+                deleteBtn.setStyle(
+                    "-fx-background-color: #880e4f; -fx-text-fill: white; -fx-cursor: hand;");
                 viewBtn.setOnAction(
                     e -> {
                       AuctionResponse a = getTableView().getItems().get(getIndex());
@@ -294,6 +405,11 @@ public class AdminPanelController implements Navigable {
                     e -> {
                       AuctionResponse a = getTableView().getItems().get(getIndex());
                       deleteAuction(a.getId());
+                    });
+                deleteBtn.setOnAction(
+                    e -> {
+                      AuctionResponse a = getTableView().getItems().get(getIndex());
+                      hardDeleteAuction(a.getId());
                     });
               }
 
@@ -430,8 +546,7 @@ public class AdminPanelController implements Navigable {
     depositTimeCol.setCellFactory(
         col ->
             new TableCell<>() {
-              private final DateTimeFormatter fmt =
-                  DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+              private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
               @Override
               protected void updateItem(java.time.LocalDateTime item, boolean empty) {
@@ -470,10 +585,64 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  private void setupPasswordResetColumns() {
+    prIdCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+    prUsernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+    prEmailCol.setCellValueFactory(new PropertyValueFactory<>("email"));
+
+    prTimeCol.setCellValueFactory(new PropertyValueFactory<>("createdAt"));
+    prTimeCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+              @Override
+              protected void updateItem(java.time.LocalDateTime item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.format(fmt));
+              }
+            });
+
+    prActionCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              private final Button approveBtn = new Button("Duyệt");
+              private final Button rejectBtn = new Button("Từ chối");
+              private final HBox box = new HBox(6, approveBtn, rejectBtn);
+
+              {
+                approveBtn.setStyle("-fx-background-color: #43a047; -fx-text-fill: white;");
+                rejectBtn.setStyle("-fx-background-color: #e53935; -fx-text-fill: white;");
+                approveBtn.setOnAction(
+                    e -> {
+                      PasswordResetRecord r = getTableView().getItems().get(getIndex());
+                      approvePasswordReset(r.getId());
+                    });
+                rejectBtn.setOnAction(
+                    e -> {
+                      PasswordResetRecord r = getTableView().getItems().get(getIndex());
+                      rejectPasswordReset(r.getId());
+                    });
+              }
+
+              @Override
+              protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : box);
+              }
+            });
+  }
+
   private void startDepositRefresh() {
     stopDepositRefresh();
-    depositRefreshTimeline = new Timeline(
-        new KeyFrame(Duration.seconds(15), e -> loadDepositRequests()));
+    depositRefreshTimeline =
+        new Timeline(
+            new KeyFrame(
+                Duration.seconds(5),
+                e -> {
+                  loadDepositRequests();
+                  loadPasswordResetRequests();
+                }));
     depositRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
     depositRefreshTimeline.play();
   }

@@ -40,10 +40,10 @@ import org.slf4j.LoggerFactory;
 public class DepositController implements Navigable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DepositController.class);
-  private static final NumberFormat VND = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+  private static final NumberFormat VND = NumberFormat.getCurrencyInstance(Locale.of("vi", "VN"));
   private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-  private static final ObjectMapper MAPPER = new ObjectMapper()
-      .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
 
   @FXML private Label balanceLabel;
   @FXML private TextField amountField;
@@ -64,7 +64,6 @@ public class DepositController implements Navigable {
     if (historyList != null) {
       historyList.setItems(historyItems);
     }
-    knownStatuses.clear();
     loadBalance();
     loadHistory();
     startDepositPoll();
@@ -106,18 +105,22 @@ public class DepositController implements Navigable {
                     () -> {
                       if (response.statusCode() == 202) {
                         showStatus(
-                            "Yêu cầu nạp " + VND.format(amount) + " đã được gửi. Chờ Admin xác nhận.",
+                            "Yêu cầu nạp "
+                                + VND.format(amount)
+                                + " đã được gửi. Chờ Admin xác nhận.",
                             false);
                         amountField.clear();
                         loadHistory();
                       } else {
-                        String errMsg = "Gửi yêu cầu thất bại (HTTP " + response.statusCode() + ").";
+                        String errMsg =
+                            "Gửi yêu cầu thất bại (HTTP " + response.statusCode() + ").";
                         try {
                           var node = MAPPER.readTree(response.body());
                           if (node.has("message")) {
                             errMsg = node.get("message").asText();
                           }
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                         showStatus(errMsg, true);
                       }
                       depositButton.setDisable(false);
@@ -145,9 +148,7 @@ public class DepositController implements Navigable {
               try {
                 HttpResponse<String> response = RestClient.get("/api/users/me");
                 if (response.statusCode() == 200) {
-                  com.fasterxml.jackson.databind.ObjectMapper mapper =
-                      new com.fasterxml.jackson.databind.ObjectMapper();
-                  var node = mapper.readTree(response.body());
+                  var node = MAPPER.readTree(response.body());
                   if (node.has("balance")) {
                     BigDecimal balance = node.get("balance").decimalValue();
                     Platform.runLater(
@@ -161,32 +162,40 @@ public class DepositController implements Navigable {
   }
 
   private void loadHistory() {
-    Thread.ofVirtual().start(() -> {
-      try {
-        HttpResponse<String> response = RestClient.get("/api/users/me/deposit-requests");
-        if (response.statusCode() == 200) {
-          List<DepositRecord> records = RestClient.parseList(response.body(), DepositRecord.class);
-          Platform.runLater(() -> applyDepositRecords(records, false));
-        } else {
-          LOGGER.error("Lỗi load lịch sử nạp tiền: HTTP {}", response.statusCode());
-        }
-      } catch (Exception e) {
-        LOGGER.error("Không thể load lịch sử nạp tiền", e);
-      }
-    });
+    boolean notify = !knownStatuses.isEmpty();
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.get("/api/users/me/deposit-requests");
+                if (response.statusCode() == 200) {
+                  List<DepositRecord> records =
+                      RestClient.parseList(response.body(), DepositRecord.class);
+                  Platform.runLater(() -> applyDepositRecords(records, notify));
+                } else {
+                  LOGGER.error("Lỗi load lịch sử nạp tiền: HTTP {}", response.statusCode());
+                }
+              } catch (Exception e) {
+                LOGGER.error("Không thể load lịch sử nạp tiền", e);
+              }
+            });
   }
 
-  /** Áp dụng danh sách DepositRecord lên UI. Nếu notify=true thì so sánh trạng thái và gửi thông báo khi có thay đổi. */
+  /**
+   * Áp dụng danh sách DepositRecord lên UI. Nếu notify=true thì so sánh trạng thái và gửi thông báo
+   * khi có thay đổi.
+   */
   private void applyDepositRecords(List<DepositRecord> records, boolean notify) {
     var items = FXCollections.<String>observableArrayList();
     boolean balanceChanged = false;
     for (DepositRecord r : records) {
       String curr = r.getStatus() != null ? r.getStatus() : "PENDING";
-      String statusText = switch (curr) {
-        case "APPROVED" -> "✓ Đã duyệt";
-        case "REJECTED" -> "✗ Từ chối";
-        default -> "⏳ Chờ duyệt";
-      };
+      String statusText =
+          switch (curr) {
+            case "APPROVED" -> "✓ Đã duyệt";
+            case "REJECTED" -> "✗ Từ chối";
+            default -> "⏳ Chờ duyệt";
+          };
       String dateStr = r.getCreatedAt() != null ? r.getCreatedAt().format(DATE_FMT) : "—";
       String amtStr = r.getAmount() != null ? VND.format(r.getAmount()) : "—";
       items.add(amtStr + "  |  " + statusText + "  |  " + dateStr);
@@ -194,11 +203,12 @@ public class DepositController implements Navigable {
       if (r.getId() != null) {
         String prev = knownStatuses.get(r.getId());
         if (notify && prev != null && !prev.equals(curr)) {
-          String notif = switch (curr) {
-            case "APPROVED" -> "Nạp tiền " + amtStr + " đã được duyệt ✓";
-            case "REJECTED" -> "Nạp tiền " + amtStr + " bị từ chối ✗";
-            default -> "Trạng thái nạp tiền " + amtStr + " đã thay đổi";
-          };
+          String notif =
+              switch (curr) {
+                case "APPROVED" -> "Nạp tiền " + amtStr + " đã được duyệt ✓";
+                case "REJECTED" -> "Nạp tiền " + amtStr + " bị từ chối ✗";
+                default -> "Trạng thái nạp tiền " + amtStr + " đã thay đổi";
+              };
           NotificationStore.getInstance().add(notif);
           showStatus(notif, "REJECTED".equals(curr));
           if ("APPROVED".equals(curr)) {
@@ -216,22 +226,26 @@ public class DepositController implements Navigable {
 
   private void startDepositPoll() {
     stopDepositPoll();
-    depositPollTimeline = new Timeline(
-        new KeyFrame(Duration.seconds(4), e ->
-            Thread.ofVirtual().start(() -> {
-              try {
-                HttpResponse<String> response = RestClient.get("/api/users/me/deposit-requests");
-                if (response.statusCode() == 200) {
-                  List<DepositRecord> records =
-                      RestClient.parseList(response.body(), DepositRecord.class);
-                  Platform.runLater(() -> applyDepositRecords(records, true));
-                }
-              } catch (Exception e2) {
-                LOGGER.debug("Deposit poll lỗi: {}", e2.getMessage());
-              }
-            })
-        )
-    );
+    depositPollTimeline =
+        new Timeline(
+            new KeyFrame(
+                Duration.seconds(4),
+                e ->
+                    Thread.ofVirtual()
+                        .start(
+                            () -> {
+                              try {
+                                HttpResponse<String> response =
+                                    RestClient.get("/api/users/me/deposit-requests");
+                                if (response.statusCode() == 200) {
+                                  List<DepositRecord> records =
+                                      RestClient.parseList(response.body(), DepositRecord.class);
+                                  Platform.runLater(() -> applyDepositRecords(records, true));
+                                }
+                              } catch (Exception e2) {
+                                LOGGER.debug("Deposit poll lỗi: {}", e2.getMessage());
+                              }
+                            })));
     depositPollTimeline.setCycleCount(Timeline.INDEFINITE);
     depositPollTimeline.play();
   }

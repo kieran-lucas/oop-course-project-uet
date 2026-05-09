@@ -1,7 +1,9 @@
 package com.auction.controller;
 
+import com.auction.dto.ForgotPasswordRequest;
 import com.auction.dto.LoginRequest;
 import com.auction.dto.RegisterRequest;
+import com.auction.service.PasswordResetService;
 import com.auction.service.UserService;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -10,44 +12,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Controller xử lý các endpoint xác thực người dùng: đăng ký và đăng nhập
+ * Controller xử lý các endpoint xác thực người dùng: đăng ký, đăng nhập, quên mật khẩu.
  *
- * <p>Đây là các endpoint duy nhất trong hệ thống KHÔNG yêu cầu JWT token — vì đây là nơi người dùng
- * lần đầu tiên nhận token. Middleware {@code JwtMiddleware} được cấu hình trong {@link
- * com.auction.App} để bỏ qua tất cả route bắt đầu bằng {@code /api/auth/}.
- *
- * <p>Danh sách endpoints:
+ * <p>Các endpoint không yêu cầu JWT token (khai báo public trong {@code JwtMiddleware}):
  *
  * <ul>
  *   <li>{@code POST /api/auth/register} — Tạo tài khoản mới, trả về JWT token.
  *   <li>{@code POST /api/auth/login} — Đăng nhập, trả về JWT token.
+ *   <li>{@code POST /api/auth/forgot-password} — Gửi yêu cầu đặt lại mật khẩu cho Admin duyệt.
  * </ul>
- *
- * <p>Cách sử dụng (đăng ký route trong {@link com.auction.App}):
- *
- * <pre>
- *   AuthController.register(app, userService);
- * </pre>
  *
  * @see com.auction.service.UserService
  * @see com.auction.config.JwtUtil
  */
 public class AuthController {
 
-  /** Logger ghi lại các sự kiện đăng nhập/đăng ký. */
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
 
-  /** Hàm khởi tạo private — lớp này chỉ dùng static methods, không cần instance. */
   private AuthController() {}
 
   /**
-   * Đăng ký tất cả route xác thực vào Javalin instance.
+   * Đăng ký route đăng ký và đăng nhập vào Javalin instance.
    *
-   * <p>Phương thức này được gọi một lần duy nhất trong {@code App.main()} sau khi {@code
-   * UserService} đã được khởi tạo với đầy đủ dependency.
-   *
-   * @param app Javalin instance đang chạy
-   * @param userService service xử lý logic đăng ký, đăng nhập, mã hóa mật khẩu
+   * @param app Javalin instance
+   * @param userService service xử lý đăng ký, đăng nhập
    */
   public static void register(Javalin app, UserService userService) {
     app.post("/api/auth/register", ctx -> handleRegister(ctx, userService));
@@ -56,48 +44,24 @@ public class AuthController {
   }
 
   /**
-   * Xử lý yêu cầu đăng ký tài khoản mới.
-   *
-   * <p>Luồng xử lý:
-   *
-   * <ol>
-   *   <li>Parse JSON body thành {@link RegisterRequest}.
-   *   <li>Gọi {@code UserService.register()} — validate dữ liệu, mã hóa mật khẩu BCrypt, kiểm tra
-   *       username trùng, tạo đúng subclass (Bidder/Seller/Admin), lưu DB.
-   *   <li>Gọi {@code UserService.login()} để tạo JWT token ngay sau khi đăng ký (người dùng không
-   *       cần đăng nhập lại).
-   *   <li>Trả về JSON: {@code {"token": "eyJ...", "role": "BIDDER"}}.
-   * </ol>
-   *
-   * <p>Các lỗi có thể xảy ra (được xử lý bởi exception handler trong {@code App.java}):
+   * Đăng ký route quên mật khẩu — user gửi yêu cầu, Admin duyệt.
    *
    * <ul>
-   *   <li>{@code DuplicateException} (409) — username đã tồn tại.
-   *   <li>{@code IllegalArgumentException} (400) — dữ liệu không hợp lệ.
+   *   <li>{@code POST /api/auth/forgot-password} — Tạo yêu cầu PENDING, Admin sẽ xét duyệt.
    * </ul>
    *
-   * <p>Ví dụ request body:
-   *
-   * <pre>
-   *   {
-   *     "username": "alice",
-   *     "password": "matkhau123",
-   *     "email": "alice@example.com",
-   *     "role": "BIDDER"
-   *   }
-   * </pre>
-   *
-   * @param ctx Javalin context chứa HTTP request/response
-   * @param userService service thực thi logic đăng ký
+   * @param app Javalin instance
+   * @param resetService service quản lý yêu cầu đặt lại mật khẩu
    */
-  private static void handleRegister(Context ctx, UserService userService) {
-    // Parse JSON body thành DTO
-    RegisterRequest request = ctx.bodyAsClass(RegisterRequest.class);
+  public static void registerPasswordReset(Javalin app, PasswordResetService resetService) {
+    app.post("/api/auth/forgot-password", ctx -> handleForgotPassword(ctx, resetService));
+    LOGGER.info("Đã đăng ký: POST /api/auth/forgot-password");
+  }
 
-    // Gọi service: validate + BCrypt hash + insert DB
+  private static void handleRegister(Context ctx, UserService userService) {
+    RegisterRequest request = ctx.bodyAsClass(RegisterRequest.class);
     userService.register(request);
 
-    // Tạo JWT token ngay sau khi đăng ký (tiện cho client: đăng ký xong → dùng luôn)
     LoginRequest loginRequest = new LoginRequest(request.getUsername(), request.getPassword());
     String token = userService.login(loginRequest);
     long userId = com.auction.config.JwtUtil.verifyToken(token).getClaim("userId").asLong();
@@ -105,7 +69,6 @@ public class AuthController {
     LOGGER.info(
         "Đăng ký thành công: username={}, role={}", request.getUsername(), request.getRole());
 
-    // Trả về token + role + userId cho client biết để chuyển màn hình phù hợp
     ctx.status(201)
         .json(
             Map.of(
@@ -119,45 +82,10 @@ public class AuthController {
                 userId));
   }
 
-  /**
-   * Xử lý yêu cầu đăng nhập.
-   *
-   * <p>Luồng xử lý:
-   *
-   * <ol>
-   *   <li>Parse JSON body thành {@link LoginRequest}.
-   *   <li>Gọi {@code UserService.login()} — tìm user theo username, verify mật khẩu với BCrypt, tạo
-   *       JWT token chứa {userId, username, role}.
-   *   <li>Trả về JSON: {@code {"token": "eyJ...", "role": "BIDDER", "username": "alice"}}.
-   * </ol>
-   *
-   * <p>Các lỗi có thể xảy ra:
-   *
-   * <ul>
-   *   <li>{@code NotFoundException} (404) — username không tồn tại.
-   *   <li>{@code UnauthorizedException} (401) — mật khẩu sai.
-   * </ul>
-   *
-   * <p>Ví dụ request body:
-   *
-   * <pre>
-   *   {
-   *     "username": "alice",
-   *     "password": "matkhau123"
-   *   }
-   * </pre>
-   *
-   * @param ctx Javalin context chứa HTTP request/response
-   * @param userService service thực thi logic đăng nhập và tạo JWT
-   */
   private static void handleLogin(Context ctx, UserService userService) {
-    // Parse JSON body thành DTO
     LoginRequest request = ctx.bodyAsClass(LoginRequest.class);
-
-    // Gọi service: tìm user → verify BCrypt → tạo JWT
     String token = userService.login(request);
 
-    // Lấy role và userId từ token để client biết chuyển màn hình nào
     String role = userService.getRoleByUsername(request.getUsername());
     String username = request.getUsername();
     long userId = com.auction.config.JwtUtil.verifyToken(token).getClaim("userId").asLong();
@@ -171,5 +99,28 @@ public class AuthController {
                 "role", role,
                 "username", username,
                 "userId", userId));
+  }
+
+  /**
+   * Xử lý yêu cầu quên mật khẩu — tạo bản ghi PENDING cho Admin xét duyệt.
+   *
+   * <p>Request body: {@code {"email": "user@example.com"}}
+   *
+   * @param ctx Javalin context
+   * @param service PasswordResetService
+   */
+  private static void handleForgotPassword(Context ctx, PasswordResetService service) {
+    ForgotPasswordRequest req = ctx.bodyAsClass(ForgotPasswordRequest.class);
+    if (req.getEmail() == null || req.getEmail().trim().isEmpty()) {
+      ctx.status(400).json(Map.of("message", "Email không được để trống."));
+      return;
+    }
+    service.requestReset(req.getEmail().trim());
+    ctx.status(200)
+        .json(
+            Map.of(
+                "message",
+                "Yêu cầu đã được gửi. Admin sẽ xét duyệt và mật khẩu sẽ được đặt lại về"
+                    + " 123456."));
   }
 }

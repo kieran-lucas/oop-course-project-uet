@@ -14,6 +14,7 @@ public class JwtMiddleware {
     // 1. Public routes - Bỏ qua hoàn toàn xác thực
     if (path.equals("/api/auth/login")
         || path.equals("/api/auth/register")
+        || path.equals("/api/auth/forgot-password")
         || path.equals("/api/health")) {
       return;
     }

@@ -15,18 +15,19 @@ import org.slf4j.LoggerFactory;
  * Singleton duy trì các WebSocket nền cho phiên đấu giá người dùng đã từng bid.
  *
  * <p>Khi người dùng rời màn hình chi tiết đấu giá, {@code AuctionDetailController} đăng ký phiên
- * này vào đây. Mọi sự kiện BID_UPDATE và AUCTION_ENDED nhận được sẽ được thêm vào
- * {@link NotificationStore} — chuông thông báo trên màn hình danh sách sẽ sáng lên tức thời.
+ * này vào đây. Mọi sự kiện BID_UPDATE và AUCTION_ENDED nhận được sẽ được thêm vào {@link
+ * NotificationStore} — chuông thông báo trên màn hình danh sách sẽ sáng lên tức thời.
  *
- * <p>Khi người dùng quay lại màn hình chi tiết, {@code stopWatching()} được gọi để nhường lại
- * kết nối cho controller (tránh nhận thông báo trùng). Khi đăng xuất, {@code stopAll()} dọn sạch
- * tất cả kết nối.
+ * <p>Khi người dùng quay lại màn hình chi tiết, {@code stopWatching()} được gọi để nhường lại kết
+ * nối cho controller (tránh nhận thông báo trùng). Khi đăng xuất, {@code stopAll()} dọn sạch tất cả
+ * kết nối.
  */
 public class BackgroundBidWatcher {
 
   private static final BackgroundBidWatcher INSTANCE = new BackgroundBidWatcher();
   private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundBidWatcher.class);
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper().registerModule(new JavaTimeModule());
   private static final NumberFormat VND = NumberFormat.getCurrencyInstance(Locale.of("vi", "VN"));
 
   private final Map<Long, WebSocketClient> watchers = new ConcurrentHashMap<>();
@@ -54,14 +55,18 @@ public class BackgroundBidWatcher {
     itemNames.put(auctionId, label);
     WebSocketClient ws = new WebSocketClient();
     watchers.put(auctionId, ws);
-    ws.connect(auctionId, token, json -> {
-      try {
-        BidUpdateMessage msg = MAPPER.readValue(json, BidUpdateMessage.class);
-        handleMessage(auctionId, msg, currentUserId);
-      } catch (Exception e) {
-        LOGGER.debug("BackgroundBidWatcher parse error phiên #{}: {}", auctionId, e.getMessage());
-      }
-    });
+    ws.connect(
+        auctionId,
+        token,
+        json -> {
+          try {
+            BidUpdateMessage msg = MAPPER.readValue(json, BidUpdateMessage.class);
+            handleMessage(auctionId, msg, currentUserId);
+          } catch (Exception e) {
+            LOGGER.debug(
+                "BackgroundBidWatcher parse error phiên #{}: {}", auctionId, e.getMessage());
+          }
+        });
     LOGGER.info("BackgroundBidWatcher: theo dõi nền phiên #{}", auctionId);
   }
 
@@ -93,40 +98,46 @@ public class BackgroundBidWatcher {
         if (msg.getCurrentPrice() == null) {
           return;
         }
-        boolean isOwnBid = msg.getLeadingBidderId() != null
-            && msg.getLeadingBidderId().equals(currentUserId);
+        boolean isOwnBid =
+            msg.getLeadingBidderId() != null && msg.getLeadingBidderId().equals(currentUserId);
         String price = VND.format(msg.getCurrentPrice());
         String text;
         if (isOwnBid && msg.isAutoBid()) {
           text = label + "Auto-bid đặt " + price + " cho bạn";
         } else if (!isOwnBid) {
-          String bidder = msg.getLeadingBidderUsername() != null
-              ? msg.getLeadingBidderUsername() : "Ẩn danh";
+          String bidder =
+              msg.getLeadingBidderUsername() != null ? msg.getLeadingBidderUsername() : "Ẩn danh";
           text = label + bidder + " vừa bid " + price;
         } else {
           return; // own manual bid — người dùng tự biết
         }
         final String notification = text;
         // Guard: skip if stopWatching() was already called for this auction
-        Platform.runLater(() -> {
-          if (watchers.containsKey(auctionId)) {
-            NotificationStore.getInstance().add(notification);
-          }
-        });
+        Platform.runLater(
+            () -> {
+              if (watchers.containsKey(auctionId)) {
+                NotificationStore.getInstance().add(notification);
+              }
+            });
       }
       case BidUpdateMessage.TYPE_AUCTION_ENDED -> {
-        String winner = msg.getLeadingBidderUsername() != null
-            ? msg.getLeadingBidderUsername() : "Không có người thắng";
+        String winner =
+            msg.getLeadingBidderUsername() != null
+                ? msg.getLeadingBidderUsername()
+                : "Không có người thắng";
         String price = msg.getCurrentPrice() != null ? VND.format(msg.getCurrentPrice()) : "—";
         String text = label + "Phiên đã kết thúc — " + winner + " thắng với " + price;
-        Platform.runLater(() -> {
-          if (watchers.containsKey(auctionId)) {
-            NotificationStore.getInstance().add(text);
-            stopWatching(auctionId);
-          }
-        });
+        Platform.runLater(
+            () -> {
+              if (watchers.containsKey(auctionId)) {
+                NotificationStore.getInstance().add(text);
+                stopWatching(auctionId);
+              }
+            });
       }
-      default -> { /* TIME_EXTENDED không cần thông báo nền */ }
+      default -> {
+        /* TIME_EXTENDED không cần thông báo nền */
+      }
     }
   }
 }

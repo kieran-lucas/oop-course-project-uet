@@ -1,24 +1,22 @@
 package com.auction.model;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** Yêu cầu nạp tiền của Bidder — chờ Admin xác nhận trước khi cộng vào số dư. */
-public class DepositRecord {
+/** Yêu cầu đặt lại mật khẩu — chờ Admin phê duyệt trước khi reset về mật khẩu mặc định. */
+public class PasswordResetRecord {
 
   private Long id;
   private Long userId;
   private String username;
-  private BigDecimal amount;
+  private String email;
   private String status; // PENDING, APPROVED, REJECTED
   private LocalDateTime createdAt;
   private LocalDateTime reviewedAt;
 
-  public DepositRecord() {}
+  public PasswordResetRecord() {}
 
-  public DepositRecord(Long userId, BigDecimal amount) {
+  public PasswordResetRecord(Long userId) {
     this.userId = userId;
-    this.amount = amount;
     this.status = "PENDING";
     this.createdAt = LocalDateTime.now();
   }
@@ -47,12 +45,12 @@ public class DepositRecord {
     this.username = username;
   }
 
-  public BigDecimal getAmount() {
-    return amount;
+  public String getEmail() {
+    return email;
   }
 
-  public void setAmount(BigDecimal amount) {
-    this.amount = amount;
+  public void setEmail(String email) {
+    this.email = email;
   }
 
   public String getStatus() {

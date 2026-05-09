@@ -120,8 +120,8 @@ public class SceneManager {
   }
 
   /**
-   * Chuyển màn hình + truyền data cho controller đích.
-   * onDataReceived() được gọi TRƯỚC onNavigatedTo() để controller có đủ data.
+   * Chuyển màn hình + truyền data cho controller đích. onDataReceived() được gọi TRƯỚC
+   * onNavigatedTo() để controller có đủ data.
    *
    * @param fxmlName tên file FXML đích
    * @param data dữ liệu truyền sang
@@ -134,8 +134,8 @@ public class SceneManager {
   }
 
   /**
-   * Quay lại màn hình trước trong backStack. Nếu stack rỗng, dùng {@code defaultFxml}.
-   * KHÔNG ghi màn hình hiện tại vào stack (không tạo vòng lặp).
+   * Quay lại màn hình trước trong backStack. Nếu stack rỗng, dùng {@code defaultFxml}. KHÔNG ghi
+   * màn hình hiện tại vào stack (không tạo vòng lặp).
    */
   public void navigateBack(String defaultFxml) {
     String target = backStack.isEmpty() ? defaultFxml : backStack.pop();
@@ -143,8 +143,8 @@ public class SceneManager {
   }
 
   /**
-   * Thực hiện điều hướng — dùng chung cho navigateTo, navigateBack, và logout.
-   * Gọi onNavigatedFrom() của controller cũ và onNavigatedTo() của controller mới.
+   * Thực hiện điều hướng — dùng chung cho navigateTo, navigateBack, và logout. Gọi
+   * onNavigatedFrom() của controller cũ và onNavigatedTo() của controller mới.
    */
   private void performNavigate(String fxmlName, Object data, boolean hasData) {
     notifyNavigatedFrom();

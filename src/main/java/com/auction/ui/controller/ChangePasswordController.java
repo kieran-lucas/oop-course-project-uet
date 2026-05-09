@@ -6,11 +6,14 @@ import com.auction.util.RestClient;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,13 +75,18 @@ public class ChangePasswordController implements Navigable {
                 HttpResponse<String> response = RestClient.put("/api/users/me/password", body);
                 Platform.runLater(
                     () -> {
-                      if (response.statusCode() == 200) {
-                        showStatus("Đổi mật khẩu thành công!", false);
-                        clearForm();
+                      int code = response.statusCode();
+                      if (code == 200 || code == 204) {
+                        showStatus(
+                            "Đổi mật khẩu thành công! Tự động đăng xuất sau 3 giây...", false);
+                        new Timeline(
+                                new KeyFrame(
+                                    Duration.seconds(3), ev -> SceneManager.getInstance().logout()))
+                            .play();
                       } else {
                         showStatus("Đổi mật khẩu thất bại. Mật khẩu hiện tại không đúng.", true);
+                        changeButton.setDisable(false);
                       }
-                      changeButton.setDisable(false);
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi đổi mật khẩu", e);
@@ -100,10 +108,12 @@ public class ChangePasswordController implements Navigable {
     statusLabel.setText(msg);
     statusLabel.setStyle(isError ? "-fx-text-fill: #e53935;" : "-fx-text-fill: #43a047;");
     statusLabel.setVisible(true);
+    statusLabel.setManaged(true);
   }
 
   private void hideStatus() {
     statusLabel.setVisible(false);
+    statusLabel.setManaged(false);
   }
 
   private void clearForm() {

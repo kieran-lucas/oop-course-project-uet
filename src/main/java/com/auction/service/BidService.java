@@ -9,6 +9,7 @@ import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
 import com.auction.model.BidTransaction;
+import com.auction.model.User;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.pattern.strategy.AutoBidStrategy;
 import java.math.BigDecimal;
@@ -90,6 +91,22 @@ public class BidService {
       throw new InvalidBidException("Giá bid phải lớn hơn 0");
     }
 
+    userDao
+        .findById(bidderId)
+        .ifPresent(
+            bidder -> {
+              BigDecimal balance =
+                  bidder.getBalance() != null ? bidder.getBalance() : BigDecimal.ZERO;
+              if (balance.compareTo(amount) < 0) {
+                throw new InvalidBidException(
+                    "Số dư không đủ. Số dư hiện tại: "
+                        + balance
+                        + ", giá bid: "
+                        + amount
+                        + ". Vui lòng nạp thêm tiền.");
+              }
+            });
+
     AtomicReference<Auction> auctionRef = new AtomicReference<>();
     AtomicBoolean antiSnipeTriggered = new AtomicBoolean(false);
 
@@ -165,7 +182,7 @@ public class BidService {
   private void notifyBidUpdate(
       Auction auction, Long auctionId, Long bidderId, BigDecimal amount, boolean isAutoBid) {
     try {
-      String username = userDao.findById(bidderId).map(u -> u.getUsername()).orElse(null);
+      String username = userDao.findById(bidderId).map(User::getUsername).orElse(null);
       BidUpdateMessage msg =
           BidUpdateMessage.bidUpdate(
               auctionId, amount, bidderId, username, auction.getEndTime(), isAutoBid);
@@ -178,7 +195,9 @@ public class BidService {
   private void triggerAutoBid(Long auctionId, BigDecimal currentPrice, Long leadingBidderId) {
     try {
       autoBidStrategy.executeAll(
-          auctionId, currentPrice, leadingBidderId,
+          auctionId,
+          currentPrice,
+          leadingBidderId,
           (aid, bid, amt) -> this.placeBid(aid, bid, amt, true));
     } catch (Exception e) {
       LOGGER.error("Lỗi khi xử lý auto-bid cho phiên #{}: {}", auctionId, e.getMessage());

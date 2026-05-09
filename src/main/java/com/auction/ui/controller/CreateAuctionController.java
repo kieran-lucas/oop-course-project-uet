@@ -184,13 +184,11 @@ public class CreateAuctionController implements Navigable {
   /** Load danh sách sản phẩm thuộc seller hiện tại từ GET /api/items?sellerId=X. */
   private void loadMyItems() {
     Long sellerId = SceneManager.getInstance().getCurrentUserId();
-    System.out.println(">>> sellerId = " + sellerId);
     Thread.ofVirtual()
         .start(
             () -> {
               try {
                 HttpResponse<String> response = RestClient.get("/api/items?sellerId=" + sellerId);
-                System.out.println(">>> response = " + response.body());
                 if (response.statusCode() == 200) {
                   List<Item> items = RestClient.parseList(response.body(), Item.class);
                   Platform.runLater(
