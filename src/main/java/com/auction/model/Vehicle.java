@@ -3,21 +3,21 @@ package com.auction.model;
 import java.time.LocalDateTime;
 
 /**
- * Phương tiện giao thông — sản phẩm đấu giá có thêm thông tin năm sản xuất.
+ * Phương tiện giao thông — sản phẩm đấu giá có thêm thông tin năm sản xuất
  *
  * <p>Ví dụ điển hình: chiếc "Toyota Camry 2022" có {@code year = 2022}. Năm sản xuất là yếu tố ảnh
  * hưởng đáng kể đến giá trị thị trường của một phương tiện, nhưng lại không có ý nghĩa với các loại
- * sản phẩm khác như {@link Art} hay {@link Electronics}.
+ * sản phẩm khác như {@link Art} hay {@link Electronics}
  */
 public class Vehicle extends Item {
 
   private int year;
 
-  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object. */
+  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object*/
   public Vehicle() {}
 
   /**
-   * Khởi tạo một phương tiện mới chưa được lưu vào DB.
+   * Khởi tạo một phương tiện mới chưa được lưu vào DB
    *
    * @param name tên sản phẩm (ví dụ: "Toyota Camry")
    * @param description mô tả chi tiết
@@ -30,7 +30,7 @@ public class Vehicle extends Item {
   }
 
   /**
-   * Khởi tạo một phương tiện từ bản ghi đã tồn tại trong DB.
+   * Khởi tạo một phương tiện từ bản ghi đã tồn tại trong DB
    *
    * @param id định danh sản phẩm
    * @param name tên sản phẩm
