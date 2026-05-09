@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * được xử lý tại các lớp con tương ứng.
  *
  * <p>Lớp {@code User} kế thừa {@code id} và {@code createdAt} từ {@link Entity}, sau đó mở rộng
- * thêm các trường dành riêng cho người dùng — đây là INHERITANCE trong OOP.
+ * thêm các trường dành riêng cho người dùng — đây là INHERITANCE trong OOP
  */
 public abstract class User extends Entity {
 
@@ -25,14 +25,14 @@ public abstract class User extends Entity {
   private String email;
   private BigDecimal balance = BigDecimal.ZERO;
 
-  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object. */
+  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object*/
   protected User() {}
 
   /**
-   * Khởi tạo một người dùng mới khi đăng ký tài khoản.
+   * Khởi tạo một người dùng mới khi đăng ký tài khoản
    *
    * <p>Việc gọi {@code super()} sẽ kích hoạt constructor của {@link Entity}, qua đó gán {@code
-   * createdAt} bằng thời điểm hiện tại.
+   * createdAt} bằng thời điểm hiện tại
    *
    * @param username tên đăng nhập
    * @param passwordHash mật khẩu đã hash
@@ -46,7 +46,7 @@ public abstract class User extends Entity {
   }
 
   /**
-   * Khởi tạo một người dùng từ bản ghi đã có trong DB.
+   * Khởi tạo một người dùng từ bản ghi đã có trong DB
    *
    * @param id định danh người dùng
    * @param username tên đăng nhập
