@@ -272,7 +272,7 @@ Trigger: push + pull_request
 | Design patterns | 1.0 | Observer + Factory + Strategy + State + DAO |
 | Quản lý user, sản phẩm | 1.0 | REST CRUD + JavaFX GUI |
 | Chức năng đấu giá | 1.0 | placeBid + validation + State pattern |
-| Xử lý lỗi & ngoại lệ | 1.0 | Custom exceptions + Javalin exception handler |
+| Xử lý lỗi & ngoại lệ | 1.0 | [Custom exceptions](./EXCEPTIONS.md) + Javalin exception handler |
 | Concurrent bidding | 1.0 | synchronized (tầng app) + PostgreSQL FOR UPDATE (tầng DB) |
 | Realtime update | 0.5 | WebSocket + Observer pattern |
 | Client-Server | 0.5 | Javalin server + JavaFX client |
