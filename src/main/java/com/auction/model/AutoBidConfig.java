@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Cấu hình auto-bid cho một user trong một phiên đấu giá.
+ * Cấu hình auto-bid cho một user trong một phiên đấu giá
  *
  * <p>Khi user bật auto-bid, họ đặt: - maxBid: giá tối đa sẵn sàng trả (ví dụ: 10 triệu) -
  * increment: mỗi lần tự động bid thêm bao nhiêu (ví dụ: 100k)
@@ -15,9 +15,9 @@ import java.time.LocalDateTime;
  * khi hết budget
  *
  * <p>registeredAt dùng để sắp xếp ưu tiên: ai đăng ký auto-bid trước thì được xử lý trước
- * (PriorityQueue sắp theo registeredAt).
+ * (PriorityQueue sắp theo registeredAt)
  *
- * <p>isActive = false khi user tự tắt hoặc khi maxBid đã bị vượt qua.
+ * <p>isActive = false khi user tự tắt hoặc khi maxBid đã bị vượt qua
  *
  * <p>UNIQUE(auction_id, bidder_id) trong database đảm bảo mỗi user chỉ có 1 auto-bid config cho mỗi
  * phiên.
