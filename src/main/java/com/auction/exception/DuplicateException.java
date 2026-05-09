@@ -24,7 +24,7 @@ public class DuplicateException extends AuctionException {
   private static final long serialVersionUID = 1L;
 
   /**
-   * Constructs a new DuplicateException with the specified message.
+   * Constructs a new DuplicateException with the specified message
    *
    * @param message description of the uniqueness violation
    */
@@ -33,7 +33,7 @@ public class DuplicateException extends AuctionException {
   }
 
   /**
-   * Constructs a new DuplicateException with the specified message and cause.
+   * Constructs a new DuplicateException with the specified message and cause
    *
    * @param message description of the uniqueness violation
    * @param cause the underlying exception (e.g., SQLIntegrityConstraintViolationException)
