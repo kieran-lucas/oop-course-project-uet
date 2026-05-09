@@ -47,7 +47,7 @@ public class ForgotPasswordController implements Navigable {
 
   @FXML
   public void goBack() {
-    SceneManager.getInstance().navigateTo("login.fxml");
+    SceneManager.getInstance().navigateBack("login.fxml");
   }
 
   private void showStatus(String msg, boolean isError) {

@@ -155,7 +155,7 @@ public class CreateItemController implements Navigable {
   /** Quay lại màn hình tạo phiên đấu giá. */
   @FXML
   public void goBack() {
-    SceneManager.getInstance().navigateTo("create-auction.fxml");
+    SceneManager.getInstance().navigateBack("create-auction.fxml");
   }
 
   // ========== PRIVATE HELPERS ==========

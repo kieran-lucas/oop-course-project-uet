@@ -93,7 +93,7 @@ public class ChangePasswordController implements Navigable {
 
   @FXML
   public void goBack() {
-    SceneManager.getInstance().navigateTo("profile.fxml");
+    SceneManager.getInstance().navigateBack("profile.fxml");
   }
 
   private void showStatus(String msg, boolean isError) {

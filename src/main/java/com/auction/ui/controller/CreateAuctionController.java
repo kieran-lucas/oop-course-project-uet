@@ -176,7 +176,7 @@ public class CreateAuctionController implements Navigable {
   /** Quay lại danh sách phiên. */
   @FXML
   public void goBack() {
-    SceneManager.getInstance().navigateTo("auction-list.fxml");
+    SceneManager.getInstance().navigateBack("auction-list.fxml");
   }
 
   // ========== DATA LOADING ==========
