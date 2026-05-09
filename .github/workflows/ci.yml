@@ -117,6 +117,10 @@ jobs:
       - name: Generate coverage report
         if: always()
         run: ./gradlew jacocoTestReport
+        env: 
+          DB_URL: jdbc:postgresql://localhost:5432/auction_test
+          DB_USER: auction_user
+          DB_PASSWORD: auction_pass
 
       - name: Upload coverage report
         if: always()
