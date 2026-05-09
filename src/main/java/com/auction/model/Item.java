@@ -6,18 +6,18 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.time.LocalDateTime;
 
 /**
- * Lớp trừu tượng đại diện cho một sản phẩm có thể tham gia đấu giá.
+ * Lớp trừu tượng đại diện cho một sản phẩm có thể tham gia đấu giá
  *
  * <p>Hệ thống hỗ trợ ba loại sản phẩm: {@link Electronics}, {@link Art}, và {@link Vehicle}. Các
  * thuộc tính dùng chung (tên sản phẩm, mô tả, người bán) được đặt tại lớp này; những thuộc tính đặc
  * thù — ví dụ {@code brand} cho Electronics, {@code artist} cho Art, hay {@code year} cho Vehicle —
- * sẽ được khai báo tại lớp con tương ứng.
+ * sẽ được khai báo tại lớp con tương ứng
  *
  * <p>Tương tự lớp {@code User}, {@code Item} cung cấp một abstract method {@link #getCategory()} để
  * tận dụng polymorphism khi xác định loại sản phẩm.
  *
  * <p>Các annotation Jackson ở đầu lớp giúp deserialize JSON về đúng subclass dựa vào trường {@code
- * category}.
+ * category}
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "category", visible = true)
@@ -32,11 +32,11 @@ public abstract class Item extends Entity {
   private String description;
   private Long sellerId; // khóa ngoại tham chiếu đến bảng users
 
-  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object. */
+  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object*/
   protected Item() {}
 
   /**
-   * Khởi tạo một sản phẩm mới chưa được lưu vào DB.
+   * Khởi tạo một sản phẩm mới chưa được lưu vào DB
    *
    * @param name tên sản phẩm
    * @param description mô tả sản phẩm
@@ -50,7 +50,7 @@ public abstract class Item extends Entity {
   }
 
   /**
-   * Khởi tạo một sản phẩm từ bản ghi đã tồn tại trong DB.
+   * Khởi tạo một sản phẩm từ bản ghi đã tồn tại trong DB
    *
    * @param id định danh sản phẩm
    * @param name tên sản phẩm
@@ -67,10 +67,10 @@ public abstract class Item extends Entity {
 
   /**
    * Trả về loại sản phẩm dưới dạng chuỗi: {@code "ELECTRONICS"}, {@code "ART"}, hoặc {@code
-   * "VEHICLE"}.
+   * "VEHICLE"}
    *
    * <p>POLYMORPHISM: mỗi lớp con override method này. {@code ItemFactory} dựa vào giá trị trả về để
-   * quyết định khởi tạo subclass nào, và cột {@code category} trong DB cũng lưu chính giá trị này.
+   * quyết định khởi tạo subclass nào, và cột {@code category} trong DB cũng lưu chính giá trị này
    *
    * @return chuỗi đại diện cho loại sản phẩm
    */
