@@ -144,13 +144,13 @@
 - Setup pre-commit hook cho cả team: `./gradlew spotlessApply` trước mỗi commit
 
 ### Deliverables tuần 1
-- [ ] `POST /api/auth/register` → trả JWT (test bằng Postman)
-- [ ] `POST /api/auth/login` → trả JWT (test bằng Postman)
-- [ ] JWT Middleware chặn request không có token (GET /api/health → 401)
-- [ ] Exception handler trả JSON `ErrorResponse` (không trả stacktrace)
-- [ ] Login screen JavaFX hiển thị với dark theme
-- [ ] UserServiceTest + JwtUtilTest pass
-- [ ] CI xanh
+- [x] `POST /api/auth/register` → trả JWT (test bằng Postman)
+- [x] `POST /api/auth/login` → trả JWT (test bằng Postman)
+- [x] JWT Middleware chặn request không có token (GET /api/health → 401)
+- [x] Exception handler trả JSON `ErrorResponse` (không trả stacktrace)
+- [x] Login screen JavaFX hiển thị với dark theme
+- [x] UserServiceTest + JwtUtilTest pass
+- [x] CI xanh
 
 **Điểm tích lũy: ~2.5/11** (Cây kế thừa 0.5 + OOP 1.0 + Build/convention 0.5 + CI/CD 0.5)
 
@@ -244,12 +244,12 @@
 - Chạy `./gradlew spotlessApply` + verify CI
 
 ### Deliverables tuần 2 — MILESTONE 1
-- [ ] CRUD Item qua REST hoạt động (test bằng Postman)
-- [ ] CRUD Auction qua REST hoạt động
-- [ ] Factory tạo đúng subclass (Electronics/Art/Vehicle) → ItemFactoryTest pass
-- [ ] State pattern chặn đúng hành động theo trạng thái → AuctionServiceTest pass
-- [ ] Client hiển thị danh sách auctions (TableView + dark theme + status badge)
-- [ ] Form tạo item + auction hoạt động
+- [x] CRUD Item qua REST hoạt động (test bằng Postman)
+- [x] CRUD Auction qua REST hoạt động
+- [x] Factory tạo đúng subclass (Electronics/Art/Vehicle) → ItemFactoryTest pass
+- [x] State pattern chặn đúng hành động theo trạng thái → AuctionServiceTest pass
+- [x] Client hiển thị danh sách auctions (TableView + dark theme + status badge)
+- [x] Form tạo item + auction hoạt động
 
 **Điểm tích lũy: ~4.5/11** (thêm: Design patterns 1.0 + CRUD user/product 1.0)
 
@@ -344,13 +344,13 @@
 - Test end-to-end thủ công: mở 2 cửa sổ client → cả hai vào cùng phiên → client A bid → client B thấy giá cập nhật realtime qua WebSocket
 
 ### Deliverables tuần 3
-- [ ] Đặt giá chạy end-to-end: client → REST → BidService → DB → WebSocket → all clients
-- [ ] Observer pattern notify BID_UPDATE cho tất cả client đang xem phiên
-- [ ] Countdown timer đếm ngược chính xác, đổi đỏ khi < 30s
-- [ ] Bid history hiển thị trong ListView
-- [ ] LineChart hiển thị initial data từ REST
-- [ ] BidServiceTest pass
-- [ ] AuctionScheduler tự chuyển OPEN → RUNNING → FINISHED
+- [x] Đặt giá chạy end-to-end: client → REST → BidService → DB → WebSocket → all clients
+- [x] Observer pattern notify BID_UPDATE cho tất cả client đang xem phiên
+- [x] Countdown timer đếm ngược chính xác, đổi đỏ khi < 30s
+- [x] Bid history hiển thị trong ListView
+- [x] LineChart hiển thị initial data từ REST
+- [x] BidServiceTest pass
+- [x] AuctionScheduler tự chuyển OPEN → RUNNING → FINISHED
 
 **Điểm tích lũy: ~7.0/11** (thêm: Bidding 1.0 + Realtime 0.5 + Client-Server 0.5 + MVC 0.5)
 
@@ -414,10 +414,10 @@
 - Test auto-bid: User A setup auto-bid (max=10M, increment=100k), User B bid 5M → verify hệ thống tự bid 5.1M cho A → BidTransaction với autoBid=true
 
 ### Deliverables tuần 4 — MILESTONE 2
-- [ ] ConcurrencyTest pass với 10+ threads
-- [ ] Anti-sniping: bid trong 30s cuối → gia hạn → broadcast TIME_EXTENDED
-- [ ] Auto-bidding: setup → tự bid → chain bids → dừng khi vượt maxBid
-- [ ] Auto-bid UI: form + toggle + trạng thái hiển thị
+- [x] ConcurrencyTest pass với 10+ threads
+- [x] Anti-sniping: bid trong 30s cuối → gia hạn → broadcast TIME_EXTENDED
+- [x] Auto-bidding: setup → tự bid → chain bids → dừng khi vượt maxBid
+- [x] Auto-bid UI: form + toggle + trạng thái hiển thị
 
 **Điểm tích lũy: ~9.0/11** (thêm: Concurrency 1.0 + Anti-sniping 0.5 + Auto-bid 0.5)
 
@@ -474,10 +474,10 @@
 - Setup `JaCoCo` coverage report trong build.gradle.kts → verify > 60% coverage cho service layer
 
 ### Deliverables tuần 5
-- [ ] Bid History Chart cập nhật realtime từ WebSocket
-- [ ] Admin panel hoạt động (list users, list auctions, xóa/hủy)
-- [ ] Exception handling toàn diện: mọi lỗi trả JSON chuẩn, message tiếng Việt
-- [ ] 5 design patterns có Javadoc giải thích
+- [x] Bid History Chart cập nhật realtime từ WebSocket
+- [x] Admin panel hoạt động (list users, list auctions, xóa/hủy)
+- [x] Exception handling toàn diện: mọi lỗi trả JSON chuẩn, message tiếng Việt
+- [x] 5 design patterns có Javadoc giải thích
 
 **Điểm tích lũy: ~10.5/11** (thêm: Xử lý lỗi 1.0 + Chart 0.5)
 
@@ -533,11 +533,11 @@
 - Người khác hỏi → phải trả lời được
 
 ### Deliverables tuần 6 — MILESTONE 3
-- [ ] Tất cả tests pass (unit + integration + concurrency)
-- [ ] CI pipeline xanh trên main
-- [ ] JaCoCo > 60% overall
-- [ ] Code review hoàn tất, không còn warnings
-- [ ] Mọi thành viên trả lời được 5 câu hỏi random
+- [x] Tất cả tests pass (unit + integration + concurrency)
+- [x] CI pipeline xanh trên main
+- [x] JaCoCo > 60% overall
+- [x] Code review hoàn tất, không còn warnings
+- [x] Mọi thành viên trả lời được 5 câu hỏi random
 
 ---
 
@@ -603,11 +603,11 @@ Mỗi người ngồi trước code, được chỉ random 3 file bất kỳ tro
 Nếu ai không trả lời được → cả nhóm pair programming giải thích cho nhau cho đến khi hiểu.
 
 ### Deliverables tuần 8 — SUBMIT
-- [ ] README.md đầy đủ: setup, architecture, API docs, patterns, screenshots, demo video
-- [ ] GitHub repo sạch: 25+ commits/người, PRs, conventional commits
-- [ ] CI/CD xanh trên main
-- [ ] Tag v1.0.0
-- [ ] Mọi thành viên giải thích được bất kỳ file nào
+- [x] README.md đầy đủ: setup, architecture, API docs, patterns, screenshots, demo video
+- [x] GitHub repo sạch: 25+ commits/người, PRs, conventional commits
+- [x] CI/CD xanh trên main
+- [x] Tag v1.0.0
+- [x] Mọi thành viên giải thích được bất kỳ file nào
 
 **Điểm mục tiêu: 11.0/11** (thêm: Unit test 0.5 + CI/CD 0.5)
 
