@@ -9,7 +9,7 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 
-/** DAO cho bảng deposit_requests. */
+/** DAO cho bảng deposit_requests */
 public class DepositRequestDao {
 
   private final Jdbi jdbi;
@@ -76,7 +76,7 @@ public class DepositRequestDao {
         handle -> handle.createQuery(sql).bind("id", id).map(new DepositRecordMapper()).findOne());
   }
 
-  /** Lấy tất cả yêu cầu theo status, JOIN với users để lấy username. */
+  /** Lấy tất cả yêu cầu theo status, JOIN với users để lấy username*/
   public List<DepositRecord> findByStatus(String status) {
     String sql =
         """
@@ -92,7 +92,7 @@ public class DepositRequestDao {
             handle.createQuery(sql).bind("status", status).map(new DepositRecordMapper()).list());
   }
 
-  /** Lấy tất cả yêu cầu của một user, mới nhất trước. */
+  /** Lấy tất cả yêu cầu của một user, mới nhất trước */
   public List<DepositRecord> findByUserId(Long userId) {
     String sql =
         """
