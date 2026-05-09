@@ -5,23 +5,23 @@ import java.time.LocalDateTime;
 
 /**
  * DTO cho tin nhắn WebSocket server push về client — thông báo realtime khi có sự kiện trong phiên
- * đấu giá.
+ * đấu giá
  *
  * <p>Đây KHÔNG phải REST response — đây là message gửi qua WebSocket connection đang mở. Mỗi khi có
  * sự kiện (bid mới, gia hạn thời gian, phiên kết thúc), server serialize BidUpdateMessage thành
- * JSON rồi gửi cho TẤT CẢ client đang xem phiên đó (Observer pattern).
+ * JSON rồi gửi cho TẤT CẢ client đang xem phiên đó (Observer pattern)
  *
  * <p>Các loại message (phân biệt bằng field type):
  *
  * <ul>
  *   <li><b>BID_UPDATE</b> — có người đặt giá mới thành công. Client cập nhật: giá hiện tại, người
- *       dẫn đầu, thêm data point vào Bid History Chart.
+ *       dẫn đầu, thêm data point vào Bid History Chart
  *   <li><b>TIME_EXTENDED</b> — anti-sniping kích hoạt: có bid trong 30 giây cuối → phiên gia hạn
- *       thêm 60 giây. Client cập nhật: countdown timer với endTime mới.
+ *       thêm 60 giây. Client cập nhật: countdown timer với endTime mới
  *   <li><b>AUCTION_ENDED</b> — phiên đấu giá kết thúc. Client hiển thị: người thắng cuộc, giá cuối
- *       cùng, disable nút "Đặt giá".
+ *       cùng, disable nút "Đặt giá"
  *   <li><b>AUTO_BID_TRIGGERED</b> — hệ thống tự động đặt giá (auto-bid). Client hiển thị: thông báo
- *       "Auto-bid đã đặt giá X cho bạn" (nếu là chính user đó).
+ *       "Auto-bid đã đặt giá X cho bạn" (nếu là chính user đó)
  * </ul>
  *
  * <p>Ví dụ JSON gửi qua WebSocket:
@@ -40,11 +40,11 @@ import java.time.LocalDateTime;
  * </pre>
  *
  * <p>Client JavaFX nhận message → parse JSON → gọi Platform.runLater() để cập nhật UI trên JavaFX
- * Application Thread (bắt buộc — JavaFX không cho phép update UI từ thread khác).
+ * Application Thread (bắt buộc — JavaFX không cho phép update UI từ thread khác)
  */
 public class BidUpdateMessage {
 
-  /** Hằng số cho các loại message — tránh viết sai chuỗi ở nhiều nơi. */
+  /** Hằng số cho các loại message — tránh viết sai chuỗi ở nhiều nơi */
   public static final String TYPE_BID_UPDATE = "BID_UPDATE";
 
   public static final String TYPE_TIME_EXTENDED = "TIME_EXTENDED";
@@ -63,7 +63,7 @@ public class BidUpdateMessage {
   public BidUpdateMessage() {}
 
   /**
-   * Factory method tạo message BID_UPDATE — loại phổ biến nhất, gửi mỗi khi có bid thành công.
+   * Factory method tạo message BID_UPDATE — loại phổ biến nhất, gửi mỗi khi có bid thành công
    *
    * @param auctionId ID phiên đấu giá
    * @param price giá mới sau bid
@@ -93,7 +93,7 @@ public class BidUpdateMessage {
   }
 
   /**
-   * Factory method tạo message TIME_EXTENDED — gửi khi anti-sniping gia hạn thời gian.
+   * Factory method tạo message TIME_EXTENDED — gửi khi anti-sniping gia hạn thời gian
    *
    * @param auctionId ID phiên đấu giá
    * @param newEndTime thời gian kết thúc mới (đã cộng thêm 60 giây)
@@ -109,7 +109,7 @@ public class BidUpdateMessage {
   }
 
   /**
-   * Factory method tạo message AUCTION_ENDED — gửi khi phiên kết thúc.
+   * Factory method tạo message AUCTION_ENDED — gửi khi phiên kết thúc
    *
    * @param auctionId ID phiên đấu giá
    * @param finalPrice giá cuối cùng
