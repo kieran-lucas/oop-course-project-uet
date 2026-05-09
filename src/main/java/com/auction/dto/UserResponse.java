@@ -4,7 +4,7 @@ import com.auction.model.User;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** DTO trả về thông tin user cho client — không bao gồm passwordHash. */
+/** DTO trả về thông tin user cho client — không bao gồm passwordHash*/
 public class UserResponse {
 
   private Long id;
@@ -16,7 +16,7 @@ public class UserResponse {
 
   public UserResponse() {}
 
-  /** Chuyển đổi từ User model sang UserResponse DTO. */
+  /** Chuyển đổi từ User model sang UserResponse DTO*/
   public static UserResponse from(User user) {
     UserResponse r = new UserResponse();
     r.id = user.getId();
