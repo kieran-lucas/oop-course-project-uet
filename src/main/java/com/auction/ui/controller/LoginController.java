@@ -166,7 +166,7 @@ public class LoginController implements Navigable {
   /** Quay lại màn hình chào mừng. */
   @FXML
   public void goBack() {
-    SceneManager.getInstance().navigateTo("welcome.fxml");
+    SceneManager.getInstance().navigateBack("welcome.fxml");
   }
 
   // ========== PRIVATE HELPERS ==========
