@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 /**
  * DTO trả về khi server gặp lỗi — thay vì trả stacktrace Java (lộ nội bộ hệ thống), server trả JSON
- * chuẩn chứa mã lỗi và thông báo dễ hiểu.
+ * chuẩn chứa mã lỗi và thông báo dễ hiểu
  *
  * <p>Mapping giữa Custom Exception → HTTP status → ErrorResponse:
  *
@@ -36,7 +36,7 @@ import java.time.LocalDateTime;
  * <p>Client nhận JSON lỗi → parse ErrorResponse → hiển thị message trên UI (ví dụ: Label đỏ "Giá
  * đặt phải cao hơn giá hiện tại").
  *
- * <p>Field timestamp giúp debug: khi user báo lỗi, có thể đối chiếu thời gian với server log.
+ * <p>Field timestamp giúp debug: khi user báo lỗi, có thể đối chiếu thời gian với server log
  */
 public class ErrorResponse {
 
@@ -53,7 +53,7 @@ public class ErrorResponse {
   }
 
   /**
-   * Factory method tạo ErrorResponse nhanh — dùng trong Javalin exception handler.
+   * Factory method tạo ErrorResponse nhanh — dùng trong Javalin exception handler
    *
    * <p>Ví dụ: {@code ctx.json(ErrorResponse.of("INVALID_BID", "Giá phải cao hơn 500,000đ"));}
    *
