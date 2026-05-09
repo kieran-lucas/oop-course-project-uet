@@ -14,11 +14,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * DAO (Data Access Object) cho bảng bid_transactions.
+ * DAO (Data Access Object) cho bảng bid_transactions
  *
  * <p>Class này chịu trách nhiệm ghi lại lịch sử đấu giá vào bảng bid_transactions. BidTransaction
  * là dữ liệu bất biến (append-only) — chỉ INSERT, không UPDATE hay DELETE. Điều này đảm bảo tính
- * minh bạch và khả năng kiểm toán (audit trail) của hệ thống.
+ * minh bạch và khả năng kiểm toán (audit trail) của hệ thống
  *
  * <h3>Vai trò trong hệ thống</h3>
  *
@@ -147,10 +147,10 @@ public class BidTransactionDao {
   }
 
   /**
-   * Ghi lại một bid thành công (phiên bản NGOÀI transaction, tạo connection riêng).
+   * Ghi lại một bid thành công (phiên bản NGOÀI transaction, tạo connection riêng)
    *
    * <p>Dùng cho các trường hợp không cần transaction với auction update, ví dụ: khi insert bid
-   * history cho mục đích logging không critical.
+   * history cho mục đích logging không critical
    *
    * @param transaction BidTransaction cần ghi
    */
