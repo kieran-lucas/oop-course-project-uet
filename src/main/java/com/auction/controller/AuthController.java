@@ -1,8 +1,10 @@
 package com.auction.controller;
 
+import com.auction.config.JwtUtil;
 import com.auction.dto.ForgotPasswordRequest;
 import com.auction.dto.LoginRequest;
 import com.auction.dto.RegisterRequest;
+import com.auction.model.User;
 import com.auction.service.PasswordResetService;
 import com.auction.service.UserService;
 import io.javalin.Javalin;
@@ -60,26 +62,19 @@ public class AuthController {
 
   private static void handleRegister(Context ctx, UserService userService) {
     RegisterRequest request = ctx.bodyAsClass(RegisterRequest.class);
-    userService.register(request);
-
-    LoginRequest loginRequest = new LoginRequest(request.getUsername(), request.getPassword());
-    String token = userService.login(loginRequest);
-    long userId = com.auction.config.JwtUtil.verifyToken(token).getClaim("userId").asLong();
+    User newUser = userService.register(request);
+    String token = JwtUtil.createToken(newUser.getId(), newUser.getUsername(), newUser.getRole());
 
     LOGGER.info(
-        "Đăng ký thành công: username={}, role={}", request.getUsername(), request.getRole());
+        "Đăng ký thành công: username={}, role={}", newUser.getUsername(), newUser.getRole());
 
     ctx.status(201)
         .json(
             Map.of(
-                "token",
-                token,
-                "role",
-                request.getRole(),
-                "username",
-                request.getUsername(),
-                "userId",
-                userId));
+                "token", token,
+                "role", newUser.getRole(),
+                "username", newUser.getUsername(),
+                "userId", newUser.getId()));
   }
 
   private static void handleLogin(Context ctx, UserService userService) {
@@ -88,7 +83,7 @@ public class AuthController {
 
     String role = userService.getRoleByUsername(request.getUsername());
     String username = request.getUsername();
-    long userId = com.auction.config.JwtUtil.verifyToken(token).getClaim("userId").asLong();
+    long userId = JwtUtil.verifyToken(token).getClaim("userId").asLong();
 
     LOGGER.info("Đăng nhập thành công: username={}", username);
 

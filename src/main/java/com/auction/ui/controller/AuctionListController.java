@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.net.http.HttpResponse;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import javafx.animation.KeyFrame;
@@ -275,6 +276,7 @@ public class AuctionListController implements Navigable {
       badgeLabel.setManaged(true);
     } else {
       badgeLabel.setVisible(false);
+      badgeLabel.setManaged(false);
     }
   }
 
@@ -283,7 +285,7 @@ public class AuctionListController implements Navigable {
       return;
     }
     String current = categoryFilter.getValue();
-    java.util.List<String> categories = new java.util.ArrayList<>();
+    List<String> categories = new ArrayList<>();
     categories.add("Tất cả");
     for (String cat : new String[] {"ART", "ELECTRONICS", "VEHICLE"}) {
       categories.add(cat);
@@ -387,7 +389,7 @@ public class AuctionListController implements Navigable {
     actionCol.setCellFactory(
         col ->
             new TableCell<>() {
-              private final Button btnEnter = new Button("Xem"); // Đổi thành Xem theo ảnh
+              private final Button btnEnter = new Button("Xem");
               private final Button btnCancel = new Button("Hủy");
               private final javafx.scene.layout.HBox actionBox =
                   new javafx.scene.layout.HBox(8, btnEnter, btnCancel);

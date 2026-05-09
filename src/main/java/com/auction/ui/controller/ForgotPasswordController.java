@@ -104,11 +104,13 @@ public class ForgotPasswordController implements Navigable {
     statusLabel.setText(msg);
     statusLabel.setStyle(isError ? "-fx-text-fill: #e53935;" : "-fx-text-fill: #43a047;");
     statusLabel.setVisible(true);
+    statusLabel.setManaged(true);
   }
 
   private void hideStatus() {
     if (statusLabel != null) {
       statusLabel.setVisible(false);
+      statusLabel.setManaged(false);
     }
   }
 }

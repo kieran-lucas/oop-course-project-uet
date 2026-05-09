@@ -7,6 +7,7 @@ import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.NotificationStore;
 import com.auction.util.RestClient;
+import com.auction.util.WebSocketClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
@@ -104,7 +105,7 @@ public class AuctionDetailController implements Navigable {
   private BigDecimal lastKnownBalance;
   private Timeline balancePollTimeline;
 
-  private final com.auction.util.WebSocketClient wsClient = new com.auction.util.WebSocketClient();
+  private final WebSocketClient wsClient = new WebSocketClient();
   private final ObservableList<String> bidHistoryItems = FXCollections.observableArrayList();
   private Timeline countdownTimeline;
 
@@ -410,15 +411,25 @@ public class AuctionDetailController implements Navigable {
   // ========== DATA LOADING ==========
 
   private void loadAuctionDetail() {
+    final Long id = this.auctionId;
+    if (id == null) {
+      return;
+    }
     Thread.ofVirtual()
         .start(
             () -> {
               try {
-                HttpResponse<String> response = RestClient.get("/api/auctions/" + auctionId);
+                HttpResponse<String> response = RestClient.get("/api/auctions/" + id);
                 if (response.statusCode() == 200) {
                   AuctionResponse auction =
                       MAPPER.readValue(response.body(), AuctionResponse.class);
-                  Platform.runLater(() -> updateAuctionUI(auction));
+                  Platform.runLater(
+                      () -> {
+                        if (!id.equals(auctionId)) {
+                          return;
+                        }
+                        updateAuctionUI(auction);
+                      });
                 }
               } catch (Exception e) {
                 LOGGER.error("Lỗi load chi tiết phiên", e);
@@ -427,18 +438,24 @@ public class AuctionDetailController implements Navigable {
   }
 
   private void loadBidHistory() {
+    final Long id = this.auctionId;
+    if (id == null) {
+      return;
+    }
     Thread.ofVirtual()
         .start(
             () -> {
               try {
-                HttpResponse<String> response =
-                    RestClient.get("/api/auctions/" + auctionId + "/bids");
+                HttpResponse<String> response = RestClient.get("/api/auctions/" + id + "/bids");
                 if (response.statusCode() == 200) {
                   List<BidTransaction> bids =
                       RestClient.parseList(response.body(), BidTransaction.class);
                   Long currentUserId = SceneManager.getInstance().getCurrentUserId();
                   Platform.runLater(
                       () -> {
+                        if (!id.equals(auctionId)) {
+                          return;
+                        }
                         bidHistoryItems.clear();
                         bidSeries.getData().clear();
                         for (int i = 0; i < bids.size(); i++) {

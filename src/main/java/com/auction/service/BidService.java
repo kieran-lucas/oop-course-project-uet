@@ -91,21 +91,19 @@ public class BidService {
       throw new InvalidBidException("Giá bid phải lớn hơn 0");
     }
 
-    userDao
-        .findById(bidderId)
-        .ifPresent(
-            bidder -> {
-              BigDecimal balance =
-                  bidder.getBalance() != null ? bidder.getBalance() : BigDecimal.ZERO;
-              if (balance.compareTo(amount) < 0) {
-                throw new InvalidBidException(
-                    "Số dư không đủ. Số dư hiện tại: "
-                        + balance
-                        + ", giá bid: "
-                        + amount
-                        + ". Vui lòng nạp thêm tiền.");
-              }
-            });
+    User bidder =
+        userDao
+            .findById(bidderId)
+            .orElseThrow(() -> new NotFoundException("Bidder not found: " + bidderId));
+    BigDecimal balance = bidder.getBalance() != null ? bidder.getBalance() : BigDecimal.ZERO;
+    if (balance.compareTo(amount) < 0) {
+      throw new InvalidBidException(
+          "Số dư không đủ. Số dư hiện tại: "
+              + balance
+              + ", giá bid: "
+              + amount
+              + ". Vui lòng nạp thêm tiền.");
+    }
 
     AtomicReference<Auction> auctionRef = new AtomicReference<>();
     AtomicBoolean antiSnipeTriggered = new AtomicBoolean(false);

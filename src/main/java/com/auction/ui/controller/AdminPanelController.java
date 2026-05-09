@@ -394,6 +394,7 @@ public class AdminPanelController implements Navigable {
               private final HBox box = new HBox(6, viewBtn, cancelBtn, deleteBtn);
 
               {
+                box.setMinWidth(200);
                 deleteBtn.setStyle(
                     "-fx-background-color: #880e4f; -fx-text-fill: white; -fx-cursor: hand;");
                 viewBtn.setOnAction(

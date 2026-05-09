@@ -5,6 +5,7 @@ import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.model.Auction;
+import com.auction.model.Item;
 import com.auction.model.User;
 import com.auction.pattern.observer.AuctionEventManager;
 import java.math.BigDecimal;
@@ -241,8 +242,7 @@ public class AuctionScheduler {
       // Cộng tiền seller (atomic — same race condition applies)
       Long sellerId = auction.getSellerId();
       if (sellerId == null) {
-        sellerId =
-            itemDao.findById(auction.getItemId()).map(item -> item.getSellerId()).orElse(null);
+        sellerId = itemDao.findById(auction.getItemId()).map(Item::getSellerId).orElse(null);
       }
       if (sellerId != null) {
         userDao.updateBalance(sellerId, price);

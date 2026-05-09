@@ -59,7 +59,7 @@
                   <TableColumn fx:id="itemCol" text="Sản phẩm" prefWidth="220.0" />
                   <TableColumn fx:id="statusCol" text="Trạng thái" prefWidth="120.0" />
                   <TableColumn fx:id="priceCol" text="Giá hiện tại" prefWidth="150.0" />
-                  <TableColumn fx:id="actionCol" text="Hành động" prefWidth="160.0" />
+                  <TableColumn fx:id="actionCol" text="Hành động" prefWidth="220.0" minWidth="220.0" />
                </columns>
                <placeholder>
                   <Label text="Không có phiên nào." />

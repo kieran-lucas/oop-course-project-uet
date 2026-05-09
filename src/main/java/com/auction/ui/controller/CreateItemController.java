@@ -3,6 +3,7 @@ package com.auction.ui.controller;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
 public class CreateItemController implements Navigable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CreateItemController.class);
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   @FXML private TextField nameField;
   @FXML private TextArea descriptionField;
@@ -164,10 +166,12 @@ public class CreateItemController implements Navigable {
     statusLabel.setText(msg);
     statusLabel.setStyle(isError ? "-fx-text-fill: #e53935;" : "-fx-text-fill: #43a047;");
     statusLabel.setVisible(true);
+    statusLabel.setManaged(true);
   }
 
   private void hideStatus() {
     statusLabel.setVisible(false);
+    statusLabel.setManaged(false);
   }
 
   private void clearForm() {
@@ -191,9 +195,6 @@ public class CreateItemController implements Navigable {
       createButton.setDisable(false);
     }
   }
-
-  private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
-      new com.fasterxml.jackson.databind.ObjectMapper();
 
   private String extractMessage(String body, String fallback) {
     try {

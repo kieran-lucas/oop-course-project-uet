@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,8 +136,7 @@ public class AuctionEventManager {
    * @param action hành động cần thực thi trên mỗi listener
    * @param eventType tên sự kiện (chỉ dùng để log)
    */
-  private void notifyAll(
-      Long auctionId, java.util.function.Consumer<AuctionEventListener> action, String eventType) {
+  private void notifyAll(Long auctionId, Consumer<AuctionEventListener> action, String eventType) {
     List<AuctionEventListener> list = listeners.get(auctionId);
     if (list == null || list.isEmpty()) {
       return;

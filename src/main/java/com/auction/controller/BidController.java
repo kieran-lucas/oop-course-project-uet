@@ -43,7 +43,6 @@ public class BidController {
         ctx -> {
           String role = ctx.attribute("role");
 
-          // ✅ THAY ĐỔI: Cho phép cả BIDDER và SELLER được đi qua
           if (!"BIDDER".equals(role) && !"SELLER".equals(role)) {
             throw new UnauthorizedException("Chỉ BIDDER hoặc SELLER mới được tham gia đặt giá");
           }

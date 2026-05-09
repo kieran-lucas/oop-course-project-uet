@@ -164,10 +164,12 @@ public class RegisterController implements Navigable {
   private void showError(String message) {
     errorLabel.setText(message);
     errorLabel.setVisible(true);
+    errorLabel.setManaged(true);
   }
 
   private void hideError() {
     errorLabel.setVisible(false);
+    errorLabel.setManaged(false);
   }
 
   private void clearForm() {
