@@ -1,9 +1,9 @@
 package com.auction.dto;
 
 /**
- * DTO cho yêu cầu tạo sản phẩm đấu giá mới.
+ * DTO cho yêu cầu tạo sản phẩm đấu giá mới
  *
- * <p>Chỉ Seller mới có quyền tạo sản phẩm. Server kiểm tra role từ JWT token.
+ * <p>Chỉ Seller mới có quyền tạo sản phẩm. Server kiểm tra role từ JWT token
  *
  * <p>Field category quyết định ItemFactory tạo subclass nào:
  *
@@ -32,7 +32,7 @@ package com.auction.dto;
  * </pre>
  *
  * <p>sellerId KHÔNG nằm trong JSON — lấy từ JWT token (đảm bảo seller chỉ tạo item cho chính mình,
- * không thể giả mạo sellerId của người khác).
+ * không thể giả mạo sellerId của người khác)
  */
 public class CreateItemRequest {
 
