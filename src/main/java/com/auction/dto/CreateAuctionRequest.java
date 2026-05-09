@@ -4,10 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * DTO cho yêu cầu tạo phiên đấu giá mới.
+ * DTO cho yêu cầu tạo phiên đấu giá mới
  *
  * <p>Chỉ Seller mới có quyền tạo phiên đấu giá (kiểm tra role từ JWT). Seller chọn sản phẩm của
- * mình, đặt giá khởi điểm, và lên lịch thời gian bắt đầu/kết thúc.
+ * mình, đặt giá khởi điểm, và lên lịch thời gian bắt đầu/kết thúc
  *
  * <p>Ví dụ JSON:
  *
@@ -31,7 +31,7 @@ import java.time.LocalDateTime;
  * </ul>
  *
  * <p>Khi tạo thành công, Auction mới có status = "OPEN". AuctionScheduler sẽ tự động chuyển sang
- * "RUNNING" khi đến startTime, và "FINISHED" khi đến endTime.
+ * "RUNNING" khi đến startTime, và "FINISHED" khi đến endTime
  */
 public class CreateAuctionRequest {
 
