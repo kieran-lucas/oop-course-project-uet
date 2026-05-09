@@ -9,7 +9,7 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 
-/** DAO cho bảng password_reset_requests. */
+/** DAO cho bảng password_reset_requests */
 public class PasswordResetRequestDao {
 
   private final Jdbi jdbi;
@@ -39,7 +39,7 @@ public class PasswordResetRequestDao {
     }
   }
 
-  /** Tạo yêu cầu mới với status PENDING. */
+  /** Tạo yêu cầu mới với status PENDING */
   public PasswordResetRecord insert(PasswordResetRecord record) {
     String sql =
         """
@@ -62,7 +62,7 @@ public class PasswordResetRequestDao {
         });
   }
 
-  /** Tìm theo ID, JOIN users để lấy username và email. */
+  /** Tìm theo ID, JOIN users để lấy username và email */
   public Optional<PasswordResetRecord> findById(Long id) {
     String sql =
         """
@@ -76,7 +76,7 @@ public class PasswordResetRequestDao {
         handle -> handle.createQuery(sql).bind("id", id).map(new Mapper()).findOne());
   }
 
-  /** Lấy tất cả yêu cầu theo status, JOIN users để lấy username và email. */
+  /** Lấy tất cả yêu cầu theo status, JOIN users để lấy username và email */
   public List<PasswordResetRecord> findByStatus(String status) {
     String sql =
         """
@@ -91,7 +91,7 @@ public class PasswordResetRequestDao {
         handle -> handle.createQuery(sql).bind("status", status).map(new Mapper()).list());
   }
 
-  /** Kiểm tra user đã có yêu cầu PENDING chưa. */
+  /** Kiểm tra user đã có yêu cầu PENDING chưa */
   public boolean hasPendingRequest(Long userId) {
     String sql =
         "SELECT COUNT(*) FROM password_reset_requests WHERE user_id = :userId AND status = 'PENDING'";
@@ -101,7 +101,7 @@ public class PasswordResetRequestDao {
     return count > 0;
   }
 
-  /** Cập nhật status và thời gian duyệt. */
+  /** Cập nhật status và thời gian duyệt */
   public boolean updateStatus(Long id, String newStatus) {
     String sql =
         """
