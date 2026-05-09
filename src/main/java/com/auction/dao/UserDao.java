@@ -16,11 +16,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * DAO (Data Access Object) cho bảng users.
+ * DAO (Data Access Object) cho bảng users
  *
  * <p>Class này chịu trách nhiệm giao tiếp với database, thực hiện các thao tác CRUD (Create, Read,
  * Update, Delete) trên bảng users. DAO layer nằm giữa Service layer và Database, giúp tách biệt
- * logic nghiệp vụ (Service) khỏi logic truy vấn SQL.
+ * logic nghiệp vụ (Service) khỏi logic truy vấn SQL
  *
  * <p>Luồng dữ liệu:
  *
@@ -56,14 +56,14 @@ public class UserDao {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UserDao.class);
 
-  /** Danh sách cột SELECT dùng chung, tránh copy-paste. */
+  /** Danh sách cột SELECT dùng chung, tránh copy-paste */
   private static final String SELECT_COLUMNS =
       "id, username, password_hash, email, role, created_at, balance";
 
   private final Jdbi jdbi;
 
   /**
-   * Constructor — nhận Jdbi từ DatabaseConfig.
+   * Constructor — nhận Jdbi từ DatabaseConfig
    *
    * <p>Trong App.java:
    *
@@ -79,10 +79,10 @@ public class UserDao {
   }
 
   /**
-   * RowMapper chuyển ResultSet (1 dòng từ bảng users) thành User object.
+   * RowMapper chuyển ResultSet (1 dòng từ bảng users) thành User object
    *
    * <p>JDBI tự động gọi mapper này cho mỗi dòng trong ResultSet. Mapper đọc giá trị các cột, dựa
-   * vào cột "role" để tạo subclass phù hợp.
+   * vào cột "role" để tạo subclass phù hợp
    *
    * <p>Ví dụ:
    *
@@ -135,7 +135,7 @@ public class UserDao {
   // ============================================================
 
   /**
-   * Thêm user mới vào database.
+   * Thêm user mới vào database
    *
    * <p>Method này được gọi khi người dùng đăng ký thành công (UserService.register()).
    *
