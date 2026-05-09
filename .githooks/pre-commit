@@ -1,0 +1,13 @@
+#!/bin/sh
+# Auto-format staged Java files before commit
+
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.java$'; then
+  echo "Running spotlessApply on staged Java files..."
+  ./gradlew spotlessApply --quiet || {
+    echo "spotlessApply failed. Aborting commit."
+    exit 1
+  }
+  git diff --cached --name-only --diff-filter=ACM | grep -E '\.java$' | xargs git add
+fi	
+
+
