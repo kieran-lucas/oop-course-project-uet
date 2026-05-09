@@ -3,21 +3,21 @@ package com.auction.model;
 import java.time.LocalDateTime;
 
 /**
- * Đại diện cho một tác phẩm nghệ thuật trong hệ thống đấu giá.
+ * Đại diện cho một tác phẩm nghệ thuật trong hệ thống đấu giá
  *
  * <p>Lớp này mở rộng {@link Item} bằng cách bổ sung thông tin về nghệ sĩ — một thuộc tính đặc thù
  * chỉ có ý nghĩa đối với các sản phẩm thuộc danh mục nghệ thuật (ví dụ: bức "Starry Night" của Van
- * Gogh). Các danh mục khác như Electronics sẽ không sử dụng trường này.
+ * Gogh). Các danh mục khác như Electronics sẽ không sử dụng trường này
  */
 public class Art extends Item {
 
   private String artist;
 
-  /** Hàm khởi tạo mặc định, phục vụ cho việc deserialization. */
+  /** Hàm khởi tạo mặc định, phục vụ cho việc deserialization*/
   public Art() {}
 
   /**
-   * Khởi tạo một tác phẩm nghệ thuật mới (chưa có ID, chưa có thời điểm tạo).
+   * Khởi tạo một tác phẩm nghệ thuật mới (chưa có ID, chưa có thời điểm tạo)
    *
    * @param name tên tác phẩm
    * @param description mô tả tác phẩm
@@ -30,7 +30,7 @@ public class Art extends Item {
   }
 
   /**
-   * Khởi tạo một tác phẩm nghệ thuật đầy đủ thông tin (thường dùng khi đọc từ database).
+   * Khởi tạo một tác phẩm nghệ thuật đầy đủ thông tin (thường dùng khi đọc từ database)
    *
    * @param id ID của tác phẩm
    * @param name tên tác phẩm
