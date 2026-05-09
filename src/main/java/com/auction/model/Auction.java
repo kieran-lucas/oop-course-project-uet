@@ -4,14 +4,14 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Phiên đấu giá — đối tượng trung tâm của toàn bộ hệ thống.
+ * Phiên đấu giá — đối tượng trung tâm của toàn bộ hệ thống
  *
  * <p>Một Auction gắn với 1 Item, có giá khởi điểm, giá hiện tại, thời gian bắt đầu/kết thúc, và
- * trạng thái.
+ * trạng thái
  *
  * <p>Lưu ý sử dụng BigDecimal thay vì double cho tiền tệ. double có lỗi floating point: 0.1 + 0.2 =
  * 0.30000000000000004. Trong đấu giá, sai 1 đồng cũng không chấp nhận được. BigDecimal tính chính
- * xác: new BigDecimal("0.1").add(new BigDecimal("0.2")) = 0.3 đúng.
+ * xác: new BigDecimal("0.1").add(new BigDecimal("0.2")) = 0.3 đúng
  *
  * <p>Trạng thái phiên (status) liên kết với State pattern:
  *
@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
  * </ul>
  *
  * <p>Các trạng thái này map trực tiếp với CHECK constraint trong bảng auctions và với các class
- * trong pattern/state/.
+ * trong pattern/state/
  */
 public class Auction extends Entity {
 
@@ -62,7 +62,7 @@ public class Auction extends Entity {
     this.updatedAt = this.getCreatedAt(); // mới tạo → updatedAt = createdAt
   }
 
-  /** Constructor đầy đủ từ database. */
+  /** Constructor đầy đủ từ database*/
   public Auction(
       Long id,
       Long itemId,
@@ -85,9 +85,9 @@ public class Auction extends Entity {
 
   // === Business methods ===
   // Những method này sẽ được State pattern gọi,
-  // nhưng logic check nằm trong AuctionState, không phải ở đây.
+  // nhưng logic check nằm trong AuctionState, không phải ở đây
 
-  /** Kiểm tra phiên đã hết giờ chưa. */
+  /** Kiểm tra phiên đã hết giờ chưa*/
   public boolean isExpired() {
     return LocalDateTime.now().isAfter(endTime);
   }
