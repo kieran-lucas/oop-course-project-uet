@@ -430,8 +430,7 @@ public class AdminPanelController implements Navigable {
     depositTimeCol.setCellFactory(
         col ->
             new TableCell<>() {
-              private final DateTimeFormatter fmt =
-                  DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+              private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
               @Override
               protected void updateItem(java.time.LocalDateTime item, boolean empty) {
@@ -472,8 +471,8 @@ public class AdminPanelController implements Navigable {
 
   private void startDepositRefresh() {
     stopDepositRefresh();
-    depositRefreshTimeline = new Timeline(
-        new KeyFrame(Duration.seconds(15), e -> loadDepositRequests()));
+    depositRefreshTimeline =
+        new Timeline(new KeyFrame(Duration.seconds(15), e -> loadDepositRequests()));
     depositRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
     depositRefreshTimeline.play();
   }

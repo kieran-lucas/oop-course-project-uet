@@ -74,10 +74,7 @@ public class AuctionScheduler {
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   public AuctionScheduler(
-      AuctionDao auctionDao,
-      UserDao userDao,
-      ItemDao itemDao,
-      AuctionEventManager eventManager) {
+      AuctionDao auctionDao, UserDao userDao, ItemDao itemDao, AuctionEventManager eventManager) {
     this.auctionDao = auctionDao;
     this.userDao = userDao;
     this.itemDao = itemDao;
@@ -205,9 +202,8 @@ public class AuctionScheduler {
   }
 
   /**
-   * Thanh toán và đóng phiên:
-   * - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status → PAID.
-   * - Nếu không ai bid: status → FINISHED.
+   * Thanh toán và đóng phiên: - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status →
+   * PAID. - Nếu không ai bid: status → FINISHED.
    */
   private void settleAndClose(Auction auction) {
     Long winnerId = auction.getLeadingBidderId();
@@ -225,9 +221,8 @@ public class AuctionScheduler {
       // Cộng tiền seller (atomic — same race condition applies)
       Long sellerId = auction.getSellerId();
       if (sellerId == null) {
-        sellerId = itemDao.findById(auction.getItemId())
-            .map(item -> item.getSellerId())
-            .orElse(null);
+        sellerId =
+            itemDao.findById(auction.getItemId()).map(item -> item.getSellerId()).orElse(null);
       }
       if (sellerId != null) {
         userDao.updateBalance(sellerId, price);
@@ -242,7 +237,10 @@ public class AuctionScheduler {
     auctionDao.update(auction);
     LOG.info(
         "Phiên #{} → {} (endTime={}, winner={})",
-        auction.getId(), auction.getStatus(), auction.getEndTime(), winnerId);
+        auction.getId(),
+        auction.getStatus(),
+        auction.getEndTime(),
+        winnerId);
   }
 
   // ── Notification ─────────────────────────────────────────
@@ -259,16 +257,12 @@ public class AuctionScheduler {
     try {
       String winnerName = null;
       if (auction.getLeadingBidderId() != null) {
-        winnerName = userDao.findById(auction.getLeadingBidderId())
-            .map(User::getUsername)
-            .orElse(null);
+        winnerName =
+            userDao.findById(auction.getLeadingBidderId()).map(User::getUsername).orElse(null);
       }
       BidUpdateMessage msg =
           BidUpdateMessage.auctionEnded(
-              auction.getId(),
-              auction.getCurrentPrice(),
-              auction.getLeadingBidderId(),
-              winnerName);
+              auction.getId(), auction.getCurrentPrice(), auction.getLeadingBidderId(), winnerName);
       eventManager.notifyAuctionEnd(auction.getId(), msg);
 
     } catch (Exception e) {

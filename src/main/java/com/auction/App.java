@@ -15,7 +15,6 @@ import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.ChangePasswordRequest;
 import com.auction.dto.DepositRequest;
-import com.auction.model.DepositRecord;
 import com.auction.dto.ErrorResponse;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.DuplicateException;
@@ -25,6 +24,7 @@ import com.auction.exception.UnauthorizedException;
 import com.auction.middleware.JwtMiddleware;
 import com.auction.model.Admin;
 import com.auction.model.AutoBidConfig;
+import com.auction.model.DepositRecord;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.service.AuctionScheduler;
 import com.auction.service.AuctionService;
@@ -102,8 +102,13 @@ public class App {
     var auctionService = new AuctionService(auctionDao, itemDao, userDao);
     var bidService =
         new BidService(
-            auctionDao, bidTransactionDao, autoBidConfigDao, eventManager, jdbi,
-            auctionService, userDao);
+            auctionDao,
+            bidTransactionDao,
+            autoBidConfigDao,
+            eventManager,
+            jdbi,
+            auctionService,
+            userDao);
 
     // ── 7. Khởi tạo Scheduler (tự chuyển trạng thái phiên) ──
     var scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager);
@@ -319,19 +324,21 @@ public class App {
   }
 
   /**
-   * Áp dụng các migration còn thiếu theo kiểu idempotent (IF NOT EXISTS).
-   * Thay thế cho Flyway vì project không cấu hình auto-migration.
-   * An toàn để gọi nhiều lần — không ảnh hưởng schema đã tồn tại.
+   * Áp dụng các migration còn thiếu theo kiểu idempotent (IF NOT EXISTS). Thay thế cho Flyway vì
+   * project không cấu hình auto-migration. An toàn để gọi nhiều lần — không ảnh hưởng schema đã tồn
+   * tại.
    */
   private static void ensureSchemaExists(Jdbi jdbi) {
     try {
-      jdbi.useHandle(handle -> {
-        // V3: cột balance cho users (nếu chưa có)
-        handle.execute(
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) NOT NULL DEFAULT 0");
+      jdbi.useHandle(
+          handle -> {
+            // V3: cột balance cho users (nếu chưa có)
+            handle.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) NOT NULL DEFAULT 0");
 
-        // V4: bảng deposit_requests (nếu chưa có)
-        handle.execute("""
+            // V4: bảng deposit_requests (nếu chưa có)
+            handle.execute(
+                """
             CREATE TABLE IF NOT EXISTS deposit_requests (
                 id          BIGSERIAL PRIMARY KEY,
                 user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -342,9 +349,9 @@ public class App {
                 reviewed_at TIMESTAMP
             )
             """);
-        handle.execute(
-            "CREATE INDEX IF NOT EXISTS idx_deposit_requests_status ON deposit_requests(status)");
-      });
+            handle.execute(
+                "CREATE INDEX IF NOT EXISTS idx_deposit_requests_status ON deposit_requests(status)");
+          });
       LOGGER.info("Schema kiểm tra xong — tất cả bảng tồn tại.");
     } catch (Exception e) {
       LOGGER.error("Lỗi khi đảm bảo schema: {}", e.getMessage(), e);
