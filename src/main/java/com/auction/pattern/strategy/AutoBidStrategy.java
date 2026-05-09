@@ -129,8 +129,8 @@ public class AutoBidStrategy implements BidStrategy {
    * <p>Mỗi lần auto-bid thành công có thể kích hoạt thêm auto-bid của người khác, tạo thành chuỗi
    * phản ứng. Chuỗi dừng khi không còn ai đủ budget.
    *
-   * <p>Người đang dẫn đầu (initialLeaderId) bị bỏ qua tạm thời để tránh tự bid lại chính mình.
-   * Nếu sau đó người khác bid và vượt qua họ, họ sẽ được xử lý lại trong cùng vòng lặp.
+   * <p>Người đang dẫn đầu (initialLeaderId) bị bỏ qua tạm thời để tránh tự bid lại chính mình. Nếu
+   * sau đó người khác bid và vượt qua họ, họ sẽ được xử lý lại trong cùng vòng lặp.
    *
    * @param auctionId ID phiên đấu giá
    * @param currentPriceAfterBid giá hiện tại sau bid vừa xảy ra
@@ -138,7 +138,9 @@ public class AutoBidStrategy implements BidStrategy {
    * @param executor callback để thực thi từng auto-bid (thường là BidService.placeBid)
    */
   public void executeAll(
-      Long auctionId, BigDecimal currentPriceAfterBid, Long initialLeaderId,
+      Long auctionId,
+      BigDecimal currentPriceAfterBid,
+      Long initialLeaderId,
       AutoBidExecutor executor) {
     // Load configs once — avoids N+1 query inside the loop
     List<AutoBidConfig> activeConfigs = autoBidConfigDao.findActiveByAuctionId(auctionId);

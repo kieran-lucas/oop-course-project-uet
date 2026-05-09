@@ -23,24 +23,59 @@ public class DepositRecord {
     this.createdAt = LocalDateTime.now();
   }
 
-  public Long getId() { return id; }
-  public void setId(Long id) { this.id = id; }
+  public Long getId() {
+    return id;
+  }
 
-  public Long getUserId() { return userId; }
-  public void setUserId(Long userId) { this.userId = userId; }
+  public void setId(Long id) {
+    this.id = id;
+  }
 
-  public String getUsername() { return username; }
-  public void setUsername(String username) { this.username = username; }
+  public Long getUserId() {
+    return userId;
+  }
 
-  public BigDecimal getAmount() { return amount; }
-  public void setAmount(BigDecimal amount) { this.amount = amount; }
+  public void setUserId(Long userId) {
+    this.userId = userId;
+  }
 
-  public String getStatus() { return status; }
-  public void setStatus(String status) { this.status = status; }
+  public String getUsername() {
+    return username;
+  }
 
-  public LocalDateTime getCreatedAt() { return createdAt; }
-  public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+  public void setUsername(String username) {
+    this.username = username;
+  }
 
-  public LocalDateTime getReviewedAt() { return reviewedAt; }
-  public void setReviewedAt(LocalDateTime reviewedAt) { this.reviewedAt = reviewedAt; }
+  public BigDecimal getAmount() {
+    return amount;
+  }
+
+  public void setAmount(BigDecimal amount) {
+    this.amount = amount;
+  }
+
+  public String getStatus() {
+    return status;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
+
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(LocalDateTime createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  public LocalDateTime getReviewedAt() {
+    return reviewedAt;
+  }
+
+  public void setReviewedAt(LocalDateTime reviewedAt) {
+    this.reviewedAt = reviewedAt;
+  }
 }
