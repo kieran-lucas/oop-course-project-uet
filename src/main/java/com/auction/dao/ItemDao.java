@@ -16,11 +16,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * DAO (Data Access Object) cho bảng items.
+ * DAO (Data Access Object) cho bảng items
  *
  * <p>Class này chịu trách nhiệm giao tiếp với bảng items trong database. Điểm đặc biệt của ItemDao
  * là phải xử lý polymorphism: bảng items có cột category để phân biệt loại sản phẩm (ELECTRONICS,
- * ART, VEHICLE), và các cột đặc thù (brand, artist, year) chỉ có giá trị cho từng loại.
+ * ART, VEHICLE), và các cột đặc thù (brand, artist, year) chỉ có giá trị cho từng loại
  *
  * <h3>Polymorphism trong ItemDao</h3>
  *
@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>Khi ghi vào database, ItemService sẽ gọi ItemFactory để tạo đúng subclass, và DAO chỉ việc lấy
- * các field chung + field đặc thù tương ứng.
+ * các field chung + field đặc thù tương ứng
  *
  * <h3>Factory Method pattern liên kết</h3>
  *
