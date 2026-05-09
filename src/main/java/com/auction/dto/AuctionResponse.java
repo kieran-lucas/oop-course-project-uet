@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * DTO trả về thông tin phiên đấu giá cho client — phiên bản "an toàn" của Auction.
+ * DTO trả về thông tin phiên đấu giá cho client — phiên bản "an toàn" của Auction
  *
  * <p>Tại sao cần AuctionResponse thay vì trả thẳng Auction?
  *
@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
  * </ul>
  *
  * <p>Method tĩnh fromAuction() giúp chuyển đổi Auction → AuctionResponse một cách tiện lợi, tránh
- * viết lại code mapping ở nhiều nơi.
+ * viết lại code mapping ở nhiều nơi
  */
 public class AuctionResponse {
 
@@ -46,10 +46,10 @@ public class AuctionResponse {
   public AuctionResponse() {}
 
   /**
-   * Factory method chuyển Auction model → AuctionResponse DTO.
+   * Factory method chuyển Auction model → AuctionResponse DTO
    *
    * <p>itemName và leadingBidderUsername cần query thêm từ DB, nên để Controller/Service set sau.
-   * Method này chỉ map các field có sẵn trong Auction.
+   * Method này chỉ map các field có sẵn trong Auction
    *
    * @param auction đối tượng Auction từ database
    * @return AuctionResponse chứa thông tin cơ bản, thiếu itemName và leadingBidderUsername
