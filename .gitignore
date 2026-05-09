@@ -70,3 +70,4 @@ gradle.properties
 
 # repowise API keys (local)
 .repowise/.env
+*.zip

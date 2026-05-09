@@ -328,3 +328,16 @@ tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
 tasks.compileJava {
     options.compilerArgs.add("-Xlint:deprecation")
 }
+
+tasks.register("installGitHooks") {
+    description = "Configure git to use .githooks directory"
+    doLast {
+        exec {
+            commandLine("git", "config", "core.hooksPath", ".githooks")
+        }
+    }
+}
+
+tasks.named("build") {
+    dependsOn("installGitHooks")
+}
