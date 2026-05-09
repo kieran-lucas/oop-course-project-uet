@@ -1,6 +1,6 @@
 # Phân công file/folder theo Role — Online Auction System
 
-> Dựa trên `PROJECT_STRUCTURE.md` (cấu trúc chính thức) và `TIEN_DO_8_TUAN_V2.md`
+> Dựa trên `PROJECT_STRUCTURE.md` (cấu trúc chính thức) và `PROGRESS_TIMELINE.md`
 > **Nhóm:** 4 thành viên · **~80 files**
 
 ---
@@ -55,7 +55,7 @@ resources/fxml/
 ```
 
 > ⚠️ **Lưu ý — Cần bổ sung vào PROJECT_STRUCTURE:**
-> Theo `TIEN_DO_8_TUAN_V2`, B còn tạo thêm các file sau nhưng **chưa có trong structure chính thức**.
+> Theo `PROGRESS_TIMELINE.md`, B còn tạo thêm các file sau nhưng **chưa có trong structure chính thức**.
 > Cả nhóm cần thống nhất đặt vào đâu trước khi B bắt đầu code:
 >
 > ```
