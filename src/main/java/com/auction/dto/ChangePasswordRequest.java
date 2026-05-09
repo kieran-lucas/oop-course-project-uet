@@ -1,6 +1,5 @@
 package com.auction.dto;
-
-/** DTO đổi mật khẩu — nhận mật khẩu hiện tại và mật khẩu mới từ client. */
+/** DTO đổi mật khẩu — nhận mật khẩu hiện tại và mật khẩu mới từ client*/
 public class ChangePasswordRequest {
 
   private String currentPassword;
