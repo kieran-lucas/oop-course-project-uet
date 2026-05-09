@@ -1,7 +1,7 @@
 <h1 align="center">Realtime Online Auction System</h1>
 
 <p align="center">
-  <img src="assets/image.png" width="900"/>
+  <img src="assets/app-screenshot.png" width="900"/>
 </p>
 
 ## Overview
@@ -58,7 +58,7 @@ Testing is done with JUnit 5: unit tests mock the DAO layer using Mockito, while
 Below is the grading rubric for this project.
 
 <p align="center">
-  <img src="assets/image1.png" width="515"/>
+  <img src="assets/grading-rubric.png" width="515"/>
 </p>
 
 ## 📈 Commit History (Repo Only)
