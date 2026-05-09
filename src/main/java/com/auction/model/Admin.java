@@ -3,10 +3,10 @@ package com.auction.model;
 import java.time.LocalDateTime;
 
 /**
- * Quản trị viên hệ thống.
+ * Quản trị viên hệ thống
  *
  * <p>Admin có quyền: quản lý tất cả user, xóa phiên đấu giá vi phạm, xem thống kê hệ thống. Admin
- * KHÔNG tham gia đấu giá.
+ * KHÔNG tham gia đấu giá
  */
 public class Admin extends User {
 
