@@ -3,10 +3,10 @@ package com.auction.dto;
 import java.math.BigDecimal;
 
 /**
- * DTO cho yêu cầu thiết lập đấu giá tự động (auto-bid).
+ * DTO cho yêu cầu thiết lập đấu giá tự động(auto-bid)
  *
  * <p>Auto-bid cho phép người dùng "đặt trước" chiến lược đấu giá: hệ thống sẽ tự động trả giá thay
- * họ mỗi khi có người khác bid, cho đến khi đạt giá tối đa.
+ * họ mỗi khi có người khác bid, cho đến khi đạt giá tối đa
  *
  * <p>Ví dụ thực tế:
  *
