@@ -63,7 +63,7 @@ public class JwtMiddleware {
       ctx.attribute("role", jwt.getClaim("role").asString());
 
     } catch (Exception e) {
-      // Lỗi chữ ký, hết hạn, v.v.
+      // Lỗi chữ ký, hết hạn,etc,.
       throw new UnauthorizedException("Token không hợp lệ hoặc đã hết hạn: " + e.getMessage());
     }
   }
