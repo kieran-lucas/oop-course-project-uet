@@ -52,6 +52,11 @@ plugins {
     // Tìm: null dereference, resource leak, concurrency issues, bad practice
     // Report HTML tại build/reports/spotbugs/spotbugsMain.html
     id("com.github.spotbugs") version "6.0.9"
+
+    // Plugin shadow: đóng gói fat JAR (uber JAR) chứa tất cả dependencies
+    // Thêm task: shadowJar → tạo file .jar có thể chạy bằng java -jar
+    // Liên kết: tasks shadowJar, shadowServer, shadowClient, buildJars ở cuối file
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 // Thông tin project — hiện trong output build và trong file .jar khi đóng gói
@@ -85,6 +90,14 @@ repositories {
 dependencies {
     // Environment variables
     implementation("io.github.cdimascio:dotenv-java:3.0.0")
+
+    // ── EMBEDDED DATABASE ────────────────────────────────────────────────────
+    // Embedded PostgreSQL: tự động khởi động PostgreSQL bên trong JVM khi không
+    // có biến môi trường DB_URL. Người dùng chỉ cần chạy java -jar mà không cần
+    // cài PostgreSQL riêng.
+    // Lần đầu chạy: tải binary PostgreSQL phù hợp với OS (~15MB, tự cache).
+    // Liên kết: DatabaseConfig.java kiểm tra DB_URL → nếu không có → dùng cái này.
+    implementation("io.zonky.test:embedded-postgres:2.0.7")
 
     // ── SERVER ──────────────────────────────────────────────────────────────
     // Javalin: HTTP server + WebSocket server
@@ -340,4 +353,109 @@ tasks.register("installGitHooks") {
 
 tasks.named("build") {
     dependsOn("installGitHooks")
+}
+
+// ============================================================================
+// SHADOW — Đóng gói Fat JAR (uber JAR)
+// ============================================================================
+// Ba JAR được tạo ra:
+//   auction.jar        → chạy cả hệ thống (server + client) bằng 1 lệnh
+//   auction-server.jar → chỉ server Javalin (tuỳ chọn)
+//   auction-client.jar → chỉ client JavaFX (tuỳ chọn)
+//
+// Chạy: ./gradlew buildJars
+// ============================================================================
+
+// ── 1. Fat JAR chính: chạy toàn bộ hệ thống bằng 1 lệnh ────────────────────
+// Entry point: Main.java
+//   → khởi động server trong background thread
+//   → poll /api/health chờ server ready
+//   → khởi động JavaFX client trên main thread
+//
+// Cách dùng:
+//   java -jar build/libs/auction.jar
+tasks.shadowJar {
+    archiveBaseName.set("auction")
+    archiveVersion.set("1.0.0")
+    archiveClassifier.set("")
+
+    manifest {
+        attributes["Main-Class"] = "com.auction.Main"
+    }
+
+    // Gộp file META-INF/services — quan trọng cho SLF4J, JDBI, Javalin hoạt động đúng
+    mergeServiceFiles()
+
+    // Loại bỏ file chữ ký để tránh lỗi SecurityException khi chạy fat JAR
+    exclude("META-INF/*.SF")
+    exclude("META-INF/*.DSA")
+    exclude("META-INF/*.RSA")
+}
+
+// ── 2. Fat JAR chỉ server (tuỳ chọn) ───────────────────────────────────────
+// Dùng khi muốn deploy server riêng (ví dụ: server trên máy chủ, client trên máy khác)
+//
+// Cách dùng:
+//   java -jar build/libs/auction-server.jar
+tasks.register<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowServer") {
+    archiveBaseName.set("auction-server")
+    archiveVersion.set("1.0.0")
+    archiveClassifier.set("")
+    group = "shadow"
+    description = "Build fat JAR chỉ server (Javalin + Database)"
+
+    from(sourceSets["main"].output)
+    configurations = listOf(project.configurations.runtimeClasspath.get())
+
+    manifest {
+        attributes["Main-Class"] = "com.auction.App"
+    }
+
+    mergeServiceFiles()
+    exclude("META-INF/*.SF")
+    exclude("META-INF/*.DSA")
+    exclude("META-INF/*.RSA")
+}
+
+// ── 3. Fat JAR chỉ client JavaFX (tuỳ chọn) ────────────────────────────────
+// Dùng khi server đã chạy sẵn và chỉ cần phân phối client.
+// Dùng Launcher thay vì ClientApp trực tiếp — bắt buộc vì fat JAR + JavaFX
+// không cho phép class extends Application làm Main-Class.
+//
+// Cách dùng:
+//   java -jar build/libs/auction-client.jar
+tasks.register<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowClient") {
+    archiveBaseName.set("auction-client")
+    archiveVersion.set("1.0.0")
+    archiveClassifier.set("")
+    group = "shadow"
+    description = "Build fat JAR chỉ client JavaFX"
+
+    from(sourceSets["main"].output)
+    configurations = listOf(project.configurations.runtimeClasspath.get())
+
+    manifest {
+        // Launcher.java là wrapper không extends Application — bắt buộc cho fat JAR JavaFX
+        attributes["Main-Class"] = "com.auction.Launcher"
+    }
+
+    mergeServiceFiles()
+    exclude("META-INF/*.SF")
+    exclude("META-INF/*.DSA")
+    exclude("META-INF/*.RSA")
+}
+
+// ── Shortcut: build cả 3 JAR cùng lúc ──────────────────────────────────────
+// Cách dùng:
+//   ./gradlew buildJars
+tasks.register("buildJars") {
+    group = "shadow"
+    description = "Build tất cả fat JARs: auction.jar, auction-server.jar, auction-client.jar"
+    dependsOn("shadowJar", "shadowServer", "shadowClient")
+    doLast {
+        println("\n✅ Build hoàn tất! Các file JAR nằm trong build/libs/:")
+        println("   auction.jar        ← Chạy cả hệ thống : java -jar build/libs/auction.jar")
+        println("   auction-server.jar ← Chỉ server       : java -jar build/libs/auction-server.jar")
+        println("   auction-client.jar ← Chỉ client       : java -jar build/libs/auction-client.jar")
+    }
 }
