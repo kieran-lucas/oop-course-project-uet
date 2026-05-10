@@ -391,10 +391,16 @@ public class App {
                 """
                 CREATE TABLE IF NOT EXISTS items (
                     id          BIGSERIAL PRIMARY KEY,
-                    name        VARCHAR(255) NOT NULL,
+                    name        VARCHAR(200) NOT NULL,
                     description TEXT,
                     seller_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+                    category    VARCHAR(20) NOT NULL DEFAULT 'ELECTRONICS'
+                                CHECK (category IN ('ELECTRONICS', 'ART', 'VEHICLE')),
+                    brand       VARCHAR(100),
+                    artist      VARCHAR(100),
+                    year        INTEGER,
+                    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+                    updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
                 )
                 """);
 

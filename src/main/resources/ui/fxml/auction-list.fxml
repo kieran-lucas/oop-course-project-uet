@@ -69,14 +69,15 @@
          </HBox>
 
          <!-- Auction table -->
-         <TableView fx:id="auctionTable" VBox.vgrow="ALWAYS" styleClass="auction-table">
+         <TableView fx:id="auctionTable" VBox.vgrow="ALWAYS" styleClass="auction-table"
+                    columnResizePolicy="CONSTRAINED_RESIZE_POLICY">
             <columns>
-               <TableColumn fx:id="itemCol" text="Sản phẩm" prefWidth="220.0" />
-               <TableColumn fx:id="categoryCol" text="Danh mục" prefWidth="110.0" />
-               <TableColumn fx:id="priceCol" text="Giá hiện tại" prefWidth="150.0" />
-               <TableColumn fx:id="timeCol" text="Thời gian còn" prefWidth="140.0" />
-               <TableColumn fx:id="statusCol" text="Trạng thái" prefWidth="110.0" />
-               <TableColumn fx:id="actionCol" text="Hành động" prefWidth="100.0" />
+               <TableColumn fx:id="itemCol"     text="Sản phẩm"      prefWidth="220.0" />
+               <TableColumn fx:id="categoryCol" text="Danh mục"      prefWidth="110.0" />
+               <TableColumn fx:id="priceCol"    text="Giá hiện tại"  prefWidth="150.0" />
+               <TableColumn fx:id="timeCol"     text="Thời gian còn" prefWidth="140.0" />
+               <TableColumn fx:id="statusCol"   text="Trạng thái"    prefWidth="110.0" />
+               <TableColumn fx:id="actionCol"   text="Hành động"     prefWidth="100.0" />
             </columns>
             <placeholder>
                <Label text="Không có phiên đấu giá nào." />
