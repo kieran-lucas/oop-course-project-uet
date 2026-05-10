@@ -31,3 +31,11 @@ Phạm vi hệ thống bao gồm:
 -Giao thức kết nối: HTTP (REST) & WebSocket (Real-time updates)
 
 -Công cụ Build & CI/CD: Gradle, GitHub Actions
+
+*Yêu cầu môi trường:
+
+-Máy tính đã cài đặt sẵn Java JDK 21+.
+
+-Máy tính đã cài đặt PostgreSQL 16.
+
+-Cấu hình một Database trắng trong PostgreSQL với tên auction_db.
