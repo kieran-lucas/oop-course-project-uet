@@ -3,6 +3,9 @@ package com.auction.config;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +91,6 @@ public class DatabaseConfig {
       embeddedPostgres = EmbeddedPostgres.builder().start();
 
       int port = embeddedPostgres.getPort();
-      String dbUrl = String.format("jdbc:postgresql://localhost:%d/%s", port, EMBEDDED_DB_NAME);
 
       // Embedded PostgreSQL mặc định: user=postgres, password=""
       String dbUser = "postgres";
@@ -96,6 +98,22 @@ public class DatabaseConfig {
 
       LOGGER.info("✅ Embedded PostgreSQL đã khởi động tại port {}", port);
 
+      // ── Tạo database auction_db nếu chưa tồn tại ─────────────────────
+      // Phải connect vào DB mặc định "postgres" trước, không thể connect thẳng vào auction_db
+      try (Connection conn = embeddedPostgres.getPostgresDatabase().getConnection();
+          Statement stmt = conn.createStatement()) {
+        ResultSet rs =
+            stmt.executeQuery(
+                "SELECT 1 FROM pg_database WHERE datname = '" + EMBEDDED_DB_NAME + "'");
+        if (!rs.next()) {
+          stmt.execute("CREATE DATABASE " + EMBEDDED_DB_NAME);
+          LOGGER.info("✅ Đã tạo database '{}'", EMBEDDED_DB_NAME);
+        } else {
+          LOGGER.info("ℹ️  Database '{}' đã tồn tại, bỏ qua bước tạo", EMBEDDED_DB_NAME);
+        }
+      }
+
+      String dbUrl = String.format("jdbc:postgresql://localhost:%d/%s", port, EMBEDDED_DB_NAME);
       HikariConfig config = buildHikariConfig(dbUrl, dbUser, dbPass);
 
       dataSource = new HikariDataSource(config);
