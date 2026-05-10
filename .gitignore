@@ -1,17 +1,29 @@
 # ========================
-# Gradle / Build
+# Gradle / Build outputs
 # ========================
 .gradle/
 build/
+out/
 bin/
+target/
+dist/
 
 # ========================
-# IntelliJ
+# Java / Kotlin compiled artifacts
+# ========================
+*.class
+*.kotlin_module
+*.ser
+hs_err_pid*
+replay_pid*
+
+# ========================
+# IntelliJ IDEA
 # ========================
 .idea/
 *.iml
 *.iws
-out/
+*.ipr
 
 # ========================
 # Eclipse
@@ -32,42 +44,43 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-# package-lock.json is intentionally tracked for reproducible CI builds
+pnpm-debug.log*
 
 # ========================
-# Claude AI
-# ========================
-.claude/
-.claude-cache/
-.claude.json
-
-# ========================
-# OS
+# OS junk
 # ========================
 .DS_Store
 Thumbs.db
 
 # ========================
-# Java
-# ========================
-*.class
-*.jar
-*.war
-hs_err_pid*
-
-# ========================
-# Database (local)
-# ========================
-*.db
-*.sqlite
-
-# ========================
 # Environment / Secrets
 # ========================
 .env
-*.env.local
-gradle.properties
+.env.*
+!.env.example
 
-# repowise API keys (local)
-.repowise/.env
-*.zip
+# ========================
+# Local tooling state
+# ========================
+.claude/
+.claude-cache/
+.claude.json
+
+.repowise/
+.mcp.json
+
+# ========================
+# Local databases / caches
+# ========================
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# ========================
+# Temporary / editor backup files
+# ========================
+*.tmp
+*.swp
+*.swo
