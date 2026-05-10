@@ -69,8 +69,10 @@
          </HBox>
 
          <!-- Auction table -->
-         <TableView fx:id="auctionTable" VBox.vgrow="ALWAYS" styleClass="auction-table"
-                    columnResizePolicy="CONSTRAINED_RESIZE_POLICY">
+         <TableView fx:id="auctionTable" VBox.vgrow="ALWAYS" styleClass="auction-table">
+            <columnResizePolicy>
+               <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+            </columnResizePolicy>
             <columns>
                <TableColumn fx:id="itemCol"     text="Sản phẩm"      prefWidth="220.0" />
                <TableColumn fx:id="categoryCol" text="Danh mục"      prefWidth="110.0" />
