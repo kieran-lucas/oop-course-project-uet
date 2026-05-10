@@ -15,9 +15,15 @@ auction-system/
 │   └── pull_request_template.md            ← Form khi tạo PR
 │
 │  ══════════════════════════════════════════════════
+│  ══════════════════════════════════════════════════
 │  TẦNG 2: CẤU HÌNH PROJECT
 │  ══════════════════════════════════════════════════
 │
+├── .githooks/                              ← Chứa các hook tự động của Git (MỚI THÊM)
+├── scripts/                                ← Chứa script vẽ biểu đồ commit (MỚI THÊM)
+├── package.json                            ← File quản lý thư viện Node.js (MỚI THÊM)
+├── package-lock.json                       ← Khóa phiên bản thư viện Node.js (MỚI THÊM)
+├── LICENSE                                 ← File bản quyền MIT License của dự án (MỚI THÊM)
 ├── .gitignore                              ← File Git bỏ qua
 ├── .editorconfig                           ← Thống nhất IDE settings
 ├── README.md                               ← Tài liệu dự án
