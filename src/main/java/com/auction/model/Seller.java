@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  */
 public class Seller extends User {
 
-  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object*/
+  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object */
   public Seller() {}
 
   /**

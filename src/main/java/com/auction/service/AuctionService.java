@@ -231,12 +231,12 @@ public class AuctionService {
       // Kiểm tra trạng thái
       String status = auction.getStatus();
       if ("RUNNING".equals(status)) {
-    throw new RuntimeException("Không thể xóa phiên đang RUNNING");
-}
+        throw new RuntimeException("Không thể xóa phiên đang RUNNING");
+      }
 
       if (!"OPEN".equals(status)) {
-          throw new IllegalStateException("Chỉ có thể hủy phiên đấu giá khi đang ở trạng thái OPEN.");
-}
+        throw new IllegalStateException("Chỉ có thể hủy phiên đấu giá khi đang ở trạng thái OPEN.");
+      }
 
       // Đổi trạng thái sang CANCELED
       auction.setStatus("CANCELED");

@@ -13,7 +13,7 @@ public class Art extends Item {
 
   private String artist;
 
-  /** Hàm khởi tạo mặc định, phục vụ cho việc deserialization*/
+  /** Hàm khởi tạo mặc định, phục vụ cho việc deserialization */
   public Art() {}
 
   /**

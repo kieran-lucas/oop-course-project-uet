@@ -25,7 +25,7 @@ public abstract class User extends Entity {
   private String email;
   private BigDecimal balance = BigDecimal.ZERO;
 
-  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object*/
+  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object */
   protected User() {}
 
   /**

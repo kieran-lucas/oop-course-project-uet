@@ -14,15 +14,15 @@ import java.time.LocalDateTime;
  */
 public class Bidder extends User {
 
-  /** Constructor mặc định*/
+  /** Constructor mặc định */
   public Bidder() {}
 
-  /** Constructor cho đăng ký mới*/
+  /** Constructor cho đăng ký mới */
   public Bidder(String username, String passwordHash, String email) {
     super(username, passwordHash, email);
   }
 
-  /** Constructor từ database*/
+  /** Constructor từ database */
   public Bidder(
       Long id, String username, String passwordHash, String email, LocalDateTime createdAt) {
     super(id, username, passwordHash, email, createdAt);
