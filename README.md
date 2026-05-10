@@ -39,3 +39,19 @@ Phạm vi hệ thống bao gồm:
 -Máy tính đã cài đặt PostgreSQL 16.
 
 -Cấu hình một Database trắng trong PostgreSQL với tên auction_db.
+
+3. Cấu trúc thư mục (Các module chính)
+
+-Dự án được cấu trúc theo chuẩn phân tầng để đảm bảo tính dễ bảo trì và khả năng mở rộng:
+
+src/main/java/com/auction/model/: Chứa các thực thể cốt lõi và các Design Patterns (Factory, State, Strategy, Observer).
+
+src/main/java/com/auction/dao/: Data Access Object, chịu trách nhiệm tương tác trực tiếp với PostgreSQL.
+
+src/main/java/com/auction/service/: Business Logic Layer, xử lý các nghiệp vụ phức tạp của phiên đấu giá.
+
+src/main/java/com/auction/controller/: Điều khiển giao diện JavaFX và kết nối đến các Service.
+
+src/main/java/com/auction/network/: Chứa các lớp xử lý giao tiếp giữa Client và Server (RestClient, WebSocketClient).
+
+src/main/resources/: Chứa tài nguyên tĩnh (giao diện .fxml, file cấu hình application.properties, file SQL khởi tạo db/migration).
