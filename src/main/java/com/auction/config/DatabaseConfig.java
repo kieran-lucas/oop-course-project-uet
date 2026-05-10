@@ -3,6 +3,7 @@ package com.auction.config;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -35,6 +36,9 @@ public class DatabaseConfig {
 
   // Tên database dùng cho embedded mode
   private static final String EMBEDDED_DB_NAME = "auction_db";
+
+  // Thư mục lưu data PostgreSQL cố định — data được giữ lại giữa các lần chạy
+  private static final File EMBEDDED_DATA_DIR = new File("data/postgres");
 
   /**
    * Khởi tạo hoặc trả về Jdbi instance duy nhất (thread-safe, double-checked locking).
@@ -82,13 +86,30 @@ public class DatabaseConfig {
   /**
    * Khởi động Embedded PostgreSQL bên trong JVM. Lần đầu chạy sẽ tải binary PostgreSQL phù hợp với
    * OS (~15MB, tự cache lại). Các lần sau khởi động ngay lập tức.
+   *
+   * <p>Data được lưu cố định tại {@code data/postgres/} trong thư mục chạy ứng dụng, đảm bảo không
+   * bị reset giữa các lần chạy.
    */
   private static void initEmbeddedPostgres() {
     LOGGER.info("🚀 Không tìm thấy DB_URL — khởi động Embedded PostgreSQL...");
     LOGGER.info("   (Lần đầu chạy có thể mất 10-30 giây để tải PostgreSQL binary)");
+    LOGGER.info("   Data directory: {}", EMBEDDED_DATA_DIR.getAbsolutePath());
 
     try {
-      embeddedPostgres = EmbeddedPostgres.builder().start();
+      // Tạo thư mục nếu chưa tồn tại
+      if (!EMBEDDED_DATA_DIR.exists()) {
+        EMBEDDED_DATA_DIR.mkdirs();
+        LOGGER.info("📁 Đã tạo data directory: {}", EMBEDDED_DATA_DIR.getAbsolutePath());
+      }
+
+      // Xóa postmaster.pid nếu còn sót từ lần chạy trước bị crash
+      File pidFile = new File(EMBEDDED_DATA_DIR, "postmaster.pid");
+      if (pidFile.exists()) {
+        pidFile.delete();
+        LOGGER.warn("⚠️  Đã xóa postmaster.pid còn sót từ lần chạy trước");
+      }
+
+      embeddedPostgres = EmbeddedPostgres.builder().setDataDirectory(EMBEDDED_DATA_DIR).start();
 
       int port = embeddedPostgres.getPort();
 
