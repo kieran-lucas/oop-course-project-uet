@@ -371,38 +371,112 @@ public class App {
     try {
       jdbi.useHandle(
           handle -> {
-            // V3: cột balance cho users (nếu chưa có)
+            // ── V1: Bảng users (core) ─────────────────────────────────────
+            handle.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id            BIGSERIAL PRIMARY KEY,
+                    username      VARCHAR(50)  UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    email         VARCHAR(100) UNIQUE NOT NULL,
+                    role          VARCHAR(20)  NOT NULL DEFAULT 'BIDDER'
+                                  CHECK (role IN ('BIDDER', 'SELLER', 'ADMIN')),
+                    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+                    balance       DECIMAL(15,2) NOT NULL DEFAULT 0
+                )
+                """);
+
+            // ── V2: Bảng items ────────────────────────────────────────────
+            handle.execute(
+                """
+                CREATE TABLE IF NOT EXISTS items (
+                    id          BIGSERIAL PRIMARY KEY,
+                    name        VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    seller_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+                """);
+
+            // ── V3: Bảng auctions ─────────────────────────────────────────
+            handle.execute(
+                """
+                CREATE TABLE IF NOT EXISTS auctions (
+                    id                BIGSERIAL PRIMARY KEY,
+                    item_id           BIGINT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+                    starting_price    DECIMAL(15,2) NOT NULL,
+                    current_price     DECIMAL(15,2) NOT NULL,
+                    leading_bidder_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+                    start_time        TIMESTAMP NOT NULL,
+                    end_time          TIMESTAMP NOT NULL,
+                    status            VARCHAR(20) NOT NULL DEFAULT 'OPEN'
+                                      CHECK (status IN ('OPEN', 'RUNNING', 'FINISHED', 'CANCELLED')),
+                    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+                    updated_at        TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+                """);
+            handle.execute("CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status)");
+
+            // ── V4: Bảng bid_transactions ─────────────────────────────────
+            handle.execute(
+                """
+                CREATE TABLE IF NOT EXISTS bid_transactions (
+                    id          BIGSERIAL PRIMARY KEY,
+                    auction_id  BIGINT NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
+                    bidder_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    amount      DECIMAL(15,2) NOT NULL,
+                    bid_time    TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+                """);
+            handle.execute(
+                "CREATE INDEX IF NOT EXISTS idx_bid_transactions_auction ON bid_transactions(auction_id)");
+
+            // ── V5: Bảng auto_bid_configs ─────────────────────────────────
+            handle.execute(
+                """
+                CREATE TABLE IF NOT EXISTS auto_bid_configs (
+                    id          BIGSERIAL PRIMARY KEY,
+                    auction_id  BIGINT NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
+                    bidder_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    max_bid     DECIMAL(15,2) NOT NULL,
+                    increment   DECIMAL(15,2) NOT NULL,
+                    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+                    UNIQUE (auction_id, bidder_id)
+                )
+                """);
+
+            // ── V6: Cột balance (idempotent nếu bảng đã tồn tại trước) ───
             handle.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) NOT NULL DEFAULT 0");
 
-            // V4: bảng deposit_requests (nếu chưa có)
+            // ── V7: Bảng deposit_requests ─────────────────────────────────
             handle.execute(
                 """
-            CREATE TABLE IF NOT EXISTS deposit_requests (
-                id          BIGSERIAL PRIMARY KEY,
-                user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                amount      DECIMAL(15,2) NOT NULL,
-                status      VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-                            CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
-                created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-                reviewed_at TIMESTAMP
-            )
-            """);
+                CREATE TABLE IF NOT EXISTS deposit_requests (
+                    id          BIGSERIAL PRIMARY KEY,
+                    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    amount      DECIMAL(15,2) NOT NULL,
+                    status      VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+                                CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+                    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+                    reviewed_at TIMESTAMP
+                )
+                """);
             handle.execute(
                 "CREATE INDEX IF NOT EXISTS idx_deposit_requests_status ON deposit_requests(status)");
 
-            // V5: bảng password_reset_requests (nếu chưa có)
+            // ── V8: Bảng password_reset_requests ─────────────────────────
             handle.execute(
                 """
-            CREATE TABLE IF NOT EXISTS password_reset_requests (
-                id          BIGSERIAL PRIMARY KEY,
-                user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                status      VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-                            CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
-                created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-                reviewed_at TIMESTAMP
-            )
-            """);
+                CREATE TABLE IF NOT EXISTS password_reset_requests (
+                    id          BIGSERIAL PRIMARY KEY,
+                    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    status      VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+                                CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+                    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+                    reviewed_at TIMESTAMP
+                )
+                """);
           });
       LOGGER.info("Schema kiểm tra xong — tất cả bảng tồn tại.");
     } catch (Exception e) {
