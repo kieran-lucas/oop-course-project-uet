@@ -76,7 +76,7 @@ public class DepositRequestDao {
         handle -> handle.createQuery(sql).bind("id", id).map(new DepositRecordMapper()).findOne());
   }
 
-  /** Lấy tất cả yêu cầu theo status, JOIN với users để lấy username*/
+  /** Lấy tất cả yêu cầu theo status, JOIN với users để lấy username */
   public List<DepositRecord> findByStatus(String status) {
     String sql =
         """

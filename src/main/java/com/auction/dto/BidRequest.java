@@ -6,6 +6,7 @@ import java.math.BigDecimal;
  * DTO cho yêu cầu đặt giá thủ công (manual bid)
  *
  * <p>Luồng dữ liệu khi user nhấn "Đặt giá 500,000đ":
+ *
  * <ol>
  *   <li>Client gửi POST /api/auctions/5/bid với JSON: {"amount": 500000} và header Authorization:
  *       Bearer &lt;JWT&gt;

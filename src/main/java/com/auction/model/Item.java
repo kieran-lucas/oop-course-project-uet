@@ -32,7 +32,7 @@ public abstract class Item extends Entity {
   private String description;
   private Long sellerId; // khóa ngoại tham chiếu đến bảng users
 
-  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object*/
+  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object */
   protected Item() {}
 
   /**

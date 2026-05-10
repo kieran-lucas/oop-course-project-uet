@@ -2,7 +2,7 @@ package com.auction.model;
 
 import java.time.LocalDateTime;
 
-/** Yêu cầu đặt lại mật khẩu — chờ Admin phê duyệt trước khi reset về mật khẩu mặc định*/
+/** Yêu cầu đặt lại mật khẩu — chờ Admin phê duyệt trước khi reset về mật khẩu mặc định */
 public class PasswordResetRecord {
 
   private Long id;

@@ -62,7 +62,7 @@ public class Auction extends Entity {
     this.updatedAt = this.getCreatedAt(); // mới tạo → updatedAt = createdAt
   }
 
-  /** Constructor đầy đủ từ database*/
+  /** Constructor đầy đủ từ database */
   public Auction(
       Long id,
       Long itemId,
@@ -87,7 +87,7 @@ public class Auction extends Entity {
   // Những method này sẽ được State pattern gọi,
   // nhưng logic check nằm trong AuctionState, không phải ở đây
 
-  /** Kiểm tra phiên đã hết giờ chưa*/
+  /** Kiểm tra phiên đã hết giờ chưa */
   public boolean isExpired() {
     return LocalDateTime.now().isAfter(endTime);
   }

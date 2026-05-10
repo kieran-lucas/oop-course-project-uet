@@ -13,7 +13,7 @@ public class Vehicle extends Item {
 
   private int year;
 
-  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object*/
+  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object */
   public Vehicle() {}
 
   /**

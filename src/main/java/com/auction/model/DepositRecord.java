@@ -3,7 +3,7 @@ package com.auction.model;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** Yêu cầu nạp tiền của Bidder — chờ Admin xác nhận trước khi cộng vào số dư*/
+/** Yêu cầu nạp tiền của Bidder — chờ Admin xác nhận trước khi cộng vào số dư */
 public class DepositRecord {
 
   private Long id;

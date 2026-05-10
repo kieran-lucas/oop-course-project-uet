@@ -4,6 +4,7 @@ package com.auction.dto;
  * DTO cho yêu cầu đăng ký tài khoản mới
  *
  * <p>Luồng dữ liệu:
+ *
  * <ol>
  *   <li>Client gửi POST /api/auth/register với JSON: {"username":"alice", "password":"secret123",
  *       "email":"alice@mail.com", "role":"BIDDER"}

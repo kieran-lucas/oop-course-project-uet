@@ -2,7 +2,7 @@ package com.auction.dto;
 
 import java.math.BigDecimal;
 
-/** DTO nạp tiền vào tài khoản — nhận số tiền muốn nạp từ client*/
+/** DTO nạp tiền vào tài khoản — nhận số tiền muốn nạp từ client */
 public class DepositRequest {
 
   private BigDecimal amount;
