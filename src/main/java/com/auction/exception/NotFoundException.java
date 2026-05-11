@@ -1,10 +1,9 @@
 package com.auction.exception;
 
 /**
- * Thrown when a requested entity (User, Item, Auction, Bid, ...) cannot be found in the underlying
- * data source
+ * Thrown khi entity được yêu cầu (User, Item, Auction, Bid, ...) không tồn tại trong data source.
  *
- * <p>Typical usage:
+ * <p>Cách dùng điển hình:
  *
  * <pre>{@code
  * Auction auction = auctionDao.findById(id)
@@ -18,19 +17,19 @@ public class NotFoundException extends AuctionException {
   private static final long serialVersionUID = 1L;
 
   /**
-   * Constructs a new NotFoundException with the specified message
+   * Khởi tạo NotFoundException với message mô tả entity không tìm thấy.
    *
-   * @param message description of which entity was not found
+   * @param message mô tả entity nào không tìm thấy
    */
   public NotFoundException(String message) {
     super(message);
   }
 
   /**
-   * Constructs a new NotFoundException with the specified message and cause
+   * Khởi tạo NotFoundException với message và nguyên nhân gốc.
    *
-   * @param message description of which entity was not found
-   * @param cause the underlying exception (e.g., SQLException)
+   * @param message mô tả entity nào không tìm thấy
+   * @param cause exception gốc dẫn đến lỗi này (ví dụ: SQLException)
    */
   public NotFoundException(String message, Throwable cause) {
     super(message, cause);
