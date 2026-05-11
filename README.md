@@ -113,7 +113,7 @@ graph TB
         SVC --> DAO
     end
 
-    DAO -->|"SQL via HikariCP pool"| DB[("PostgreSQL\nEmbedded\n7 tables · 5 migrations")]
+    DAO -->|"SQL via HikariCP pool"| DB[("PostgreSQL\nEmbedded\n8 tables · 6 migrations")]
 ```
 
 ---
