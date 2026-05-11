@@ -22,6 +22,8 @@ import java.time.LocalDateTime;
  *       cùng, disable nút "Đặt giá"
  *   <li><b>AUTO_BID_TRIGGERED</b> — hệ thống tự động đặt giá (auto-bid). Client hiển thị: thông báo
  *       "Auto-bid đã đặt giá X cho bạn" (nếu là chính user đó)
+ *   <li><b>BALANCE_UPDATED</b> — Admin duyệt/từ chối nạp tiền. Client cập nhật số dư và hiện thông
+ *       báo.
  * </ul>
  *
  * <p>Ví dụ JSON gửi qua WebSocket:
@@ -67,7 +69,13 @@ public class BidUpdateMessage {
   private boolean autoBid;
 
   /** Số dư mới sau khi deposit được duyệt — chỉ có trong message BALANCE_UPDATED. */
-  private java.math.BigDecimal newBalance;
+  private BigDecimal newBalance;
+
+  /**
+   * Trạng thái duyệt/từ chối — chỉ có trong message BALANCE_UPDATED. Field riêng, không tái dụng
+   * autoBid nữa để tránh nhầm lẫn.
+   */
+  private boolean approved;
 
   public BidUpdateMessage() {}
 
@@ -141,19 +149,22 @@ public class BidUpdateMessage {
   /**
    * Factory method tạo message BALANCE_UPDATED — gửi qua /ws/user/{id} khi Admin duyệt nạp tiền.
    *
+   * <p>Dùng field {@code approved} riêng thay vì tái dụng {@code autoBid} để tránh nhầm lẫn ngữ
+   * nghĩa và đọc sai giá trị.
+   *
    * @param userId ID user được cộng tiền
    * @param newBalance số dư mới sau khi cộng
    * @param approved true = duyệt (cộng tiền), false = từ chối
    * @return BidUpdateMessage loại BALANCE_UPDATED
    */
   public static BidUpdateMessage balanceUpdated(
-      Long userId, java.math.BigDecimal newBalance, boolean approved) {
+      Long userId, BigDecimal newBalance, boolean approved) {
     BidUpdateMessage msg = new BidUpdateMessage();
     msg.type = TYPE_BALANCE_UPDATED;
     msg.auctionId = userId; // tái dùng field auctionId để chứa userId — client phân biệt qua type
     msg.newBalance = newBalance;
-    msg.autoBid = approved; // tái dùng field autoBid để chứa approved
-    msg.timestamp = java.time.LocalDateTime.now();
+    msg.approved = approved; // FIX Bug 2: dùng field approved riêng, không tái dụng autoBid nữa
+    msg.timestamp = LocalDateTime.now();
     return msg;
   }
 
@@ -223,11 +234,20 @@ public class BidUpdateMessage {
     this.autoBid = autoBid;
   }
 
-  public java.math.BigDecimal getNewBalance() {
+  public BigDecimal getNewBalance() {
     return newBalance;
   }
 
-  public void setNewBalance(java.math.BigDecimal newBalance) {
+  public void setNewBalance(BigDecimal newBalance) {
     this.newBalance = newBalance;
+  }
+
+  /** Trạng thái duyệt — chỉ có ý nghĩa với message BALANCE_UPDATED. */
+  public boolean isApproved() {
+    return approved;
+  }
+
+  public void setApproved(boolean approved) {
+    this.approved = approved;
   }
 }

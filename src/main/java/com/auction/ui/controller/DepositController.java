@@ -3,7 +3,6 @@ package com.auction.ui.controller;
 import com.auction.model.DepositRecord;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
-import com.auction.util.NotificationStore;
 import com.auction.util.RestClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -182,8 +181,12 @@ public class DepositController implements Navigable {
   }
 
   /**
-   * Áp dụng danh sách DepositRecord lên UI. Nếu notify=true thì so sánh trạng thái và gửi thông báo
-   * khi có thay đổi.
+   * Áp dụng danh sách DepositRecord lên UI. Nếu notify=true thì so sánh trạng thái và cập nhật
+   * status label khi có thay đổi.
+   *
+   * <p>FIX Bug 3: KHÔNG gọi NotificationStore.add() ở đây nữa — UserBalanceWatcher (WebSocket) là
+   * nguồn duy nhất add notification. Controller này chỉ cập nhật UI nội bộ (statusLabel,
+   * historyList, balanceLabel) của màn hình deposit.
    */
   private void applyDepositRecords(List<DepositRecord> records, boolean notify) {
     var items = FXCollections.<String>observableArrayList();
@@ -203,14 +206,14 @@ public class DepositController implements Navigable {
       if (r.getId() != null) {
         String prev = knownStatuses.get(r.getId());
         if (notify && prev != null && !prev.equals(curr)) {
-          String notif =
+          String statusMsg =
               switch (curr) {
                 case "APPROVED" -> "Nạp tiền " + amtStr + " đã được duyệt ✓";
                 case "REJECTED" -> "Nạp tiền " + amtStr + " bị từ chối ✗";
                 default -> "Trạng thái nạp tiền " + amtStr + " đã thay đổi";
               };
-          NotificationStore.getInstance().add(notif);
-          showStatus(notif, "REJECTED".equals(curr));
+          // FIX Bug 3: chỉ cập nhật status label — KHÔNG add vào NotificationStore
+          showStatus(statusMsg, "REJECTED".equals(curr));
           if ("APPROVED".equals(curr)) {
             balanceChanged = true;
           }

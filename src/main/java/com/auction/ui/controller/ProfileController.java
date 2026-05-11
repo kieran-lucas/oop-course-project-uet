@@ -3,7 +3,6 @@ package com.auction.ui.controller;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.BackgroundBidWatcher;
-import com.auction.util.NotificationStore;
 import com.auction.util.RestClient;
 import com.auction.util.UserBalanceWatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -100,16 +99,15 @@ public class ProfileController implements Navigable {
     UserBalanceWatcher.getInstance().setOnBalanceUpdate(null);
   }
 
-  /** Nhận thông báo biến động số dư từ UserBalanceWatcher — gọi trên FX thread. */
-  private void onBalanceUpdated(java.math.BigDecimal newBalance, boolean approved) {
-    if (approved && newBalance != null) {
-      if (profileBalanceLabel != null) {
-        profileBalanceLabel.setText(VND.format(newBalance));
-      }
-      NotificationStore.getInstance()
-          .add("✅ Yêu cầu nạp tiền đã được duyệt. Số dư mới: " + VND.format(newBalance));
-    } else {
-      NotificationStore.getInstance().add("❌ Yêu cầu nạp tiền bị từ chối.");
+  /**
+   * Nhận thông báo biến động số dư từ UserBalanceWatcher — gọi trên FX thread.
+   *
+   * <p>FIX Bug 1: KHÔNG gọi NotificationStore.add() ở đây nữa — UserBalanceWatcher đã add rồi. Chỉ
+   * cập nhật profileBalanceLabel để hiển thị số dư mới trên màn hình profile.
+   */
+  private void onBalanceUpdated(BigDecimal newBalance, boolean approved) {
+    if (approved && newBalance != null && profileBalanceLabel != null) {
+      profileBalanceLabel.setText(VND.format(newBalance));
     }
   }
 

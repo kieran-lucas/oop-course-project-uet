@@ -15,6 +15,10 @@ import org.slf4j.LoggerFactory;
  * <p>Mở kết nối sau khi đăng nhập thành công và giữ trong suốt phiên làm việc. Khi Admin duyệt hoặc
  * từ chối yêu cầu nạp tiền, server gửi message {@code BALANCE_UPDATED} qua kênh này.
  *
+ * <p>UserBalanceWatcher là nguồn DUY NHẤT gọi {@link NotificationStore#add(String)} cho sự kiện
+ * deposit. Các controller khác (ProfileController, DepositController) chỉ được cập nhật UI nội bộ
+ * của màn hình mình thông qua callback.
+ *
  * <p>Các màn hình muốn nhận thông báo đăng ký callback qua {@link #setOnBalanceUpdate(BiConsumer)}.
  * Chỉ có một listener tại một thời điểm — màn hình nào đang hiển thị thì đăng ký, khi rời đi thì
  * hủy bằng cách truyền {@code null}.
@@ -51,20 +55,24 @@ public class UserBalanceWatcher {
           try {
             BidUpdateMessage msg = MAPPER.readValue(json, BidUpdateMessage.class);
             if (BidUpdateMessage.TYPE_BALANCE_UPDATED.equals(msg.getType())) {
-              boolean approved = msg.isAutoBid(); // field autoBid tái dùng để chứa approved
+              // FIX Bug 2: đọc field approved riêng thay vì tái dùng autoBid
+              boolean approved = msg.isApproved();
               BigDecimal newBalance = msg.getNewBalance();
               LOGGER.info("Nhận BALANCE_UPDATED: approved={}, newBalance={}", approved, newBalance);
 
-              // Luôn thêm vào NotificationStore dù màn hình nào đang hiển thị
               Platform.runLater(
                   () -> {
+                    // FIX Bug 1 & 3: UserBalanceWatcher là nguồn DUY NHẤT add vào
+                    // NotificationStore.
+                    // ProfileController và DepositController KHÔNG được gọi
+                    // NotificationStore.add().
                     String text =
                         approved
                             ? "✅ Yêu cầu nạp tiền được duyệt"
                             : "❌ Yêu cầu nạp tiền bị từ chối";
                     NotificationStore.getInstance().add(text);
 
-                    // Notify listener nếu có (ví dụ ProfileController đang mở)
+                    // Notify listener nếu có (màn hình đang hiển thị — chỉ cập nhật UI nội bộ)
                     BiConsumer<BigDecimal, Boolean> cb = onBalanceUpdate;
                     if (cb != null) {
                       cb.accept(newBalance, approved);
