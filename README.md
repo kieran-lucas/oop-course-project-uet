@@ -246,13 +246,19 @@ java -jar build/libs/auction-client-1.0.0.jar
 
 ### Option B — Build from source
 
-#### macOS / Linux
 ```bash
+# Clone the repository
 git clone https://github.com/kieran-labs/oop-course-project-uet.git
 cd oop-course-project-uet
 
+# Build both JARs
+# macOS / Linux
 ./gradlew buildJars
 
+# Windows
+gradlew.bat buildJars
+
+# Run server
 java -jar build/libs/auction-server-1.0.0.jar
 
 # Run client (new terminal)
