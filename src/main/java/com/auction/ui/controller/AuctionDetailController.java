@@ -41,8 +41,32 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller cho màn hình chi tiết phiên đấu giá (auction-detail.fxml).
  *
- * <p>Hiển thị thông tin đầy đủ: tên/mô tả sản phẩm, giá hiện tại, người dẫn đầu, đồng hồ đếm ngược,
- * form đặt giá thủ công, cấu hình auto-bid, biểu đồ giá theo thời gian, và lịch sử bid.
+ * <p>Hiển thị thông tin đầy đủ của một phiên: tên/mô tả/category sản phẩm, giá hiện tại, người dẫn
+ * đầu, đồng hồ đếm ngược, form đặt giá thủ công, cấu hình auto-bid, biểu đồ giá theo thời gian
+ * (AreaChart), và lịch sử bid dạng ListView.
+ *
+ * <p><b>Luồng dữ liệu:</b>
+ *
+ * <ul>
+ *   <li>Nhận {@code auctionId} từ {@link AuctionListController} hoặc {@link AdminPanelController}
+ *       qua {@link #onDataReceived(Object)}.
+ *   <li>Load chi tiết phiên qua {@code GET /api/auctions/{id}} và lịch sử bid qua {@code GET
+ *       /api/auctions/{id}/bids} bằng luồng nền khi vào màn hình.
+ *   <li>Kết nối WebSocket để nhận cập nhật giá real-time; ngắt kết nối và chuyển sang {@link
+ *       com.auction.util.BackgroundBidWatcher} khi rời màn hình (nếu user đã bid).
+ *   <li>Poll số dư tài khoản mỗi 5 giây để hiển thị số dư hiện tại và toast khi số dư tăng.
+ * </ul>
+ *
+ * <p><b>Các phương thức chính:</b>
+ *
+ * <ul>
+ *   <li>{@link #handleBid()} — Validate và gửi bid thủ công tới {@code POST
+ *       /api/auctions/{id}/bid}.
+ *   <li>{@link #handleAutoBid()} — Bật auto-bid qua {@code POST /api/auctions/{id}/auto-bid}.
+ *   <li>{@link #handleCancelAutoBid()} — Tắt auto-bid qua {@code DELETE
+ *       /api/auctions/{id}/auto-bid}.
+ *   <li>{@link #goBack()} — Quay về danh sách phiên.
+ * </ul>
  */
 public class AuctionDetailController implements Navigable {
 
@@ -114,6 +138,10 @@ public class AuctionDetailController implements Navigable {
 
   // ========== NAVIGABLE LIFECYCLE ==========
 
+  /**
+   * Nhận {@code auctionId} được truyền từ màn hình trước (AuctionListController hoặc
+   * AdminPanelController). Phải gọi trước {@link #onNavigatedTo()}.
+   */
   @Override
   public void onDataReceived(Object data) {
     if (data instanceof Long id) {
@@ -121,6 +149,17 @@ public class AuctionDetailController implements Navigable {
     }
   }
 
+  /**
+   * Được gọi khi điều hướng đến màn hình này. Thực hiện các bước sau:
+   *
+   * <ol>
+   *   <li>Hiển thị username và reset toàn bộ trạng thái cũ (form, chart, flag bid).
+   *   <li>Ràng buộc kích thước hai cột trái/phải theo tỉ lệ 60/40.
+   *   <li>Load chi tiết phiên, lịch sử bid, kết nối WebSocket và bắt đầu poll số dư.
+   * </ol>
+   *
+   * <p>Chỉ hiển thị form đặt giá khi role hiện tại là BIDDER.
+   */
   @Override
   public void onNavigatedTo() {
     SceneManager sm = SceneManager.getInstance();
@@ -213,6 +252,11 @@ public class AuctionDetailController implements Navigable {
     startBalancePoll();
   }
 
+  /**
+   * Được gọi khi rời khỏi màn hình. Ngắt kết nối WebSocket và dừng đồng hồ đếm ngược, poll số dư.
+   * Sau đó đăng ký {@link com.auction.util.BackgroundBidWatcher} để tiếp tục theo dõi phiên ở nền —
+   * chỉ khi user đã đặt giá trong phiên này ({@code userHasBid = true}).
+   */
   @Override
   public void onNavigatedFrom() {
     // Disconnect the detail WS FIRST so it stops receiving messages.
@@ -242,11 +286,17 @@ public class AuctionDetailController implements Navigable {
 
   // ========== FXML ACTIONS ==========
 
+  /** Chuyển sang màn hình hồ sơ cá nhân. */
   @FXML
   public void handleProfile() {
     SceneManager.getInstance().navigateTo("profile.fxml");
   }
 
+  /**
+   * Xử lý đặt giá thủ công. Validate: trường không rỗng, số tiền > 0, không vượt quá số dư hiện
+   * tại. Gửi {@code POST /api/auctions/{id}/bid} trên luồng nền; cập nhật lịch sử bid sau khi thành
+   * công. Nút bid bị disable trong khi chờ phản hồi để tránh double-submit.
+   */
   @FXML
   public void handleBid() {
     String amountText = bidAmountField.getText().trim();
@@ -329,6 +379,11 @@ public class AuctionDetailController implements Navigable {
             });
   }
 
+  /**
+   * Bật auto-bid cho phiên hiện tại. Validate: cả hai trường maxBid và increment không rỗng và hợp
+   * lệ. Gửi {@code POST /api/auctions/{id}/auto-bid}; server sẽ tự động đặt giá thay người dùng khi
+   * có bid mới cho đến khi đạt maxBid hoặc bị hủy.
+   */
   @FXML
   public void handleAutoBid() {
     String maxBidText = maxBidField.getText().trim();
@@ -381,6 +436,10 @@ public class AuctionDetailController implements Navigable {
             });
   }
 
+  /**
+   * Tắt auto-bid đang chạy qua {@code DELETE /api/auctions/{id}/auto-bid}. Xóa trắng form
+   * maxBid/increment và cập nhật status label sau khi thành công.
+   */
   @FXML
   public void handleCancelAutoBid() {
     Thread.ofVirtual()
@@ -406,6 +465,7 @@ public class AuctionDetailController implements Navigable {
             });
   }
 
+  /** Quay về màn hình danh sách phiên đấu giá. */
   @FXML
   public void goBack() {
     SceneManager.getInstance().navigateBack("auction-list.fxml");
@@ -413,6 +473,11 @@ public class AuctionDetailController implements Navigable {
 
   // ========== DATA LOADING ==========
 
+  /**
+   * Load thông tin chi tiết phiên từ {@code GET /api/auctions/{id}} trên luồng nền. Bỏ qua kết quả
+   * nếu người dùng đã chuyển sang phiên khác trong lúc chờ phản hồi (kiểm tra {@code
+   * id.equals(auctionId)}).
+   */
   private void loadAuctionDetail() {
     final Long id = this.auctionId;
     if (id == null) {
@@ -440,6 +505,11 @@ public class AuctionDetailController implements Navigable {
             });
   }
 
+  /**
+   * Load lịch sử bid từ {@code GET /api/auctions/{id}/bids} trên luồng nền. Cập nhật {@code
+   * bidHistoryItems} (ListView) và {@code bidSeries} (AreaChart). Đồng thời đánh dấu {@code
+   * userHasBid = true} nếu tìm thấy bid của người dùng hiện tại trong danh sách.
+   */
   private void loadBidHistory() {
     final Long id = this.auctionId;
     if (id == null) {
@@ -493,6 +563,11 @@ public class AuctionDetailController implements Navigable {
             });
   }
 
+  /**
+   * Kết nối WebSocket tới kênh theo dõi phiên đấu giá. Nhận message JSON dạng {@link
+   * com.auction.dto.BidUpdateMessage} và xử lý trên JavaFX thread qua {@link
+   * #handleWsMessage(BidUpdateMessage)}.
+   */
   private void connectWebSocket(String token) {
     if (token == null || token.isEmpty()) {
       return;
@@ -512,6 +587,17 @@ public class AuctionDetailController implements Navigable {
 
   // ========== WEBSOCKET MESSAGE HANDLING ==========
 
+  /**
+   * Xử lý message từ WebSocket theo loại:
+   *
+   * <ul>
+   *   <li>{@code BID_UPDATE} — Cập nhật giá hiện tại, người dẫn đầu, biểu đồ và toast thông báo.
+   *   <li>{@code TIME_EXTENDED} — Cập nhật {@code endTimeMs} khi anti-sniping gia hạn phiên.
+   *   <li>{@code AUCTION_ENDED} — Hiển thị người thắng, dừng đồng hồ và thêm vào NotificationStore.
+   * </ul>
+   *
+   * <p>Phải gọi trên JavaFX thread (được đảm bảo bởi {@link #connectWebSocket}).
+   */
   private void handleWsMessage(BidUpdateMessage msg) {
     switch (msg.getType()) {
       case BidUpdateMessage.TYPE_BID_UPDATE -> {
@@ -617,7 +703,7 @@ public class AuctionDetailController implements Navigable {
     displayToast(text, color, 3);
   }
 
-  /** Toast khi số dư tăng — màu xanh đậm, hiển thị 4 giây. */
+  /** Toast khi số dư tăng — màu xanh đậm, hiển thị 4 giây. Đồng thời thêm vào NotificationStore. */
   private void showBalanceChangeNotification(String amountText) {
     if (bidNotificationLabel == null) {
       return;
@@ -627,6 +713,14 @@ public class AuctionDetailController implements Navigable {
     displayToast(text, "#1B5E20", 4);
   }
 
+  /**
+   * Hiển thị toast notification với màu nền và thời gian tùy chỉnh. Nếu có toast đang hiện,
+   * Timeline cũ bị dừng và thay bằng Timeline mới.
+   *
+   * @param text nội dung hiển thị
+   * @param bgColor mã màu CSS nền (vd: {@code "#2e7d32"})
+   * @param seconds thời gian hiển thị tính bằng giây
+   */
   private void displayToast(String text, String bgColor, int seconds) {
     bidNotificationLabel.setText(text);
     bidNotificationLabel.setStyle(
@@ -653,6 +747,11 @@ public class AuctionDetailController implements Navigable {
 
   // ========== BALANCE POLLING ==========
 
+  /**
+   * Cập nhật label số dư: màu xanh lá nếu dương, đỏ nếu bằng 0.
+   *
+   * @param balance số dư hiện tại của người dùng
+   */
   private void updateBalanceLabel(BigDecimal balance) {
     if (balanceLabel == null) {
       return;
@@ -664,6 +763,11 @@ public class AuctionDetailController implements Navigable {
             : "-fx-font-size: 11px; -fx-text-fill: #66bb6a;");
   }
 
+  /**
+   * Fetch số dư ngay lập tức để hiển thị ban đầu, sau đó khởi động Timeline poll mỗi 5 giây. Khi số
+   * dư tăng so với lần poll trước, hiển thị toast thông báo. Chỉ poll khi đang ở màn hình này; dừng
+   * lại trong {@link #onNavigatedFrom()}.
+   */
   private void startBalancePoll() {
     // Fetch initial balance and show it in the form
     Thread.ofVirtual()
@@ -721,6 +825,7 @@ public class AuctionDetailController implements Navigable {
     balancePollTimeline.play();
   }
 
+  /** Dừng và hủy Timeline poll số dư nếu đang chạy. */
   private void stopBalancePoll() {
     if (balancePollTimeline != null) {
       balancePollTimeline.stop();
@@ -730,6 +835,11 @@ public class AuctionDetailController implements Navigable {
 
   // ========== UI UPDATE HELPERS ==========
 
+  /**
+   * Cập nhật toàn bộ UI từ dữ liệu phiên: tên/mô tả/category sản phẩm, metadata theo category, giá
+   * hiện tại, người dẫn đầu, trạng thái badge, đồng hồ đếm ngược, và trạng thái box kết thúc/form
+   * đặt giá.
+   */
   private void updateAuctionUI(AuctionResponse auction) {
     currentItemName = auction.getItemName();
     itemNameLabel.setText(
@@ -839,6 +949,10 @@ public class AuctionDetailController implements Navigable {
     }
   }
 
+  /**
+   * Khởi động đồng hồ đếm ngược mỗi giây dựa trên {@code endTimeMs}. Tự dừng và hiển thị "Đã kết
+   * thúc" khi hết thời gian.
+   */
   private void startCountdown() {
     stopCountdown();
     countdownTimeline =
@@ -861,6 +975,7 @@ public class AuctionDetailController implements Navigable {
     countdownTimeline.play();
   }
 
+  /** Dừng và hủy Timeline đếm ngược nếu đang chạy. */
   private void stopCountdown() {
     if (countdownTimeline != null) {
       countdownTimeline.stop();
@@ -897,17 +1012,23 @@ public class AuctionDetailController implements Navigable {
             + "-fx-padding: 4 12 4 12;");
   }
 
+  /** Hiển thị thông báo lỗi dưới form đặt giá. */
   private void showBidError(String msg) {
     bidErrorLabel.setText(msg);
     bidErrorLabel.setVisible(true);
     bidErrorLabel.setManaged(true);
   }
 
+  /** Ẩn label lỗi đặt giá và giải phóng layout space. */
   private void hideBidError() {
     bidErrorLabel.setVisible(false);
     bidErrorLabel.setManaged(false);
   }
 
+  /**
+   * Trích xuất trường {@code message} từ JSON body phản hồi lỗi của server. Trả về fallback {@code
+   * "Đặt giá thất bại."} nếu body không hợp lệ.
+   */
   private String extractErrorMessage(String body) {
     try {
       return MAPPER.readTree(body).path("message").asText("Đặt giá thất bại.");
