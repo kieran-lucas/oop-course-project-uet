@@ -1,6 +1,7 @@
 <div align="center">
 
-<img src="assets/app-screenshot.png" alt="Online Auction System Screenshot" width="850"/>
+<!-- 📸 SCREENSHOT NOTE: Replace with a wide banner screenshot of the app (ideally auction detail screen with live chart visible). Recommended size: 900px wide. -->
+<img src="assets/app-screenshot.png" alt="Online Auction System Screenshot" width="900"/>
 
 # Online Auction System
 
@@ -22,6 +23,7 @@
 
 - [Overview](#-overview)
 - [Demo](#-demo)
+- [Screenshots](#-screenshots)
 - [Completed Features](#-completed-features)
 - [Architecture](#-architecture)
 - [Data Flow — End-to-End](#-data-flow--end-to-end)
@@ -46,12 +48,14 @@ A full-stack **desktop auction platform** built with Java 21. A **JavaFX client*
 **What makes this project non-trivial:**
 
 - **Concurrent bid safety** via database-level `SELECT FOR UPDATE` inside a JDBI transaction — prevents lost updates and double-winners under simultaneous bids
-- **Anti-sniping** protection: bids in the final 30 seconds automatically extend the deadline by 60 seconds
+- **Anti-sniping protection**: bids in the final 30 seconds automatically extend the deadline by 60 seconds
 - **Auto-bidding engine** using a `PriorityQueue` with FIFO tie-breaking, capable of chaining multiple auto-bids in a single transaction
 - A complete **5-state auction lifecycle** enforced by the State pattern — illegal operations throw typed exceptions, not silent failures
 - **12 JavaFX screens** with a clean blue theme (`#1565C0` primary, `#EFF6FF` background), fade transitions, and a live `LineChart` fed directly from WebSocket events
 
-The project scope covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle), and a complete lifecycle from item creation through payment and password management — **~99 Java files**, 17 test files, 5 database migrations.
+The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle), and a complete lifecycle from item creation through payment and password management — **~99 Java files**, 17 test files, 5 database migrations.
+
+**Environment:** Java 21+ · Windows / macOS / Linux · No external services required
 
 ---
 
@@ -60,6 +64,19 @@ The project scope covers **3 user roles** (Admin, Seller, Bidder), **3 item cate
 > 📹 **[Watch Demo Video](#)** — *(update link before submission)*
 >
 > 📄 **[View PDF Report](#)** — *(update link before submission)*
+
+---
+
+## 🖼️ Screenshots
+
+<!-- 📸 SCREENSHOT NOTE: Add 3–4 screenshots below. Suggested shots:
+     1. Login / Register screen
+     2. Auction list screen (showing multiple auctions with status badges)
+     3. Auction detail screen with live bid chart and countdown timer — this is the most important one
+     4. Admin dashboard or Seller item management screen
+     Use format: <img src="assets/screenshots/xxx.png" alt="description" width="700"/> -->
+
+*Screenshots coming soon — see [Demo Video](#) for a full walkthrough.*
 
 ---
 
@@ -78,7 +95,7 @@ The project scope covers **3 user roles** (Admin, Seller, Bidder), **3 item cate
 - [x] Concurrent bidding safety — `SELECT FOR UPDATE` inside JDBI transaction
 - [x] Real-time updates — WebSocket push, Observer pattern, no polling
 - [x] Clean Client–Server architecture (Javalin ↔ JavaFX)
-- [x] MVC on the client side (FXML + ui/controller) and server side (Controller → Service → DAO)
+- [x] MVC on client side (FXML + ui/controller) and server side (Controller → Service → DAO)
 - [x] Gradle build tool, Google Java Style, Conventional Commits
 - [x] Unit Tests — 17 files, JUnit 5 + Mockito, integration tests against real PostgreSQL
 - [x] CI/CD — GitHub Actions: format → lint → test → coverage
@@ -193,6 +210,78 @@ graph TB
 | Admin endpoints | `/api/admin/*` | ✅ | ADMIN | Manage users, deposits, password resets |
 
 All errors return `ErrorResponse { error: String, message: String }` with the corresponding HTTP status (400 / 401 / 404 / 409).
+
+### Key Request / Response Examples
+
+<details>
+<summary><code>POST /api/auth/login</code></summary>
+
+**Request**
+```json
+{
+  "username": "admin",
+  "password": "admin123"
+}
+```
+
+**Response `200 OK`**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "username": "admin",
+  "role": "ADMIN"
+}
+```
+</details>
+
+<details>
+<summary><code>POST /api/auctions/{id}/bid</code></summary>
+
+**Request** *(Authorization: Bearer &lt;token&gt;)*
+```json
+{
+  "amount": 500000
+}
+```
+
+**Response `200 OK`**
+```json
+{
+  "auctionId": 3,
+  "currentPrice": 500000,
+  "leadingBidder": "alice"
+}
+```
+
+**Error `409 Conflict`** *(bid too low)*
+```json
+{
+  "error": "BID_TOO_LOW",
+  "message": "Bid amount must be higher than current price 450000"
+}
+```
+</details>
+
+<details>
+<summary><code>POST /api/auctions/{id}/auto-bid</code></summary>
+
+**Request** *(Authorization: Bearer &lt;token&gt;)*
+```json
+{
+  "maxBid": 2000000,
+  "increment": 50000
+}
+```
+
+**Response `200 OK`**
+```json
+{
+  "message": "Auto-bid registered successfully",
+  "maxBid": 2000000,
+  "increment": 50000
+}
+```
+</details>
 
 ### WebSocket Protocol
 
@@ -385,37 +474,58 @@ auction-system/
         └── config/                       ← DatabaseConfigTest · JwtUtilTest
 ```
 
-**JAR locations** (after `./gradlew buildJars`):
-
-| File | Description |
-|---|---|
-| `build/libs/auction-server-1.0.0.jar` | Server fat JAR |
-| `build/libs/auction-client-1.0.0.jar` | Client fat JAR |
-
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-**Java 21+** is the only requirement — PostgreSQL is embedded and starts automatically.
+| Requirement | Version | Notes |
+|---|---|---|
+| Java (JDK) | 21+ | [Download Adoptium](https://adoptium.net/) |
+| OS | Windows 10+ / macOS 12+ / Ubuntu 20.04+ | JavaFX requires a display environment |
+| RAM | 512 MB minimum | Embedded PostgreSQL + JavaFX |
+| Display | 1280×720 minimum | Required for JavaFX rendering |
+
+PostgreSQL is **embedded** — no installation needed.
 
 ```bash
 java -version
 # Expected: openjdk version "21.x.x"
 ```
 
-### Run from prebuilt JARs *(recommended for evaluators)*
+### ⬇️ Download Prebuilt JARs *(recommended for evaluators)*
+
+| File | Size | Download |
+|---|---|---|
+| Server | ~101 MB | [**auction-server-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
+| Client | ~101 MB | [**auction-client-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
+
+### ▶️ Running the Application
+
+**Step 1 — Start the server** (wait for `Javalin started in X ms` before proceeding)
 
 ```bash
-# Step 1 — Start the server (wait for "Javalin started in X ms")
-java -jar build/libs/auction-server-1.0.0.jar
-
-# Step 2 — Open a client (each terminal window is an independent client)
-java -jar build/libs/auction-client-1.0.0.jar
+java -jar auction-server-1.0.0.jar
 ```
 
-The default Admin account is seeded automatically via `V2__seed_admin.sql`.
+**Step 2 — Start one or more clients** (each terminal = independent client)
+
+```bash
+java -jar auction-client-1.0.0.jar
+```
+
+To simulate concurrent bidding, open multiple terminals and run the client command in each.
+
+### 🔑 Default Accounts
+
+The following accounts are seeded automatically on first run via `V2__seed_admin.sql`:
+
+| Role | Username | Password |
+|---|---|---|
+| Admin | `admin` | `admin123` |
+
+Additional Seller and Bidder accounts can be registered from the login screen.
 
 ### Build from source
 
@@ -426,6 +536,8 @@ cd oop-course-project-uet
 ./gradlew buildJars          # macOS / Linux
 gradlew.bat buildJars        # Windows
 ```
+
+Output JARs will be placed in `build/libs/`.
 
 ### Gradle Commands
 
@@ -448,6 +560,10 @@ rmdir /s /q data\postgres     # Windows
 ```
 
 This occurs when the server is killed uncleanly. Delete the directory and restart.
+
+**JavaFX window does not appear on Linux**
+
+Ensure a display server is running. On headless servers, use `export DISPLAY=:0` or run via a desktop session.
 
 ---
 
@@ -485,14 +601,14 @@ This occurs when the server is killed uncleanly. Delete the directory and restar
 
 ## 👥 Team
 
-| Member | Role | Primary Responsibility |
+| Member | Role | Technical Contributions |
 |---|---|---|
-| **A** | Backend Lead | Javalin server, 5 REST controllers, WebSocket handler, 7 DAOs, 5 SQL migrations |
-| **B** | Frontend Lead | 12 JavaFX UI controllers, 12 FXML screens, SceneManager, blue CSS theme |
-| **C** | Business Logic | 6 service classes, 4 design patterns (13 files), exception hierarchy, JWT/BCrypt |
-| **D** | DevOps & QA | CI/CD pipeline, 17 test files, Gradle config, Git workflow, documentation |
+| **A** | Backend Lead | Javalin server setup · 5 REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · 7 JDBI DAOs · 5 SQL migration scripts · HikariCP connection pool config |
+| **B** | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
+| **C** | Business Logic | 6 service classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
+| **D** | DevOps & QA | 5-stage GitHub Actions CI pipeline · 17 JUnit 5 test files · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
 
-All members co-own `model/` (14 files), `dto/` (13 files), and `README.md`.
+All members jointly own `model/` (14 domain classes), `dto/` (13 transfer objects), and project documentation.
 
 ---
 
@@ -528,6 +644,7 @@ All members co-own `model/` (14 files), `dto/` (13 files), and `README.md`.
 |---|---|
 | 📹 Demo Video | [Watch on YouTube / Drive](#) *(update before submission)* |
 | 📄 PDF Report | [View Report](#) *(update before submission)* |
+| 📦 GitHub Releases | [v1.0.0 — Prebuilt JARs](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0) |
 | 📊 CI Pipeline | [GitHub Actions](https://github.com/kieran-labs/oop-course-project-uet/actions) |
 | 📈 Coverage Report | Available as artifact in each CI run |
 
