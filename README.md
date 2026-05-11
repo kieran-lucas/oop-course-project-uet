@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/app-screenshot.png" alt="Online Auction System Screenshot" width="700"/>
+<img src="assets/app-screenshot.png" alt="Online Auction System Screenshot" width="850"/>
 
 # Online Auction System
 
