@@ -135,11 +135,16 @@ public class DepositController implements Navigable {
             });
   }
 
+  /** Quay lại màn hình hồ sơ cá nhân. */
   @FXML
   public void goBack() {
     SceneManager.getInstance().navigateBack("profile.fxml");
   }
 
+  /**
+   * Tải số dư tài khoản từ {@code GET /api/users/me} và cập nhật {@code balanceLabel}. Chạy trên
+   * luồng nền; ghi log debug nếu thất bại (không hiển thị lỗi cho người dùng).
+   */
   private void loadBalance() {
     Thread.ofVirtual()
         .start(
@@ -160,6 +165,11 @@ public class DepositController implements Navigable {
             });
   }
 
+  /**
+   * Tải lịch sử yêu cầu nạp tiền từ {@code GET /api/users/me/deposit-requests} trên luồng nền. Nếu
+   * {@code notify = true} (tức là {@code knownStatuses} đã có dữ liệu từ lần poll trước), so sánh
+   * trạng thái để phát hiện thay đổi và cập nhật statusLabel.
+   */
   private void loadHistory() {
     boolean notify = !knownStatuses.isEmpty();
     Thread.ofVirtual()
@@ -227,6 +237,10 @@ public class DepositController implements Navigable {
     }
   }
 
+  /**
+   * Khởi động Timeline poll yêu cầu nạp tiền mỗi 4 giây để phát hiện khi Admin duyệt/từ chối. Gọi
+   * {@link #stopDepositPoll()} trước để tránh Timeline trùng lặp.
+   */
   private void startDepositPoll() {
     stopDepositPoll();
     depositPollTimeline =
@@ -253,6 +267,7 @@ public class DepositController implements Navigable {
     depositPollTimeline.play();
   }
 
+  /** Dừng và hủy Timeline poll nếu đang chạy. */
   private void stopDepositPoll() {
     if (depositPollTimeline != null) {
       depositPollTimeline.stop();
@@ -260,6 +275,12 @@ public class DepositController implements Navigable {
     }
   }
 
+  /**
+   * Hiển thị thông báo kết quả trên statusLabel.
+   *
+   * @param msg nội dung thông báo
+   * @param isError {@code true} để hiển thị màu đỏ (lỗi), {@code false} cho màu xanh (thành công)
+   */
   private void showStatus(String msg, boolean isError) {
     statusLabel.setText(msg);
     statusLabel.setStyle(isError ? "-fx-text-fill: #e53935;" : "-fx-text-fill: #43a047;");
@@ -267,6 +288,7 @@ public class DepositController implements Navigable {
     statusLabel.setManaged(true);
   }
 
+  /** Ẩn statusLabel và giải phóng layout space. */
   private void hideStatus() {
     if (statusLabel != null) {
       statusLabel.setVisible(false);
