@@ -34,7 +34,7 @@ A full-stack **desktop auction platform** built with Java 21. A **JavaFX client*
 
 The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle), and a complete lifecycle from item creation through payment and password management — **~99 Java files**, 17 test files, 6 database migrations.
 
-**Environment:** Java 21+ · Windows / macOS / Linux · No external services required
+**Environment:** Java 21+ • Windows / macOS / Linux • No external services required
 
 ---
 
