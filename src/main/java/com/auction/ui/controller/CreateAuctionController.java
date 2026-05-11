@@ -142,12 +142,15 @@ public class CreateAuctionController implements Navigable {
               try {
                 HttpResponse<String> response = RestClient.post("/api/auctions", body);
                 if (response.statusCode() == 201) {
+                  // FIX: Hiển thị thông báo thành công, sau đó navigate về auction-list
                   Platform.runLater(
                       () -> {
                         showStatus("Tạo phiên đấu giá thành công!", false);
-                        clearForm();
                         createButton.setDisable(false);
                       });
+                  Thread.sleep(1500);
+                  Platform.runLater(
+                      () -> SceneManager.getInstance().navigateTo("auction-list.fxml"));
                 } else {
                   String msg = extractMessage(response.body(), "Tạo phiên thất bại.");
                   Platform.runLater(
