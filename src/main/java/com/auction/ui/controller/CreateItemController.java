@@ -129,11 +129,16 @@ public class CreateItemController implements Navigable {
               try {
                 HttpResponse<String> response = RestClient.post("/api/items", body);
                 if (response.statusCode() == 201) {
+                  // FIX 1: Hiển thị thông báo thành công trước khi navigate
+                  Platform.runLater(() -> showStatus("Tạo sản phẩm thành công!", false));
+                  Thread.sleep(1500);
                   Platform.runLater(
                       () -> {
-                        // Invalidate cache create-auction để nó reload lại danh sách item mới tạo
+                        // FIX 2: Dùng navigateBack thay vì navigateTo để không push
+                        // create-item.fxml vào backStack — tránh Back trong create-auction
+                        // lại quay về create-item thay vì auction-list
                         SceneManager.getInstance().invalidateCache("create-auction.fxml");
-                        SceneManager.getInstance().navigateTo("create-auction.fxml");
+                        SceneManager.getInstance().navigateBack("create-auction.fxml");
                       });
                 } else {
                   String msg = extractMessage(response.body(), "Tạo sản phẩm thất bại.");
