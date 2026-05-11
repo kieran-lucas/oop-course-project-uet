@@ -406,4 +406,8 @@ public class WebSocketClient {
 
     disconnectUser();
   }
+
+  public void disconnect() {
+    disconnectAll();
+  }
 }

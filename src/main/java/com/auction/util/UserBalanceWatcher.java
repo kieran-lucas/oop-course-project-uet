@@ -4,6 +4,10 @@ import com.auction.dto.BidUpdateMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.function.BiConsumer;
 import javafx.application.Platform;
 import org.slf4j.Logger;
@@ -83,6 +87,7 @@ public class UserBalanceWatcher {
             LOGGER.debug("UserBalanceWatcher parse error: {}", e.getMessage());
           }
         });
+    loadOfflineNotifications(token);
     LOGGER.info("UserBalanceWatcher: kết nối kênh user #{}", userId);
   }
 
@@ -94,6 +99,38 @@ public class UserBalanceWatcher {
    */
   public void setOnBalanceUpdate(BiConsumer<BigDecimal, Boolean> callback) {
     this.onBalanceUpdate = callback;
+  }
+
+  private void loadOfflineNotifications(String token) {
+    try {
+      HttpClient client = HttpClient.newHttpClient();
+
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(URI.create("http://localhost:8080/api/notifications"))
+              .header("Authorization", "Bearer " + token)
+              .GET()
+              .build();
+
+      HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      if (response.statusCode() == 200) {
+        var root = MAPPER.readTree(response.body());
+        Platform.runLater(
+            () -> {
+              for (var node : root) {
+                String message = node.has("message") ? node.get("message").asText() : "";
+                boolean isRead = node.has("is_read") && node.get("is_read").asBoolean();
+                if (!isRead && !message.isEmpty()) {
+                  NotificationStore.getInstance().add(message);
+                  LOGGER.info("Đã load offline notification: {}", message);
+                }
+              }
+            });
+      }
+    } catch (Exception e) {
+      LOGGER.error("Lỗi load offline notifications: {}", e.getMessage());
+    }
   }
 
   /** Đóng kết nối — gọi khi người dùng đăng xuất. */
