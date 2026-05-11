@@ -56,6 +56,9 @@ public class AuctionDetailController implements Navigable {
   @FXML private Label itemNameLabel;
   @FXML private Label itemCategoryLabel;
   @FXML private Label itemDescriptionLabel;
+  @FXML private Label itemBrandLabel; // ELECTRONICS: hãng sản xuất
+  @FXML private Label itemArtistLabel; // ART: nghệ sĩ
+  @FXML private Label itemYearLabel; // VEHICLE: năm sản xuất
   @FXML private Label auctionStatusLabel;
 
   // ── Price & countdown ──
@@ -735,6 +738,9 @@ public class AuctionDetailController implements Navigable {
     itemDescriptionLabel.setText(
         auction.getItemDescription() != null ? auction.getItemDescription() : "");
 
+    // Hiển thị field đặc thù theo category
+    updateCategoryMetadata(auction);
+
     String statusText = auction.getStatus() != null ? auction.getStatus() : "";
     auctionStatusLabel.setText(statusText);
     applyStatusStyle(auctionStatusLabel, auction.getStatus());
@@ -773,6 +779,62 @@ public class AuctionDetailController implements Navigable {
                 : "Không có người thắng";
         String prefix = "PAID".equals(status) ? "Đã thanh toán — " : "Người thắng: ";
         winnerLabel.setText(prefix + winner);
+      }
+    }
+  }
+
+  /**
+   * Ẩn/hiện label đặc thù theo category của sản phẩm.
+   *
+   * <ul>
+   *   <li>ELECTRONICS → itemBrandLabel (Hãng: ...)
+   *   <li>ART → itemArtistLabel (Nghệ sĩ: ...)
+   *   <li>VEHICLE → itemYearLabel (Năm sản xuất: ...)
+   * </ul>
+   *
+   * <p>Label nào không có dữ liệu (null/blank/0) sẽ được ẩn, không chiếm layout space.
+   */
+  private void updateCategoryMetadata(AuctionResponse auction) {
+    // Ẩn tất cả trước — chỉ 1 label sẽ được bật tùy category
+    itemBrandLabel.setVisible(false);
+    itemBrandLabel.setManaged(false);
+    itemArtistLabel.setVisible(false);
+    itemArtistLabel.setManaged(false);
+    itemYearLabel.setVisible(false);
+    itemYearLabel.setManaged(false);
+
+    String category = auction.getItemCategory();
+    if (category == null) {
+      return;
+    }
+
+    switch (category) {
+      case "ELECTRONICS" -> {
+        String brand = auction.getItemBrand();
+        if (brand != null && !brand.isBlank()) {
+          itemBrandLabel.setText("Hãng: " + brand);
+          itemBrandLabel.setVisible(true);
+          itemBrandLabel.setManaged(true);
+        }
+      }
+      case "ART" -> {
+        String artist = auction.getItemArtist();
+        if (artist != null && !artist.isBlank()) {
+          itemArtistLabel.setText("Nghệ sĩ: " + artist);
+          itemArtistLabel.setVisible(true);
+          itemArtistLabel.setManaged(true);
+        }
+      }
+      case "VEHICLE" -> {
+        Integer year = auction.getItemYear();
+        if (year != null && year > 0) {
+          itemYearLabel.setText("Năm sản xuất: " + year);
+          itemYearLabel.setVisible(true);
+          itemYearLabel.setManaged(true);
+        }
+      }
+      default -> {
+        // Category khác: không hiển thị thêm gì
       }
     }
   }

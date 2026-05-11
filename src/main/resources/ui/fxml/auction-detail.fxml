@@ -64,6 +64,13 @@
                   <Label fx:id="auctionStatusLabel" styleClass="status-badge" text="" />
                </HBox>
                <Label fx:id="itemCategoryLabel" styleClass="detail-subtitle" text="" />
+               <!-- Category-specific metadata: chỉ 1 trong 3 label hiển thị tại một thời điểm -->
+               <Label fx:id="itemBrandLabel" styleClass="detail-subtitle" text=""
+                      visible="false" managed="false" />
+               <Label fx:id="itemArtistLabel" styleClass="detail-subtitle" text=""
+                      visible="false" managed="false" />
+               <Label fx:id="itemYearLabel" styleClass="detail-subtitle" text=""
+                      visible="false" managed="false" />
                <Label fx:id="itemDescriptionLabel" styleClass="detail-text" text=""
                       wrapText="true" />
             </VBox>

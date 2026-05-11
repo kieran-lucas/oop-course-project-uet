@@ -22,6 +22,9 @@ import java.time.LocalDateTime;
  *   <li>itemName — tên sản phẩm (thay vì chỉ itemId, client không cần query thêm)
  *   <li>leadingBidderUsername — tên người dẫn đầu (thay vì chỉ leadingBidderId)
  *   <li>remainingTimeMs — thời gian còn lại tính sẵn (client không cần tự tính)
+ *   <li>itemBrand — hãng sản xuất (chỉ có khi category = ELECTRONICS)
+ *   <li>itemArtist — nghệ sĩ (chỉ có khi category = ART)
+ *   <li>itemYear — năm sản xuất (chỉ có khi category = VEHICLE)
  * </ul>
  *
  * <p>Method tĩnh fromAuction() giúp chuyển đổi Auction → AuctionResponse một cách tiện lợi, tránh
@@ -34,6 +37,9 @@ public class AuctionResponse {
   private String itemName;
   private String itemCategory;
   private String itemDescription;
+  private String itemBrand; // ELECTRONICS only
+  private String itemArtist; // ART only
+  private Integer itemYear; // VEHICLE only
   private BigDecimal startingPrice;
   private BigDecimal currentPrice;
   private Long leadingBidderId;
@@ -108,6 +114,30 @@ public class AuctionResponse {
 
   public void setItemDescription(String itemDescription) {
     this.itemDescription = itemDescription;
+  }
+
+  public String getItemBrand() {
+    return itemBrand;
+  }
+
+  public void setItemBrand(String itemBrand) {
+    this.itemBrand = itemBrand;
+  }
+
+  public String getItemArtist() {
+    return itemArtist;
+  }
+
+  public void setItemArtist(String itemArtist) {
+    this.itemArtist = itemArtist;
+  }
+
+  public Integer getItemYear() {
+    return itemYear;
+  }
+
+  public void setItemYear(Integer itemYear) {
+    this.itemYear = itemYear;
   }
 
   public BigDecimal getStartingPrice() {

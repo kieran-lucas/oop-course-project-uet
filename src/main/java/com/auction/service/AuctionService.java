@@ -8,8 +8,11 @@ import com.auction.dto.CreateAuctionRequest;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
+import com.auction.model.Art;
 import com.auction.model.Auction;
+import com.auction.model.Electronics;
 import com.auction.model.Item;
+import com.auction.model.Vehicle;
 import com.auction.pattern.state.AuctionState;
 import com.auction.pattern.state.CanceledState;
 import com.auction.pattern.state.FinishedState;
@@ -333,15 +336,22 @@ public class AuctionService {
   }
 
   /**
-   * Bổ sung thông tin itemName và leadingBidderUsername vào AuctionResponse.
+   * Bổ sung thông tin itemName, leadingBidderUsername và các field riêng theo category (itemBrand,
+   * itemArtist, itemYear) vào AuctionResponse.
    *
    * <p>AuctionResponse.fromAuction() chỉ copy dữ liệu từ Auction model. Method này bổ sung thêm
-   * thông tin từ bảng items và users.
+   * thông tin từ bảng items và users, bao gồm các field đặc thù theo loại sản phẩm:
+   *
+   * <ul>
+   *   <li>ELECTRONICS → itemBrand (hãng sản xuất)
+   *   <li>ART → itemArtist (nghệ sĩ)
+   *   <li>VEHICLE → itemYear (năm sản xuất)
+   * </ul>
    */
   private AuctionResponse enrichAuctionResponse(Auction auction) {
     AuctionResponse response = AuctionResponse.fromAuction(auction);
 
-    // Bổ sung itemName, itemCategory, itemDescription
+    // Bổ sung itemName, itemCategory, itemDescription + category-specific fields
     itemDao
         .findById(auction.getItemId())
         .ifPresent(
@@ -349,16 +359,22 @@ public class AuctionService {
               response.setItemName(item.getName());
               response.setItemCategory(item.getCategory());
               response.setItemDescription(item.getDescription());
+
+              // Bổ sung field đặc thù theo loại sản phẩm (dùng pattern matching Java 21)
+              if (item instanceof Electronics electronics) {
+                response.setItemBrand(electronics.getBrand());
+              } else if (item instanceof Art art) {
+                response.setItemArtist(art.getArtist());
+              } else if (item instanceof Vehicle vehicle) {
+                response.setItemYear(vehicle.getYear());
+              }
             });
 
     // Bổ sung leadingBidderUsername
     if (auction.getLeadingBidderId() != null) {
       userDao
           .findById(auction.getLeadingBidderId())
-          .ifPresent(
-              user -> {
-                response.setLeadingBidderUsername(user.getUsername());
-              });
+          .ifPresent(user -> response.setLeadingBidderUsername(user.getUsername()));
     }
 
     return response;
