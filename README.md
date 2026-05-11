@@ -485,10 +485,10 @@ Ensure a display server is running. On headless servers, use `export DISPLAY=:0`
 
 | Member | GitHub | Role | Technical Contributions |
 |---|---|---|---|
-| **Nguyen Van A** | [@username](https://github.com/username) | Backend Lead | Javalin server setup · 5 REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · 7 JDBI DAOs · 5 SQL migration scripts · HikariCP connection pool config |
-| **Tran Thi B** | [@username](https://github.com/username) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
-| **Le Van C** | [@username](https://github.com/username) | Business Logic | 6 service classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
-| **Pham Thi D** | [@username](https://github.com/username) | DevOps & QA | 5-stage GitHub Actions CI pipeline · 17 JUnit 5 test files · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
+| **Bui Ngoc Phu Hung** | [@username]([https://github.com/username](https://github.com/HumaNormal)) | Backend Lead | Javalin server setup · 5 REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · 7 JDBI DAOs · 5 SQL migration scripts · HikariCP connection pool config |
+| **Tran Anh Duc** | [@username]([https://github.com/username](https://github.com/kieran-lucas)) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
+| **Nguyen Dinh Viet Duc** | [@username]([https://github.com/username](https://github.com/Black1206-coder)) | Business Logic | 6 service classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
+| **Bui Quang Huy** | [@username]([https://github.com/username](https://github.com/stillqhuy)) | DevOps & QA | 5-stage GitHub Actions CI pipeline · 17 JUnit 5 test files · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
 
 All members jointly own `model/` (14 domain classes), `dto/` (13 transfer objects), and project documentation.
 
