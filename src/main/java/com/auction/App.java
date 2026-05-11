@@ -416,7 +416,7 @@ public class App {
                     start_time        TIMESTAMP NOT NULL,
                     end_time          TIMESTAMP NOT NULL,
                     status            VARCHAR(20) NOT NULL DEFAULT 'OPEN'
-                                      CHECK (status IN ('OPEN', 'RUNNING', 'FINISHED', 'CANCELLED')),
+                                      CHECK (status IN ('OPEN', 'RUNNING', 'FINISHED', 'PAID', 'CANCELED')),
                     created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
                     updated_at        TIMESTAMP NOT NULL DEFAULT NOW()
                 )
@@ -431,7 +431,8 @@ public class App {
                     auction_id  BIGINT NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
                     bidder_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     amount      DECIMAL(15,2) NOT NULL,
-                    bid_time    TIMESTAMP NOT NULL DEFAULT NOW()
+                    auto_bid    BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
                 )
                 """);
             handle.execute(
