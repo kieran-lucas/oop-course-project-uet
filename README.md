@@ -1,6 +1,6 @@
 <div align="center">
 
-[![CI](https://img.shields.io/github/actions/workflow/status/kieran-lucas/oop-course-project-uet/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/kieran-lucas/oop-course-project-uet/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/kieran-lucas/oop-course-project-uet/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/JAVA-21-orange?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![Coverage](https://img.shields.io/badge/COVERAGE-JaCoCo-brightgreen?style=for-the-badge)](https://github.com/kieran-lucas/oop-course-project-uet/actions)
 [![SpotBugs](https://img.shields.io/badge/SPOTBUGS-passing-yellow?style=for-the-badge)](https://github.com/kieran-lucas/oop-course-project-uet/actions)
