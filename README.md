@@ -1,7 +1,6 @@
 <div align="center">
 
-<!-- 📸 SCREENSHOT NOTE: Replace with a wide banner screenshot of the app (ideally auction detail screen with live chart visible). Recommended size: 900px wide. -->
-<img src="assets/app-screenshot.png" alt="Online Auction System Screenshot" width="900"/>
+<img src="assets/app-screenshot.png" alt="Online Auction System — live bid chart + countdown timer" width="900"/>
 
 # Online Auction System
 
@@ -15,29 +14,9 @@
 [![PostgreSQL](https://img.shields.io/badge/POSTGRESQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/LICENSE-MIT-blue?style=for-the-badge)](LICENSE)
 
+**[📹 Demo Video](#)** · **[📄 PDF Report](#)** · **[⬇️ Download JARs](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)**
+
 </div>
-
----
-
-## 📌 Table of Contents
-
-- [Overview](#-overview)
-- [Demo](#-demo)
-- [Screenshots](#-screenshots)
-- [Completed Features](#-completed-features)
-- [Architecture](#-architecture)
-- [Data Flow — End-to-End](#-data-flow--end-to-end)
-- [API Reference](#-api-reference)
-- [Design Patterns](#-design-patterns)
-- [Class Hierarchy](#-class-hierarchy)
-- [Tech Stack & Why We Chose It](#-tech-stack--why-we-chose-it)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [Technical Decisions](#-technical-decisions)
-- [Known Limitations](#-known-limitations)
-- [Team](#-team)
-- [Rubric Coverage](#-rubric-coverage)
-- [Reports](#-reports)
 
 ---
 
@@ -59,24 +38,11 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 
 ---
 
-## 🎬 Demo
-
-> 📹 **[Watch Demo Video](#)** — *(update link before submission)*
->
-> 📄 **[View PDF Report](#)** — *(update link before submission)*
-
----
-
 ## 🖼️ Screenshots
 
-<!-- 📸 SCREENSHOT NOTE: Add 3–4 screenshots below. Suggested shots:
-     1. Login / Register screen
-     2. Auction list screen (showing multiple auctions with status badges)
-     3. Auction detail screen with live bid chart and countdown timer — this is the most important one
-     4. Admin dashboard or Seller item management screen
-     Use format: <img src="assets/screenshots/xxx.png" alt="description" width="700"/> -->
-
-*Screenshots coming soon — see [Demo Video](#) for a full walkthrough.*
+| Login | Auction List | Live Bid Detail | Admin Dashboard |
+|:---:|:---:|:---:|:---:|
+| <img src="assets/screenshots/login.png" width="200"/> | <img src="assets/screenshots/auction-list.png" width="200"/> | <img src="assets/screenshots/auction-detail.png" width="200"/> | <img src="assets/screenshots/admin.png" width="200"/> |
 
 ---
 
@@ -187,117 +153,6 @@ graph TB
 
 ---
 
-## 📡 API Reference
-
-### REST Endpoints
-
-| Method | Path | Auth | Role | Description |
-|---|---|---|---|---|
-| `POST` | `/api/auth/register` | ❌ | — | Register (BIDDER / SELLER) |
-| `POST` | `/api/auth/login` | ❌ | — | Login → JWT token |
-| `POST` | `/api/auth/change-password` | ✅ | Any | Change password |
-| `POST` | `/api/auth/forgot-password` | ✅ | Any | Request password reset |
-| `GET` | `/api/items` | ✅ | Any | List all items |
-| `POST` | `/api/items` | ✅ | SELLER | Create item |
-| `GET` | `/api/auctions` | ✅ | Any | List auctions (`?status=`) |
-| `GET` | `/api/auctions/{id}` | ✅ | Any | Auction detail (enriched) |
-| `POST` | `/api/auctions` | ✅ | SELLER | Create auction |
-| `PUT` | `/api/auctions/{id}` | ✅ | SELLER | Edit auction (OPEN state only) |
-| `DELETE` | `/api/auctions/{id}` | ✅ | SELLER/ADMIN | Cancel auction |
-| `POST` | `/api/auctions/{id}/bid` | ✅ | BIDDER | Place manual bid |
-| `POST` | `/api/auctions/{id}/auto-bid` | ✅ | BIDDER | Register auto-bid |
-| `POST` | `/api/users/me/deposit` | ✅ | BIDDER | Submit deposit request |
-| Admin endpoints | `/api/admin/*` | ✅ | ADMIN | Manage users, deposits, password resets |
-
-All errors return `ErrorResponse { error: String, message: String }` with the corresponding HTTP status (400 / 401 / 404 / 409).
-
-### Key Request / Response Examples
-
-<details>
-<summary><code>POST /api/auth/login</code></summary>
-
-**Request**
-```json
-{
-  "username": "admin",
-  "password": "admin123"
-}
-```
-
-**Response `200 OK`**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiJ9...",
-  "username": "admin",
-  "role": "ADMIN"
-}
-```
-</details>
-
-<details>
-<summary><code>POST /api/auctions/{id}/bid</code></summary>
-
-**Request** *(Authorization: Bearer &lt;token&gt;)*
-```json
-{
-  "amount": 500000
-}
-```
-
-**Response `200 OK`**
-```json
-{
-  "auctionId": 3,
-  "currentPrice": 500000,
-  "leadingBidder": "alice"
-}
-```
-
-**Error `409 Conflict`** *(bid too low)*
-```json
-{
-  "error": "BID_TOO_LOW",
-  "message": "Bid amount must be higher than current price 450000"
-}
-```
-</details>
-
-<details>
-<summary><code>POST /api/auctions/{id}/auto-bid</code></summary>
-
-**Request** *(Authorization: Bearer &lt;token&gt;)*
-```json
-{
-  "maxBid": 2000000,
-  "increment": 50000
-}
-```
-
-**Response `200 OK`**
-```json
-{
-  "message": "Auto-bid registered successfully",
-  "maxBid": 2000000,
-  "increment": 50000
-}
-```
-</details>
-
-### WebSocket Protocol
-
-```
-Endpoint: /ws/auction/{auctionId}?token=<JWT>
-```
-
-| Direction | `type` | Payload |
-|---|---|---|
-| Server → Client | `BID_UPDATE` | `{ currentPrice, leadingBidderUsername, timestamp }` |
-| Server → Client | `TIME_EXTENDED` | `{ newEndTime }` |
-| Server → Client | `AUCTION_ENDED` | `{ winner, finalPrice }` |
-| Server → Client | `AUTO_BID_TRIGGERED` | `{ bidderId, amount }` |
-
----
-
 ## 🧠 Design Patterns
 
 ### 1. Observer — Real-time Push
@@ -387,7 +242,262 @@ Entity (abstract)           ← id: Long, createdAt: LocalDateTime
 
 ---
 
-## 🛠️ Tech Stack & Why We Chose It
+## 📡 API Reference
+
+### REST Endpoints
+
+| Method | Path | Auth | Role | Description |
+|---|---|---|---|---|
+| `POST` | `/api/auth/register` | ❌ | — | Register (BIDDER / SELLER) |
+| `POST` | `/api/auth/login` | ❌ | — | Login → JWT token |
+| `POST` | `/api/auth/change-password` | ✅ | Any | Change password |
+| `POST` | `/api/auth/forgot-password` | ✅ | Any | Request password reset |
+| `GET` | `/api/items` | ✅ | Any | List all items |
+| `POST` | `/api/items` | ✅ | SELLER | Create item |
+| `GET` | `/api/auctions` | ✅ | Any | List auctions (`?status=`) |
+| `GET` | `/api/auctions/{id}` | ✅ | Any | Auction detail (enriched) |
+| `POST` | `/api/auctions` | ✅ | SELLER | Create auction |
+| `PUT` | `/api/auctions/{id}` | ✅ | SELLER | Edit auction (OPEN state only) |
+| `DELETE` | `/api/auctions/{id}` | ✅ | SELLER/ADMIN | Cancel auction |
+| `POST` | `/api/auctions/{id}/bid` | ✅ | BIDDER | Place manual bid |
+| `POST` | `/api/auctions/{id}/auto-bid` | ✅ | BIDDER | Register auto-bid |
+| `POST` | `/api/users/me/deposit` | ✅ | BIDDER | Submit deposit request |
+| Admin endpoints | `/api/admin/*` | ✅ | ADMIN | Manage users, deposits, password resets |
+
+All errors return `ErrorResponse { error: String, message: String }` with the corresponding HTTP status (400 / 401 / 404 / 409).
+
+<details>
+<summary><b>Key Request / Response Examples</b></summary>
+
+<br>
+
+<details>
+<summary><code>POST /api/auth/login</code></summary>
+
+**Request**
+```json
+{
+  "username": "admin",
+  "password": "admin123"
+}
+```
+
+**Response `200 OK`**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "username": "admin",
+  "role": "ADMIN"
+}
+```
+</details>
+
+<details>
+<summary><code>POST /api/auctions/{id}/bid</code></summary>
+
+**Request** *(Authorization: Bearer &lt;token&gt;)*
+```json
+{
+  "amount": 500000
+}
+```
+
+**Response `200 OK`**
+```json
+{
+  "auctionId": 3,
+  "currentPrice": 500000,
+  "leadingBidder": "alice"
+}
+```
+
+**Error `409 Conflict`** *(bid too low)*
+```json
+{
+  "error": "BID_TOO_LOW",
+  "message": "Bid amount must be higher than current price 450000"
+}
+```
+</details>
+
+<details>
+<summary><code>POST /api/auctions/{id}/auto-bid</code></summary>
+
+**Request** *(Authorization: Bearer &lt;token&gt;)*
+```json
+{
+  "maxBid": 2000000,
+  "increment": 50000
+}
+```
+
+**Response `200 OK`**
+```json
+{
+  "message": "Auto-bid registered successfully",
+  "maxBid": 2000000,
+  "increment": 50000
+}
+```
+</details>
+
+</details>
+
+### WebSocket Protocol
+
+```
+Endpoint: /ws/auction/{auctionId}?token=<JWT>
+```
+
+| Direction | `type` | Payload |
+|---|---|---|
+| Server → Client | `BID_UPDATE` | `{ currentPrice, leadingBidderUsername, timestamp }` |
+| Server → Client | `TIME_EXTENDED` | `{ newEndTime }` |
+| Server → Client | `AUCTION_ENDED` | `{ winner, finalPrice }` |
+| Server → Client | `AUTO_BID_TRIGGERED` | `{ bidderId, amount }` |
+
+---
+
+## 🤔 Technical Decisions
+
+**Javalin over Spring Boot** — Spring Boot adds startup time, annotation-based DI, and layers of abstraction that make the execution flow harder to trace. Javalin lets you write `app.post("/path", handler)` explicitly; the resulting JAR is also ~50 MB lighter.
+
+**Embedded PostgreSQL over H2** — H2 does not support `SELECT FOR UPDATE` the same way PostgreSQL does. Since concurrent bidding is a core requirement, integration tests need to run against the real engine to be meaningful.
+
+**JDBI 3 over Hibernate/JPA** — ORM hides the SQL, making concurrency bugs harder to debug. With JDBI every query is explicit — you can see exactly the order of locks, updates, and inserts within a transaction.
+
+**`SELECT FOR UPDATE` instead of `synchronized`** — `synchronized` only protects within a single JVM instance. `SELECT FOR UPDATE` operates at the database level — the entire validate → update → insert sequence runs inside a single `jdbi.inTransaction()` call, guaranteeing true atomicity.
+
+**Admin-reviewed password reset** — SMTP setup requires external credentials and environment configuration that complicates the evaluator experience. Admin-reviewed reset achieves the same security goal (a trusted party authorises the reset) without any external dependency.
+
+**`BigDecimal` for monetary values** — `double` introduces floating-point errors (`0.1 + 0.2 ≠ 0.3`). Every bid amount, account balance, and starting price uses `BigDecimal`, stored as `NUMERIC` in PostgreSQL.
+
+**`PriorityQueue` ordered by `registeredAt` for auto-bid** — When multiple bidders register auto-bid configs, the one who registered first gets priority. Sorting by `registeredAt: LocalDateTime` gives a deterministic and fair ordering.
+
+---
+
+## ⚠️ Known Limitations
+
+- **Single-server deployment** — `SELECT FOR UPDATE` at the DB layer protects correctness even with multiple server nodes. However, some in-memory state (such as the `AuctionEventManager` listener map) is per-instance — horizontal scaling would require a message broker (e.g. Redis Pub/Sub).
+
+- **No payment gateway** — The `PAID` status exists in the state machine, but actual payment is mocked (balance is debited directly). A production system would need a payment provider integration.
+
+- **Embedded PostgreSQL data directory** — An unclean shutdown may leave `data/postgres/` in a state that requires manual deletion (see Troubleshooting). Production deployments should use a managed PostgreSQL instance.
+
+- **Basic WebSocket reconnection** — `WebSocketClient` retries on disconnection but does not implement exponential backoff. On an unstable network, a missed `TIME_EXTENDED` event could cause the client countdown to drift.
+
+- **Password reset resets to `"123456"`** — Acceptable for an academic context; a production system would require a one-time token sent out-of-band.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+| Requirement | Version | Notes |
+|---|---|---|
+| Java (JDK) | 21+ | [Download Adoptium](https://adoptium.net/) |
+| OS | Windows 10+ / macOS 12+ / Ubuntu 20.04+ | JavaFX requires a display environment |
+| RAM | 512 MB minimum | Embedded PostgreSQL + JavaFX |
+| Display | 1280×720 minimum | Required for JavaFX rendering |
+
+PostgreSQL is **embedded** — no installation needed.
+
+```bash
+java -version
+# Expected: openjdk version "21.x.x"
+```
+
+### ⬇️ Download Prebuilt JARs *(recommended for evaluators)*
+
+| File | Size | Download |
+|---|---|---|
+| Server | ~101 MB | [**auction-server-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
+| Client | ~101 MB | [**auction-client-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
+
+### ▶️ Running the Application
+
+**Step 1 — Start the server** (wait for `Javalin started in X ms` before proceeding)
+
+```bash
+java -jar auction-server-1.0.0.jar
+```
+
+**Step 2 — Start one or more clients** (each terminal = independent client)
+
+```bash
+java -jar auction-client-1.0.0.jar
+```
+
+To simulate concurrent bidding, open multiple terminals and run the client command in each.
+
+### 🔑 Default Accounts
+
+The following accounts are seeded automatically on first run via `V2__seed_admin.sql`:
+
+| Role | Username | Password |
+|---|---|---|
+| Admin | `admin` | `admin123` |
+
+Additional Seller and Bidder accounts can be registered from the login screen.
+
+### Build from Source
+
+```bash
+git clone https://github.com/kieran-labs/oop-course-project-uet.git
+cd oop-course-project-uet
+
+./gradlew buildJars          # macOS / Linux
+gradlew.bat buildJars        # Windows
+```
+
+Output JARs will be placed in `build/libs/`.
+
+### Gradle Commands
+
+| Command | Description |
+|---|---|
+| `./gradlew buildJars` | Build server + client fat JARs |
+| `./gradlew test` | Run all 17 test files |
+| `./gradlew jacocoTestReport` | Coverage report → `build/reports/jacoco/` |
+| `./gradlew spotlessApply` | Auto-format all Java code |
+| `./gradlew spotbugsMain` | Static analysis |
+| `./gradlew clean` | Clean build artifacts |
+
+### Troubleshooting
+
+**`initdb: directory "data/postgres" exists but is not empty`**
+
+```bash
+rm -rf data/postgres          # Linux / macOS
+rmdir /s /q data\postgres     # Windows
+```
+
+This occurs when the server is killed uncleanly. Delete the directory and restart.
+
+**JavaFX window does not appear on Linux**
+
+Ensure a display server is running. On headless servers, use `export DISPLAY=:0` or run via a desktop session.
+
+---
+
+## 👥 Team
+
+| Member | GitHub | Role | Technical Contributions |
+|---|---|---|---|
+| **Nguyen Van A** | [@username](https://github.com/username) | Backend Lead | Javalin server setup · 5 REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · 7 JDBI DAOs · 5 SQL migration scripts · HikariCP connection pool config |
+| **Tran Thi B** | [@username](https://github.com/username) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
+| **Le Van C** | [@username](https://github.com/username) | Business Logic | 6 service classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
+| **Pham Thi D** | [@username](https://github.com/username) | DevOps & QA | 5-stage GitHub Actions CI pipeline · 17 JUnit 5 test files · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
+
+All members jointly own `model/` (14 domain classes), `dto/` (13 transfer objects), and project documentation.
+
+---
+
+<details>
+<summary><b>🛠️ Tech Stack & Why We Chose It</b></summary>
+
+<br>
 
 | Layer | Technology | Version | Why |
 |---|---|---|---|
@@ -407,9 +517,12 @@ Entity (abstract)           ← id: Long, createdAt: LocalDateTime
 | Static Analysis | SpotBugs | 6.0.9 | MAX effort — null dereferences, race conditions |
 | CI/CD | GitHub Actions | — | 5-stage pipeline |
 
----
+</details>
 
-## 📁 Project Structure
+<details>
+<summary><b>📁 Project Structure</b></summary>
+
+<br>
 
 ```
 auction-system/
@@ -474,147 +587,14 @@ auction-system/
         └── config/                       ← DatabaseConfigTest · JwtUtilTest
 ```
 
----
+</details>
 
-## 🚀 Getting Started
+<details>
+<summary><b>📊 Rubric Coverage</b> — for evaluators</summary>
 
-### Prerequisites
+<br>
 
-| Requirement | Version | Notes |
-|---|---|---|
-| Java (JDK) | 21+ | [Download Adoptium](https://adoptium.net/) |
-| OS | Windows 10+ / macOS 12+ / Ubuntu 20.04+ | JavaFX requires a display environment |
-| RAM | 512 MB minimum | Embedded PostgreSQL + JavaFX |
-| Display | 1280×720 minimum | Required for JavaFX rendering |
-
-PostgreSQL is **embedded** — no installation needed.
-
-```bash
-java -version
-# Expected: openjdk version "21.x.x"
-```
-
-### ⬇️ Download Prebuilt JARs *(recommended for evaluators)*
-
-| File | Size | Download |
-|---|---|---|
-| Server | ~101 MB | [**auction-server-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
-| Client | ~101 MB | [**auction-client-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
-
-### ▶️ Running the Application
-
-**Step 1 — Start the server** (wait for `Javalin started in X ms` before proceeding)
-
-```bash
-java -jar auction-server-1.0.0.jar
-```
-
-**Step 2 — Start one or more clients** (each terminal = independent client)
-
-```bash
-java -jar auction-client-1.0.0.jar
-```
-
-To simulate concurrent bidding, open multiple terminals and run the client command in each.
-
-### 🔑 Default Accounts
-
-The following accounts are seeded automatically on first run via `V2__seed_admin.sql`:
-
-| Role | Username | Password |
-|---|---|---|
-| Admin | `admin` | `admin123` |
-
-Additional Seller and Bidder accounts can be registered from the login screen.
-
-### Build from source
-
-```bash
-git clone https://github.com/kieran-labs/oop-course-project-uet.git
-cd oop-course-project-uet
-
-./gradlew buildJars          # macOS / Linux
-gradlew.bat buildJars        # Windows
-```
-
-Output JARs will be placed in `build/libs/`.
-
-### Gradle Commands
-
-| Command | Description |
-|---|---|
-| `./gradlew buildJars` | Build server + client fat JARs |
-| `./gradlew test` | Run all 17 test files |
-| `./gradlew jacocoTestReport` | Coverage report → `build/reports/jacoco/` |
-| `./gradlew spotlessApply` | Auto-format all Java code |
-| `./gradlew spotbugsMain` | Static analysis |
-| `./gradlew clean` | Clean build artifacts |
-
-### Troubleshooting
-
-**`initdb: directory "data/postgres" exists but is not empty`**
-
-```bash
-rm -rf data/postgres          # Linux / macOS
-rmdir /s /q data\postgres     # Windows
-```
-
-This occurs when the server is killed uncleanly. Delete the directory and restart.
-
-**JavaFX window does not appear on Linux**
-
-Ensure a display server is running. On headless servers, use `export DISPLAY=:0` or run via a desktop session.
-
----
-
-## 🤔 Technical Decisions
-
-**Javalin over Spring Boot** — Spring Boot adds startup time, annotation-based DI, and layers of abstraction that make the execution flow harder to trace. Javalin lets you write `app.post("/path", handler)` explicitly; the resulting JAR is also ~50 MB lighter.
-
-**Embedded PostgreSQL over H2** — H2 does not support `SELECT FOR UPDATE` the same way PostgreSQL does. Since concurrent bidding is a core requirement, integration tests need to run against the real engine to be meaningful.
-
-**JDBI 3 over Hibernate/JPA** — ORM hides the SQL, making concurrency bugs harder to debug. With JDBI every query is explicit — you can see exactly the order of locks, updates, and inserts within a transaction.
-
-**`SELECT FOR UPDATE` instead of `synchronized`** — `synchronized` only protects within a single JVM instance. `SELECT FOR UPDATE` operates at the database level — the entire validate → update → insert sequence runs inside a single `jdbi.inTransaction()` call, guaranteeing true atomicity.
-
-**Admin-reviewed password reset** — SMTP setup requires external credentials and environment configuration that complicates the evaluator experience. Admin-reviewed reset achieves the same security goal (a trusted party authorises the reset) without any external dependency.
-
-**`BigDecimal` for monetary values** — `double` introduces floating-point errors (`0.1 + 0.2 ≠ 0.3`). Every bid amount, account balance, and starting price uses `BigDecimal`, stored as `NUMERIC` in PostgreSQL.
-
-**`PriorityQueue` ordered by `registeredAt` for auto-bid** — When multiple bidders register auto-bid configs, the one who registered first gets priority. Sorting by `registeredAt: LocalDateTime` gives a deterministic and fair ordering.
-
----
-
-## ⚠️ Known Limitations
-
-- **Single-server deployment** — `SELECT FOR UPDATE` at the DB layer protects correctness even with multiple server nodes. However, some in-memory state (such as the `AuctionEventManager` listener map) is per-instance — horizontal scaling would require a message broker (e.g. Redis Pub/Sub).
-
-- **No payment gateway** — The `PAID` status exists in the state machine, but actual payment is mocked (balance is debited directly). A production system would need a payment provider integration.
-
-- **Embedded PostgreSQL data directory** — An unclean shutdown may leave `data/postgres/` in a state that requires manual deletion (see Troubleshooting). Production deployments should use a managed PostgreSQL instance.
-
-- **Basic WebSocket reconnection** — `WebSocketClient` retries on disconnection but does not implement exponential backoff. On an unstable network, a missed `TIME_EXTENDED` event could cause the client countdown to drift.
-
-- **Password reset resets to `"123456"`** — Acceptable for an academic context; a production system would require a one-time token sent out-of-band.
-
----
-
-## 👥 Team
-
-| Member | Role | Technical Contributions |
-|---|---|---|
-| **A** | Backend Lead | Javalin server setup · 5 REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · 7 JDBI DAOs · 5 SQL migration scripts · HikariCP connection pool config |
-| **B** | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
-| **C** | Business Logic | 6 service classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
-| **D** | DevOps & QA | 5-stage GitHub Actions CI pipeline · 17 JUnit 5 test files · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
-
-All members jointly own `model/` (14 domain classes), `dto/` (13 transfer objects), and project documentation.
-
----
-
-## 📊 Rubric Coverage
-
-*For evaluators — direct mapping from rubric criteria to source files.*
+*Direct mapping from rubric criteria to source files.*
 
 | Rubric item | Points | File / Folder |
 |---|---|---|
@@ -636,14 +616,16 @@ All members jointly own `model/` (14 domain classes), `dto/` (13 transfer object
 | Bid History Chart | 0.5 | `AuctionDetailController` + `auction-detail.fxml` (JavaFX `LineChart`) |
 | **Total** | **11.0** | |
 
+</details>
+
 ---
 
 ## 📄 Reports
 
 | Resource | Link |
 |---|---|
-| 📹 Demo Video | [Watch on YouTube / Drive](#) *(update before submission)* |
-| 📄 PDF Report | [View Report](#) *(update before submission)* |
+| 📹 Demo Video | [Watch on YouTube / Drive](#) |
+| 📄 PDF Report | [View Report](#) |
 | 📦 GitHub Releases | [v1.0.0 — Prebuilt JARs](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0) |
 | 📊 CI Pipeline | [GitHub Actions](https://github.com/kieran-labs/oop-course-project-uet/actions) |
 | 📈 Coverage Report | Available as artifact in each CI run |
