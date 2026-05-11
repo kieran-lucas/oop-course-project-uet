@@ -229,9 +229,7 @@ Entity (abstract)           ← id: Long, createdAt: LocalDateTime
 │                              status: OPEN / RUNNING / FINISHED / PAID / CANCELED
 │
 ├── BidTransaction          ← auctionId, bidderId, amount, autoBid: boolean
-├── AutoBidConfig           ← maxBid, increment, registeredAt (PriorityQueue sort key)
-├── DepositRecord           ← amount, status: PENDING / APPROVED / REJECTED
-└── PasswordResetRecord     ← status: PENDING / APPROVED / REJECTED
+└── AutoBidConfig           ← maxBid, increment, registeredAt (PriorityQueue sort key)
 ```
 
 `BigDecimal` is used consistently for all monetary values - no `double` or `float` anywhere.
