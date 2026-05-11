@@ -27,21 +27,19 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Concurrency - SELECT FOR UPDATE</h3>
  *
- * <p>Khi nhiều user bid cùng lúc, cần đảm bảo không có lost update. Giải pháp: 2 tầng bảo vệ
- *
- * <ol>
- *   <li><b>Tầng application:</b> synchronized(auction) trong BidService
- *   <li><b>Tầng database:</b> SELECT ... FOR UPDATE khóa row khi đọc
- * </ol>
+ * <p>Khi nhiều user bid cùng lúc, cần đảm bảo không có lost update. Giải pháp: database-level lock
+ * (SELECT FOR UPDATE) trong transaction. Thread thứ 2 bị block ngay tại câu SELECT, và khi được
+ * unblock sẽ đọc data fresh sau khi thread 1 đã commit — không thể xảy ra stale read hay lost
+ * update. Cơ chế này hoạt động đúng cả với multiple server instances.
  *
  * <p>Luồng xử lý bid an toàn:
  *
  * <pre>
  * jdbi.inTransaction(handle -> {
- *     // 1. Khóa row - các transaction khác phải chờ
+ *     // 1. Khóa row - các transaction khác bị BLOCK tại đây cho đến khi commit
  *     Auction auction = auctionDao.findByIdForUpdate(handle, auctionId);
  *
- *     // 2. Validate và update trong Java
+ *     // 2. Validate và update trong Java (data luôn fresh, không stale)
  *     auction.setCurrentPrice(newPrice);
  *     auction.setLeadingBidderId(userId);
  *
