@@ -282,7 +282,7 @@ All errors return `ErrorResponse { error: String, message: String }` with the co
 ```json
 {
   "username": "admin",
-  "password": "admin123"
+  "password": "123456"
 }
 ```
 
@@ -441,7 +441,7 @@ The following accounts are seeded automatically on first run via `V2__seed_admin
 
 | Role | Username | Password |
 |---|---|---|
-| Admin | `admin` | `admin123` |
+| Admin | `admin` | `123456` |
 
 Additional Seller and Bidder accounts can be registered from the login screen.
 
