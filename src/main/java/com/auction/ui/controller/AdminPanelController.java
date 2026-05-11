@@ -34,20 +34,33 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller cho màn hình quản trị (admin-panel.fxml).
  *
- * <p><b>Mục đích:</b> Cung cấp giao diện quản trị cho ADMIN: xem tất cả phiên đấu giá, tìm kiếm, và
- * hủy phiên (DELETE /api/auctions/{id}).
+ * <p><b>Mục đích:</b> Cung cấp giao diện quản trị toàn diện cho ADMIN, bao gồm bốn tab chức năng:
+ *
+ * <ol>
+ *   <li><b>Phiên đấu giá</b> — Xem, tìm kiếm, hủy mềm ({@code DELETE /api/auctions/{id}}) hoặc xóa
+ *       vĩnh viễn ({@code DELETE /api/admin/auctions/{id}}) từng phiên.
+ *   <li><b>Người dùng</b> — Xem danh sách toàn bộ user, xóa tài khoản ({@code DELETE
+ *       /api/admin/users/{id}}).
+ *   <li><b>Yêu cầu nạp tiền</b> — Duyệt hoặc từ chối DepositRecord đang PENDING; tự động poll mỗi 5
+ *       giây.
+ *   <li><b>Đặt lại mật khẩu</b> — Duyệt hoặc từ chối PasswordResetRecord đang PENDING; khi duyệt,
+ *       server reset mật khẩu về {@code "123456"}.
+ * </ol>
  *
  * <p><b>Các phương thức chính:</b>
  *
  * <ul>
- *   <li>{@link #onNavigatedTo()} — Load tất cả phiên từ API khi vào màn hình.
- *   <li>{@link #handleSearch()} — Lọc phiên theo từ khóa.
- *   <li>{@link #handleRefresh()} — Tải lại dữ liệu từ server.
- *   <li>{@link #handleLogout()} — Đăng xuất về welcome.fxml.
+ *   <li>{@link #onNavigatedTo()} — Load bốn bảng dữ liệu và khởi động auto-poll.
+ *   <li>{@link #handleSearch()} — Lọc bảng phiên đấu giá theo tên sản phẩm hoặc ID.
+ *   <li>{@link #handleRefresh()} — Tải lại bảng phiên đấu giá từ server.
+ *   <li>{@link #handleRefreshDeposits()} — Tải lại bảng yêu cầu nạp tiền.
+ *   <li>{@link #handleRefreshPasswordResets()} — Tải lại bảng yêu cầu đặt lại mật khẩu.
+ *   <li>{@link #handleLogout()} — Đăng xuất và trả về welcome.fxml.
  * </ul>
  *
- * <p><b>Vị trí trong kiến trúc:</b> AdminPanelController là màn hình chính của ADMIN sau đăng nhập.
- * Chỉ có thể vào được khi role = "ADMIN" (kiểm tra trong LoginController).
+ * <p><b>Vị trí trong kiến trúc:</b> AdminPanelController là màn hình duy nhất của ADMIN sau đăng
+ * nhập — chỉ điều hướng đến được khi role = "ADMIN" (kiểm tra trong LoginController). Các thao tác
+ * duyệt/từ chối gọi trực tiếp REST API phía server; không dùng WebSocket.
  */
 public class AdminPanelController implements Navigable {
 
@@ -93,6 +106,7 @@ public class AdminPanelController implements Navigable {
       FXCollections.observableArrayList();
   private Timeline depositRefreshTimeline;
 
+  /** Khởi tạo cấu hình các cột của bốn bảng — gọi một lần bởi JavaFX sau khi FXML được load. */
   @FXML
   public void initialize() {
     setupColumns();
@@ -103,6 +117,10 @@ public class AdminPanelController implements Navigable {
 
   // ========== NAVIGABLE LIFECYCLE ==========
 
+  /**
+   * Được gọi mỗi khi điều hướng đến màn hình này. Load dữ liệu bốn bảng và khởi động auto-poll yêu
+   * cầu nạp tiền / đặt lại mật khẩu mỗi 5 giây.
+   */
   @Override
   public void onNavigatedTo() {
     SceneManager sm = SceneManager.getInstance();
@@ -115,6 +133,7 @@ public class AdminPanelController implements Navigable {
     startDepositRefresh();
   }
 
+  /** Dừng auto-poll khi rời khỏi màn hình để tránh request thừa khi ADMIN chuyển sang tab khác. */
   @Override
   public void onNavigatedFrom() {
     stopDepositRefresh();
@@ -122,6 +141,11 @@ public class AdminPanelController implements Navigable {
 
   // ========== FXML ACTIONS ==========
 
+  /**
+   * Lọc bảng phiên đấu giá theo từ khóa nhập vào. Tìm khớp theo tên sản phẩm (không phân biệt hoa
+   * thường) hoặc ID phiên. Kết quả được áp dụng trực tiếp lên {@code auctionTable} mà không gọi lại
+   * server.
+   */
   @FXML
   public void handleSearch() {
     String keyword = searchField.getText().trim().toLowerCase();
@@ -137,26 +161,31 @@ public class AdminPanelController implements Navigable {
     auctionTable.setItems(FXCollections.observableArrayList(filtered));
   }
 
+  /** Tải lại danh sách phiên đấu giá từ server và cập nhật bảng. */
   @FXML
   public void handleRefresh() {
     loadAuctions();
   }
 
+  /** Tải lại danh sách yêu cầu nạp tiền đang chờ duyệt từ server. */
   @FXML
   public void handleRefreshDeposits() {
     loadDepositRequests();
   }
 
+  /** Tải lại danh sách yêu cầu đặt lại mật khẩu đang chờ duyệt từ server. */
   @FXML
   public void handleRefreshPasswordResets() {
     loadPasswordResetRequests();
   }
 
+  /** Chuyển sang màn hình hồ sơ cá nhân của ADMIN. */
   @FXML
   public void handleProfile() {
     SceneManager.getInstance().navigateTo("profile.fxml");
   }
 
+  /** Đăng xuất và trả về màn hình chào mừng. */
   @FXML
   public void handleLogout() {
     SceneManager.getInstance().logout();
@@ -164,6 +193,10 @@ public class AdminPanelController implements Navigable {
 
   // ========== DATA ==========
 
+  /**
+   * Tải toàn bộ phiên đấu giá từ {@code GET /api/auctions} trên luồng nền và cập nhật bảng. Hiển
+   * thị trạng thái tải ở statusLabel trong quá trình chờ phản hồi.
+   */
   private void loadAuctions() {
     setStatus("Đang tải dữ liệu...");
     Thread.ofVirtual()
@@ -190,6 +223,10 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Xóa vĩnh viễn phiên đấu giá khỏi database qua {@code DELETE /api/admin/auctions/{id}}. Khác với
+   * {@link #deleteAuction(Long)} (hủy mềm), thao tác này không thể hoàn tác.
+   */
   private void hardDeleteAuction(Long id) {
     Thread.ofVirtual()
         .start(
@@ -212,6 +249,10 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Hủy mềm phiên đấu giá qua {@code DELETE /api/auctions/{id}} — server chuyển trạng thái thành
+   * CANCELED nhưng vẫn giữ bản ghi. Tải lại bảng sau khi thành công.
+   */
   private void deleteAuction(Long id) {
     Thread.ofVirtual()
         .start(
@@ -234,6 +275,9 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Tải danh sách toàn bộ người dùng từ {@code GET /api/admin/users} và cập nhật {@code userTable}.
+   */
   private void loadUsers() {
     Thread.ofVirtual()
         .start(
@@ -255,6 +299,10 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Xóa tài khoản người dùng qua {@code DELETE /api/admin/users/{id}}. Tải lại bảng user sau khi
+   * thành công.
+   */
   private void deleteUser(Long id) {
     Thread.ofVirtual()
         .start(
@@ -277,6 +325,10 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Tải danh sách yêu cầu đặt lại mật khẩu đang chờ duyệt từ {@code GET
+   * /api/admin/password-reset-requests} và cập nhật {@code passwordResetTable}.
+   */
   private void loadPasswordResetRequests() {
     Thread.ofVirtual()
         .start(
@@ -300,6 +352,11 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Duyệt yêu cầu đặt lại mật khẩu qua {@code POST
+   * /api/admin/password-reset-requests/{id}/approve}. Server sẽ reset mật khẩu của người dùng về
+   * {@code "123456"} và đánh dấu yêu cầu là APPROVED.
+   */
   private void approvePasswordReset(Long id) {
     Thread.ofVirtual()
         .start(
@@ -323,6 +380,11 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Từ chối yêu cầu đặt lại mật khẩu qua {@code POST
+   * /api/admin/password-reset-requests/{id}/reject}. Mật khẩu người dùng không bị thay đổi; yêu cầu
+   * được đánh dấu REJECTED.
+   */
   private void rejectPasswordReset(Long id) {
     Thread.ofVirtual()
         .start(
@@ -348,6 +410,10 @@ public class AdminPanelController implements Navigable {
 
   // ========== UI SETUP ==========
 
+  /**
+   * Cấu hình các cột của bảng phiên đấu giá: ánh xạ giá trị, định dạng giá VND, màu trạng thái, và
+   * nút hành động (Xem / Hủy / Xóa vĩnh viễn) cho từng hàng.
+   */
   private void setupColumns() {
     idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
     itemCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
@@ -422,6 +488,10 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Cấu hình các cột của bảng người dùng: ID, username, email, role, số dư (định dạng VND), và nút
+   * Xóa tài khoản.
+   */
   private void setupUserColumns() {
     userIdCol.setCellValueFactory(new PropertyValueFactory<>("id"));
     usernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
@@ -528,6 +598,10 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Cấu hình các cột của bảng yêu cầu nạp tiền: ID, username, số tiền (VND), thời gian tạo, và hai
+   * nút hành động Duyệt / Từ chối cho từng hàng.
+   */
   private void setupDepositColumns() {
     depositIdCol.setCellValueFactory(new PropertyValueFactory<>("id"));
     depositUserCol.setCellValueFactory(new PropertyValueFactory<>("username"));
@@ -586,6 +660,10 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Cấu hình các cột của bảng yêu cầu đặt lại mật khẩu: ID, username, email, thời gian tạo, và hai
+   * nút hành động Duyệt / Từ chối cho từng hàng.
+   */
   private void setupPasswordResetColumns() {
     prIdCol.setCellValueFactory(new PropertyValueFactory<>("id"));
     prUsernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
@@ -634,6 +712,10 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  /**
+   * Khởi động Timeline tự động poll yêu cầu nạp tiền và đặt lại mật khẩu mỗi 5 giây. Gọi {@link
+   * #stopDepositRefresh()} trước để tránh tạo nhiều Timeline chạy song song.
+   */
   private void startDepositRefresh() {
     stopDepositRefresh();
     depositRefreshTimeline =
@@ -648,6 +730,7 @@ public class AdminPanelController implements Navigable {
     depositRefreshTimeline.play();
   }
 
+  /** Dừng và hủy Timeline auto-poll nếu đang chạy. */
   private void stopDepositRefresh() {
     if (depositRefreshTimeline != null) {
       depositRefreshTimeline.stop();
@@ -655,6 +738,7 @@ public class AdminPanelController implements Navigable {
     }
   }
 
+  /** Hiển thị thông báo trạng thái trên thanh status của màn hình quản trị. */
   private void setStatus(String text) {
     statusLabel.setText(text);
     statusLabel.setVisible(true);
