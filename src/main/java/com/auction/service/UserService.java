@@ -192,8 +192,9 @@ public class UserService {
    * Admin từ chối yêu cầu nạp tiền: đổi status → REJECTED, không cộng tiền.
    *
    * @param requestId ID của deposit request
+   * @return userId của người gửi yêu cầu — dùng để notify WebSocket
    */
-  public void rejectDeposit(Long requestId) {
+  public Long rejectDeposit(Long requestId) {
     DepositRecord record =
         depositRequestDao
             .findById(requestId)
@@ -203,6 +204,7 @@ public class UserService {
       throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
     }
     depositRequestDao.updateStatus(requestId, "REJECTED");
+    return record.getUserId();
   }
 
   /**

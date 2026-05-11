@@ -203,7 +203,10 @@ public class App {
         ctx -> {
           requireAdmin(ctx);
           Long requestId = Long.parseLong(ctx.pathParam("id"));
-          ctx.json(userService.approveDeposit(requestId));
+          com.auction.dto.UserResponse result = userService.approveDeposit(requestId);
+          // Notify user qua WebSocket về biến động số dư
+          wsHandler.notifyBalanceUpdate(result.getId(), result.getBalance(), true);
+          ctx.json(result);
         });
 
     app.post(
@@ -211,7 +214,9 @@ public class App {
         ctx -> {
           requireAdmin(ctx);
           Long requestId = Long.parseLong(ctx.pathParam("id"));
-          userService.rejectDeposit(requestId);
+          Long userId = userService.rejectDeposit(requestId);
+          // Notify user qua WebSocket rằng yêu cầu bị từ chối
+          wsHandler.notifyBalanceUpdate(userId, null, false);
           ctx.status(204);
         });
 
@@ -326,6 +331,15 @@ public class App {
           ws.onConnect(wsHandler::onConnect);
           ws.onClose(wsHandler::onClose);
           ws.onError(wsHandler::onError);
+        });
+
+    // Kênh WebSocket riêng cho từng user — nhận thông báo biến động số dư
+    app.ws(
+        "/ws/user/{id}",
+        ws -> {
+          ws.onConnect(wsHandler::onUserConnect);
+          ws.onClose(wsHandler::onUserClose);
+          ws.onError(wsHandler::onUserError);
         });
 
     // ── 13. Khởi động server ─────────────────────────────────

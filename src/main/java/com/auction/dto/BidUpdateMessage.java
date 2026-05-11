@@ -51,6 +51,12 @@ public class BidUpdateMessage {
   public static final String TYPE_AUCTION_ENDED = "AUCTION_ENDED";
   public static final String TYPE_AUTO_BID_TRIGGERED = "AUTO_BID_TRIGGERED";
 
+  /**
+   * Loại message thông báo biến động số dư — gửi qua kênh WebSocket riêng của user ({@code
+   * /ws/user/{id}}) khi Admin phê duyệt hoặc từ chối yêu cầu nạp tiền.
+   */
+  public static final String TYPE_BALANCE_UPDATED = "BALANCE_UPDATED";
+
   private String type;
   private Long auctionId;
   private BigDecimal currentPrice;
@@ -59,6 +65,9 @@ public class BidUpdateMessage {
   private LocalDateTime endTime;
   private LocalDateTime timestamp;
   private boolean autoBid;
+
+  /** Số dư mới sau khi deposit được duyệt — chỉ có trong message BALANCE_UPDATED. */
+  private java.math.BigDecimal newBalance;
 
   public BidUpdateMessage() {}
 
@@ -129,6 +138,25 @@ public class BidUpdateMessage {
     return msg;
   }
 
+  /**
+   * Factory method tạo message BALANCE_UPDATED — gửi qua /ws/user/{id} khi Admin duyệt nạp tiền.
+   *
+   * @param userId ID user được cộng tiền
+   * @param newBalance số dư mới sau khi cộng
+   * @param approved true = duyệt (cộng tiền), false = từ chối
+   * @return BidUpdateMessage loại BALANCE_UPDATED
+   */
+  public static BidUpdateMessage balanceUpdated(
+      Long userId, java.math.BigDecimal newBalance, boolean approved) {
+    BidUpdateMessage msg = new BidUpdateMessage();
+    msg.type = TYPE_BALANCE_UPDATED;
+    msg.auctionId = userId; // tái dùng field auctionId để chứa userId — client phân biệt qua type
+    msg.newBalance = newBalance;
+    msg.autoBid = approved; // tái dùng field autoBid để chứa approved
+    msg.timestamp = java.time.LocalDateTime.now();
+    return msg;
+  }
+
   // === Getters & Setters ===
 
   public String getType() {
@@ -193,5 +221,13 @@ public class BidUpdateMessage {
 
   public void setAutoBid(boolean autoBid) {
     this.autoBid = autoBid;
+  }
+
+  public java.math.BigDecimal getNewBalance() {
+    return newBalance;
+  }
+
+  public void setNewBalance(java.math.BigDecimal newBalance) {
+    this.newBalance = newBalance;
   }
 }

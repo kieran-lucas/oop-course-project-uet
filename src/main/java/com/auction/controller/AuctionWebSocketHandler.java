@@ -12,6 +12,7 @@ import io.javalin.websocket.WsCloseContext;
 import io.javalin.websocket.WsConnectContext;
 import io.javalin.websocket.WsContext;
 import io.javalin.websocket.WsErrorContext;
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,6 +56,12 @@ public class AuctionWebSocketHandler {
    * thread-safe.
    */
   private final Map<Long, Set<WsContext>> connections = new ConcurrentHashMap<>();
+
+  /**
+   * Map userId → set WebSocket sessions của kênh riêng user ({@code /ws/user/{id}}). Dùng để push
+   * thông báo biến động số dư khi Admin duyệt/từ chối nạp tiền.
+   */
+  private final Map<Long, Set<WsContext>> userConnections = new ConcurrentHashMap<>();
 
   /** Map session → WebSocketObserver tương ứng. Dùng để unsubscribe khi client disconnect. */
   private final Map<WsContext, WebSocketObserver> observers = new ConcurrentHashMap<>();
@@ -166,6 +173,87 @@ public class AuctionWebSocketHandler {
 
     } catch (Exception e) {
       LOGGER.error("Lỗi serialize WebSocket message: {}", e.getMessage());
+    }
+  }
+
+  // ── Kênh WebSocket riêng cho user (/ws/user/{id}) ──────────────────────────
+
+  /**
+   * Xử lý client kết nối kênh user — xác thực JWT và lưu session theo userId. Route: {@code
+   * /ws/user/{id}}
+   */
+  public void onUserConnect(WsConnectContext ctx) {
+    try {
+      Long userId = Long.parseLong(ctx.pathParam("id"));
+      String token = ctx.queryParam("token");
+
+      if (token == null || token.isEmpty()) {
+        ctx.session.close(4001, "Missing token");
+        return;
+      }
+
+      DecodedJWT decoded = JwtUtil.verifyToken(token);
+      String username = decoded.getSubject();
+
+      userConnections.computeIfAbsent(userId, k -> new CopyOnWriteArraySet<>()).add(ctx);
+      LOGGER.info("User WebSocket kết nối: user={}, userId=#{}", username, userId);
+
+    } catch (JWTVerificationException e) {
+      ctx.session.close(4001, "Invalid token");
+    } catch (Exception e) {
+      LOGGER.error("Lỗi kết nối User WebSocket: {}", e.getMessage());
+      ctx.session.close(4000, "Connection error");
+    }
+  }
+
+  /** Xử lý ngắt kết nối kênh user. */
+  public void onUserClose(WsCloseContext ctx) {
+    userConnections.values().forEach(set -> set.remove(ctx));
+    LOGGER.debug("User WebSocket ngắt kết nối: status={}", ctx.status());
+  }
+
+  /** Xử lý lỗi kênh user. */
+  public void onUserError(WsErrorContext ctx) {
+    userConnections.values().forEach(set -> set.remove(ctx));
+    if (ctx.error() != null) {
+      LOGGER.error("Lỗi User WebSocket: {}", ctx.error().getMessage());
+    }
+  }
+
+  /**
+   * Push thông báo biến động số dư đến user cụ thể qua kênh {@code /ws/user/{id}}.
+   *
+   * @param userId ID user cần notify
+   * @param newBalance số dư mới (null nếu bị từ chối)
+   * @param approved true = duyệt (cộng tiền), false = từ chối
+   */
+  public void notifyBalanceUpdate(Long userId, BigDecimal newBalance, boolean approved) {
+    Set<WsContext> sessions = userConnections.get(userId);
+    if (sessions == null || sessions.isEmpty()) {
+      return;
+    }
+    try {
+      BidUpdateMessage msg = BidUpdateMessage.balanceUpdated(userId, newBalance, approved);
+      String json = objectMapper.writeValueAsString(msg);
+      for (WsContext wsCtx : sessions) {
+        try {
+          if (wsCtx.session.isOpen()) {
+            wsCtx.send(json);
+          } else {
+            sessions.remove(wsCtx);
+          }
+        } catch (Exception e) {
+          LOGGER.error("Lỗi gửi User WebSocket message: {}", e.getMessage());
+          sessions.remove(wsCtx);
+        }
+      }
+      LOGGER.info(
+          "Đã notify BALANCE_UPDATED → userId={}, approved={}, newBalance={}",
+          userId,
+          approved,
+          newBalance);
+    } catch (Exception e) {
+      LOGGER.error("Lỗi serialize BALANCE_UPDATED message: {}", e.getMessage());
     }
   }
 
