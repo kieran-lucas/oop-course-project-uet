@@ -30,15 +30,15 @@ import org.slf4j.LoggerFactory;
  *   2. jdbi.inTransaction():
  *      a. findByIdForUpdate → SELECT FOR UPDATE khóa row
  *      b. auctionService.getState(auction).placeBid() → State pattern validate + update in-memory
- *      c. Anti-sniping: nếu còn &lt; 30s → gia hạn 60s
- *      d. updateInTransaction → lưu giá + endTime atomically
+ *      c. Chống snipe: nếu còn &lt; 30s → gia hạn 60s
+ *      d. updateInTransaction → lưu giá + endTime nguyên tử
  *      e. bidTransactionDao.insert(handle) → ghi bid trong cùng transaction
- *   3. Notify TIME_EXTENDED nếu anti-sniping triggered
- *   4. Notify BID_UPDATE qua WebSocket
- *   5. triggerAutoBid() nếu là manual bid
+ *   3. Thông báo TIME_EXTENDED nếu chống snipe được kích hoạt
+ *   4. Thông báo BID_UPDATE qua WebSocket
+ *   5. triggerAutoBid() nếu là đặt giá thủ công
  * </pre>
  *
- * <p><b>Concurrency:</b> {@code SELECT FOR UPDATE} trong transaction bảo vệ khi nhiều server
+ * <p><b>Xử lý đồng thời:</b> {@code SELECT FOR UPDATE} trong transaction bảo vệ khi nhiều server
  * instance chạy song song. Không cần {@code synchronized} trong ứng dụng.
  */
 public class BidService {
@@ -79,10 +79,10 @@ public class BidService {
    * Đặt giá cho một phiên đấu giá.
    *
    * @param auctionId ID phiên đấu giá
-   * @param bidderId ID người đặt giá (từ JWT token)
-   * @param amount số tiền đặt giá (phải > currentPrice)
-   * @param isAutoBid {@code true} nếu đây là auto-bid
-   * @return BidTransaction đã được lưu vào DB
+   * @param bidderId ID người đặt giá (lấy từ JWT token)
+   * @param amount số tiền đặt giá (phải lớn hơn giá hiện tại)
+   * @param isAutoBid {@code true} nếu đây là đặt giá tự động
+   * @return BidTransaction đã được lưu vào cơ sở dữ liệu
    */
   public BidTransaction placeBid(
       Long auctionId, Long bidderId, BigDecimal amount, boolean isAutoBid) {
@@ -94,7 +94,7 @@ public class BidService {
     User bidder =
         userDao
             .findById(bidderId)
-            .orElseThrow(() -> new NotFoundException("Bidder not found: " + bidderId));
+            .orElseThrow(() -> new NotFoundException("Không tìm thấy người đặt giá: " + bidderId));
     BigDecimal balance = bidder.getBalance() != null ? bidder.getBalance() : BigDecimal.ZERO;
     if (balance.compareTo(amount) < 0) {
       throw new InvalidBidException(
@@ -115,12 +115,12 @@ public class BidService {
               try {
                 auction = auctionDao.findByIdForUpdate(handle, auctionId);
               } catch (IllegalStateException e) {
-                throw new NotFoundException("Auction not found with id: " + auctionId);
+                throw new NotFoundException("Không tìm thấy phiên đấu giá với id: " + auctionId);
               }
               auctionRef.set(auction);
 
-              // State pattern: validates amount > currentPrice, bidderId != sellerId,
-              // and updates auction in-memory. Throws on failure.
+              // State pattern: kiểm tra amount > currentPrice, bidderId != sellerId,
+              // và cập nhật auction trong bộ nhớ. Ném exception nếu không hợp lệ.
               auctionService.getState(auction).placeBid(auction, amount, bidderId);
 
               if (auction.getRemainingTimeMs() < ANTI_SNIPE_THRESHOLD_MS) {
@@ -128,7 +128,7 @@ public class BidService {
                 antiSnipeTriggered.set(true);
               }
 
-              // Single atomic write: persists both price update and any endTime extension
+              // Ghi nguyên tử: lưu cả cập nhật giá lẫn gia hạn endTime (nếu có) trong một lần
               auctionDao.updateInTransaction(handle, auction);
               BidTransaction tx = new BidTransaction(auctionId, bidderId, amount, isAutoBid);
               return bidTransactionDao.insert(handle, tx);
@@ -147,7 +147,7 @@ public class BidService {
       BidUpdateMessage timeMsg = BidUpdateMessage.timeExtended(auctionId, auction.getEndTime());
       eventManager.notifyTimeExtended(auctionId, timeMsg);
       LOGGER.info(
-          "Anti-sniping kích hoạt cho phiên #{}: gia hạn thêm {}s",
+          "Chống snipe kích hoạt cho phiên #{}: gia hạn thêm {}s",
           auctionId,
           ANTI_SNIPE_EXTENSION_SECONDS);
     }
@@ -166,16 +166,16 @@ public class BidService {
    *
    * @param auctionId ID phiên đấu giá
    * @return danh sách BidTransaction sắp xếp theo thời gian tăng dần
-   * @throws NotFoundException nếu auction không tồn tại
+   * @throws NotFoundException nếu phiên đấu giá không tồn tại
    */
   public List<BidTransaction> getBidHistory(Long auctionId) {
     if (!auctionDao.existsById(auctionId)) {
-      throw new NotFoundException("Auction not found with id: " + auctionId);
+      throw new NotFoundException("Không tìm thấy phiên đấu giá với id: " + auctionId);
     }
     return bidTransactionDao.findByAuctionId(auctionId);
   }
 
-  // ── Private helpers ──────────────────────────────────────
+  // ── Phương thức nội bộ ────────────────────────────────────
 
   private void notifyBidUpdate(
       Auction auction, Long auctionId, Long bidderId, BigDecimal amount, boolean isAutoBid) {
@@ -186,7 +186,7 @@ public class BidService {
               auctionId, amount, bidderId, username, auction.getEndTime(), isAutoBid);
       eventManager.notifyBidUpdate(auctionId, msg);
     } catch (Exception e) {
-      LOGGER.error("Lỗi khi notify BID_UPDATE cho phiên #{}: {}", auctionId, e.getMessage());
+      LOGGER.error("Lỗi khi gửi thông báo BID_UPDATE cho phiên #{}: {}", auctionId, e.getMessage());
     }
   }
 
@@ -198,7 +198,7 @@ public class BidService {
           leadingBidderId,
           (aid, bid, amt) -> this.placeBid(aid, bid, amt, true));
     } catch (Exception e) {
-      LOGGER.error("Lỗi khi xử lý auto-bid cho phiên #{}: {}", auctionId, e.getMessage());
+      LOGGER.error("Lỗi khi xử lý đặt giá tự động cho phiên #{}: {}", auctionId, e.getMessage());
     }
   }
 }
