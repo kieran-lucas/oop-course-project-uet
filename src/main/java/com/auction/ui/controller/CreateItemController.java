@@ -167,6 +167,12 @@ public class CreateItemController implements Navigable {
 
   // ========== PRIVATE HELPERS ==========
 
+  /**
+   * Hiển thị thông báo kết quả trên statusLabel.
+   *
+   * @param msg nội dung thông báo
+   * @param isError {@code true} để hiển thị màu đỏ (lỗi), {@code false} cho màu xanh (thành công)
+   */
   private void showStatus(String msg, boolean isError) {
     statusLabel.setText(msg);
     statusLabel.setStyle(isError ? "-fx-text-fill: #e53935;" : "-fx-text-fill: #43a047;");
@@ -174,11 +180,16 @@ public class CreateItemController implements Navigable {
     statusLabel.setManaged(true);
   }
 
+  /** Ẩn statusLabel và giải phóng layout space. */
   private void hideStatus() {
     statusLabel.setVisible(false);
     statusLabel.setManaged(false);
   }
 
+  /**
+   * Xóa trắng toàn bộ form và reset label danh mục về giá trị mặc định. Gọi trong {@link
+   * #onNavigatedTo()} để đảm bảo form sạch mỗi lần vào màn hình.
+   */
   private void clearForm() {
     if (nameField != null) {
       nameField.clear();
@@ -201,6 +212,10 @@ public class CreateItemController implements Navigable {
     }
   }
 
+  /**
+   * Trích xuất trường {@code message} từ JSON body phản hồi lỗi của server. Trả về {@code fallback}
+   * nếu body không hợp lệ.
+   */
   private String extractMessage(String body, String fallback) {
     try {
       return MAPPER.readTree(body).path("message").asText(fallback);
