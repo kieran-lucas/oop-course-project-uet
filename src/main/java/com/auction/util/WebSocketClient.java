@@ -15,28 +15,72 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client WebSocket cho ứng dụng JavaFX — nhận realtime updates từ server Javalin.
+ * WebSocket manager cho JavaFX client.
  *
- * <p>Hỗ trợ tự động reconnect với exponential backoff khi mất kết nối (tối đa {@value #MAX_RETRIES}
- * lần thử lại).
+ * <p>Quản lý độc lập:
+ *
+ * <ul>
+ *   <li>Auction WebSocket (/ws/auction/{id})
+ *   <li>User WebSocket (/ws/user/{id})
+ * </ul>
+ *
+ * <p>Hỗ trợ:
+ *
+ * <ul>
+ *   <li>Auto reconnect với exponential backoff
+ *   <li>Reconnect độc lập cho từng channel
+ *   <li>Tách biệt hoàn toàn state giữa auction và user socket
+ * </ul>
  */
 public class WebSocketClient {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(WebSocketClient.class);
+
   private static final String WS_BASE_URL = "ws://localhost:8080/ws/auction/";
   private static final String WS_USER_BASE_URL = "ws://localhost:8080/ws/user/";
+
   private static final int MAX_RETRIES = 5;
 
   private static final ObjectMapper MAPPER =
       new ObjectMapper().registerModule(new JavaTimeModule());
 
-  private WebSocket webSocket;
+  // =========================================================
+  // Auction WebSocket state
+  // =========================================================
+
+  private WebSocket auctionSocket;
+
   private Long currentAuctionId;
+
+  private Consumer<String> auctionMessageHandler;
+
+  private int auctionRetryCount;
+
+  private boolean intentionalAuctionClose;
+
+  private ScheduledFuture<?> auctionReconnectTask;
+
+  // =========================================================
+  // User WebSocket state
+  // =========================================================
+
+  private WebSocket userSocket;
+
+  private Long currentUserId;
+
+  private Consumer<String> userMessageHandler;
+
+  private int userRetryCount;
+
+  private boolean intentionalUserClose;
+
+  private ScheduledFuture<?> userReconnectTask;
+
+  // =========================================================
+  // Shared state
+  // =========================================================
+
   private String currentToken;
-  private Consumer<String> currentOnMessage;
-  private int retryCount;
-  private boolean intentionalClose;
-  private ScheduledFuture<?> pendingReconnect;
 
   private final ScheduledExecutorService scheduler =
       Executors.newSingleThreadScheduledExecutor(
@@ -46,24 +90,33 @@ public class WebSocketClient {
             return t;
           });
 
+  // =========================================================
+  // AUCTION WEBSOCKET
+  // =========================================================
+
   /**
-   * Mở kết nối WebSocket đến server và đăng ký callback.
+   * Kết nối vào channel auction realtime.
    *
-   * @param auctionId ID phiên đấu giá để subscribe
-   * @param jwtToken JWT token cho xác thực (gửi qua query param)
-   * @param onMessage callback nhận JSON string khi có message từ server
+   * @param auctionId ID phiên đấu giá
+   * @param jwtToken JWT token xác thực
+   * @param onMessage callback nhận JSON message
    */
   public void connect(Long auctionId, String jwtToken, Consumer<String> onMessage) {
-    cancelPendingReconnect();
+
+    cancelAuctionReconnect();
+
     this.currentAuctionId = auctionId;
     this.currentToken = jwtToken;
-    this.currentOnMessage = onMessage;
-    this.retryCount = 0;
-    this.intentionalClose = false;
-    doConnect();
+    this.auctionMessageHandler = onMessage;
+
+    this.auctionRetryCount = 0;
+    this.intentionalAuctionClose = false;
+
+    doConnectAuction();
   }
 
-  private void doConnect() {
+  private void doConnectAuction() {
+
     String uri = WS_BASE_URL + currentAuctionId + "?token=" + currentToken;
 
     HttpClient.newHttpClient()
@@ -74,92 +127,150 @@ public class WebSocketClient {
 
               @Override
               public void onOpen(WebSocket ws) {
-                webSocket = ws;
-                retryCount = 0;
-                LOGGER.info("WebSocket kết nối thành công: phiên #{}", currentAuctionId);
+
+                auctionSocket = ws;
+
+                auctionRetryCount = 0;
+
+                LOGGER.info(
+                    "Auction WebSocket kết nối thành công: auctionId=#{}", currentAuctionId);
+
                 ws.request(1);
               }
 
               @Override
               public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
-                // Discard messages that arrive after an intentional disconnect to prevent
-                // duplicates when a BackgroundBidWatcher connection is starting up in parallel.
-                if (!intentionalClose) {
+
+                if (!intentionalAuctionClose) {
+
                   String json = data.toString();
-                  LOGGER.debug("WS nhận message: {}", json);
-                  currentOnMessage.accept(json);
+
+                  LOGGER.debug("Auction WS nhận message: {}", json);
+
+                  auctionMessageHandler.accept(json);
                 }
+
                 ws.request(1);
+
                 return null;
               }
 
               @Override
               public CompletionStage<?> onClose(WebSocket ws, int statusCode, String reason) {
-                LOGGER.info("WebSocket đóng kết nối: status={}, reason={}", statusCode, reason);
-                webSocket = null;
-                if (!intentionalClose) {
-                  scheduleReconnect();
+
+                LOGGER.info("Auction WebSocket đóng: status={}, reason={}", statusCode, reason);
+
+                auctionSocket = null;
+
+                if (!intentionalAuctionClose) {
+                  scheduleAuctionReconnect();
                 }
+
                 return null;
               }
 
               @Override
               public void onError(WebSocket ws, Throwable error) {
-                LOGGER.error("Lỗi WebSocket: {}", error.getMessage());
-                webSocket = null;
-                if (!intentionalClose) {
-                  scheduleReconnect();
+
+                LOGGER.error("Lỗi Auction WebSocket: {}", error.getMessage());
+
+                auctionSocket = null;
+
+                if (!intentionalAuctionClose) {
+                  scheduleAuctionReconnect();
                 }
               }
             })
         .exceptionally(
             e -> {
-              LOGGER.error("Không thể kết nối WebSocket: {}", e.getMessage());
-              if (!intentionalClose) {
-                scheduleReconnect();
+              LOGGER.error("Không thể kết nối Auction WebSocket: {}", e.getMessage());
+
+              if (!intentionalAuctionClose) {
+                scheduleAuctionReconnect();
               }
+
               return null;
             });
   }
 
-  private void scheduleReconnect() {
-    if (retryCount >= MAX_RETRIES) {
-      LOGGER.warn("WebSocket: đã thử {} lần, dừng kết nối lại.", MAX_RETRIES);
+  private void scheduleAuctionReconnect() {
+
+    if (auctionRetryCount >= MAX_RETRIES) {
+
+      LOGGER.warn("Auction WebSocket: đã thử {} lần, dừng reconnect.", MAX_RETRIES);
+
       return;
     }
-    long delaySec = Math.min(30L, 1L << (retryCount + 1));
-    retryCount++;
-    LOGGER.info("WebSocket: thử kết nối lại lần {} sau {}s...", retryCount, delaySec);
-    pendingReconnect = scheduler.schedule(this::doConnect, delaySec, TimeUnit.SECONDS);
+
+    long delaySec = Math.min(30L, 1L << (auctionRetryCount + 1));
+
+    auctionRetryCount++;
+
+    LOGGER.info("Auction WebSocket: reconnect lần {} sau {}s...", auctionRetryCount, delaySec);
+
+    auctionReconnectTask = scheduler.schedule(this::doConnectAuction, delaySec, TimeUnit.SECONDS);
   }
 
-  private void cancelPendingReconnect() {
-    if (pendingReconnect != null && !pendingReconnect.isDone()) {
-      pendingReconnect.cancel(false);
-      pendingReconnect = null;
+  private void cancelAuctionReconnect() {
+
+    if (auctionReconnectTask != null && !auctionReconnectTask.isDone()) {
+
+      auctionReconnectTask.cancel(false);
+
+      auctionReconnectTask = null;
     }
   }
 
+  /** Đóng Auction WebSocket. */
+  public void disconnectAuction() {
+
+    intentionalAuctionClose = true;
+
+    cancelAuctionReconnect();
+
+    if (auctionSocket != null && !auctionSocket.isInputClosed()) {
+
+      auctionSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Auction screen closed");
+
+      auctionSocket = null;
+
+      LOGGER.info("Auction WebSocket đã đóng.");
+    }
+  }
+
+  public boolean isAuctionConnected() {
+
+    return auctionSocket != null && !auctionSocket.isInputClosed();
+  }
+
+  // =========================================================
+  // USER WEBSOCKET
+  // =========================================================
+
   /**
-   * Mở kết nối WebSocket đến kênh riêng của user ({@code /ws/user/{id}}) để nhận thông báo biến
-   * động số dư khi Admin duyệt hoặc từ chối yêu cầu nạp tiền.
+   * Kết nối vào user notification channel.
    *
-   * @param userId ID của user hiện tại (từ SceneManager)
-   * @param jwtToken JWT token để xác thực
-   * @param onMessage callback nhận JSON string khi có message từ server
+   * @param userId ID user hiện tại
+   * @param jwtToken JWT token xác thực
+   * @param onMessage callback nhận JSON message
    */
   public void connectUser(Long userId, String jwtToken, Consumer<String> onMessage) {
-    cancelPendingReconnect();
-    this.currentAuctionId = userId; // tái dùng field để lưu userId
+
+    cancelUserReconnect();
+
+    this.currentUserId = userId;
     this.currentToken = jwtToken;
-    this.currentOnMessage = onMessage;
-    this.retryCount = 0;
-    this.intentionalClose = false;
+    this.userMessageHandler = onMessage;
+
+    this.userRetryCount = 0;
+    this.intentionalUserClose = false;
+
     doConnectUser();
   }
 
   private void doConnectUser() {
-    String uri = WS_USER_BASE_URL + currentAuctionId + "?token=" + currentToken;
+
+    String uri = WS_USER_BASE_URL + currentUserId + "?token=" + currentToken;
 
     HttpClient.newHttpClient()
         .newWebSocketBuilder()
@@ -169,75 +280,130 @@ public class WebSocketClient {
 
               @Override
               public void onOpen(WebSocket ws) {
-                webSocket = ws;
-                retryCount = 0;
-                LOGGER.info("User WebSocket kết nối thành công: userId=#{}", currentAuctionId);
+
+                userSocket = ws;
+
+                userRetryCount = 0;
+
+                LOGGER.info("User WebSocket kết nối thành công: userId=#{}", currentUserId);
+
                 ws.request(1);
               }
 
               @Override
               public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
-                if (!intentionalClose) {
-                  currentOnMessage.accept(data.toString());
+
+                if (!intentionalUserClose) {
+
+                  String json = data.toString();
+
+                  LOGGER.debug("User WS nhận message: {}", json);
+
+                  userMessageHandler.accept(json);
                 }
+
                 ws.request(1);
+
                 return null;
               }
 
               @Override
               public CompletionStage<?> onClose(WebSocket ws, int statusCode, String reason) {
-                LOGGER.info("User WebSocket đóng: status={}", statusCode);
-                webSocket = null;
-                if (!intentionalClose) {
-                  scheduleReconnectUser();
+
+                LOGGER.info("User WebSocket đóng: status={}, reason={}", statusCode, reason);
+
+                userSocket = null;
+
+                if (!intentionalUserClose) {
+                  scheduleUserReconnect();
                 }
+
                 return null;
               }
 
               @Override
               public void onError(WebSocket ws, Throwable error) {
+
                 LOGGER.error("Lỗi User WebSocket: {}", error.getMessage());
-                webSocket = null;
-                if (!intentionalClose) {
-                  scheduleReconnectUser();
+
+                userSocket = null;
+
+                if (!intentionalUserClose) {
+                  scheduleUserReconnect();
                 }
               }
             })
         .exceptionally(
             e -> {
               LOGGER.error("Không thể kết nối User WebSocket: {}", e.getMessage());
-              if (!intentionalClose) {
-                scheduleReconnectUser();
+
+              if (!intentionalUserClose) {
+                scheduleUserReconnect();
               }
+
               return null;
             });
   }
 
-  private void scheduleReconnectUser() {
-    if (retryCount >= MAX_RETRIES) {
-      LOGGER.warn("User WebSocket: đã thử {} lần, dừng.", MAX_RETRIES);
+  private void scheduleUserReconnect() {
+
+    if (userRetryCount >= MAX_RETRIES) {
+
+      LOGGER.warn("User WebSocket: đã thử {} lần, dừng reconnect.", MAX_RETRIES);
+
       return;
     }
-    long delaySec = Math.min(30L, 1L << (retryCount + 1));
-    retryCount++;
-    pendingReconnect = scheduler.schedule(this::doConnectUser, delaySec, TimeUnit.SECONDS);
+
+    long delaySec = Math.min(30L, 1L << (userRetryCount + 1));
+
+    userRetryCount++;
+
+    LOGGER.info("User WebSocket: reconnect lần {} sau {}s...", userRetryCount, delaySec);
+
+    userReconnectTask = scheduler.schedule(this::doConnectUser, delaySec, TimeUnit.SECONDS);
   }
 
-  /** Đóng kết nối WebSocket nếu đang mở. Nên gọi trong {@code Navigable.onNavigatedFrom()}. */
-  public void disconnect() {
-    intentionalClose = true;
-    cancelPendingReconnect();
-    if (webSocket != null && !webSocket.isInputClosed()) {
-      webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Client rời màn hình");
-      webSocket = null;
-      LOGGER.info("WebSocket đã đóng kết nối.");
+  private void cancelUserReconnect() {
+
+    if (userReconnectTask != null && !userReconnectTask.isDone()) {
+
+      userReconnectTask.cancel(false);
+
+      userReconnectTask = null;
     }
   }
 
-  /**
-   * @return true nếu đang kết nối với server
-   */
-  public boolean isConnected() {
-    return webSocket != null && !webSocket.isInputClosed();
+  /** Đóng User WebSocket. */
+  public void disconnectUser() {
+
+    intentionalUserClose = true;
+
+    cancelUserReconnect();
+
+    if (userSocket != null && !userSocket.isInputClosed()) {
+
+      userSocket.sendClose(WebSocket.NORMAL_CLOSURE, "User websocket closed");
+
+      userSocket = null;
+
+      LOGGER.info("User WebSocket đã đóng.");
+    }
+  }
+
+  public boolean isUserConnected() {
+
+    return userSocket != null && !userSocket.isInputClosed();
+  }
+
+  // =========================================================
+  // GLOBAL
+  // =========================================================
+
+  /** Đóng toàn bộ websocket connections. */
+  public void disconnectAll() {
+
+    disconnectAuction();
+
+    disconnectUser();
   }
 }
