@@ -3,141 +3,95 @@ package com.auction.util;
 import com.auction.dto.BidUpdateMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.text.NumberFormat;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.math.BigDecimal;
+import java.util.function.BiConsumer;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Singleton duy trì các WebSocket nền cho phiên đấu giá người dùng đã từng bid.
+ * Singleton quản lý kết nối WebSocket kênh riêng của user ({@code /ws/user/{id}}).
  *
- * <p>Khi người dùng rời màn hình chi tiết đấu giá, {@code AuctionDetailController} đăng ký phiên
- * này vào đây. Mọi sự kiện BID_UPDATE và AUCTION_ENDED nhận được sẽ được thêm vào {@link
- * NotificationStore} — chuông thông báo trên màn hình danh sách sẽ sáng lên tức thời.
+ * <p>Mở kết nối sau khi đăng nhập thành công và giữ trong suốt phiên làm việc. Khi Admin duyệt hoặc
+ * từ chối yêu cầu nạp tiền, server gửi message {@code BALANCE_UPDATED} qua kênh này.
  *
- * <p>Khi người dùng quay lại màn hình chi tiết, {@code stopWatching()} được gọi để nhường lại kết
- * nối cho controller (tránh nhận thông báo trùng). Khi đăng xuất, {@code stopAll()} dọn sạch tất cả
- * kết nối.
+ * <p>Các màn hình muốn nhận thông báo đăng ký callback qua {@link #setOnBalanceUpdate(BiConsumer)}.
+ * Chỉ có một listener tại một thời điểm — màn hình nào đang hiển thị thì đăng ký, khi rời đi thì
+ * hủy bằng cách truyền {@code null}.
  */
-public class BackgroundBidWatcher {
+public class UserBalanceWatcher {
 
-  private static final BackgroundBidWatcher INSTANCE = new BackgroundBidWatcher();
-  private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundBidWatcher.class);
+  private static final UserBalanceWatcher INSTANCE = new UserBalanceWatcher();
+  private static final Logger LOGGER = LoggerFactory.getLogger(UserBalanceWatcher.class);
   private static final ObjectMapper MAPPER =
       new ObjectMapper().registerModule(new JavaTimeModule());
-  private static final NumberFormat VND = NumberFormat.getCurrencyInstance(Locale.of("vi", "VN"));
 
-  private final Map<Long, WebSocketClient> watchers = new ConcurrentHashMap<>();
-  private final Map<Long, String> itemNames = new ConcurrentHashMap<>();
+  private final WebSocketClient wsClient = new WebSocketClient();
 
-  private BackgroundBidWatcher() {}
+  /** Callback nhận (newBalance, approved) — chạy trên FX thread. */
+  private volatile BiConsumer<BigDecimal, Boolean> onBalanceUpdate;
 
-  public static BackgroundBidWatcher getInstance() {
+  private UserBalanceWatcher() {}
+
+  public static UserBalanceWatcher getInstance() {
     return INSTANCE;
   }
 
   /**
-   * Bắt đầu theo dõi nền cho một phiên đấu giá.
+   * Mở kết nối WebSocket user — gọi ngay sau khi đăng nhập thành công.
    *
-   * @param auctionId ID phiên cần theo dõi
-   * @param token JWT token để xác thực WebSocket
-   * @param itemName tên sản phẩm (dùng trong nội dung thông báo)
-   * @param currentUserId ID người dùng hiện tại (để phân biệt bid của mình)
+   * @param userId ID user hiện tại
+   * @param token JWT token
    */
-  public void watch(Long auctionId, String token, String itemName, Long currentUserId) {
-    if (auctionId == null || token == null || watchers.containsKey(auctionId)) {
-      return;
-    }
-    String label = itemName != null ? itemName : "Phiên #" + auctionId;
-    itemNames.put(auctionId, label);
-    WebSocketClient ws = new WebSocketClient();
-    watchers.put(auctionId, ws);
-    ws.connect(
-        auctionId,
+  public void connect(Long userId, String token) {
+    wsClient.connectUser(
+        userId,
         token,
         json -> {
           try {
             BidUpdateMessage msg = MAPPER.readValue(json, BidUpdateMessage.class);
-            handleMessage(auctionId, msg, currentUserId);
+            if (BidUpdateMessage.TYPE_BALANCE_UPDATED.equals(msg.getType())) {
+              boolean approved = msg.isAutoBid(); // field autoBid tái dùng để chứa approved
+              BigDecimal newBalance = msg.getNewBalance();
+              LOGGER.info("Nhận BALANCE_UPDATED: approved={}, newBalance={}", approved, newBalance);
+
+              // Luôn thêm vào NotificationStore dù màn hình nào đang hiển thị
+              Platform.runLater(
+                  () -> {
+                    String text =
+                        approved
+                            ? "✅ Yêu cầu nạp tiền được duyệt"
+                            : "❌ Yêu cầu nạp tiền bị từ chối";
+                    NotificationStore.getInstance().add(text);
+
+                    // Notify listener nếu có (ví dụ ProfileController đang mở)
+                    BiConsumer<BigDecimal, Boolean> cb = onBalanceUpdate;
+                    if (cb != null) {
+                      cb.accept(newBalance, approved);
+                    }
+                  });
+            }
           } catch (Exception e) {
-            LOGGER.debug(
-                "BackgroundBidWatcher parse error phiên #{}: {}", auctionId, e.getMessage());
+            LOGGER.debug("UserBalanceWatcher parse error: {}", e.getMessage());
           }
         });
-    LOGGER.info("BackgroundBidWatcher: theo dõi nền phiên #{}", auctionId);
+    LOGGER.info("UserBalanceWatcher: kết nối kênh user #{}", userId);
   }
 
-  /** Dừng theo dõi một phiên — gọi khi người dùng quay lại màn hình chi tiết của phiên đó. */
-  public void stopWatching(Long auctionId) {
-    WebSocketClient ws = watchers.remove(auctionId);
-    itemNames.remove(auctionId);
-    if (ws != null) {
-      ws.disconnect();
-      LOGGER.info("BackgroundBidWatcher: dừng theo dõi phiên #{}", auctionId);
-    }
+  /**
+   * Đăng ký callback nhận thông báo biến động số dư.
+   *
+   * @param callback hàm nhận (newBalance, approved), chạy trên FX thread. Truyền {@code null} để
+   *     hủy đăng ký.
+   */
+  public void setOnBalanceUpdate(BiConsumer<BigDecimal, Boolean> callback) {
+    this.onBalanceUpdate = callback;
   }
 
-  /** Dừng tất cả kết nối nền — gọi khi người dùng đăng xuất. */
-  public void stopAll() {
-    watchers.forEach((id, ws) -> ws.disconnect());
-    watchers.clear();
-    itemNames.clear();
-  }
-
-  private void handleMessage(Long auctionId, BidUpdateMessage msg, Long currentUserId) {
-    if (msg == null) {
-      return;
-    }
-    String label = "[" + itemNames.getOrDefault(auctionId, "Phiên #" + auctionId) + "] ";
-
-    switch (msg.getType()) {
-      case BidUpdateMessage.TYPE_BID_UPDATE -> {
-        if (msg.getCurrentPrice() == null) {
-          return;
-        }
-        boolean isOwnBid =
-            msg.getLeadingBidderId() != null && msg.getLeadingBidderId().equals(currentUserId);
-        String price = VND.format(msg.getCurrentPrice());
-        String text;
-        if (isOwnBid && msg.isAutoBid()) {
-          text = label + "Auto-bid đặt " + price + " cho bạn";
-        } else if (!isOwnBid) {
-          String bidder =
-              msg.getLeadingBidderUsername() != null ? msg.getLeadingBidderUsername() : "Ẩn danh";
-          text = label + bidder + " vừa bid " + price;
-        } else {
-          return; // own manual bid — người dùng tự biết
-        }
-        final String notification = text;
-        // Guard: skip if stopWatching() was already called for this auction
-        Platform.runLater(
-            () -> {
-              if (watchers.containsKey(auctionId)) {
-                NotificationStore.getInstance().add(notification);
-              }
-            });
-      }
-      case BidUpdateMessage.TYPE_AUCTION_ENDED -> {
-        String winner =
-            msg.getLeadingBidderUsername() != null
-                ? msg.getLeadingBidderUsername()
-                : "Không có người thắng";
-        String price = msg.getCurrentPrice() != null ? VND.format(msg.getCurrentPrice()) : "—";
-        String text = label + "Phiên đã kết thúc — " + winner + " thắng với " + price;
-        Platform.runLater(
-            () -> {
-              if (watchers.containsKey(auctionId)) {
-                NotificationStore.getInstance().add(text);
-                stopWatching(auctionId);
-              }
-            });
-      }
-      default -> {
-        /* TIME_EXTENDED không cần thông báo nền */
-      }
-    }
+  /** Đóng kết nối — gọi khi người dùng đăng xuất. */
+  public void disconnect() {
+    onBalanceUpdate = null;
+    wsClient.disconnect();
+    LOGGER.info("UserBalanceWatcher: đã ngắt kết nối.");
   }
 }

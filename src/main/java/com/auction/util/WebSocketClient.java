@@ -24,6 +24,7 @@ public class WebSocketClient {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(WebSocketClient.class);
   private static final String WS_BASE_URL = "ws://localhost:8080/ws/auction/";
+  private static final String WS_USER_BASE_URL = "ws://localhost:8080/ws/user/";
   private static final int MAX_RETRIES = 5;
 
   private static final ObjectMapper MAPPER =
@@ -137,6 +138,89 @@ public class WebSocketClient {
       pendingReconnect.cancel(false);
       pendingReconnect = null;
     }
+  }
+
+  /**
+   * Mở kết nối WebSocket đến kênh riêng của user ({@code /ws/user/{id}}) để nhận thông báo biến
+   * động số dư khi Admin duyệt hoặc từ chối yêu cầu nạp tiền.
+   *
+   * @param userId ID của user hiện tại (từ SceneManager)
+   * @param jwtToken JWT token để xác thực
+   * @param onMessage callback nhận JSON string khi có message từ server
+   */
+  public void connectUser(Long userId, String jwtToken, Consumer<String> onMessage) {
+    cancelPendingReconnect();
+    this.currentAuctionId = userId; // tái dùng field để lưu userId
+    this.currentToken = jwtToken;
+    this.currentOnMessage = onMessage;
+    this.retryCount = 0;
+    this.intentionalClose = false;
+    doConnectUser();
+  }
+
+  private void doConnectUser() {
+    String uri = WS_USER_BASE_URL + currentAuctionId + "?token=" + currentToken;
+
+    HttpClient.newHttpClient()
+        .newWebSocketBuilder()
+        .buildAsync(
+            URI.create(uri),
+            new WebSocket.Listener() {
+
+              @Override
+              public void onOpen(WebSocket ws) {
+                webSocket = ws;
+                retryCount = 0;
+                LOGGER.info("User WebSocket kết nối thành công: userId=#{}", currentAuctionId);
+                ws.request(1);
+              }
+
+              @Override
+              public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
+                if (!intentionalClose) {
+                  currentOnMessage.accept(data.toString());
+                }
+                ws.request(1);
+                return null;
+              }
+
+              @Override
+              public CompletionStage<?> onClose(WebSocket ws, int statusCode, String reason) {
+                LOGGER.info("User WebSocket đóng: status={}", statusCode);
+                webSocket = null;
+                if (!intentionalClose) {
+                  scheduleReconnectUser();
+                }
+                return null;
+              }
+
+              @Override
+              public void onError(WebSocket ws, Throwable error) {
+                LOGGER.error("Lỗi User WebSocket: {}", error.getMessage());
+                webSocket = null;
+                if (!intentionalClose) {
+                  scheduleReconnectUser();
+                }
+              }
+            })
+        .exceptionally(
+            e -> {
+              LOGGER.error("Không thể kết nối User WebSocket: {}", e.getMessage());
+              if (!intentionalClose) {
+                scheduleReconnectUser();
+              }
+              return null;
+            });
+  }
+
+  private void scheduleReconnectUser() {
+    if (retryCount >= MAX_RETRIES) {
+      LOGGER.warn("User WebSocket: đã thử {} lần, dừng.", MAX_RETRIES);
+      return;
+    }
+    long delaySec = Math.min(30L, 1L << (retryCount + 1));
+    retryCount++;
+    pendingReconnect = scheduler.schedule(this::doConnectUser, delaySec, TimeUnit.SECONDS);
   }
 
   /** Đóng kết nối WebSocket nếu đang mở. Nên gọi trong {@code Navigable.onNavigatedFrom()}. */

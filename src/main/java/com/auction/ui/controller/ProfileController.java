@@ -2,7 +2,10 @@ package com.auction.ui.controller;
 
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
+import com.auction.util.BackgroundBidWatcher;
+import com.auction.util.NotificationStore;
 import com.auction.util.RestClient;
+import com.auction.util.UserBalanceWatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.http.HttpResponse;
@@ -36,6 +39,8 @@ public class ProfileController implements Navigable {
 
   @Override
   public void onNavigatedTo() {
+    // Lắng nghe thông báo biến động số dư từ UserBalanceWatcher
+    UserBalanceWatcher.getInstance().setOnBalanceUpdate(this::onBalanceUpdated);
     SceneManager sm = SceneManager.getInstance();
 
     if (usernameLabel != null) {
@@ -78,12 +83,34 @@ public class ProfileController implements Navigable {
 
   @FXML
   public void handleLogout() {
+    // Dừng kết nối WebSocket user trước khi logout
+    UserBalanceWatcher.getInstance().disconnect();
+    BackgroundBidWatcher.getInstance().stopAll();
     SceneManager.getInstance().logout();
   }
 
   @FXML
   public void goBack() {
     SceneManager.getInstance().navigateBack("auction-list.fxml");
+  }
+
+  @Override
+  public void onNavigatedFrom() {
+    // Hủy listener để tránh cập nhật UI khi không còn ở màn hình này
+    UserBalanceWatcher.getInstance().setOnBalanceUpdate(null);
+  }
+
+  /** Nhận thông báo biến động số dư từ UserBalanceWatcher — gọi trên FX thread. */
+  private void onBalanceUpdated(java.math.BigDecimal newBalance, boolean approved) {
+    if (approved && newBalance != null) {
+      if (profileBalanceLabel != null) {
+        profileBalanceLabel.setText(VND.format(newBalance));
+      }
+      NotificationStore.getInstance()
+          .add("✅ Yêu cầu nạp tiền đã được duyệt. Số dư mới: " + VND.format(newBalance));
+    } else {
+      NotificationStore.getInstance().add("❌ Yêu cầu nạp tiền bị từ chối.");
+    }
   }
 
   private void loadBalance() {

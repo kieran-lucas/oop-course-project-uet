@@ -3,6 +3,7 @@ package com.auction.ui.controller;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
+import com.auction.util.UserBalanceWatcher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.http.HttpResponse;
@@ -197,6 +198,11 @@ public class LoginController implements Navigable {
     sm.setCurrentUserId(userId);
 
     LOGGER.info("Đăng nhập thành công: username={}, role={}", username, role);
+
+    // Mở kết nối WebSocket riêng để nhận thông báo biến động số dư
+    if (!"ADMIN".equals(role)) {
+      UserBalanceWatcher.getInstance().connect((long) userId, token);
+    }
 
     if ("ADMIN".equals(role)) {
       sm.navigateTo("admin-panel.fxml");
