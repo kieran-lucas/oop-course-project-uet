@@ -83,34 +83,31 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 ```mermaid
 graph TB
     subgraph CLIENT["🖥️  CLIENT — JavaFX"]
-        direction TB
         FXML["View — FXML (12 screens)"]
         CTRL["ui/controller/"]
-        RC["RestClient\n+ JWT header"]
-        WSC["WebSocketClient\n+ Platform.runLater()"]
-        UTIL["SceneManager · NotificationStore\nBackgroundBidWatcher · Navigable"]
-        FXML  CTRL
+        RC["RestClient<br/>+ JWT header"]
+        WSC["WebSocketClient<br/>+ Platform.runLater()"]
+        UTIL["SceneManager · NotificationStore<br/>BackgroundBidWatcher · Navigable"]
+        FXML <--> CTRL
         CTRL --- RC
         CTRL --- WSC
         CTRL --- UTIL
     end
-    RC -->|"HTTP REST\n(JSON + Bearer token)"| JWT
-    WSC |"WebSocket\n/ws/auction/{id}?token=..."| WSH
+    RC -->|"HTTP REST / JSON + Bearer token"| JWT
+    WSC <-->|"WebSocket /ws/auction/{id}?token=..."| WSH
     subgraph SERVER["⚙️  SERVER — Javalin"]
-        direction TB
-        JWT["JWT Middleware\nverify every /api/* request"]
-        REST["REST Controllers\nAuth · Auction · Bid · Item"]
-        WSH["AuctionWebSocketHandler\nObserver Manager"]
-        SVC["Service Layer\nBidService · AuctionService\nUserService · ItemService\nAuctionScheduler · PasswordResetService"]
-        DAO["DAO Layer — JDBI 3\n7 DAOs · SELECT FOR UPDATE\nin AuctionDao"]
+        JWT["JWT Middleware<br/>verify every /api/* request"]
+        REST["REST Controllers<br/>Auth · Auction · Bid · Item"]
+        WSH["AuctionWebSocketHandler<br/>Observer Manager"]
+        SVC["Service Layer<br/>BidService · AuctionService<br/>UserService · ItemService<br/>AuctionScheduler · PasswordResetService"]
+        DAO["DAO Layer — JDBI 3<br/>7 DAOs · SELECT FOR UPDATE<br/>in AuctionDao"]
         JWT --> REST
         REST --> SVC
         WSH --> SVC
         SVC --> DAO
     end
-    DAO -->|"SQL via HikariCP pool"| DB[("PostgreSQL\nEmbedded\n8 tables · 6 migrations")]
+    DAO -->|"SQL via HikariCP pool"| DB[("PostgreSQL<br/>Embedded<br/>8 tables · 6 migrations")]
 ```
-
 ---
 
 ## 🔄 Data Flow — End-to-End
