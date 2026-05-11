@@ -40,9 +40,13 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 
 ## 🖼️ Screenshots
 
-| Login | Auction List | Live Bid Detail | Admin Dashboard |
-|:---:|:---:|:---:|:---:|
-| <img src="assets/screenshots/login.png" width="200"/> | <img src="assets/screenshots/auction-list.png" width="200"/> | <img src="assets/screenshots/auction-detail.png" width="200"/> | <img src="assets/screenshots/admin.png" width="200"/> |
+| Login | Auction List |
+|:---:|:---:|
+| <img src="assets/screenshots/login.png" width="420"/> | <img src="assets/screenshots/auction-list.png" width="420"/> |
+
+| Live Bid Detail *(with real-time chart + countdown)* | Admin Dashboard |
+|:---:|:---:|
+| <img src="assets/screenshots/auction-detail.png" width="420"/> | <img src="assets/screenshots/admin.png" width="420"/> |
 
 ---
 
@@ -278,7 +282,7 @@ All errors return `ErrorResponse { error: String, message: String }` with the co
 ```json
 {
   "username": "admin",
-  "password": "123456"
+  "password": "admin123"
 }
 ```
 
@@ -437,7 +441,7 @@ The following accounts are seeded automatically on first run via `V2__seed_admin
 
 | Role | Username | Password |
 |---|---|---|
-| Admin | `admin` | `123456` |
+| Admin | `admin` | `admin123` |
 
 Additional Seller and Bidder accounts can be registered from the login screen.
 
@@ -485,10 +489,10 @@ Ensure a display server is running. On headless servers, use `export DISPLAY=:0`
 
 | Member | GitHub | Role | Technical Contributions |
 |---|---|---|---|
-| **Bui Ngoc Phu Hung** | [@username]([https://github.com/username](https://github.com/HumaNormal)) | Backend Lead | Javalin server setup · 5 REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · 7 JDBI DAOs · 5 SQL migration scripts · HikariCP connection pool config |
-| **Tran Anh Duc** | [@username]([https://github.com/username](https://github.com/kieran-lucas)) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
-| **Nguyen Dinh Viet Duc** | [@username]([https://github.com/username](https://github.com/Black1206-coder)) | Business Logic | 6 service classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
-| **Bui Quang Huy** | [@username]([https://github.com/username](https://github.com/stillqhuy)) | DevOps & QA | 5-stage GitHub Actions CI pipeline · 17 JUnit 5 test files · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
+| **Bui Ngoc Phu Hung** | [@HumaNormal](https://github.com/HumaNormal) | Backend Lead | Javalin server setup · 5 REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · 7 JDBI DAOs · 5 SQL migration scripts · HikariCP connection pool config |
+| **Tran Anh Duc** | [@kieran-lucas](https://github.com/kieran-lucas) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
+| **Nguyen Dinh Viet Duc** | [@Black1206-coder](https://github.com/Black1206-coder) | Business Logic | 6 service classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
+| **Bui Quang Huy** | [@stillqhuy](https://github.com/stillqhuy) | DevOps & QA | 5-stage GitHub Actions CI pipeline · 17 JUnit 5 test files · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
 
 All members jointly own `model/` (14 domain classes), `dto/` (13 transfer objects), and project documentation.
 
@@ -528,10 +532,8 @@ All members jointly own `model/` (14 domain classes), `dto/` (13 transfer object
 auction-system/
 │
 ├── .github/
-│   ├── workflows/
-│   │   ├── ci.yml                        ← Pipeline: format → lint → test → coverage
-│   │   └── commit-graph.yml
-│   └── pull_request_template.md
+│   └── workflows/
+│       └── ci.yml                        ← Pipeline: format → lint → test → coverage
 │
 ├── .githooks/pre-commit                  ← Auto spotlessApply before every commit
 ├── build.gradle.kts                      ← All dependencies + plugins
