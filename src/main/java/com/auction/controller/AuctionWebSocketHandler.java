@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +51,7 @@ import org.slf4j.LoggerFactory;
 public class AuctionWebSocketHandler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionWebSocketHandler.class);
+  private final Jdbi jdbi;
 
   /**
    * Map auctionId → set WebSocket sessions đang kết nối. ConcurrentHashMap + CopyOnWriteArraySet để
@@ -69,8 +71,9 @@ public class AuctionWebSocketHandler {
   private final AuctionEventManager eventManager;
   private final ObjectMapper objectMapper;
 
-  public AuctionWebSocketHandler(AuctionEventManager eventManager) {
+  public AuctionWebSocketHandler(AuctionEventManager eventManager, Jdbi jdbi) {
     this.eventManager = eventManager;
+    this.jdbi = jdbi;
     this.objectMapper = new ObjectMapper();
     this.objectMapper.registerModule(new JavaTimeModule());
   }
@@ -117,6 +120,37 @@ public class AuctionWebSocketHandler {
     } catch (Exception e) {
       LOGGER.error("Lỗi kết nối WebSocket: {}", e.getMessage());
       ctx.session.close(4000, "Connection error");
+    }
+  }
+
+  /**
+   * Lưu thông báo vào bảng notifications khi user không có kết nối WebSocket. Đảm bảo user nhận
+   * được thông báo khi reconnect hoặc qua REST API.
+   */
+  private void saveNotificationToDatabase(Long userId, BigDecimal newBalance, boolean approved) {
+    try {
+      String message;
+      if (approved) {
+        message =
+            String.format(
+                "Yêu cầu nạp tiền đã được duyệt. Số dư mới: %,d VNĐ",
+                newBalance != null ? newBalance.longValue() : 0);
+      } else {
+        message = "Yêu cầu nạp tiền đã bị từ chối.";
+      }
+
+      jdbi.useHandle(
+          handle ->
+              handle.execute(
+                  """
+                INSERT INTO notifications (user_id, message, notification_type)
+                VALUES (?, ?, 'BALANCE_UPDATED')
+                """,
+                  userId,
+                  message));
+      LOGGER.info("Đã lưu notification vào DB cho userId={}", userId);
+    } catch (Exception e) {
+      LOGGER.error("Lỗi lưu notification vào DB: {}", e.getMessage());
     }
   }
 
@@ -230,7 +264,9 @@ public class AuctionWebSocketHandler {
   public void notifyBalanceUpdate(Long userId, BigDecimal newBalance, boolean approved) {
     Set<WsContext> sessions = userConnections.get(userId);
     if (sessions == null || sessions.isEmpty()) {
-      LOGGER.warn("notifyBalanceUpdate: userId={} không có WS session, bỏ qua.", userId);
+      LOGGER.warn("notifyBalanceUpdate: userId={} không có WS session, lưu vào DB.", userId);
+
+      saveNotificationToDatabase(userId, newBalance, approved);
       return;
     }
     try {

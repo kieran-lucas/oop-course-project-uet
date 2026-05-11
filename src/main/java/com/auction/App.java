@@ -98,7 +98,7 @@ public class App {
     var eventManager = new AuctionEventManager();
 
     // ── 5. Khởi tạo WebSocket Handler + Observer integration ─
-    var wsHandler = new AuctionWebSocketHandler(eventManager);
+    var wsHandler = new AuctionWebSocketHandler(eventManager, jdbi);
 
     // ── 6. Khởi tạo Services ────────────────────────────────
     var userService = new UserService(userDao, depositRequestDao);
@@ -324,6 +324,57 @@ public class App {
           ctx.status(204);
         });
 
+    // ── Notifications endpoints ─────────────────────────────
+
+    app.get(
+        "/api/notifications",
+        ctx -> {
+          Long userId = ctx.attribute("userId");
+
+          var result =
+              jdbi.withHandle(
+                  handle ->
+                      handle
+                          .createQuery(
+                              """
+                              SELECT id,
+                                     message,
+                                     notification_type,
+                                     is_read,
+                                     created_at
+                              FROM notifications
+                              WHERE user_id = :userId
+                              ORDER BY created_at DESC
+                              LIMIT 50
+                              """)
+                          .bind("userId", userId)
+                          .mapToMap()
+                          .list());
+
+          ctx.json(result);
+        });
+
+    app.patch(
+        "/api/notifications/{id}/read",
+        ctx -> {
+          Long userId = ctx.attribute("userId");
+          Long notificationId = Long.parseLong(ctx.pathParam("id"));
+
+          jdbi.useHandle(
+              handle ->
+                  handle.execute(
+                      """
+                      UPDATE notifications
+                      SET is_read = true
+                      WHERE id = ?
+                        AND user_id = ?
+                      """,
+                      notificationId,
+                      userId));
+
+          ctx.status(204);
+        });
+
     // ── 12. Đăng ký WebSocket ────────────────────────────────
     app.ws(
         "/ws/auction/{id}",
@@ -498,6 +549,25 @@ public class App {
                     reviewed_at TIMESTAMP
                 )
                 """);
+
+            // ── V9: Bảng notifications ─────────────────────────────
+            handle.execute(
+                """
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    message TEXT NOT NULL,
+                    notification_type VARCHAR(50) NOT NULL,
+                    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+                """);
+
+            handle.execute(
+                "CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)");
+
+            handle.execute(
+                "CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)");
           });
       LOGGER.info("Schema kiểm tra xong — tất cả bảng tồn tại.");
     } catch (Exception e) {
