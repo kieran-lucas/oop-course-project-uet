@@ -99,11 +99,18 @@ public class ChangePasswordController implements Navigable {
             });
   }
 
+  /** Quay lại màn hình hồ sơ cá nhân mà không lưu thay đổi. */
   @FXML
   public void goBack() {
     SceneManager.getInstance().navigateBack("profile.fxml");
   }
 
+  /**
+   * Hiển thị thông báo kết quả trên statusLabel.
+   *
+   * @param msg nội dung thông báo
+   * @param isError {@code true} để hiển thị màu đỏ (lỗi), {@code false} cho màu xanh (thành công)
+   */
   private void showStatus(String msg, boolean isError) {
     statusLabel.setText(msg);
     statusLabel.setStyle(isError ? "-fx-text-fill: #e53935;" : "-fx-text-fill: #43a047;");
@@ -111,11 +118,16 @@ public class ChangePasswordController implements Navigable {
     statusLabel.setManaged(true);
   }
 
+  /** Ẩn statusLabel và giải phóng layout space. */
   private void hideStatus() {
     statusLabel.setVisible(false);
     statusLabel.setManaged(false);
   }
 
+  /**
+   * Xóa trắng toàn bộ form và reset trạng thái nút. Được gọi trong {@link #onNavigatedTo()} để đảm
+   * bảo form sạch mỗi lần điều hướng đến màn hình này.
+   */
   private void clearForm() {
     if (currentPasswordField != null) {
       currentPasswordField.clear();
