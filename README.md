@@ -1,57 +1,25 @@
-Hệ Thống Đấu Giá Trực Tuyến (Online Auction System)
+<!-- Hàng 1: Build & Quality -->
+![CI](https://github.com/kieran-lucas/oop-course-project-uet/actions/workflows/ci.yml/badge.svg)
+![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-8.12.1-02303A?logo=gradle&logoColor=white)
+![Version](https://img.shields.io/badge/Version-1.0.0-blue)
 
-1. Mô tả bài toán và phạm vi hệ thống
+<!-- Hàng 2: Tech stack server -->
+![Javalin](https://img.shields.io/badge/Javalin-6.4.0-black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Embedded-4169E1?logo=postgresql&logoColor=white)
+![HikariCP](https://img.shields.io/badge/HikariCP-6.2.1-white)
+![JDBI](https://img.shields.io/badge/JDBI-3.45.4-red)
 
-*Dự án là một hệ thống đấu giá trực tuyến được thiết kế theo mô hình Client-Server (có giao diện Desktop). Hệ thống cung cấp môi trường minh bạch cho người dùng (Bidder) tham gia đấu giá các sản phẩm từ người bán (Seller).
+<!-- Hàng 3: Tech stack client -->
+![JavaFX](https://img.shields.io/badge/JavaFX-21-informational?logo=java&logoColor=white)
+![JWT](https://img.shields.io/badge/Auth-JWT-orange?logo=jsonwebtokens&logoColor=white)
+![BCrypt](https://img.shields.io/badge/Security-BCrypt-green)
 
-Phạm vi hệ thống bao gồm:
+<!-- Hàng 4: Code quality -->
+![JUnit5](https://img.shields.io/badge/Testing-JUnit5-25A162?logo=junit5&logoColor=white)
+![JaCoCo](https://img.shields.io/badge/Coverage-JaCoCo-brightgreen)
+![Checkstyle](https://img.shields.io/badge/Style-Google_Java-blue)
+![SpotBugs](https://img.shields.io/badge/Analysis-SpotBugs-yellow)
 
--Quản lý thông tin tài khoản (Admin, Seller, Bidder).
-
--Đăng tải và phân loại sản phẩm (Art, Vehicle, Electronics).
-
--Quản lý các phiên đấu giá theo thời gian thực (State Pattern).
-
--Hỗ trợ đấu giá thủ công và tự động (Auto-bid Strategy).
-
--Quản lý ví điện tử, nạp tiền (có sự phê duyệt của Admin).
-
-2. Công nghệ sử dụng và Yêu cầu cài đặt
-
--Ngôn ngữ lập trình: Java 21
-
--Giao diện: JavaFX (Client)
-
--Kiến trúc: Phân tầng (Layered Architecture), MVC
-
--Hệ quản trị CSDL: PostgreSQL 16
-
--Kết nối CSDL: Jdbi3, HikariCP (Connection Pooling)
-
--Giao thức kết nối: HTTP (REST) & WebSocket (Real-time updates)
-
--Công cụ Build & CI/CD: Gradle, GitHub Actions
-
-*Yêu cầu môi trường:
-
--Máy tính đã cài đặt sẵn Java JDK 21+.
-
--Máy tính đã cài đặt PostgreSQL 16.
-
--Cấu hình một Database trắng trong PostgreSQL với tên auction_db.
-
-3. Cấu trúc thư mục (Các module chính)
-
--Dự án được cấu trúc theo chuẩn phân tầng để đảm bảo tính dễ bảo trì và khả năng mở rộng:
-
-src/main/java/com/auction/model/: Chứa các thực thể cốt lõi và các Design Patterns (Factory, State, Strategy, Observer).
-
-src/main/java/com/auction/dao/: Data Access Object, chịu trách nhiệm tương tác trực tiếp với PostgreSQL.
-
-src/main/java/com/auction/service/: Business Logic Layer, xử lý các nghiệp vụ phức tạp của phiên đấu giá.
-
-src/main/java/com/auction/controller/: Điều khiển giao diện JavaFX và kết nối đến các Service.
-
-src/main/java/com/auction/network/: Chứa các lớp xử lý giao tiếp giữa Client và Server (RestClient, WebSocketClient).
-
-src/main/resources/: Chứa tài nguyên tĩnh (giao diện .fxml, file cấu hình application.properties, file SQL khởi tạo db/migration).
+<!-- Hàng 5: Design patterns (đặc trưng của project OOP) -->
+![Patterns](https://img.shields.io/badge/Patterns-Factory%20%7C%20Observer%20%7C%20State%20%7C%20Strategy-purple)
