@@ -1,32 +1,32 @@
 /**
- * Custom exception hierarchy for the auction domain
+ * Hệ thống exception tùy chỉnh cho miền nghiệp vụ đấu giá
  *
- * <p>All exceptions extend {@link com.auction.exception.AuctionException} to allow uniform handling
- * of domain-specific errors
+ * <p>Tất cả các exception đều kế thừa từ {@link com.auction.exception.AuctionException} để đảm bảo
+ * việc xử lý lỗi theo domain được thống nhất
  *
- * <p><b>Exception types:</b>
+ * <p><b>Các loại exception:</b>
  *
  * <ul>
- *   <li>{@link com.auction.exception.NotFoundException} — entity lookup failures
- *   <li>{@link com.auction.exception.DuplicateException} — uniqueness violations
- *   <li>{@link com.auction.exception.InvalidBidException} — bid validation failures
- *   <li>{@link com.auction.exception.AuctionClosedException} — operations on closed auctions
- *   <li>{@link com.auction.exception.UnauthorizedException} — permission denials
+ *   <li>{@link com.auction.exception.NotFoundException} — lỗi không tìm thấy thực thể
+ *   <li>{@link com.auction.exception.DuplicateException} — vi phạm ràng buộc duy nhất
+ *   <li>{@link com.auction.exception.InvalidBidException} — lỗi kiểm tra giá thầu
+ *   <li>{@link com.auction.exception.AuctionClosedException} — thao tác trên phiên đấu giá đã đóng
+ *   <li>{@link com.auction.exception.UnauthorizedException} — từ chối quyền truy cập
  * </ul>
  *
- * <p><b>Usage pattern — catching all auction errors:</b>
+ * <p><b>Mẫu sử dụng — bắt toàn bộ lỗi đấu giá:</b>
  *
  * <pre>{@code
  * try {
  *     auctionService.createAuction(request, userId, role);
  * } catch (AuctionException e) {
- *     // Single catch handles all 5 specific exceptions
+ *     // Một catch duy nhất xử lý cả 5 loại exception
  *     return ApiResponse.error(e.getMessage());
  * }
  * }</pre>
  *
- * <p><b>Why RuntimeException:</b> All auction exceptions are unchecked because they typically
- * represent unrecoverable business rule violations or programming errors.Forcing {@code throws}
- * declarations everywhere would add noise without practical benefit
+ * <p><b>Lý do dùng RuntimeException:</b> Tất cả exception trong đấu giá đều là unchecked vì chúng
+ * thường đại diện cho vi phạm logic nghiệp vụ hoặc lỗi lập trình. Việc bắt buộc khai báo {@code
+ * throws} sẽ làm code rườm rà mà không mang lại lợi ích thực tế
  */
 package com.auction.exception;
