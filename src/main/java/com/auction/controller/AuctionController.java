@@ -218,18 +218,19 @@ public class AuctionController {
   }
 
   /**
-   * Xóa / hủy phiên đấu giá — SELLER sở hữu phiên hoặc ADMIN.
+   * Hủy phiên đấu giá — SELLER sở hữu phiên hoặc ADMIN.
    *
    * <p>Logic phân quyền:
    *
    * <ul>
-   *   <li>Role {@code ADMIN} → có thể hủy bất kỳ phiên nào (kể cả đang RUNNING).
-   *   <li>Role {@code SELLER} → chỉ hủy được phiên của mình khi status = OPEN.
+   *   <li>Role {@code ADMIN} → có thể hủy bất kỳ phiên nào ở mọi trạng thái.
+   *   <li>Role {@code SELLER} → chỉ hủy được phiên của chính mình khi status là {@code OPEN} hoặc
+   *       {@code RUNNING} (cho phép hủy trong trường hợp bất khả kháng).
    *   <li>Role {@code BIDDER} → không được phép → {@code UnauthorizedException}.
    * </ul>
    *
-   * <p>Lưu ý: Hệ thống không xóa cứng (hard delete) phiên đấu giá có dữ liệu bid để đảm bảo tính
-   * toàn vẹn lịch sử. Thay vào đó, service sẽ chuyển status sang {@code CANCELED}.
+   * <p>Hệ thống không xóa cứng (hard delete) mà chuyển status sang {@code CANCELED} để đảm bảo toàn
+   * vẹn lịch sử bid.
    *
    * @param ctx Javalin context chứa HTTP request/response
    * @param auctionService service xử lý hủy phiên đấu giá

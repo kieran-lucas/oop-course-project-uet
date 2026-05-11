@@ -197,8 +197,23 @@ public class AuctionService {
   }
 
   /**
-   * Xóa phiên đấu giá (delegate sang deleteAuction với tên ngắn hơn). Không cho phép xóa phiên đang
-   * RUNNING.
+   * Hủy phiên đấu giá (soft delete — chuyển status sang CANCELED).
+   *
+   * <p>Phân quyền:
+   *
+   * <ul>
+   *   <li>ADMIN → hủy được bất kỳ phiên nào ở mọi trạng thái.
+   *   <li>SELLER → chỉ hủy phiên của chính mình, khi status là OPEN hoặc RUNNING (trường hợp bất
+   *       khả kháng).
+   *   <li>Các role khác → {@link UnauthorizedException}.
+   * </ul>
+   *
+   * @param auctionId ID phiên cần hủy
+   * @param userId ID người thực hiện (từ JWT)
+   * @param role role của người thực hiện ("ADMIN" hoặc "SELLER")
+   * @throws NotFoundException nếu auction không tồn tại
+   * @throws UnauthorizedException nếu SELLER cố hủy phiên của người khác, hoặc role không hợp lệ
+   * @throws IllegalStateException nếu SELLER cố hủy phiên đã FINISHED / PAID / CANCELED
    */
   public void delete(Long auctionId, Long userId, String role) {
     Auction auction =
@@ -206,17 +221,16 @@ public class AuctionService {
             .findById(auctionId)
             .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
 
-    // 2. Logic dành riêng cho ADMIN: Được hủy bất chấp mọi trạng thái
+    // ADMIN: được hủy bất chấp mọi trạng thái
     if ("ADMIN".equals(role)) {
       auction.setStatus("CANCELED");
-      auctionDao.update(auction); // Soft Delete
-      LOGGER.info("ADMIN (userId={}) đã cưỡng chế hủy phiên đấu giá {}", userId, auctionId);
+      auctionDao.update(auction);
+      LOGGER.info("ADMIN (userId={}) đã cưỡng chế hủy phiên đấu giá #{}", userId, auctionId);
       return;
     }
 
-    // 3. Logic dành riêng cho SELLER: Phải kiểm tra chính chủ và trạng thái OPEN
+    // SELLER: chỉ hủy phiên của chính mình, khi status = OPEN hoặc RUNNING
     if ("SELLER".equals(role)) {
-
       Long actualSellerId = auction.getSellerId();
       if (actualSellerId == null) {
         Item item =
@@ -226,29 +240,29 @@ public class AuctionService {
         actualSellerId = item.getSellerId();
       }
 
-      // Kiểm tra xem user đang đăng nhập có phải chủ món đồ không
       if (!actualSellerId.equals(userId)) {
         throw new UnauthorizedException("Bạn không có quyền hủy phiên đấu giá của người khác!");
       }
 
-      // Kiểm tra trạng thái
       String status = auction.getStatus();
-      if ("RUNNING".equals(status)) {
-        throw new RuntimeException("Không thể xóa phiên đang RUNNING");
+      if (!"OPEN".equals(status) && !"RUNNING".equals(status)) {
+        throw new IllegalStateException(
+            "Chỉ có thể hủy phiên đấu giá khi đang ở trạng thái OPEN hoặc RUNNING."
+                + " Trạng thái hiện tại: "
+                + status);
       }
 
-      if (!"OPEN".equals(status)) {
-        throw new IllegalStateException("Chỉ có thể hủy phiên đấu giá khi đang ở trạng thái OPEN.");
-      }
-
-      // Đổi trạng thái sang CANCELED
       auction.setStatus("CANCELED");
       auctionDao.update(auction);
-      LOGGER.info("SELLER (userId={}) đã tự hủy phiên đấu giá {}", userId, auctionId);
+      LOGGER.info(
+          "SELLER (userId={}) đã hủy phiên đấu giá #{} (trạng thái trước: {})",
+          userId,
+          auctionId,
+          status);
       return;
     }
 
-    // 4. Nếu lọt xuống đây (ví dụ role là BIDDER) thì chặn lại lập tức
+    // Các role khác (BIDDER, ...) không được phép
     throw new UnauthorizedException("Bạn không có quyền thực hiện thao tác này.");
   }
 
