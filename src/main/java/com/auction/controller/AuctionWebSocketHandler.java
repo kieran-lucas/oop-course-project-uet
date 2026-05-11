@@ -230,6 +230,7 @@ public class AuctionWebSocketHandler {
   public void notifyBalanceUpdate(Long userId, BigDecimal newBalance, boolean approved) {
     Set<WsContext> sessions = userConnections.get(userId);
     if (sessions == null || sessions.isEmpty()) {
+      LOGGER.warn("notifyBalanceUpdate: userId={} không có WS session, bỏ qua.", userId);
       return;
     }
     try {
