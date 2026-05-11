@@ -1,56 +1,56 @@
 package com.auction.exception;
 
 /**
- * Base class for all custom exceptions in the auction domain
+ * Base class cho tất cả custom exception trong auction domain.
  *
- * <p>All domain-specific exceptions ({@link InvalidBidException}, {@link AuctionClosedException},
- * {@link NotFoundException}, {@link DuplicateException}, {@link UnauthorizedException}) extend this
- * class to allow callers to catch all auction-related exceptions with a single catch block:
+ * <p>Tất cả exception nghiệp vụ ({@link InvalidBidException}, {@link AuctionClosedException},
+ * {@link NotFoundException}, {@link DuplicateException}, {@link UnauthorizedException}) đều kế thừa
+ * class này, cho phép caller bắt toàn bộ auction exception chỉ với một catch block:
  *
  * <pre>{@code
  * try {
  *     auctionService.placeBid(bid);
  * } catch (AuctionException e) {
- *     // handles all custom exceptions in com.auction.exception
+ *     // bắt được tất cả custom exception trong com.auction.exception
  *     log.error("Auction operation failed: {}", e.getMessage(), e);
  *     return errorResponse(e);
  * }
  * }</pre>
  *
- * <p>This class is {@code abstract} — instantiate one of its concrete subclasses instead.
+ * <p>Class này là {@code abstract} — chỉ khởi tạo các subclass cụ thể của nó.
  *
- * <p>Extending {@link RuntimeException} (rather than checked {@link Exception}) is intentional:
- * auction errors typically indicate violated business rules or programming errors that callers
- * cannot reasonably recover from at every call site, so forcing {@code throws} declarations
- * everywhere would add noise without value.
+ * <p>Kế thừa {@link RuntimeException} (thay vì checked {@link Exception}) là có chủ đích: các
+ * auction exception thường biểu thị vi phạm nghiệp vụ hoặc lỗi lập trình mà caller không thể xử lý
+ * hợp lý tại mọi call site — bắt buộc khai báo {@code throws} khắp nơi chỉ thêm nhiễu mà không mang
+ * lại giá trị thực tế.
  */
 public abstract class AuctionException extends RuntimeException {
 
   private static final long serialVersionUID = 1L;
 
   /**
-   * Constructs a new AuctionException with the specified detail message
+   * Khởi tạo AuctionException với message mô tả lỗi.
    *
-   * @param message the detail message; should describe the business rule violated
+   * @param message mô tả business rule bị vi phạm
    */
   protected AuctionException(String message) {
     super(message);
   }
 
   /**
-   * Constructs a new AuctionException with the specified detail message and cause
+   * Khởi tạo AuctionException với message và nguyên nhân gốc.
    *
-   * @param message the detail message; should describe the business rule violated
-   * @param cause the underlying exception that triggered this one (e.g., SQLException)
+   * @param message mô tả business rule bị vi phạm
+   * @param cause exception gốc dẫn đến lỗi này (ví dụ: SQLException)
    */
   protected AuctionException(String message, Throwable cause) {
     super(message, cause);
   }
 
   /**
-   * Returns a string representation suitable for logging: {@code [SimpleClassName] message}
+   * Trả về chuỗi mô tả phù hợp để ghi log: {@code [TênClass] message}
    *
-   * @return formatted exception representation
+   * @return chuỗi mô tả exception
    */
   @Override
   public String toString() {
