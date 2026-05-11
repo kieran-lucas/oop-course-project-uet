@@ -38,7 +38,34 @@ import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Controller cho màn hình danh sách phiên đấu giá (auction-list.fxml). */
+/**
+ * Controller cho màn hình danh sách phiên đấu giá (auction-list.fxml).
+ *
+ * <p><b>Mục đích:</b> Màn hình chính của BIDDER và SELLER sau khi đăng nhập. Hiển thị toàn bộ phiên
+ * đấu giá dạng bảng, hỗ trợ lọc theo từ khóa, trạng thái và danh mục. Tự động làm mới dữ liệu mỗi
+ * 10 giây và cập nhật đồng hồ đếm ngược mỗi giây.
+ *
+ * <p><b>Các tính năng:</b>
+ *
+ * <ul>
+ *   <li>SELLER thấy nút "Tạo phiên" và nút Hủy (có thể dùng khi phiên ở trạng thái OPEN/RUNNING).
+ *   <li>BIDDER thấy chuông thông báo với badge đếm số thông báo chưa đọc từ {@link
+ *       NotificationStore}.
+ *   <li>Poll số dư tài khoản mỗi 5 giây (silent fallback; nguồn chính là WebSocket).
+ * </ul>
+ *
+ * <p><b>Các phương thức chính:</b>
+ *
+ * <ul>
+ *   <li>{@link #onNavigatedTo()} — Load phiên, đăng ký listener thông báo, khởi động auto-refresh.
+ *   <li>{@link #handleSearch()} — Lọc bảng phía client theo keyword/status/category.
+ *   <li>{@link #handleBellClick()} — Mở popup danh sách thông báo và đánh dấu đã đọc.
+ *   <li>{@link #loadAuctions()} — Gọi {@code GET /api/auctions} và cập nhật bảng.
+ * </ul>
+ *
+ * <p><b>Vị trí trong kiến trúc:</b> Trung tâm điều hướng của người dùng thường — từ đây có thể vào
+ * chi tiết phiên ({@link AuctionDetailController}), tạo phiên, hoặc hồ sơ cá nhân.
+ */
 public class AuctionListController implements Navigable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionListController.class);
@@ -72,6 +99,7 @@ public class AuctionListController implements Navigable {
 
   // ========== JAVAFX INITIALIZE ==========
 
+  /** Khởi tạo cấu hình các cột bảng và bộ lọc trạng thái — gọi một lần sau khi FXML được load. */
   @FXML
   public void initialize() {
     setupColumns();
@@ -80,6 +108,15 @@ public class AuctionListController implements Navigable {
 
   // ========== NAVIGABLE LIFECYCLE ==========
 
+  /**
+   * Được gọi mỗi khi điều hướng đến màn hình này. Thực hiện:
+   *
+   * <ol>
+   *   <li>Hiển thị username và ẩn/hiện nút tạo phiên theo role.
+   *   <li>Hiển thị chuông thông báo và đăng ký listener badge cho BIDDER/SELLER.
+   *   <li>Load danh sách phiên, khởi động auto-refresh, countdown và poll số dư.
+   * </ol>
+   */
   @Override
   public void onNavigatedTo() {
     SceneManager sm = SceneManager.getInstance();
@@ -112,6 +149,10 @@ public class AuctionListController implements Navigable {
     startBalancePoll();
   }
 
+  /**
+   * Dừng toàn bộ Timeline (auto-refresh, countdown, poll số dư) và hủy listener thông báo để tránh
+   * callback rò rỉ khi không còn ở màn hình này.
+   */
   @Override
   public void onNavigatedFrom() {
     stopAutoRefresh();
@@ -125,6 +166,10 @@ public class AuctionListController implements Navigable {
 
   // ========== FXML ACTIONS ==========
 
+  /**
+   * Lọc bảng phía client theo ba tiêu chí kết hợp: từ khóa tên sản phẩm, trạng thái phiên, và danh
+   * mục sản phẩm. Không gọi lại server — lọc trực tiếp trên {@code allAuctions}.
+   */
   @FXML
   public void handleSearch() {
     String keyword = searchField.getText().trim().toLowerCase();
@@ -152,21 +197,25 @@ public class AuctionListController implements Navigable {
     auctionTable.setItems(FXCollections.observableArrayList(filtered));
   }
 
+  /** Tải lại danh sách phiên từ server và reset bộ lọc theo kết quả mới. */
   @FXML
   public void handleRefresh() {
     loadAuctions();
   }
 
+  /** Chuyển sang màn hình tạo phiên đấu giá (chỉ SELLER). */
   @FXML
   public void handleCreateAuction() {
     SceneManager.getInstance().navigateTo("create-auction.fxml");
   }
 
+  /** Chuyển sang màn hình hồ sơ cá nhân. */
   @FXML
   public void handleProfile() {
     SceneManager.getInstance().navigateTo("profile.fxml");
   }
 
+  /** Dừng auto-refresh và đăng xuất về màn hình chào mừng. */
   @FXML
   public void handleLogout() {
     stopAutoRefresh();
@@ -175,6 +224,11 @@ public class AuctionListController implements Navigable {
 
   // ========== DATA LOADING ==========
 
+  /**
+   * Tải toàn bộ phiên đấu giá từ {@code GET /api/auctions} trên luồng nền. Sau khi nhận kết quả:
+   * cập nhật {@code allAuctions}, làm mới bộ lọc danh mục, áp lại bộ lọc hiện tại và cập nhật
+   * statusLabel với tổng số phiên.
+   */
   public void loadAuctions() {
     setStatus("Đang tải dữ liệu...");
     Thread.ofVirtual()
@@ -202,6 +256,10 @@ public class AuctionListController implements Navigable {
             });
   }
 
+  /**
+   * Xử lý click chuông thông báo: đánh dấu tất cả thông báo đã đọc, cập nhật badge về 0, rồi mở
+   * Popup hiển thị tối đa 8 thông báo gần nhất. Popup tự đóng khi click ra ngoài.
+   */
   @FXML
   public void handleBellClick() {
     NotificationStore store = NotificationStore.getInstance();
@@ -265,6 +323,10 @@ public class AuctionListController implements Navigable {
 
   // ========== PRIVATE HELPERS ==========
 
+  /**
+   * Cập nhật badge số thông báo chưa đọc trên icon chuông. Ẩn badge khi không có thông báo mới;
+   * hiển thị tối đa "99+" để tránh tràn layout.
+   */
   private void updateBadge() {
     if (badgeLabel == null) {
       return;
@@ -280,6 +342,11 @@ public class AuctionListController implements Navigable {
     }
   }
 
+  /**
+   * Cập nhật danh sách tùy chọn của bộ lọc danh mục dựa trên dữ liệu phiên hiện tại. Luôn giữ các
+   * danh mục cố định (ART, ELECTRONICS, VEHICLE) và thêm các danh mục động khác nếu có. Bảo toàn
+   * lựa chọn hiện tại của người dùng nếu vẫn còn hợp lệ.
+   */
   private void updateCategoryFilter(List<AuctionResponse> auctions) {
     if (categoryFilter == null) {
       return;
@@ -302,6 +369,11 @@ public class AuctionListController implements Navigable {
     }
   }
 
+  /**
+   * Cấu hình các cột bảng phiên đấu giá: tên sản phẩm, danh mục, giá hiện tại (VND), thời gian còn
+   * lại (đồng hồ đếm ngược hoặc "Đã kết thúc"), màu trạng thái badge, và cột hành động (nút Xem +
+   * nút Hủy có điều kiện theo role/trạng thái phiên).
+   */
   private void setupColumns() {
     itemCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
     categoryCol.setCellValueFactory(new PropertyValueFactory<>("itemCategory"));
@@ -477,12 +549,17 @@ public class AuctionListController implements Navigable {
             });
   }
 
+  /** Khởi tạo danh sách tùy chọn cho bộ lọc trạng thái phiên đấu giá. */
   private void setupStatusFilter() {
     statusFilter.setItems(
         FXCollections.observableArrayList(
             "Tất cả", "OPEN", "RUNNING", "FINISHED", "CANCELED", "PAID"));
   }
 
+  /**
+   * Khởi động Timeline tự động tải lại danh sách phiên mỗi 10 giây. Gọi {@link #stopAutoRefresh()}
+   * trước để tránh nhiều Timeline chạy song song.
+   */
   private void startAutoRefresh() {
     stopAutoRefresh();
     autoRefreshTimeline = new Timeline(new KeyFrame(Duration.seconds(10), e -> loadAuctions()));
@@ -490,6 +567,7 @@ public class AuctionListController implements Navigable {
     autoRefreshTimeline.play();
   }
 
+  /** Dừng và hủy Timeline auto-refresh nếu đang chạy. */
   private void stopAutoRefresh() {
     if (autoRefreshTimeline != null) {
       autoRefreshTimeline.stop();
@@ -497,6 +575,10 @@ public class AuctionListController implements Navigable {
     }
   }
 
+  /**
+   * Khởi động Timeline gọi {@code auctionTable.refresh()} mỗi giây để cột thời gian còn lại tự tính
+   * lại từ {@code endTime} mà không cần request server.
+   */
   private void startTableCountdown() {
     stopTableCountdown();
     tableCountdownTimeline =
@@ -505,6 +587,7 @@ public class AuctionListController implements Navigable {
     tableCountdownTimeline.play();
   }
 
+  /** Dừng và hủy Timeline refresh bảng nếu đang chạy. */
   private void stopTableCountdown() {
     if (tableCountdownTimeline != null) {
       tableCountdownTimeline.stop();
@@ -512,6 +595,11 @@ public class AuctionListController implements Navigable {
     }
   }
 
+  /**
+   * Khởi động poll số dư tài khoản mỗi 5 giây — chỉ dành cho BIDDER. Số dư được lưu vào {@code
+   * lastKnownBalance} để làm fallback kiểm tra đủ tiền trước khi bid. Không thêm thông báo vào
+   * NotificationStore; nguồn chính là UserBalanceWatcher (WebSocket).
+   */
   private void startBalancePoll() {
     stopBalancePoll();
     if (!"BIDDER".equals(SceneManager.getInstance().getCurrentRole())) {
@@ -565,6 +653,7 @@ public class AuctionListController implements Navigable {
     balancePollTimeline.play();
   }
 
+  /** Dừng và hủy Timeline poll số dư nếu đang chạy. */
   private void stopBalancePoll() {
     if (balancePollTimeline != null) {
       balancePollTimeline.stop();
@@ -572,6 +661,7 @@ public class AuctionListController implements Navigable {
     }
   }
 
+  /** Hiển thị thông báo trạng thái ở thanh dưới bảng (số phiên, lỗi kết nối, v.v.). */
   private void setStatus(String text) {
     statusLabel.setText(text);
     statusLabel.setVisible(true);
