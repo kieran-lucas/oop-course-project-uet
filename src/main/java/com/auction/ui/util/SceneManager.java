@@ -6,7 +6,10 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -76,6 +79,9 @@ public class SceneManager {
   /** Tên FXML đang hiển thị hiện tại — dùng để gọi onNavigatedFrom() */
   private String currentFxml;
 
+  /** Badge thông báo toàn cục — hiển thị trên mọi màn hình trừ auction-list (có bell riêng). */
+  private Label globalBadgeLabel;
+
   /** Stack lịch sử điều hướng — dùng cho navigateBack() */
   private final Deque<String> backStack = new ArrayDeque<>();
 
@@ -103,6 +109,45 @@ public class SceneManager {
     }
 
     primaryStage.setScene(scene);
+    setupGlobalNotificationBadge();
+  }
+
+  // ========== GLOBAL NOTIFICATION BADGE ==========
+
+  /**
+   * Khởi tạo badge thông báo toàn cục, đặt góc trên-phải của rootContainer.
+   *
+   * <p>Badge này luôn active ở mọi màn hình. Riêng "auction-list.fxml" đã có bell button riêng nên
+   * badge toàn cục sẽ tự ẩn khi đang ở màn hình đó.
+   */
+  private void setupGlobalNotificationBadge() {
+    globalBadgeLabel = new Label();
+    globalBadgeLabel.getStyleClass().add("notification-badge");
+    StackPane.setAlignment(globalBadgeLabel, Pos.TOP_RIGHT);
+    StackPane.setMargin(globalBadgeLabel, new Insets(10, 10, 0, 0));
+    globalBadgeLabel.setVisible(false);
+    globalBadgeLabel.setManaged(false);
+    rootContainer.getChildren().add(globalBadgeLabel);
+
+    ChangeListener<Number> listener = (obs, oldVal, newVal) -> updateGlobalBadge(newVal.intValue());
+    com.auction.util.NotificationStore.getInstance().unreadCountProperty().addListener(listener);
+  }
+
+  /** Cập nhật trạng thái badge toàn cục. Ẩn khi đang ở auction-list (màn hình đó có bell riêng). */
+  private void updateGlobalBadge(int count) {
+    if ("auction-list.fxml".equals(currentFxml)) {
+      globalBadgeLabel.setVisible(false);
+      globalBadgeLabel.setManaged(false);
+      return;
+    }
+    if (count > 0) {
+      globalBadgeLabel.setText(count > 99 ? "99+" : String.valueOf(count));
+      globalBadgeLabel.setVisible(true);
+      globalBadgeLabel.setManaged(true);
+    } else {
+      globalBadgeLabel.setVisible(false);
+      globalBadgeLabel.setManaged(false);
+    }
   }
 
   // ========== NAVIGATION — CORE ==========
@@ -181,6 +226,9 @@ public class SceneManager {
     }
 
     LOGGER.debug("Navigated to: {}", fxmlName);
+
+    // Đồng bộ global badge sau mỗi lần chuyển màn hình
+    updateGlobalBadge(com.auction.util.NotificationStore.getInstance().getUnreadCount());
   }
 
   // ========== FXML LOADING ==========
@@ -252,6 +300,8 @@ public class SceneManager {
     backStack.clear();
     com.auction.util.BackgroundBidWatcher.getInstance().stopAll();
     com.auction.util.NotificationStore.getInstance().clear();
+    globalBadgeLabel.setVisible(false);
+    globalBadgeLabel.setManaged(false);
 
     // Xóa cache các view cần auth, giữ lại welcome + login + register
     viewCache
