@@ -70,16 +70,22 @@ public class ProfileController implements Navigable {
     }
   }
 
+  /** Chuyển sang màn hình đổi mật khẩu. */
   @FXML
   public void goToChangePassword() {
     SceneManager.getInstance().navigateTo("change-password.fxml");
   }
 
+  /** Chuyển sang màn hình nạp tiền (chỉ hiện với BIDDER). */
   @FXML
   public void goToDeposit() {
     SceneManager.getInstance().navigateTo("deposit.fxml");
   }
 
+  /**
+   * Đăng xuất: ngắt kết nối WebSocket số dư, dừng toàn bộ BackgroundBidWatcher, rồi trả về màn hình
+   * chào mừng qua SceneManager.
+   */
   @FXML
   public void handleLogout() {
     // Dừng kết nối WebSocket user trước khi logout
@@ -88,11 +94,16 @@ public class ProfileController implements Navigable {
     SceneManager.getInstance().logout();
   }
 
+  /** Quay về màn hình danh sách phiên đấu giá. */
   @FXML
   public void goBack() {
     SceneManager.getInstance().navigateBack("auction-list.fxml");
   }
 
+  /**
+   * Hủy đăng ký callback số dư khi rời khỏi màn hình để tránh cập nhật UI khi ProfileController
+   * không còn được hiển thị.
+   */
   @Override
   public void onNavigatedFrom() {
     // Hủy listener để tránh cập nhật UI khi không còn ở màn hình này
@@ -111,6 +122,10 @@ public class ProfileController implements Navigable {
     }
   }
 
+  /**
+   * Tải số dư tài khoản từ {@code GET /api/users/me} trên luồng nền và cập nhật {@code
+   * profileBalanceLabel}. Chỉ gọi khi role là BIDDER hoặc SELLER.
+   */
   private void loadBalance() {
     Thread.ofVirtual()
         .start(
