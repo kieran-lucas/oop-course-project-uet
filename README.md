@@ -535,58 +535,96 @@ auction-system/
 │   └── workflows/
 │       └── ci.yml                        ← Pipeline: format → lint → test → coverage
 │
-├── .githooks/pre-commit                  ← Auto spotlessApply before every commit
+├── .githooks/
+│   └── pre-commit                        ← Auto spotlessApply before every commit
+│
+├── .gradle/                              ← Gradle cache (ignore)
+│   ├── 8.12.1/
+│   └── buildOutputCleanup/
+│
+├── assets/                               ← Documentation screenshots
+│   ├── app-screenshot.png
+│   ├── grading-rubric.png
+│   └── screenshots/
+│       ├── admin.png
+│       ├── auction-detail.png
+│       ├── auction-list.png
+│       └── login.png
+│
+├── build/                                ← Build artifacts (ignore)
+│
 ├── build.gradle.kts                      ← All dependencies + plugins
-├── config/checkstyle/checkstyle.xml      ← Google Java Style rules
+├── gradle/
+│   └── wrapper/
+│       ├── gradle-wrapper.jar
+│       └── gradle-wrapper.properties
+│
+├── gradlew
+├── gradlew.bat
+├── settings.gradle.kts
+├── .editorconfig
+├── .env
+├── .gitignore
 │
 └── src/
-    ├── main/java/com/auction/
-    │   ├── App.java                      ← Server entry: Javalin + routes + exception handlers
-    │   ├── ClientApp.java                ← Client entry: JavaFX Application
-    │   ├── Launcher.java                 ← Fat JAR wrapper (bypasses JavaFX module path)
+    ├── main/
+    │   ├── java/com/auction/
+    │   │   ├── App.java                  ← Server entry: Javalin + routes + exception handlers
+    │   │   ├── ClientApp.java            ← Client entry: JavaFX Application
+    │   │   ├── Launcher.java             ← Fat JAR wrapper (bypasses JavaFX module path)
+    │   │   │
+    │   │   ├── model/                    ← 15 domain classes (Admin, Art, Auction, AutoBidConfig, Bidder, BidTransaction, DepositRecord, Electronics, Entity, Item, PasswordResetRecord, Seller, User, Vehicle)
+    │   │   │
+    │   │   ├── dto/                      ← 13 request/response transfer objects
+    │   │   │
+    │   │   ├── controller/               ← 5 server-side handlers (AuctionController, AuctionWebSocketHandler, AuthController, BidController, ItemController)
+    │   │   │
+    │   │   ├── service/
+    │   │   │   ├── BidService.java       ← ★ jdbi.inTransaction + SELECT FOR UPDATE
+    │   │   │   ├── AuctionService.java
+    │   │   │   ├── UserService.java
+    │   │   │   ├── ItemService.java
+    │   │   │   ├── AuctionScheduler.java ← ScheduledExecutorService: state transitions
+    │   │   │   └── PasswordResetService.java
+    │   │   │
+    │   │   ├── dao/                      ← 7 DAOs (AuctionDao, AutoBidConfigDao, BidTransactionDao, DepositRequestDao, ItemDao, PasswordResetRequestDao, UserDao)
+    │   │   │
+    │   │   ├── pattern/
+    │   │   │   ├── observer/             ← AuctionEventListener, AuctionEventManager, WebSocketObserver (3 files)
+    │   │   │   ├── factory/              ← ItemFactory (1 file)
+    │   │   │   ├── strategy/             ← AutoBidStrategy, BidStrategy, ManualBidStrategy (3 files)
+    │   │   │   └── state/                ← AuctionState, CanceledState, FinishedState, OpenState, PaidState, RunningState (6 files)
+    │   │   │
+    │   │   ├── exception/                ← AuctionClosedException, AuctionException, DuplicateException, InvalidBidException, NotFoundException, UnauthorizedException, package-info.java (7 files)
+    │   │   │
+    │   │   ├── middleware/               ← JwtMiddleware (1 file)
+    │   │   │
+    │   │   ├── config/                   ← DatabaseConfig, JwtUtil (2 files)
+    │   │   │
+    │   │   ├── ui/
+    │   │   │   ├── controller/           ← 12 JavaFX screen controllers (AdminPanelController, AuctionDetailController, AuctionListController, ChangePasswordController, CreateAuctionController, CreateItemController, DepositController, ForgotPasswordController, LoginController, ProfileController, RegisterController, WelcomeController)
+    │   │   │   │   └── AuctionDetailController.java ← ★ WebSocket + LineChart + countdown
+    │   │   │   └── util/                 ← Navigable (interface), SceneManager (singleton)
+    │   │   │
+    │   │   └── util/                     ← BackgroundBidWatcher, NotificationStore, RestClient, UserBalanceWatcher, WebSocketClient (5 files)
     │   │
-    │   ├── model/                        ← 14 domain classes (Entity hierarchy)
-    │   ├── dto/                          ← 13 request/response transfer objects
-    │   │
-    │   ├── controller/                   ← 5 server-side handlers (REST + WebSocket)
-    │   │
-    │   ├── service/
-    │   │   ├── BidService.java           ← ★ jdbi.inTransaction + SELECT FOR UPDATE
-    │   │   ├── AuctionService.java
-    │   │   ├── UserService.java
-    │   │   ├── ItemService.java
-    │   │   ├── AuctionScheduler.java     ← ScheduledExecutorService: state transitions
-    │   │   └── PasswordResetService.java
-    │   │
-    │   ├── dao/                          ← 7 DAOs (JDBI 3); AuctionDao has FOR UPDATE
-    │   │
-    │   ├── pattern/
-    │   │   ├── observer/                 ← AuctionEventManager, WebSocketObserver (3 files)
-    │   │   ├── factory/                  ← ItemFactory (1 file)
-    │   │   ├── strategy/                 ← ManualBidStrategy, AutoBidStrategy (3 files)
-    │   │   └── state/                    ← Open/Running/Finished/Paid/Canceled (6 files)
-    │   │
-    │   ├── exception/                    ← AuctionException (abstract) + 5 custom
-    │   ├── middleware/                   ← JwtMiddleware
-    │   ├── config/                       ← DatabaseConfig (HikariCP + JDBI), JwtUtil
-    │   │
-    │   └── ui/
-    │       ├── controller/               ← 12 JavaFX screen controllers
-    │       │   └── AuctionDetailController.java  ← ★ WebSocket + LineChart + countdown
-    │       └── util/                     ← SceneManager (singleton), Navigable (interface)
+    │   └── resources/
+    │       ├── logback.xml
+    │       ├── db/migration/             ← V1__initial_schema.sql, V2__seed_admin.sql, V3__add_balance.sql, V4__deposit_requests.sql, V5__password_reset_requests.sql, V6__notifications.sql
+    │       ├── ui/fxml/                  ← 12 FXML screens (admin-panel.fxml, auction-detail.fxml, auction-list.fxml, change-password.fxml, create-auction.fxml, create-item.fxml, deposit.fxml, forgot-password.fxml, login.fxml, profile.fxml, register.fxml, welcome.fxml)
+    │       ├── css/style.css             ← Blue theme: #1565C0 primary · #EFF6FF bg
+    │       ├── fonts/                    ← Lexend (9 weights: Black, Bold, ExtraBold, ExtraLight, Light, Medium, Regular, SemiBold, Thin)
+    │       └── icons/                    ← auction.png, auctionpic.png, businessman.png, computer.png, seller.png, settings.png (6 PNG)
     │
-    ├── main/resources/
-    │   ├── db/migration/                 ← V1–V5 Flyway SQL (7 tables)
-    │   ├── ui/fxml/                      ← 12 FXML screens
-    │   ├── css/style.css                 ← Blue theme: #1565C0 primary · #EFF6FF bg
-    │   ├── fonts/                        ← Lexend (9 weights)
-    │   └── icons/                        ← App icons (6 PNG)
-    │
-    └── test/java/com/auction/            ← 17 test files
-        ├── service/                      ← BidServiceTest ★ · UserServiceTest · AuctionServiceTest
-        ├── dao/                          ← 5 integration tests (real PostgreSQL)
-        ├── exception/                    ← 5 exception hierarchy tests
-        └── config/                       ← DatabaseConfigTest · JwtUtilTest
+    └── test/
+        └── java/com/auction/
+            ├── SetupTest.java
+            ├── config/                   ← DatabaseConfigTest, JwtUtilTest (2 files)
+            ├── dao/                      ← AuctionDaoTest, AutoBidConfigDaoTest, BidTransactionDaoTest, ItemDaoTest, UserDaoTest (5 files)
+            ├── exception/                ← AuctionClosedExceptionTest, DuplicateExceptionTest, InvalidBidExceptionTest, NotFoundExceptionTest, UnauthorizedExceptionTest (5 files)
+            ├── model/                    ← ModelTest (1 file)
+            ├── service/                  ← AuctionServiceTest, BidServiceTest, ItemFactoryTest, UserServiceTest (4 files)
+            └── util/                     ← (empty folder)
 ```
 
 </details>
