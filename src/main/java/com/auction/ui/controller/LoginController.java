@@ -172,7 +172,11 @@ public class LoginController implements Navigable {
 
   // ========== PRIVATE HELPERS ==========
 
-  /** Lưu session và điều hướng đến màn hình phù hợp theo role. */
+  /**
+   * Lưu JWT token, username, role và userId vào SceneManager, khởi động WebSocket số dư (nếu không
+   * phải ADMIN), sau đó điều hướng: ADMIN → admin-panel, còn lại → auction-list. Nếu role không
+   * khớp với cổng đã chọn ở WelcomeController thì hiển thị lỗi và không đăng nhập.
+   */
   private void onLoginSuccess(String token, String role, String username, long userId) {
     // Kiểm tra role thực tế có khớp với cổng đã chọn không
     if (expectedRole != null && !expectedRole.equals(role)) {
@@ -211,17 +215,23 @@ public class LoginController implements Navigable {
     }
   }
 
+  /** Hiển thị thông báo lỗi đăng nhập trên errorLabel. */
   private void showError(String message) {
     errorLabel.setText(message);
     errorLabel.setVisible(true);
     errorLabel.setManaged(true);
   }
 
+  /** Ẩn errorLabel và giải phóng layout space. */
   private void hideError() {
     errorLabel.setVisible(false);
     errorLabel.setManaged(false);
   }
 
+  /**
+   * Xóa trắng form username/password và reset trạng thái nút đăng nhập. Không reset {@code
+   * roleHintLabel} nếu {@code expectedRole} đã được set bởi {@link #onDataReceived(Object)}.
+   */
   private void clearForm() {
     if (usernameField != null) {
       usernameField.clear();
