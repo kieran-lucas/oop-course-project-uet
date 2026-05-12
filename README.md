@@ -77,17 +77,20 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 - [x] **Live Bid History Chart** - JavaFX `LineChart` updated in real time from WebSocket events, no manual refresh needed
 
 
-## 🏛️ Class Diagram
-### 1. Domain Model
+# Class Diagram — Final
+
+## 1. Domain Model
 
 ```mermaid
 classDiagram
     direction LR
+
     class Entity {
         <<abstract>>
         -Long id
         -LocalDateTime createdAt
     }
+
     class User {
         <<abstract>>
         -String username
@@ -104,11 +107,11 @@ classDiagram
     class Admin {
         +getRole() String
     }
+
     class Item {
         <<abstract>>
         -String name
         -String description
-        -Long sellerId
         +getCategory() String
     }
     class Electronics {
@@ -123,18 +126,39 @@ classDiagram
         -int year
         +getCategory() String
     }
+
+    class AuctionStatus {
+        <<enumeration>>
+        OPEN
+        RUNNING
+        FINISHED
+        PAID
+        CANCELED
+    }
+    class DepositStatus {
+        <<enumeration>>
+        PENDING
+        APPROVED
+        REJECTED
+    }
+    class ResetStatus {
+        <<enumeration>>
+        PENDING
+        USED
+        EXPIRED
+    }
+
     class Auction {
         -BigDecimal startingPrice
         -BigDecimal currentPrice
         -LocalDateTime startTime
         -LocalDateTime endTime
-        -String status
+        -AuctionStatus status
     }
     class BidTransaction {
-        -Long auctionId
-        -Long bidderId
         -BigDecimal amount
         -boolean autoBid
+        -LocalDateTime placedAt
     }
     class AutoBidConfig {
         -BigDecimal maxBid
@@ -142,15 +166,14 @@ classDiagram
         -LocalDateTime registeredAt
     }
     class DepositRecord {
-        -Long userId
         -BigDecimal amount
-        -String status
+        -DepositStatus status
     }
     class PasswordResetRecord {
-        -Long userId
         -String token
-        -String status
+        -ResetStatus status
     }
+
     Entity <|-- User
     Entity <|-- Item
     Entity <|-- Auction
@@ -158,181 +181,341 @@ classDiagram
     Entity <|-- AutoBidConfig
     Entity <|-- DepositRecord
     Entity <|-- PasswordResetRecord
+
     User <|-- Bidder
     User <|-- Seller
     User <|-- Admin
+
     Item <|-- Electronics
     Item <|-- Art
     Item <|-- Vehicle
+
+    Auction ..> AuctionStatus : uses
+    DepositRecord ..> DepositStatus : uses
+    PasswordResetRecord ..> ResetStatus : uses
+
+    Seller "1" --> "0..*" Item : owns
+    Auction "1" --> "1" Item : features
+    Auction "1" --> "0..*" BidTransaction : contains
+    Bidder "1" --> "0..*" BidTransaction : places
+    Bidder "1" --> "0..*" AutoBidConfig : configures
+    Auction "1" --> "0..*" AutoBidConfig : has
+    Bidder "1" --> "0..*" DepositRecord : requests
+    User "1" --> "0..*" PasswordResetRecord : requests
 ```
 
 ---
 
-### 2. Exception Hierarchy
+## 2. Exception Hierarchy
 
 ```mermaid
 classDiagram
     direction LR
+
     class RuntimeException
+
     class AuctionException {
         <<abstract>>
         +AuctionException(String message)
         +AuctionException(String message, Throwable cause)
     }
+
+    class NotFoundException {
+        <<abstract>>
+        -String resourceType
+        -Long resourceId
+        +NotFoundException(String resourceType, Long resourceId)
+    }
+    class AuctionNotFoundException {
+        +AuctionNotFoundException(Long auctionId)
+    }
+    class UserNotFoundException {
+        +UserNotFoundException(Long userId)
+    }
+    class ItemNotFoundException {
+        +ItemNotFoundException(Long itemId)
+    }
+
     class AuctionClosedException {
-        +AuctionClosedException(String message)
+        -Long auctionId
+        -AuctionStatus currentStatus
+        +AuctionClosedException(Long auctionId, AuctionStatus currentStatus)
     }
     class InvalidBidException {
-        +InvalidBidException(String message)
+        -BigDecimal attempted
+        -BigDecimal minimum
+        +InvalidBidException(BigDecimal attempted, BigDecimal minimum)
     }
-    class NotFoundException {
-        +NotFoundException(String message)
+    class InsufficientFundsException {
+        -BigDecimal required
+        -BigDecimal available
+        +InsufficientFundsException(BigDecimal required, BigDecimal available)
     }
     class DuplicateException {
-        +DuplicateException(String message)
+        -String resourceType
+        -String conflictingValue
+        +DuplicateException(String resourceType, String conflictingValue)
     }
     class UnauthorizedException {
-        +UnauthorizedException(String message)
+        -String action
+        +UnauthorizedException(String action)
     }
+
     RuntimeException <|-- AuctionException
+    AuctionException <|-- NotFoundException
     AuctionException <|-- AuctionClosedException
     AuctionException <|-- InvalidBidException
-    AuctionException <|-- NotFoundException
+    AuctionException <|-- InsufficientFundsException
     AuctionException <|-- DuplicateException
     AuctionException <|-- UnauthorizedException
+    NotFoundException <|-- AuctionNotFoundException
+    NotFoundException <|-- UserNotFoundException
+    NotFoundException <|-- ItemNotFoundException
 ```
 
 ---
 
-### 3. Design Patterns
+## 3. Design Patterns
 
 ```mermaid
 classDiagram
     direction LR
+
     class AuctionState {
         <<interface>>
-        +placeBid(Auction, Long, BigDecimal) void
+        +placeBid(Auction, Bidder, BigDecimal) void
         +close(Auction) void
         +edit(Auction) void
         +extend(Auction, LocalDateTime) void
     }
     class OpenState {
-        +placeBid() void
+        +placeBid(Auction, Bidder, BigDecimal) void
+        +close(Auction) void
+        +edit(Auction) void
+        +extend(Auction, LocalDateTime) void
     }
     class RunningState {
-        +placeBid() void
+        +placeBid(Auction, Bidder, BigDecimal) void
+        +close(Auction) void
+        +edit(Auction) void
+        +extend(Auction, LocalDateTime) void
     }
     class FinishedState {
-        +placeBid() void
+        +placeBid(Auction, Bidder, BigDecimal) void
+        +close(Auction) void
+        +edit(Auction) void
+        +extend(Auction, LocalDateTime) void
     }
     class PaidState {
-        +placeBid() void
+        +placeBid(Auction, Bidder, BigDecimal) void
+        +close(Auction) void
+        +edit(Auction) void
+        +extend(Auction, LocalDateTime) void
     }
     class CanceledState {
-        +placeBid() void
+        +placeBid(Auction, Bidder, BigDecimal) void
+        +close(Auction) void
+        +edit(Auction) void
+        +extend(Auction, LocalDateTime) void
     }
+    class Auction {
+        -AuctionState state
+        +setState(AuctionState) void
+        +placeBid(Bidder, BigDecimal) void
+    }
+
     AuctionState <|.. OpenState
     AuctionState <|.. RunningState
     AuctionState <|.. FinishedState
     AuctionState <|.. PaidState
     AuctionState <|.. CanceledState
+    Auction --> AuctionState : delegates to
+
     class BidStrategy {
         <<interface>>
-        +execute(Auction, Long, BigDecimal, boolean) void
+        +execute(Auction, Bidder, BigDecimal, boolean) void
     }
     class ManualBidStrategy {
-        +execute() void
+        +execute(Auction, Bidder, BigDecimal, boolean) void
     }
     class AutoBidStrategy {
         -PriorityQueue~AutoBidConfig~ queue
-        +execute() void
+        +execute(Auction, Bidder, BigDecimal, boolean) void
     }
+    class BidService {
+        -BidStrategy strategy
+        -AuctionEventManager eventManager
+        +setStrategy(BidStrategy) void
+        +bid(Auction, Bidder, BigDecimal, boolean) void
+    }
+
     BidStrategy <|.. ManualBidStrategy
     BidStrategy <|.. AutoBidStrategy
+    BidService --> BidStrategy : uses
+    BidService --> AuctionEventManager : notifies
+
     class AuctionEventListener {
         <<interface>>
-        +onBidUpdate() void
-        +onTimeExtended() void
-        +onAuctionEnd() void
+        +onBidUpdate(BidTransaction) void
+        +onTimeExtended(LocalDateTime) void
+        +onAuctionEnd(Auction) void
     }
     class AuctionEventManager {
-        -Map~Long_List~ listeners
-        +subscribe() void
-        +unsubscribe() void
-        +notifyBidUpdate() void
+        <<singleton>>
+        -Map~Long, List~AuctionEventListener~~ listeners
+        +getInstance() AuctionEventManager
+        +subscribe(Long auctionId, AuctionEventListener) void
+        +unsubscribe(Long auctionId, AuctionEventListener) void
+        +notifyBidUpdate(Long auctionId, BidTransaction) void
+        +notifyTimeExtended(Long auctionId, LocalDateTime) void
+        +notifyAuctionEnd(Long auctionId, Auction) void
     }
     class WebSocketObserver {
         -WsContext session
-        +onBidUpdate() void
-        +onTimeExtended() void
-        +onAuctionEnd() void
+        -AuctionEventManager eventManager
+        +subscribe(Long auctionId) void
+        +unsubscribe(Long auctionId) void
+        +onBidUpdate(BidTransaction) void
+        +onTimeExtended(LocalDateTime) void
+        +onAuctionEnd(Auction) void
+    }
+
+    class CreateItemRequest {
+        <<DTO>>
+        +String name
+        +String description
+        +String category
+        +Map~String, Object~ attributes
     }
     class ItemFactory {
-        +create(CreateItemRequest, Long) Item
+        +create(CreateItemRequest, Seller) Item
     }
+
     AuctionEventListener <|.. WebSocketObserver
-    AuctionEventManager o-- AuctionEventListener
+    AuctionEventManager o-- AuctionEventListener : notifies
+    WebSocketObserver --> AuctionEventManager : subscribes to
+    ItemFactory ..> CreateItemRequest : uses
     ItemFactory ..> Item : creates
 ```
 
 ---
 
-### 4. UI Layer
+## 4. UI Layer
 
 ```mermaid
 classDiagram
     direction LR
+
     class Application
     class ClientApp {
         +start(Stage) void
         +main(String[]) void
     }
     Application <|-- ClientApp
+
     class Navigable {
         <<interface>>
         +onNavigatedTo(Object data) void
     }
     class SceneManager {
+        <<singleton>>
         -Stage primaryStage
         +getInstance() SceneManager
-        +navigateTo(String, Object) void
+        +navigateTo(String fxmlPath, Object data) void
     }
+
+    class ApiClient {
+        <<singleton>>
+        -String baseUrl
+        -String authToken
+        +getInstance() ApiClient
+        +get(String path) Response
+        +post(String path, Object body) Response
+        +put(String path, Object body) Response
+        +delete(String path) Response
+        +setAuthToken(String token) void
+        +clearAuthToken() void
+    }
+
+    class WebSocketClient {
+        -WsSession session
+        -List~AuctionEventListener~ listeners
+        +connect(Long auctionId) void
+        +disconnect() void
+        +addListener(AuctionEventListener) void
+        +removeListener(AuctionEventListener) void
+        +onMessage(String msg) void
+    }
+
     class LoginController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +handleLogin() void
     }
     class RegisterController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +handleRegister() void
     }
     class AuctionListController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +loadAuctions() void
+        +handleSearch(String keyword) void
+        +handleFilter(String category) void
     }
     class AuctionDetailController {
+        -ApiClient apiClient
         -WebSocketClient wsClient
+        +onNavigatedTo(Object data) void
         +handleBid() void
         +handleAutoBid() void
+        +handleExtend() void
+        +onBidUpdate(BidTransaction) void
+        +onTimeExtended(LocalDateTime) void
+        +onAuctionEnd(Auction) void
     }
     class CreateAuctionController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +handleCreate() void
+        +handleCancel() void
     }
     class CreateItemController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +handleCreate() void
     }
     class AdminPanelController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +loadUsers() void
         +approveDeposit() void
+        +banUser() void
     }
     class ProfileController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +loadProfile() void
+        +handleEdit() void
     }
     class DepositController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +handleDeposit() void
     }
     class ChangePasswordController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +handleChange() void
     }
     class ForgotPasswordController {
+        -ApiClient apiClient
+        +onNavigatedTo(Object data) void
         +handleRequest() void
+        +handleReset(String token) void
     }
+
     Navigable <|.. LoginController
     Navigable <|.. RegisterController
     Navigable <|.. AuctionListController
@@ -344,8 +527,24 @@ classDiagram
     Navigable <|.. DepositController
     Navigable <|.. ChangePasswordController
     Navigable <|.. ForgotPasswordController
-```
 
+    AuctionEventListener <|.. AuctionDetailController
+    SceneManager --> Navigable : navigates to
+    AuctionDetailController --> WebSocketClient : uses
+    WebSocketClient o-- AuctionEventListener : notifies
+
+    LoginController --> ApiClient : uses
+    RegisterController --> ApiClient : uses
+    AuctionListController --> ApiClient : uses
+    AuctionDetailController --> ApiClient : uses
+    CreateAuctionController --> ApiClient : uses
+    CreateItemController --> ApiClient : uses
+    AdminPanelController --> ApiClient : uses
+    ProfileController --> ApiClient : uses
+    DepositController --> ApiClient : uses
+    ChangePasswordController --> ApiClient : uses
+    ForgotPasswordController --> ApiClient : uses
+```
 
 ## 🏗️ Architecture
 
