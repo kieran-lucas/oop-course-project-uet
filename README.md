@@ -77,6 +77,101 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 - [x] **Live Bid History Chart** - JavaFX `LineChart` updated in real time from WebSocket events, no manual refresh needed
 
 ---
+## Class Diagram
+
+### 1. Domain Model
+
+```mermaid
+classDiagram
+    direction TB
+
+    class Entity { <<abstract>> }
+
+    class Item { <<abstract>> }
+    class User { <<abstract>> }
+
+    Entity <|-- Auction
+    Entity <|-- BidTransaction
+    Entity <|-- AutoBidConfig
+    Entity <|-- Item
+    Entity <|-- User
+
+    Item <|-- Art
+    Item <|-- Electronics
+    Item <|-- Vehicle
+
+    User <|-- Admin
+    User <|-- Seller
+    User <|-- Bidder
+```
+
+---
+
+### 2. Exception Hierarchy
+
+```mermaid
+classDiagram
+    direction TB
+
+    class RuntimeException
+    class AuctionException { <<abstract>> }
+
+    RuntimeException <|-- AuctionException
+    AuctionException <|-- AuctionClosedException
+    AuctionException <|-- DuplicateException
+    AuctionException <|-- InvalidBidException
+    AuctionException <|-- NotFoundException
+    AuctionException <|-- UnauthorizedException
+```
+
+---
+
+### 3. Design Patterns
+
+```mermaid
+classDiagram
+    direction TB
+
+    class AuctionState { <<interface>> }
+    AuctionState <|.. OpenState
+    AuctionState <|.. RunningState
+    AuctionState <|.. FinishedState
+    AuctionState <|.. CanceledState
+    AuctionState <|.. PaidState
+
+    class BidStrategy { <<interface>> }
+    BidStrategy <|.. ManualBidStrategy
+    BidStrategy <|.. AutoBidStrategy
+
+    class AuctionEventListener { <<interface>> }
+    AuctionEventListener <|.. WebSocketObserver
+```
+
+---
+
+### 4. UI Layer
+
+```mermaid
+classDiagram
+    direction TB
+
+    class Application
+    Application <|-- ClientApp
+
+    class Navigable { <<interface>> }
+    Navigable <|.. LoginController
+    Navigable <|.. RegisterController
+    Navigable <|.. AuctionListController
+    Navigable <|.. AuctionDetailController
+    Navigable <|.. CreateAuctionController
+    Navigable <|.. CreateItemController
+    Navigable <|.. AdminPanelController
+    Navigable <|.. ProfileController
+    Navigable <|.. DepositController
+    Navigable <|.. ChangePasswordController
+    Navigable <|.. ForgotPasswordController
+```
+
 
 ## 🏗️ Architecture
 
