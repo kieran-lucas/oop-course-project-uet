@@ -12,6 +12,26 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.Assumptions;
 
+/**
+ * Test suite kiểm tra toàn bộ các thao tác CRUD và nghiệp vụ lên bảng {@code auctions}
+ * thông qua {@link AuctionDao}.
+ *
+ * <p><b>Phạm vi kiểm tra:</b>
+ * <ul>
+ *   <li>CRUD cơ bản: insert, findById, findAll, update, delete.</li>
+ *   <li>Truy vấn lọc: findByStatus, findByItemId, existsById, getCurrentPrice.</li>
+ *   <li>Nghiệp vụ tự động: startScheduledAuctions (OPEN → RUNNING),
+ *       closeExpiredAuctions (RUNNING → FINISHED).</li>
+ * </ul>
+ *
+ * <p><b>Chiến lược dữ liệu:</b> Mỗi test chạy trong trạng thái DB hoàn toàn sạch. Phương thức
+ * {@code init()} TRUNCATE tất cả bảng và tạo lại bộ dữ liệu mẫu cố định (Seller, Bidder, Item)
+ * trước khi từng test bắt đầu, đảm bảo test isolation và ID luôn nhất quán.
+ *
+ * <p><b>Điều kiện tiên quyết:</b> PostgreSQL phải đang chạy với thông tin kết nối được cấu hình
+ * trong {@link DatabaseConfig}. Nếu không kết nối được, toàn bộ class bị bỏ qua (ABORTED)
+ * thay vì báo FAILED.
+ */
 class AuctionDaoTest {
 
   private static Jdbi jdbi;
@@ -19,10 +39,24 @@ class AuctionDaoTest {
   private static ItemDao itemDao;
   private static AuctionDao auctionDao;
 
+  /** Người bán — owner của {@code testItem}; được tạo lại trước mỗi test. */
   private User testSeller;
+
+  /**
+   * Người đặt giá — dùng để kiểm tra cập nhật {@code leadingBidderId} trên auction;
+   * được tạo lại trước mỗi test.
+   */
   private User testBidder;
+
+  /** Vật phẩm mặc định gắn với các auction trong test; thuộc sở hữu của {@code testSeller}. */
   private Item testItem;
 
+  /**
+   * Khởi tạo kết nối JDBI và các DAO một lần duy nhất cho cả class.
+   *
+   * <p>Nếu DB không khả dụng, class bị bỏ qua hoàn toàn qua {@link Assumptions#abort}
+   * để tránh báo lỗi giả trong môi trường không có DB (ví dụ: CI chạy unit-test thuần).
+   */
   @BeforeAll
   static void setup() {
     try {
@@ -35,19 +69,31 @@ class AuctionDaoTest {
     auctionDao = new AuctionDao(jdbi);
   }
 
+  /**
+   * Chuẩn bị trạng thái DB sạch và dữ liệu mẫu trước mỗi test.
+   *
+   * <p><b>Bước 1 — Dọn dẹp:</b> TRUNCATE các bảng theo thứ tự con → cha để tuân thủ ràng buộc
+   * khóa ngoại. {@code CASCADE} xử lý các phụ thuộc còn lại tự động. {@code RESTART IDENTITY}
+   * trên {@code users} đưa sequence BIGSERIAL về 1, đảm bảo ID cố định qua mọi lần chạy.
+   *
+   * <p><b>Bước 2 — Seed dữ liệu:</b> Tạo Seller (id=1), Bidder (id=2) và một Item Electronics
+   * (id=1) làm nền cho mọi test trong class. ID cố định giúp các assertion không bị ảnh hưởng
+   * bởi thứ tự chạy test hay dữ liệu còn sót từ lần trước.
+   */
   @BeforeEach
   void init() {
-    // 1. Dọn dẹp toàn bộ DB và Reset ID về 1
+    // Bước 1: Dọn dẹp toàn bộ DB và đặt lại bộ đếm ID về 1.
     jdbi.useHandle(
         handle -> {
           handle.execute("TRUNCATE TABLE auto_bid_configs CASCADE");
           handle.execute("TRUNCATE TABLE bid_transactions CASCADE");
           handle.execute("TRUNCATE TABLE auctions CASCADE");
           handle.execute("TRUNCATE TABLE items CASCADE");
+          // RESTART IDENTITY đảm bảo ID bắt đầu từ 1 sau mỗi lần dọn dẹp.
           handle.execute("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
         });
 
-    // 2. Khởi tạo dữ liệu mẫu cho mỗi test case (ID sẽ luôn cố định: Seller=1, Bidder=2, Item=1)
+    // Bước 2: Khởi tạo dữ liệu mẫu cho mỗi test case (ID sẽ luôn cố định: Seller=1, Bidder=2, Item=1).
     testSeller = userDao.insert(new Seller("auction_seller", "hash", "seller@test.com"));
     testBidder = userDao.insert(new Bidder("auction_bidder", "hash", "bidder@test.com"));
     testItem =
@@ -57,6 +103,10 @@ class AuctionDaoTest {
         "DB Reset. Test IDs -> Seller: " + testSeller.getId() + ", Item: " + testItem.getId());
   }
 
+  /**
+   * Kiểm tra insert auction mới: xác nhận ID được sinh tự động, status mặc định là {@code OPEN},
+   * giá hiện tại bằng giá khởi điểm, và chưa có người dẫn đầu ({@code leadingBidderId} là null).
+   */
   @Test
   @DisplayName("Insert should create new auction")
   void testInsert() {
@@ -75,6 +125,9 @@ class AuctionDaoTest {
     assertNull(saved.getLeadingBidderId());
   }
 
+  /**
+   * Kiểm tra findById: xác nhận auction vừa insert có thể tìm lại đúng ID và giá khởi điểm.
+   */
   @Test
   @DisplayName("FindById should return auction")
   void testFindById() {
@@ -93,6 +146,10 @@ class AuctionDaoTest {
     assertEquals(0, new BigDecimal("200000").compareTo(found.get().getStartingPrice()));
   }
 
+  /**
+   * Kiểm tra findAll: sau khi insert 2 auction, danh sách trả về phải có đúng 2 phần tử.
+   * DB được reset trước mỗi test nên không có nguy cơ đếm dư dữ liệu cũ.
+   */
   @Test
   @DisplayName("FindAll should return all auctions")
   void testFindAll() {
@@ -114,6 +171,10 @@ class AuctionDaoTest {
     assertEquals(2, auctions.size());
   }
 
+  /**
+   * Kiểm tra findByStatus: sau khi insert một auction {@code OPEN}, kết quả lọc phải
+   * không rỗng và toàn bộ phần tử phải có status đúng bằng {@code OPEN}.
+   */
   @Test
   @DisplayName("FindByStatus should filter by status")
   void testFindByStatus() {
@@ -131,6 +192,9 @@ class AuctionDaoTest {
     assertTrue(openAuctions.stream().allMatch(a -> "OPEN".equals(a.getStatus())));
   }
 
+  /**
+   * Kiểm tra findByItemId: auction được lấy về phải thuộc đúng {@code testItem}.
+   */
   @Test
   @DisplayName("FindByItemId should return auctions for specific item")
   void testFindByItemId() {
@@ -147,6 +211,10 @@ class AuctionDaoTest {
     assertEquals(testItem.getId(), auctions.get(0).getItemId());
   }
 
+  /**
+   * Kiểm tra update: sau khi thay đổi {@code currentPrice}, {@code leadingBidderId} và
+   * {@code status}, các giá trị mới phải được persist và đọc lại chính xác từ DB.
+   */
   @Test
   @DisplayName("Update should modify auction")
   void testUpdate() {
@@ -171,6 +239,9 @@ class AuctionDaoTest {
     assertEquals("RUNNING", found.get().getStatus());
   }
 
+  /**
+   * Kiểm tra delete: auction bị xóa không còn tìm thấy qua findById.
+   */
   @Test
   @DisplayName("Delete should remove auction")
   void testDelete() {
@@ -187,6 +258,13 @@ class AuctionDaoTest {
     assertFalse(auctionDao.findById(saved.getId()).isPresent());
   }
 
+  /**
+   * Kiểm tra nghiệp vụ kích hoạt auction theo lịch: các auction có {@code startTime} đã qua
+   * (trong quá khứ) phải được chuyển tự động từ {@code OPEN} sang {@code RUNNING}.
+   *
+   * <p>Auction được tạo với {@code startTime = now() - 5 phút} để đảm bảo điều kiện kích hoạt
+   * luôn đúng bất kể độ trễ thực thi test.
+   */
   @Test
   @DisplayName("StartScheduledAuctions should update status from OPEN to RUNNING")
   void testStartScheduledAuctions() {
@@ -205,6 +283,14 @@ class AuctionDaoTest {
     assertTrue(running.stream().anyMatch(a -> a.getItemId().equals(testItem.getId())));
   }
 
+  /**
+   * Kiểm tra nghiệp vụ đóng auction hết hạn: các auction đang ở trạng thái {@code RUNNING}
+   * có {@code endTime} đã qua phải được chuyển sang {@code FINISHED}.
+   *
+   * <p>Auction được tạo với {@code endTime = now() - 1 phút} để đảm bảo điều kiện đóng luôn
+   * thỏa mãn. Vì auction mới insert có status {@code OPEN}, cần gọi {@code update()} để ép
+   * sang {@code RUNNING} trước khi gọi {@code closeExpiredAuctions()}.
+   */
   @Test
   @DisplayName("CloseExpiredAuctions should update status from RUNNING to FINISHED")
   void testCloseExpiredAuctions() {
@@ -226,6 +312,10 @@ class AuctionDaoTest {
     assertTrue(finished.stream().anyMatch(a -> a.getItemId().equals(testItem.getId())));
   }
 
+  /**
+   * Kiểm tra existsById: ID hợp lệ trả về {@code true}, ID không tồn tại (999L) trả về
+   * {@code false}.
+   */
   @Test
   @DisplayName("ExistsById should return true for existing auction")
   void testExistsById() {
@@ -241,6 +331,11 @@ class AuctionDaoTest {
     assertFalse(auctionDao.existsById(999L));
   }
 
+  /**
+   * Kiểm tra getCurrentPrice: giá trả về phải khớp chính xác với giá khởi điểm khi chưa
+   * có lượt đặt giá nào. Dùng {@code compareTo} thay vì {@code equals} để tránh sai lệch
+   * do scale của {@link BigDecimal}.
+   */
   @Test
   @DisplayName("GetCurrentPrice should return correct price")
   void testGetCurrentPrice() {
