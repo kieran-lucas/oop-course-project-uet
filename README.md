@@ -76,25 +76,81 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 - [x] **Anti-sniping** - bid in final 30s → extend by 60s → broadcast `TIME_EXTENDED`
 - [x] **Live Bid History Chart** - JavaFX `LineChart` updated in real time from WebSocket events, no manual refresh needed
 
-# 1. Domain Model
+
+## 🏛️ Class Diagram
+### 1. Domain Model
 
 ```mermaid
 classDiagram
     direction LR
-    class Entity { <<abstract>> -Long id; -LocalDateTime createdAt }
-    class User { <<abstract>> -String username; -String email; -BigDecimal balance; +getRole() String }
-    class Bidder { +getRole() String }
-    class Seller { +getRole() String }
-    class Admin { +getRole() String }
-    class Item { <<abstract>> -String name; -String description; -Long sellerId; +getCategory() String }
-    class Electronics { -String brand; +getCategory() String }
-    class Art { -String artist; +getCategory() String }
-    class Vehicle { -int year; +getCategory() String }
-    class Auction { -BigDecimal startingPrice; -BigDecimal currentPrice; -LocalDateTime startTime; -LocalDateTime endTime; -String status }
-    class BidTransaction { -Long auctionId; -Long bidderId; -BigDecimal amount; -boolean autoBid }
-    class AutoBidConfig { -BigDecimal maxBid; -BigDecimal increment; -LocalDateTime registeredAt }
-    class DepositRecord { -Long userId; -BigDecimal amount; -String status }
-    class PasswordResetRecord { -Long userId; -String token; -String status }
+    class Entity {
+        <<abstract>>
+        -Long id
+        -LocalDateTime createdAt
+    }
+    class User {
+        <<abstract>>
+        -String username
+        -String email
+        -BigDecimal balance
+        +getRole() String
+    }
+    class Bidder {
+        +getRole() String
+    }
+    class Seller {
+        +getRole() String
+    }
+    class Admin {
+        +getRole() String
+    }
+    class Item {
+        <<abstract>>
+        -String name
+        -String description
+        -Long sellerId
+        +getCategory() String
+    }
+    class Electronics {
+        -String brand
+        +getCategory() String
+    }
+    class Art {
+        -String artist
+        +getCategory() String
+    }
+    class Vehicle {
+        -int year
+        +getCategory() String
+    }
+    class Auction {
+        -BigDecimal startingPrice
+        -BigDecimal currentPrice
+        -LocalDateTime startTime
+        -LocalDateTime endTime
+        -String status
+    }
+    class BidTransaction {
+        -Long auctionId
+        -Long bidderId
+        -BigDecimal amount
+        -boolean autoBid
+    }
+    class AutoBidConfig {
+        -BigDecimal maxBid
+        -BigDecimal increment
+        -LocalDateTime registeredAt
+    }
+    class DepositRecord {
+        -Long userId
+        -BigDecimal amount
+        -String status
+    }
+    class PasswordResetRecord {
+        -Long userId
+        -String token
+        -String status
+    }
     Entity <|-- User
     Entity <|-- Item
     Entity <|-- Auction
@@ -112,18 +168,32 @@ classDiagram
 
 ---
 
-# 2. Exception Hierarchy
+### 2. Exception Hierarchy
 
 ```mermaid
 classDiagram
     direction LR
     class RuntimeException
-    class AuctionException { <<abstract>> +AuctionException(String message) +AuctionException(String message, Throwable cause) }
-    class AuctionClosedException { +AuctionClosedException(String message) }
-    class InvalidBidException { +InvalidBidException(String message) }
-    class NotFoundException { +NotFoundException(String message) }
-    class DuplicateException { +DuplicateException(String message) }
-    class UnauthorizedException { +UnauthorizedException(String message) }
+    class AuctionException {
+        <<abstract>>
+        +AuctionException(String message)
+        +AuctionException(String message, Throwable cause)
+    }
+    class AuctionClosedException {
+        +AuctionClosedException(String message)
+    }
+    class InvalidBidException {
+        +InvalidBidException(String message)
+    }
+    class NotFoundException {
+        +NotFoundException(String message)
+    }
+    class DuplicateException {
+        +DuplicateException(String message)
+    }
+    class UnauthorizedException {
+        +UnauthorizedException(String message)
+    }
     RuntimeException <|-- AuctionException
     AuctionException <|-- AuctionClosedException
     AuctionException <|-- InvalidBidException
@@ -134,31 +204,72 @@ classDiagram
 
 ---
 
-# 3. Design Patterns
+### 3. Design Patterns
 
 ```mermaid
 classDiagram
     direction LR
-    class AuctionState { <<interface>> +placeBid(Auction, Long, BigDecimal) void +close(Auction) void +edit(Auction) void +extend(Auction, LocalDateTime) void }
-    class OpenState { +placeBid() void }
-    class RunningState { +placeBid() void }
-    class FinishedState { +placeBid() void }
-    class PaidState { +placeBid() void }
-    class CanceledState { +placeBid() void }
+    class AuctionState {
+        <<interface>>
+        +placeBid(Auction, Long, BigDecimal) void
+        +close(Auction) void
+        +edit(Auction) void
+        +extend(Auction, LocalDateTime) void
+    }
+    class OpenState {
+        +placeBid() void
+    }
+    class RunningState {
+        +placeBid() void
+    }
+    class FinishedState {
+        +placeBid() void
+    }
+    class PaidState {
+        +placeBid() void
+    }
+    class CanceledState {
+        +placeBid() void
+    }
     AuctionState <|.. OpenState
     AuctionState <|.. RunningState
     AuctionState <|.. FinishedState
     AuctionState <|.. PaidState
     AuctionState <|.. CanceledState
-    class BidStrategy { <<interface>> +execute(Auction, Long, BigDecimal, boolean) void }
-    class ManualBidStrategy { +execute() void }
-    class AutoBidStrategy { -PriorityQueue~AutoBidConfig~ queue; +execute() void }
+    class BidStrategy {
+        <<interface>>
+        +execute(Auction, Long, BigDecimal, boolean) void
+    }
+    class ManualBidStrategy {
+        +execute() void
+    }
+    class AutoBidStrategy {
+        -PriorityQueue~AutoBidConfig~ queue
+        +execute() void
+    }
     BidStrategy <|.. ManualBidStrategy
     BidStrategy <|.. AutoBidStrategy
-    class AuctionEventListener { <<interface>> +onBidUpdate() void +onTimeExtended() void +onAuctionEnd() void }
-    class AuctionEventManager { -Map~Long_List~ listeners; +subscribe() void +unsubscribe() void +notifyBidUpdate() void }
-    class WebSocketObserver { -WsContext session; +onBidUpdate() void +onTimeExtended() void +onAuctionEnd() void }
-    class ItemFactory { +create(CreateItemRequest, Long) Item }
+    class AuctionEventListener {
+        <<interface>>
+        +onBidUpdate() void
+        +onTimeExtended() void
+        +onAuctionEnd() void
+    }
+    class AuctionEventManager {
+        -Map~Long_List~ listeners
+        +subscribe() void
+        +unsubscribe() void
+        +notifyBidUpdate() void
+    }
+    class WebSocketObserver {
+        -WsContext session
+        +onBidUpdate() void
+        +onTimeExtended() void
+        +onAuctionEnd() void
+    }
+    class ItemFactory {
+        +create(CreateItemRequest, Long) Item
+    }
     AuctionEventListener <|.. WebSocketObserver
     AuctionEventManager o-- AuctionEventListener
     ItemFactory ..> Item : creates
@@ -166,27 +277,62 @@ classDiagram
 
 ---
 
-# 4. UI Layer
+### 4. UI Layer
 
 ```mermaid
 classDiagram
     direction LR
     class Application
-    class ClientApp { +start(Stage) void +main(String[]) void }
+    class ClientApp {
+        +start(Stage) void
+        +main(String[]) void
+    }
     Application <|-- ClientApp
-    class Navigable { <<interface>> +onNavigatedTo(Object data) void }
-    class SceneManager { -Stage primaryStage; +getInstance() SceneManager; +navigateTo(String, Object) void }
-    class LoginController { +handleLogin() void }
-    class RegisterController { +handleRegister() void }
-    class AuctionListController { +loadAuctions() void }
-    class AuctionDetailController { -WebSocketClient wsClient; +handleBid() void +handleAutoBid() void }
-    class CreateAuctionController { +handleCreate() void }
-    class CreateItemController { +handleCreate() void }
-    class AdminPanelController { +loadUsers() void +approveDeposit() void }
-    class ProfileController { +loadProfile() void }
-    class DepositController { +handleDeposit() void }
-    class ChangePasswordController { +handleChange() void }
-    class ForgotPasswordController { +handleRequest() void }
+    class Navigable {
+        <<interface>>
+        +onNavigatedTo(Object data) void
+    }
+    class SceneManager {
+        -Stage primaryStage
+        +getInstance() SceneManager
+        +navigateTo(String, Object) void
+    }
+    class LoginController {
+        +handleLogin() void
+    }
+    class RegisterController {
+        +handleRegister() void
+    }
+    class AuctionListController {
+        +loadAuctions() void
+    }
+    class AuctionDetailController {
+        -WebSocketClient wsClient
+        +handleBid() void
+        +handleAutoBid() void
+    }
+    class CreateAuctionController {
+        +handleCreate() void
+    }
+    class CreateItemController {
+        +handleCreate() void
+    }
+    class AdminPanelController {
+        +loadUsers() void
+        +approveDeposit() void
+    }
+    class ProfileController {
+        +loadProfile() void
+    }
+    class DepositController {
+        +handleDeposit() void
+    }
+    class ChangePasswordController {
+        +handleChange() void
+    }
+    class ForgotPasswordController {
+        +handleRequest() void
+    }
     Navigable <|.. LoginController
     Navigable <|.. RegisterController
     Navigable <|.. AuctionListController
@@ -199,6 +345,8 @@ classDiagram
     Navigable <|.. ChangePasswordController
     Navigable <|.. ForgotPasswordController
 ```
+
+
 ## 🏗️ Architecture
 
 ```mermaid
