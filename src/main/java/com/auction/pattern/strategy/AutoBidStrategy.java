@@ -163,38 +163,6 @@ public class AutoBidStrategy implements BidStrategy {
       AutoBidConfig freshConfig = autoBidConfigDao.findById(config.getId()).orElse(null);
       if (freshConfig == null || !freshConfig.isActive()) {
         LOGGER.info("Auto-bid config #{} was deactivated mid-chain — skipping", config.getId());
-        for (AutoBidConfig skippedConfig : new ArrayList<>(skippedLeaderConfigs)) {
-          if (autoBidCount >= MAX_AUTO_BIDS_PER_TRIGGER) {
-            break;
-          }
-          AutoBidConfig freshSkippedConfig =
-              autoBidConfigDao.findById(skippedConfig.getId()).orElse(null);
-          if (freshSkippedConfig == null
-              || !freshSkippedConfig.isActive()
-              || !freshSkippedConfig.canBidAt(currentPrice)) {
-            continue;
-          }
-          BigDecimal nextAmount = freshSkippedConfig.getNextBidAmount(currentPrice);
-          try {
-            executor.execute(auctionId, freshSkippedConfig.getBidderId(), nextAmount);
-            currentPrice = nextAmount;
-            currentLeaderId = freshSkippedConfig.getBidderId();
-            autoBidCount++;
-            queue.offer(freshSkippedConfig);
-            LOGGER.info(
-                "Auto-bid thÃ nh cÃ´ng: bidder={}, amount={}, phiÃªn={}",
-                freshSkippedConfig.getBidderId(),
-                nextAmount,
-                auctionId);
-          } catch (Exception e) {
-            LOGGER.warn(
-                "Auto-bid tháº¥t báº¡i cho bidder={}: {}",
-                freshSkippedConfig.getBidderId(),
-                e.getMessage());
-          }
-        }
-        skippedAsLeader.clear();
-        skippedLeaderConfigs.clear();
         continue;
       }
       config = freshConfig;
@@ -218,6 +186,39 @@ public class AutoBidStrategy implements BidStrategy {
           LOGGER.error(
               "Không thể cập nhật auto-bid config id={}: {}", config.getId(), e.getMessage());
         }
+        for (AutoBidConfig skippedConfig : new ArrayList<>(skippedLeaderConfigs)) {
+          if (autoBidCount >= MAX_AUTO_BIDS_PER_TRIGGER) {
+            break;
+          }
+          AutoBidConfig freshSkippedConfig =
+              autoBidConfigDao.findById(skippedConfig.getId()).orElse(null);
+          if (freshSkippedConfig == null
+              || !freshSkippedConfig.isActive()
+              || !freshSkippedConfig.canBidAt(currentPrice)) {
+            continue;
+          }
+
+          BigDecimal nextAmount = freshSkippedConfig.getNextBidAmount(currentPrice);
+          try {
+            executor.execute(auctionId, freshSkippedConfig.getBidderId(), nextAmount);
+            currentPrice = nextAmount;
+            currentLeaderId = freshSkippedConfig.getBidderId();
+            autoBidCount++;
+            queue.offer(freshSkippedConfig);
+            LOGGER.info(
+                "Auto-bid thành công: bidder={}, amount={}, phiên={}",
+                freshSkippedConfig.getBidderId(),
+                nextAmount,
+                auctionId);
+          } catch (Exception e) {
+            LOGGER.warn(
+                "Auto-bid thất bại cho bidder={}: {}",
+                freshSkippedConfig.getBidderId(),
+                e.getMessage());
+          }
+        }
+        skippedAsLeader.clear();
+        skippedLeaderConfigs.clear();
         continue;
       }
 

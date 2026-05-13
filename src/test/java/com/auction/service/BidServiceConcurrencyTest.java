@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.jdbi.v3.core.Jdbi;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,11 @@ class BidServiceConcurrencyTest {
 
   @BeforeAll
   void setup() {
-    jdbi = DatabaseConfig.create();
+    try {
+      jdbi = DatabaseConfig.create();
+    } catch (Exception e) {
+      Assumptions.abort("No DB available, skipping: " + e.getMessage());
+    }
 
     AuctionDao auctionDao = new AuctionDao(jdbi);
     UserDao userDao = new UserDao(jdbi);
