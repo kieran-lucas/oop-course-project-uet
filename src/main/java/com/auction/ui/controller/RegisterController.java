@@ -145,7 +145,9 @@ public class RegisterController implements Navigable {
   /** Quay lại màn hình đăng nhập (người dùng đã có tài khoản). */
   @FXML
   public void goToLogin() {
-    SceneManager.getInstance().navigateTo("login.fxml");
+    // Dung navigateBack thay vi navigateTo de khong push register vao stack.
+    // Back stack luc nay: [welcome] -> pop ve welcome, hoac fallback ve welcome.
+    SceneManager.getInstance().navigateBack("welcome.fxml");
   }
 
   // ========== PRIVATE HELPERS ==========

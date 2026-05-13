@@ -206,6 +206,16 @@ public class UserDao {
   }
 
   /**
+   * Tìm user với khóa row (SELECT FOR UPDATE). Dùng trong transaction để đảm bảo số dư không bị
+   * thay đổi bởi luồng khác.
+   */
+  public User findByIdForUpdate(org.jdbi.v3.core.Handle handle, Long id) {
+    String sql = "SELECT " + SELECT_COLUMNS + " FROM users WHERE id = :id FOR UPDATE";
+
+    return handle.createQuery(sql).bind("id", id).map(new UserMapper()).one();
+  }
+
+  /**
    * Tìm user theo username (dùng cho đăng nhập).
    *
    * <p>Đây là method quan trọng nhất của UserDao, được gọi trong login flow.

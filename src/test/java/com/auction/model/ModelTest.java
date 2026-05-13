@@ -55,18 +55,6 @@ class ModelTest {
     }
 
     @Test
-    @DisplayName("Each Item subclass returns different category")
-    void itemCategories() {
-      Item electronics = new Electronics("iPhone", "Phone", 1L, "Apple");
-      Item art = new Art("Mona Lisa", "Painting", 1L, "Da Vinci");
-      Item vehicle = new Vehicle("Camry", "Car", 1L, 2022);
-
-      assertEquals("ELECTRONICS", electronics.getCategory());
-      assertEquals("ART", art.getCategory());
-      assertEquals("VEHICLE", vehicle.getCategory());
-    }
-
-    @Test
     @DisplayName("Can treat all Users polymorphically")
     void polymorphicList() {
       // Đây chính xác là cách DAO trả về danh sách users:
@@ -116,7 +104,7 @@ class ModelTest {
           new Auction(
               1L, new BigDecimal("100000"), LocalDateTime.now(), LocalDateTime.now().plusHours(2));
 
-      assertEquals("OPEN", auction.getStatus());
+      assertEquals(AuctionStatus.OPEN, auction.getStatus());
       assertEquals(new BigDecimal("100000"), auction.getCurrentPrice());
       assertEquals(null, auction.getLeadingBidderId());
     }

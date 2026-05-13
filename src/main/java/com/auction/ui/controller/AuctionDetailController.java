@@ -73,7 +73,15 @@ public class AuctionDetailController implements Navigable {
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionDetailController.class);
   private static final ObjectMapper MAPPER =
       new ObjectMapper().registerModule(new JavaTimeModule());
-  private static final NumberFormat VND = NumberFormat.getCurrencyInstance(Locale.of("vi", "VN"));
+  private static final NumberFormat VND_FMT = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
+
+  private static String VND(java.math.BigDecimal v) {
+    return v == null ? "?" : VND_FMT.format(v) + " VND";
+  }
+
+  private static String VND(double v) {
+    return VND_FMT.format(v) + " VND";
+  }
 
   // ── Item info ──
   @FXML private Label usernameLabel;
@@ -320,7 +328,7 @@ public class AuctionDetailController implements Navigable {
     if (lastKnownBalance != null && amount.compareTo(lastKnownBalance) > 0) {
       showBidError(
           "Số dư của bạn ("
-              + VND.format(lastKnownBalance)
+              + VND(lastKnownBalance)
               + ") không đủ. Hãy nạp tiền trước khi đặt giá.");
       return;
     }
@@ -548,7 +556,7 @@ public class AuctionDetailController implements Navigable {
                               String.format(
                                   "%s — %s",
                                   bidderLabel,
-                                  bid.getAmount() != null ? VND.format(bid.getAmount()) : "?"));
+                                  bid.getAmount() != null ? VND(bid.getAmount()) : "?"));
                           if (bid.getAmount() != null) {
                             bidSeries
                                 .getData()
@@ -602,7 +610,7 @@ public class AuctionDetailController implements Navigable {
     switch (msg.getType()) {
       case BidUpdateMessage.TYPE_BID_UPDATE -> {
         if (msg.getCurrentPrice() != null) {
-          currentPriceLabel.setText(VND.format(msg.getCurrentPrice()));
+          currentPriceLabel.setText(VND(msg.getCurrentPrice()));
           bidSeries
               .getData()
               .add(
@@ -641,7 +649,7 @@ public class AuctionDetailController implements Navigable {
             msg.getLeadingBidderUsername() != null
                 ? msg.getLeadingBidderUsername()
                 : "Không có người thắng";
-        String price = msg.getCurrentPrice() != null ? VND.format(msg.getCurrentPrice()) : "—";
+        String price = msg.getCurrentPrice() != null ? VND(msg.getCurrentPrice()) : "—";
         winnerLabel.setText("Người thắng: " + winner + " — Giá cuối: " + price);
 
         String currentRole = SceneManager.getInstance().getCurrentRole();
@@ -674,7 +682,7 @@ public class AuctionDetailController implements Navigable {
 
     String bidder =
         msg.getLeadingBidderUsername() != null ? msg.getLeadingBidderUsername() : "Ẩn danh";
-    String price = msg.getCurrentPrice() != null ? VND.format(msg.getCurrentPrice()) : "—";
+    String price = msg.getCurrentPrice() != null ? VND(msg.getCurrentPrice()) : "—";
     String itemLabel = currentItemName != null ? "[" + currentItemName + "] " : "";
 
     String text;
@@ -756,7 +764,7 @@ public class AuctionDetailController implements Navigable {
     if (balanceLabel == null) {
       return;
     }
-    balanceLabel.setText("Số dư: " + VND.format(balance));
+    balanceLabel.setText("Số dư: " + VND(balance));
     balanceLabel.setStyle(
         balance.compareTo(BigDecimal.ZERO) == 0
             ? "-fx-font-size: 11px; -fx-text-fill: #ef5350;"
@@ -810,7 +818,7 @@ public class AuctionDetailController implements Navigable {
                                           if (lastKnownBalance != null
                                               && balance.compareTo(lastKnownBalance) > 0) {
                                             BigDecimal diff = balance.subtract(lastKnownBalance);
-                                            showBalanceChangeNotification("+" + VND.format(diff));
+                                            showBalanceChangeNotification("+" + VND(diff));
                                           }
                                           lastKnownBalance = balance;
                                           updateBalanceLabel(balance);
@@ -856,7 +864,7 @@ public class AuctionDetailController implements Navigable {
     applyStatusStyle(auctionStatusLabel, auction.getStatus());
 
     if (auction.getCurrentPrice() != null) {
-      currentPriceLabel.setText(VND.format(auction.getCurrentPrice()));
+      currentPriceLabel.setText(VND(auction.getCurrentPrice()));
     }
     leadingBidderLabel.setText(
         auction.getLeadingBidderUsername() != null

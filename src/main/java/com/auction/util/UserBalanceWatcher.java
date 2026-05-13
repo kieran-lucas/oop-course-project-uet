@@ -120,9 +120,13 @@ public class UserBalanceWatcher {
                     // NotificationStore.
                     // ProfileController và DepositController KHÔNG được gọi
                     // NotificationStore.add().
+                    java.text.NumberFormat vndFmt =
+                        java.text.NumberFormat.getNumberInstance(java.util.Locale.of("vi", "VN"));
                     String text =
-                        approved
-                            ? "✅ Yêu cầu nạp tiền được duyệt"
+                        approved && newBalance != null
+                            ? "Yêu cầu nạp tiền đã được duyệt. Số dư mới: "
+                                + vndFmt.format(newBalance)
+                                + " VND"
                             : "❌ Yêu cầu nạp tiền bị từ chối";
                     NotificationStore.getInstance().add(text);
 

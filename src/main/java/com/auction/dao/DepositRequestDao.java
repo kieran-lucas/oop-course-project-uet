@@ -202,4 +202,18 @@ public class DepositRequestDao {
             handle -> handle.createUpdate(sql).bind("status", newStatus).bind("id", id).execute());
     return rows > 0;
   }
+
+  /** Cập nhật trạng thái yêu cầu nạp tiền trong một transaction đang mở. */
+  public void updateStatusInTransaction(org.jdbi.v3.core.Handle handle, Long id, String newStatus) {
+    String sql =
+        """
+        UPDATE deposit_requests
+        SET status = :status, reviewed_at = NOW()
+        WHERE id = :id
+        """;
+    int rows = handle.createUpdate(sql).bind("status", newStatus).bind("id", id).execute();
+    if (rows == 0) {
+      throw new IllegalStateException("Không tìm thấy yêu cầu nạp tiền: " + id);
+    }
+  }
 }

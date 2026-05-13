@@ -155,7 +155,11 @@ public class LoginController implements Navigable {
   /** Chuyển sang màn hình đăng ký. */
   @FXML
   public void goToRegister() {
-    SceneManager.getInstance().navigateTo("register.fxml");
+    // Back từ register phải về welcome, không phải login.
+    // Giải pháp: quay về welcome trước (pop backStack), rồi mở register (push welcome vào stack).
+    SceneManager sm = SceneManager.getInstance();
+    sm.navigateBack("welcome.fxml");
+    sm.navigateTo("register.fxml");
   }
 
   /** Chuyển sang màn hình quên mật khẩu. */

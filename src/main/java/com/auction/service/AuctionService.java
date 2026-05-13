@@ -4,23 +4,21 @@ import com.auction.dao.AuctionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.AuctionResponse;
+import com.auction.dto.BidUpdateMessage;
 import com.auction.dto.CreateAuctionRequest;
+import com.auction.dto.PageRequest;
 import com.auction.exception.AuctionClosedException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
-import com.auction.model.Art;
 import com.auction.model.Auction;
-import com.auction.model.Electronics;
+import com.auction.model.AuctionStatus;
 import com.auction.model.Item;
-import com.auction.model.Vehicle;
+import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.pattern.state.AuctionState;
-import com.auction.pattern.state.CanceledState;
-import com.auction.pattern.state.FinishedState;
-import com.auction.pattern.state.OpenState;
-import com.auction.pattern.state.PaidState;
-import com.auction.pattern.state.RunningState;
+import com.auction.pattern.state.AuctionStates;
 import java.math.BigDecimal;
 import java.util.List;
+import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,11 +30,25 @@ public class AuctionService {
   private final AuctionDao auctionDao;
   private final ItemDao itemDao;
   private final UserDao userDao;
+  private final AuctionEventManager eventManager;
+  private final Jdbi jdbi;
 
-  public AuctionService(AuctionDao auctionDao, ItemDao itemDao, UserDao userDao) {
+  public AuctionService(
+      AuctionDao auctionDao,
+      ItemDao itemDao,
+      UserDao userDao,
+      AuctionEventManager eventManager,
+      Jdbi jdbi) {
     this.auctionDao = auctionDao;
     this.itemDao = itemDao;
     this.userDao = userDao;
+    this.eventManager = eventManager;
+    this.jdbi = jdbi;
+  }
+
+  /** For unit tests that don't need notification. */
+  AuctionService(AuctionDao auctionDao, ItemDao itemDao, UserDao userDao) {
+    this(auctionDao, itemDao, userDao, null, null);
   }
 
   /**
@@ -59,7 +71,19 @@ public class AuctionService {
    * @return danh sách AuctionResponse đã được enrich
    */
   public List<AuctionResponse> getAll(String status) {
-    return getAllAuctions(status).stream().map(this::enrichAuctionResponse).toList();
+    return getAll(status, null);
+  }
+
+  public List<AuctionResponse> getAll(String status, PageRequest pageRequest) {
+    List<Auction> auctions;
+    if (status != null && !status.isBlank()) {
+      auctions = auctionDao.findByStatus(status.toUpperCase());
+    } else if (pageRequest != null) {
+      auctions = auctionDao.findAll(pageRequest);
+    } else {
+      auctions = auctionDao.findAll();
+    }
+    return auctions.stream().map(this::enrichAuctionResponse).toList();
   }
 
   /**
@@ -166,7 +190,7 @@ public class AuctionService {
             .findById(auctionId)
             .orElseThrow(() -> new NotFoundException("Auction not found with id: " + auctionId));
 
-    if (!"OPEN".equals(auction.getStatus())) {
+    if (auction.getStatus() != AuctionStatus.OPEN) {
       throw new IllegalStateException(
           "Can only edit auctions with OPEN status. Current status: " + auction.getStatus());
     }
@@ -223,8 +247,9 @@ public class AuctionService {
 
     // ADMIN: được hủy bất chấp mọi trạng thái
     if ("ADMIN".equals(role)) {
-      auction.setStatus("CANCELED");
+      auction.setStatus(AuctionStatus.CANCELED);
       auctionDao.update(auction);
+      notifyLeadingBidderIfCanceled(auction);
       LOGGER.info("ADMIN (userId={}) đã cưỡng chế hủy phiên đấu giá #{}", userId, auctionId);
       return;
     }
@@ -244,16 +269,17 @@ public class AuctionService {
         throw new UnauthorizedException("Bạn không có quyền hủy phiên đấu giá của người khác!");
       }
 
-      String status = auction.getStatus();
-      if (!"OPEN".equals(status) && !"RUNNING".equals(status)) {
+      AuctionStatus status = auction.getStatus();
+      if (status != AuctionStatus.OPEN && status != AuctionStatus.RUNNING) {
         throw new IllegalStateException(
             "Chỉ có thể hủy phiên đấu giá khi đang ở trạng thái OPEN hoặc RUNNING."
                 + " Trạng thái hiện tại: "
                 + status);
       }
 
-      auction.setStatus("CANCELED");
+      auction.setStatus(AuctionStatus.CANCELED);
       auctionDao.update(auction);
+      notifyLeadingBidderIfCanceled(auction);
       LOGGER.info(
           "SELLER (userId={}) đã hủy phiên đấu giá #{} (trạng thái trước: {})",
           userId,
@@ -301,12 +327,12 @@ public class AuctionService {
             .findById(auctionId)
             .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
 
-    if (!"OPEN".equals(auction.getStatus())) {
+    if (auction.getStatus() != AuctionStatus.OPEN) {
       throw new AuctionClosedException(
           "Không thể chuyển sang RUNNING từ trạng thái: " + auction.getStatus());
     }
 
-    auction.setStatus("RUNNING");
+    auction.setStatus(AuctionStatus.RUNNING);
     auctionDao.update(auction);
     LOGGER.info("Auction #{} → RUNNING", auctionId);
   }
@@ -321,12 +347,12 @@ public class AuctionService {
             .findById(auctionId)
             .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
 
-    if (!"RUNNING".equals(auction.getStatus())) {
+    if (auction.getStatus() != AuctionStatus.RUNNING) {
       throw new AuctionClosedException(
           "Không thể chuyển sang FINISHED từ trạng thái: " + auction.getStatus());
     }
 
-    auction.setStatus("FINISHED");
+    auction.setStatus(AuctionStatus.FINISHED);
     auctionDao.update(auction);
     LOGGER.info("Auction #{} → FINISHED", auctionId);
   }
@@ -340,13 +366,27 @@ public class AuctionService {
    */
   public AuctionState getState(Auction auction) {
     return switch (auction.getStatus()) {
-      case "OPEN" -> new OpenState();
-      case "RUNNING" -> new RunningState();
-      case "FINISHED" -> new FinishedState();
-      case "PAID" -> new PaidState();
-      case "CANCELED" -> new CanceledState();
-      default -> throw new IllegalStateException("Unknown auction status: " + auction.getStatus());
+      case OPEN -> AuctionStates.OPEN;
+      case RUNNING, SETTLING -> AuctionStates.RUNNING;
+      case FINISHED -> AuctionStates.FINISHED;
+      case PAID -> AuctionStates.PAID;
+      case CANCELED -> AuctionStates.CANCELED;
     };
+  }
+
+  private void notifyLeadingBidderIfCanceled(Auction auction) {
+    if (eventManager != null && jdbi != null && auction.getLeadingBidderId() != null) {
+      BidUpdateMessage msg =
+          BidUpdateMessage.auctionEnded(auction.getId(), auction.getCurrentPrice(), null, null);
+      eventManager.notifyAuctionEnd(auction.getId(), msg);
+      jdbi.useHandle(
+          h ->
+              h.execute(
+                  "INSERT INTO notifications (user_id, message, notification_type) "
+                      + "VALUES (?, ?, 'AUCTION_CANCELED')",
+                  auction.getLeadingBidderId(),
+                  "Phiên đấu giá #" + auction.getId() + " đã bị hủy bởi người bán."));
+    }
   }
 
   /**
@@ -374,14 +414,10 @@ public class AuctionService {
               response.setItemCategory(item.getCategory());
               response.setItemDescription(item.getDescription());
 
-              // Bổ sung field đặc thù theo loại sản phẩm (dùng pattern matching Java 21)
-              if (item instanceof Electronics electronics) {
-                response.setItemBrand(electronics.getBrand());
-              } else if (item instanceof Art art) {
-                response.setItemArtist(art.getArtist());
-              } else if (item instanceof Vehicle vehicle) {
-                response.setItemYear(vehicle.getYear());
-              }
+              // Bổ sung field đặc thù theo loại sản phẩm (từ flat model)
+              response.setItemBrand(item.getBrand());
+              response.setItemArtist(item.getArtist());
+              response.setItemYear(item.getYear());
             });
 
     // Bổ sung leadingBidderUsername

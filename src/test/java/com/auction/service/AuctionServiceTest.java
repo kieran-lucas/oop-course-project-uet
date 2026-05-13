@@ -15,7 +15,7 @@ import com.auction.exception.AuctionClosedException;
 import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
-import com.auction.model.Electronics;
+import com.auction.model.AuctionStatus;
 import com.auction.model.Item;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -80,17 +80,14 @@ class AuctionServiceTest {
     a.setCurrentPrice(new BigDecimal("1000000"));
     a.setStartTime(LocalDateTime.now().minusMinutes(10));
     a.setEndTime(LocalDateTime.now().plusHours(1));
-    a.setStatus(status);
+    a.setStatus(AuctionStatus.from(status));
     return a;
   }
 
   /** Tạo Item mẫu thuộc SELLER_ID */
   private Item buildItem() {
-    Electronics e = new Electronics();
+    Item e = new Item("Laptop Dell", "...", SELLER_ID, "ELECTRONICS");
     e.setId(ITEM_ID);
-    e.setSellerId(SELLER_ID);
-    e.setName("Laptop Dell");
-    e.setDescription("...");
     e.setBrand("Dell");
     return e;
   }
@@ -130,7 +127,9 @@ class AuctionServiceTest {
       Auction created = auctionService.create(req, SELLER_ID);
 
       assertEquals(
-          "OPEN", created.getStatus(), "Phiên vừa tạo phải có status OPEN — chưa bắt đầu đấu giá");
+          AuctionStatus.OPEN,
+          created.getStatus(),
+          "Phiên vừa tạo phải có status OPEN — chưa bắt đầu đấu giá");
     }
 
     @Test
@@ -356,7 +355,9 @@ class AuctionServiceTest {
       auctionService.transitionToRunning(99L);
 
       assertEquals(
-          "RUNNING", auction.getStatus(), "Sau transitionToRunning(), status phải là RUNNING");
+          AuctionStatus.RUNNING,
+          auction.getStatus(),
+          "Sau transitionToRunning(), status phải là RUNNING");
       verify(auctionDao, times(1)).update(auction);
     }
 
@@ -370,7 +371,9 @@ class AuctionServiceTest {
       auctionService.transitionToFinished(99L);
 
       assertEquals(
-          "FINISHED", auction.getStatus(), "Sau transitionToFinished(), status phải là FINISHED");
+          AuctionStatus.FINISHED,
+          auction.getStatus(),
+          "Sau transitionToFinished(), status phải là FINISHED");
     }
 
     @Test
@@ -418,7 +421,7 @@ class AuctionServiceTest {
 
       // Bước 1: OPEN → RUNNING
       auctionService.transitionToRunning(99L);
-      assertEquals("RUNNING", auction.getStatus(), "Bước 1: phải là RUNNING");
+      assertEquals(AuctionStatus.RUNNING, auction.getStatus(), "Bước 1: phải là RUNNING");
 
       // Bước 2: Đặt giá khi RUNNING → OK
       assertDoesNotThrow(
@@ -427,7 +430,7 @@ class AuctionServiceTest {
 
       // Bước 3: RUNNING → FINISHED
       auctionService.transitionToFinished(99L);
-      assertEquals("FINISHED", auction.getStatus(), "Bước 3: phải là FINISHED");
+      assertEquals(AuctionStatus.FINISHED, auction.getStatus(), "Bước 3: phải là FINISHED");
 
       // Bước 4: Bid khi FINISHED → throw
       assertThrows(
@@ -458,7 +461,8 @@ class AuctionServiceTest {
       // Soft-delete theo State Pattern: chỉ đổi status sang CANCELED, không xóa khỏi DB
       verify(auctionDao, times(1)).update(any(Auction.class));
       verify(auctionDao, never()).delete(anyLong());
-      assertEquals("CANCELED", auction.getStatus(), "Status phải được đổi sang CANCELED");
+      assertEquals(
+          AuctionStatus.CANCELED, auction.getStatus(), "Status phải được đổi sang CANCELED");
     }
 
     @Test

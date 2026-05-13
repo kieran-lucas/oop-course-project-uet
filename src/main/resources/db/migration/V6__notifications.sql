@@ -12,13 +12,13 @@ CREATE TABLE IF NOT EXISTS notifications (
     id                  BIGSERIAL PRIMARY KEY,
     user_id             BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     message             TEXT NOT NULL,
-    notification_type   VARCHAR(50),                  -- Loại thông báo (xem mô tả ở trên)
+    notification_type   VARCHAR(50) NOT NULL,          -- Loại thông báo (xem mô tả ở trên)
     is_read             BOOLEAN DEFAULT FALSE,         -- FALSE: chưa đọc | TRUE: đã đọc
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tăng tốc truy vấn lấy toàn bộ thông báo của một user
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 
 -- Tăng tốc truy vấn đếm / lọc thông báo chưa đọc (is_read = FALSE)
-CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);

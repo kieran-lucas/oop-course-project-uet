@@ -9,15 +9,16 @@ import org.junit.jupiter.api.Assumptions;
 
 /**
  * Test suite kiểm tra tính đúng đắn của {@link DatabaseConfig}:
+ *
  * <ul>
- *   <li>Kết nối thành công đến PostgreSQL qua HikariCP connection pool.</li>
- *   <li>Schema "public" tồn tại và chứa đủ các bảng bắt buộc.</li>
- *   <li>Migration (Flyway/Liquibase hoặc script thủ công) đã chạy thành công.</li>
+ *   <li>Kết nối thành công đến PostgreSQL qua HikariCP connection pool.
+ *   <li>Schema "public" tồn tại và chứa đủ các bảng bắt buộc.
+ *   <li>Migration (Flyway/Liquibase hoặc script thủ công) đã chạy thành công.
  * </ul>
  *
  * <p><b>Điều kiện tiên quyết:</b> Cần có một instance PostgreSQL đang chạy với thông tin kết nối
- * được cấu hình trong {@code DatabaseConfig}. Nếu không có DB, toàn bộ test class sẽ bị bỏ qua
- * thay vì báo lỗi (nhờ {@link Assumptions#abort}).
+ * được cấu hình trong {@code DatabaseConfig}. Nếu không có DB, toàn bộ test class sẽ bị bỏ qua thay
+ * vì báo lỗi (nhờ {@link Assumptions#abort}).
  *
  * <p><b>Thứ tự thực thi:</b> Các test được đánh số {@code @Order} để phản ánh mức độ phụ thuộc
  * logic — kết nối phải hoạt động trước khi kiểm tra schema.
@@ -32,8 +33,8 @@ class DatabaseConfigTest {
    * Khởi tạo kết nối JDBI trước khi bất kỳ test nào chạy.
    *
    * <p>Nếu {@link DatabaseConfig#create()} ném ngoại lệ (ví dụ: DB chưa khởi động, sai
-   * credentials), toàn bộ test class sẽ bị bỏ qua thông qua {@link Assumptions#abort} thay vì
-   * báo FAILED — điều này giúp CI/CD không bị chặn khi không có DB.
+   * credentials), toàn bộ test class sẽ bị bỏ qua thông qua {@link Assumptions#abort} thay vì báo
+   * FAILED — điều này giúp CI/CD không bị chặn khi không có DB.
    */
   @BeforeAll
   static void setup() {
@@ -58,9 +59,9 @@ class DatabaseConfigTest {
   /**
    * Xóa toàn bộ dữ liệu và đặt lại bộ đếm ID về 1 trước mỗi test.
    *
-   * <p>Chiến lược này đảm bảo mỗi test chạy trong trạng thái DB sạch, loại bỏ sự phụ thuộc
-   * giữa các test (test isolation). Các bảng được TRUNCATE theo thứ tự con → cha để tránh vi
-   * phạm ràng buộc khóa ngoại; {@code CASCADE} xử lý các quan hệ còn lại tự động.
+   * <p>Chiến lược này đảm bảo mỗi test chạy trong trạng thái DB sạch, loại bỏ sự phụ thuộc giữa các
+   * test (test isolation). Các bảng được TRUNCATE theo thứ tự con → cha để tránh vi phạm ràng buộc
+   * khóa ngoại; {@code CASCADE} xử lý các quan hệ còn lại tự động.
    *
    * <p>{@code RESTART IDENTITY} trên bảng {@code users} đưa sequence BIGSERIAL về 1, giúp các
    * assertion kiểm tra ID cụ thể luôn nhất quán qua mọi lần chạy.
@@ -100,11 +101,11 @@ class DatabaseConfigTest {
   }
 
   /**
-   * Liệt kê và in ra tất cả các bảng trong schema {@code public}, đồng thời kiểm tra rằng
-   * migration đã tạo ít nhất 5 bảng.
+   * Liệt kê và in ra tất cả các bảng trong schema {@code public}, đồng thời kiểm tra rằng migration
+   * đã tạo ít nhất 5 bảng.
    *
-   * <p>Ngưỡng tối thiểu 5 bảng tương ứng với 5 bảng nghiệp vụ bắt buộc của hệ thống đấu giá.
-   * Test này hữu ích khi debug: danh sách bảng được in ra stdout giúp xác nhận nhanh trạng thái DB.
+   * <p>Ngưỡng tối thiểu 5 bảng tương ứng với 5 bảng nghiệp vụ bắt buộc của hệ thống đấu giá. Test
+   * này hữu ích khi debug: danh sách bảng được in ra stdout giúp xác nhận nhanh trạng thái DB.
    */
   @Test
   @Order(2)
@@ -145,9 +146,9 @@ class DatabaseConfigTest {
   /**
    * Xác nhận rằng cả 5 bảng nghiệp vụ bắt buộc đều tồn tại trong schema {@code public}.
    *
-   * <p>Danh sách bảng bắt buộc: {@code users}, {@code items}, {@code auctions},
-   * {@code bid_transactions}, {@code auto_bid_configs}. Test đếm số bảng tìm thấy và so sánh
-   * với con số kỳ vọng là 5 — nếu thiếu bất kỳ bảng nào, migration đã chạy không đầy đủ.
+   * <p>Danh sách bảng bắt buộc: {@code users}, {@code items}, {@code auctions}, {@code
+   * bid_transactions}, {@code auto_bid_configs}. Test đếm số bảng tìm thấy và so sánh với con số kỳ
+   * vọng là 5 — nếu thiếu bất kỳ bảng nào, migration đã chạy không đầy đủ.
    */
   @Test
   @Order(4)

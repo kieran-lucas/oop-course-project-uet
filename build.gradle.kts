@@ -216,6 +216,13 @@ application {
     mainClass.set("com.auction.App")
 }
 
+tasks.register<JavaExec>("runClient") {
+    group = "application"
+    description = "Run the JavaFX auction client"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.auction.Launcher")
+}
+
 // ============================================================================
 // TESTING — JUnit 5
 // ============================================================================

@@ -7,15 +7,16 @@ import org.junit.jupiter.api.*;
 
 /**
  * Test suite kiểm tra tính đúng đắn của {@link JwtUtil}:
+ *
  * <ul>
- *   <li>Token được tạo ra có thể verify thành công và chứa đúng các claim.</li>
- *   <li>Token giả mạo / sai định dạng bị từ chối với ngoại lệ phù hợp.</li>
- *   <li>Hành vi với token hết hạn được ghi nhận (hiện chưa test được tự động).</li>
+ *   <li>Token được tạo ra có thể verify thành công và chứa đúng các claim.
+ *   <li>Token giả mạo / sai định dạng bị từ chối với ngoại lệ phù hợp.
+ *   <li>Hành vi với token hết hạn được ghi nhận (hiện chưa test được tự động).
  * </ul>
  *
- * <p><b>Thư viện:</b> Sử dụng {@code com.auth0:java-jwt}. {@link JwtUtil#createToken} ký token
- * bằng secret key nội bộ; {@link JwtUtil#verifyToken} xác thực chữ ký và trả về
- * {@link DecodedJWT} để đọc các claim.
+ * <p><b>Thư viện:</b> Sử dụng {@code com.auth0:java-jwt}. {@link JwtUtil#createToken} ký token bằng
+ * secret key nội bộ; {@link JwtUtil#verifyToken} xác thực chữ ký và trả về {@link DecodedJWT} để
+ * đọc các claim.
  *
  * <p><b>Thứ tự test:</b> Được đánh số {@code @Order} theo mức độ phức tạp tăng dần — tạo/verify
  * bình thường trước, sau đó kiểm tra các trường hợp lỗi.
@@ -57,10 +58,10 @@ class JwtUtilTest {
    * Kiểm tra rằng một token sai định dạng (malformed) bị từ chối bằng ngoại lệ.
    *
    * <p>Chuỗi {@code "ey.invalid.token"} có cấu trúc 3 phần giống JWT nhưng phần header/payload
-   * không phải Base64url hợp lệ và phần signature không khớp với secret key. Thư viện
-   * {@code java-jwt} sẽ ném {@link com.auth0.jwt.exceptions.JWTVerificationException} hoặc một
-   * subclass của nó — test này chỉ yêu cầu có <em>bất kỳ</em> ngoại lệ nào được ném ra, không
-   * ràng buộc kiểu cụ thể, để linh hoạt với các phiên bản thư viện khác nhau.
+   * không phải Base64url hợp lệ và phần signature không khớp với secret key. Thư viện {@code
+   * java-jwt} sẽ ném {@link com.auth0.jwt.exceptions.JWTVerificationException} hoặc một subclass
+   * của nó — test này chỉ yêu cầu có <em>bất kỳ</em> ngoại lệ nào được ném ra, không ràng buộc kiểu
+   * cụ thể, để linh hoạt với các phiên bản thư viện khác nhau.
    */
   @Test
   @Order(2)
@@ -84,10 +85,11 @@ class JwtUtilTest {
    * làm thời gian hết hạn cố định, nên không thể test expiry mà không sửa code hoặc đợi 24 giờ.
    *
    * <p><b>Hướng cải thiện trong tương lai:</b>
+   *
    * <ol>
-   *   <li>Inject {@code Clock} vào {@link JwtUtil} để có thể mock thời gian trong test.</li>
+   *   <li>Inject {@code Clock} vào {@link JwtUtil} để có thể mock thời gian trong test.
    *   <li>Hoặc thêm overload {@code createToken(..., Duration ttl)} cho phép test truyền TTL ngắn
-   *       (ví dụ: 1 millisecond) rồi {@code Thread.sleep} trước khi verify.</li>
+   *       (ví dụ: 1 millisecond) rồi {@code Thread.sleep} trước khi verify.
    * </ol>
    */
   @Test

@@ -7,6 +7,8 @@ import com.auction.model.PasswordResetRecord;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.http.HttpResponse;
 import java.text.NumberFormat;
@@ -44,7 +46,7 @@ import org.slf4j.LoggerFactory;
  *   <li><b>Yêu cầu nạp tiền</b> — Duyệt hoặc từ chối DepositRecord đang PENDING; tự động poll mỗi 5
  *       giây.
  *   <li><b>Đặt lại mật khẩu</b> — Duyệt hoặc từ chối PasswordResetRecord đang PENDING; khi duyệt,
- *       server reset mật khẩu về {@code "123456"}.
+ *       server tạo mật khẩu tạm thời một lần.
  * </ol>
  *
  * <p><b>Các phương thức chính:</b>
@@ -66,6 +68,7 @@ public class AdminPanelController implements Navigable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AdminPanelController.class);
   private static final NumberFormat VND = NumberFormat.getCurrencyInstance(Locale.of("vi", "VN"));
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   @FXML private Label usernameLabel;
   @FXML private TableView<AuctionResponse> auctionTable;
@@ -354,8 +357,8 @@ public class AdminPanelController implements Navigable {
 
   /**
    * Duyệt yêu cầu đặt lại mật khẩu qua {@code POST
-   * /api/admin/password-reset-requests/{id}/approve}. Server sẽ reset mật khẩu của người dùng về
-   * {@code "123456"} và đánh dấu yêu cầu là APPROVED.
+   * /api/admin/password-reset-requests/{id}/approve}. Server sẽ tạo mật khẩu tạm thời một lần và
+   * đánh dấu yêu cầu là APPROVED.
    */
   private void approvePasswordReset(Long id) {
     Thread.ofVirtual()
@@ -367,7 +370,11 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 200) {
-                        setStatus("Đã reset mật khẩu về 123456 cho yêu cầu #" + id);
+                        setStatus(
+                            "Mật khẩu tạm thời cho yêu cầu #"
+                                + id
+                                + ": "
+                                + extractTempPassword(response.body()));
                         loadPasswordResetRequests();
                       } else {
                         setStatus("Duyệt thất bại: " + response.statusCode());
@@ -378,6 +385,15 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
               }
             });
+  }
+
+  private String extractTempPassword(String responseBody) {
+    try {
+      JsonNode json = MAPPER.readTree(responseBody);
+      return json.has("tempPassword") ? json.get("tempPassword").asText() : "(không có)";
+    } catch (Exception e) {
+      return "(không đọc được)";
+    }
   }
 
   /**

@@ -1,5 +1,6 @@
 package com.auction.util;
 
+import java.util.prefs.Preferences;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
@@ -41,6 +42,7 @@ import javafx.collections.ObservableList;
 public class NotificationStore {
 
   private static final NotificationStore INSTANCE = new NotificationStore();
+  private static final String READ_COUNT_KEY = "notifications_read_count";
 
   /**
    * Danh sách thông báo theo thứ tự thêm vào ngược (thông báo mới nhất ở index 0).
@@ -49,6 +51,8 @@ public class NotificationStore {
    * mà không cần polling hay callback thủ công.
    */
   private final ObservableList<String> notifications = FXCollections.observableArrayList();
+
+  private final Preferences preferences = Preferences.userNodeForPackage(NotificationStore.class);
 
   /**
    * Số lượng thông báo chưa đọc — tăng mỗi khi {@link #add} được gọi, reset khi {@link
@@ -59,7 +63,9 @@ public class NotificationStore {
    */
   private final SimpleIntegerProperty unreadCount = new SimpleIntegerProperty(0);
 
-  private NotificationStore() {}
+  private NotificationStore() {
+    refreshUnreadCount();
+  }
 
   /**
    * Trả về instance duy nhất của {@code NotificationStore}.
@@ -82,7 +88,7 @@ public class NotificationStore {
    */
   public void add(String notification) {
     notifications.add(0, notification);
-    unreadCount.set(unreadCount.get() + 1);
+    refreshUnreadCount();
   }
 
   /**
@@ -114,6 +120,7 @@ public class NotificationStore {
    * khi người dùng mở notification panel.
    */
   public void markAllRead() {
+    preferences.putInt(READ_COUNT_KEY, notifications.size());
     unreadCount.set(0);
   }
 
@@ -138,6 +145,12 @@ public class NotificationStore {
    */
   public void clear() {
     notifications.clear();
+    preferences.putInt(READ_COUNT_KEY, 0);
     unreadCount.set(0);
+  }
+
+  private void refreshUnreadCount() {
+    int savedReadCount = preferences.getInt(READ_COUNT_KEY, 0);
+    unreadCount.set(Math.max(0, notifications.size() - savedReadCount));
   }
 }

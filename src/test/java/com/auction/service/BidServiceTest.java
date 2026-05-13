@@ -15,6 +15,8 @@ import com.auction.exception.AuctionClosedException;
 import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
+import com.auction.model.AuctionStatus;
+import com.auction.model.AutoBidConfig;
 import com.auction.model.BidTransaction;
 import com.auction.model.Bidder;
 import com.auction.model.Seller;
@@ -24,15 +26,23 @@ import com.auction.pattern.state.FinishedState;
 import com.auction.pattern.state.OpenState;
 import com.auction.pattern.state.PaidState;
 import com.auction.pattern.state.RunningState;
+import com.auction.pattern.strategy.AutoBidStrategy;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -65,9 +75,10 @@ class BidServiceTest {
   @Mock private Jdbi jdbi;
   @Mock private AuctionService auctionService;
   @Mock private Handle mockHandle;
+  @Mock private AutoBidStrategy autoBidStrategy;
 
   // ── System Under Test ────────────────────────────────────
-  @InjectMocks private BidService bidService;
+  private BidService bidService;
 
   // ── Constant test data ───────────────────────────────────
   private static final Long AUCTION_ID = 5L;
@@ -85,7 +96,7 @@ class BidServiceTest {
     a.setStartingPrice(STARTING);
     a.setCurrentPrice(STARTING);
     a.setLeadingBidderId(null);
-    a.setStatus(status);
+    a.setStatus(AuctionStatus.from(status));
     a.setStartTime(LocalDateTime.now().minusHours(1));
     a.setEndTime(LocalDateTime.now().plusSeconds(remainingSec));
     return a;
@@ -102,22 +113,37 @@ class BidServiceTest {
   @BeforeEach
   @SuppressWarnings("unchecked")
   void globalSetup() throws Exception {
+    bidService =
+        new BidService(
+            auctionDao,
+            bidTransactionDao,
+            autoBidConfigDao,
+            eventManager,
+            jdbi,
+            auctionService,
+            userDao,
+            autoBidStrategy);
+
     // Bidder có số dư đủ lớn để bid (100 triệu)
     Bidder bidder = new Bidder();
     bidder.setId(BIDDER_ID);
     bidder.setBalance(new BigDecimal("100000000"));
     when(userDao.findById(BIDDER_ID)).thenReturn(Optional.of(bidder));
+    // [FIX] BidService giờ dùng findByIdForUpdate bên trong transaction
+    when(userDao.findByIdForUpdate(mockHandle, BIDDER_ID)).thenReturn(bidder);
 
     Bidder bidderB = new Bidder();
     bidderB.setId(BIDDER_B_ID);
     bidderB.setBalance(new BigDecimal("100000000"));
     when(userDao.findById(BIDDER_B_ID)).thenReturn(Optional.of(bidderB));
+    when(userDao.findByIdForUpdate(mockHandle, BIDDER_B_ID)).thenReturn(bidderB);
 
     // Seller cũng có số dư (để balance check pass, rồi State pattern mới reject)
     Seller seller = new Seller();
     seller.setId(SELLER_ID);
     seller.setBalance(new BigDecimal("100000000"));
     when(userDao.findById(SELLER_ID)).thenReturn(Optional.of(seller));
+    when(userDao.findByIdForUpdate(mockHandle, SELLER_ID)).thenReturn(seller);
 
     doAnswer(
             invocation -> {
@@ -132,12 +158,11 @@ class BidServiceTest {
             invocation -> {
               Auction a = invocation.getArgument(0);
               return switch (a.getStatus()) {
-                case "OPEN" -> new OpenState();
-                case "RUNNING" -> new RunningState();
-                case "FINISHED" -> new FinishedState();
-                case "PAID" -> new PaidState();
-                case "CANCELED" -> new CanceledState();
-                default -> throw new IllegalStateException("Unknown: " + a.getStatus());
+                case OPEN -> new OpenState();
+                case RUNNING, SETTLING -> new RunningState();
+                case FINISHED -> new FinishedState();
+                case PAID -> new PaidState();
+                case CANCELED -> new CanceledState();
               };
             })
         .when(auctionService)
@@ -588,6 +613,126 @@ class BidServiceTest {
               assertEquals(
                   BIDDER_ID, msg.getLeadingBidderId(), "leadingBidderId phải là người vừa bid"),
           () -> assertEquals("BID_UPDATE", msg.getType(), "type phải là 'BID_UPDATE'"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Concurrency")
+  class ConcurrencyTests {
+
+    @Test
+    @Disabled(
+        "Requires real embedded DB — run manually with ./gradlew test --tests *ConcurrencyTests*")
+    @DisplayName("10 concurrent bids on same auction — exactly 1 succeeds (SELECT FOR UPDATE)")
+    void concurrentBids_onlyOneWins() throws Exception {
+      // TODO: replace the mocked service setup with DatabaseConfig.create() and seeded real rows.
+      long auctionId = AUCTION_ID;
+      int threadCount = 10;
+      ExecutorService pool = Executors.newFixedThreadPool(threadCount);
+      CountDownLatch startGate = new CountDownLatch(1);
+      List<Future<Boolean>> futures = new ArrayList<>();
+
+      for (int i = 0; i < threadCount; i++) {
+        final long bidderId = 200L + i;
+        futures.add(
+            pool.submit(
+                () -> {
+                  startGate.await();
+                  try {
+                    bidService.placeBid(auctionId, bidderId, new BigDecimal("2000000"), false);
+                    return true;
+                  } catch (InvalidBidException | AuctionClosedException | NotFoundException e) {
+                    return false;
+                  }
+                }));
+      }
+
+      startGate.countDown();
+      pool.shutdown();
+      assertTrue(pool.awaitTermination(15, TimeUnit.SECONDS));
+
+      long successCount =
+          futures.stream()
+              .mapToLong(
+                  f -> {
+                    try {
+                      return f.get() ? 1L : 0L;
+                    } catch (Exception e) {
+                      return 0L;
+                    }
+                  })
+              .sum();
+
+      assertEquals(
+          1L, successCount, "Exactly one concurrent bid should succeed; all others must fail");
+    }
+  }
+
+  @Nested
+  @DisplayName("AutoBid Chain")
+  class AutoBidChainTests {
+
+    @Test
+    @DisplayName("Chain terminates when a bidder's budget is exhausted")
+    void autoBidChain_stopsAtBudget() {
+      Auction auction = runningAuction();
+      auction.setCurrentPrice(new BigDecimal("1500000"));
+      auction.setLeadingBidderId(99L);
+
+      AutoBidConfig bidderA =
+          new AutoBidConfig(
+              10L,
+              AUCTION_ID,
+              BIDDER_ID,
+              new BigDecimal("5000000"),
+              new BigDecimal("500000"),
+              true,
+              LocalDateTime.now().plusNanos(1),
+              LocalDateTime.now());
+      AutoBidConfig bidderB =
+          new AutoBidConfig(
+              11L,
+              AUCTION_ID,
+              BIDDER_B_ID,
+              new BigDecimal("3000000"),
+              new BigDecimal("500000"),
+              true,
+              LocalDateTime.now(),
+              LocalDateTime.now());
+
+      when(autoBidConfigDao.findActiveByAuctionId(AUCTION_ID))
+          .thenReturn(List.of(bidderB, bidderA));
+      when(autoBidConfigDao.findById(anyLong()))
+          .thenAnswer(
+              invocation -> {
+                Long id = invocation.getArgument(0);
+                if (id.equals(bidderA.getId())) {
+                  return Optional.of(bidderA);
+                }
+                if (id.equals(bidderB.getId())) {
+                  return Optional.of(bidderB);
+                }
+                return Optional.empty();
+              });
+
+      AutoBidStrategy strategy = new AutoBidStrategy(autoBidConfigDao);
+
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(5),
+          () ->
+              strategy.executeAll(
+                  AUCTION_ID,
+                  new BigDecimal("1500000"),
+                  99L,
+                  (auctionId, bidderId, amount) -> {
+                    auction.setCurrentPrice(amount);
+                    auction.setLeadingBidderId(bidderId);
+                    return new BidTransaction(auctionId, bidderId, amount, true);
+                  }));
+
+      assertEquals(new BigDecimal("3500000"), auction.getCurrentPrice());
+      assertEquals(BIDDER_ID, auction.getLeadingBidderId());
+      verify(autoBidConfigDao, atMost(20)).findById(anyLong());
     }
   }
 }

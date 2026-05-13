@@ -124,31 +124,22 @@ public class AuctionWebSocketHandler {
   }
 
   /**
-   * Lưu thông báo vào bảng notifications khi user không có kết nối WebSocket. Đảm bảo user nhận
-   * được thông báo khi reconnect hoặc qua REST API.
+   * Lưu thông báo vào bảng notifications. Đảm bảo user nhận được thông báo khi reconnect hoặc qua
+   * REST API.
    */
-  private void saveNotificationToDatabase(Long userId, BigDecimal newBalance, boolean approved) {
+  public void saveNotificationToDatabase(Long userId, String message, String type) {
     try {
-      String message;
-      if (approved) {
-        message =
-            String.format(
-                "Yêu cầu nạp tiền đã được duyệt. Số dư mới: %,d VNĐ",
-                newBalance != null ? newBalance.longValue() : 0);
-      } else {
-        message = "Yêu cầu nạp tiền đã bị từ chối.";
-      }
-
       jdbi.useHandle(
           handle ->
               handle.execute(
                   """
                 INSERT INTO notifications (user_id, message, notification_type)
-                VALUES (?, ?, 'BALANCE_UPDATED')
+                VALUES (?, ?, ?)
                 """,
                   userId,
-                  message));
-      LOGGER.info("Đã lưu notification vào DB cho userId={}", userId);
+                  message,
+                  type));
+      LOGGER.info("Đã lưu notification vào DB cho userId={}, type={}", userId, type);
     } catch (Exception e) {
       LOGGER.error("Lỗi lưu notification vào DB: {}", e.getMessage());
     }
@@ -228,6 +219,13 @@ public class AuctionWebSocketHandler {
 
       DecodedJWT decoded = JwtUtil.verifyToken(token);
       String username = decoded.getSubject();
+      Long tokenUserId = decoded.getClaim("userId").asLong();
+      if (!tokenUserId.equals(userId)) {
+        LOGGER.warn(
+            "IDOR attempt blocked: token userId={} tried to open /ws/user/{}", tokenUserId, userId);
+        ctx.session.close(4003, "Forbidden: userId mismatch");
+        return;
+      }
 
       userConnections.computeIfAbsent(userId, k -> new CopyOnWriteArraySet<>()).add(ctx);
       LOGGER.info("User WebSocket kết nối: user={}, userId=#{}", username, userId);
@@ -255,18 +253,26 @@ public class AuctionWebSocketHandler {
   }
 
   /**
-   * Push thông báo biến động số dư đến user cụ thể qua kênh {@code /ws/user/{id}}.
+   * Push thông báo biến động số dư đến user cụ thể qua kênh {@code /ws/user/{id}}. Luôn lưu vào
+   * database trước để đảm bảo tính bền vững.
    *
    * @param userId ID user cần notify
    * @param newBalance số dư mới (null nếu bị từ chối)
    * @param approved true = duyệt (cộng tiền), false = từ chối
    */
   public void notifyBalanceUpdate(Long userId, BigDecimal newBalance, boolean approved) {
+    // 1. Luôn lưu vào DB trước
+    String message =
+        approved
+            ? String.format(
+                "Yêu cầu nạp tiền đã được duyệt. Số dư mới: %,d VNĐ",
+                newBalance != null ? newBalance.longValue() : 0)
+            : "Yêu cầu nạp tiền đã bị từ chối.";
+    saveNotificationToDatabase(userId, message, "BALANCE_UPDATED");
+
+    // 2. Push qua WebSocket nếu user đang online
     Set<WsContext> sessions = userConnections.get(userId);
     if (sessions == null || sessions.isEmpty()) {
-      LOGGER.warn("notifyBalanceUpdate: userId={} không có WS session, lưu vào DB.", userId);
-
-      saveNotificationToDatabase(userId, newBalance, approved);
       return;
     }
     try {

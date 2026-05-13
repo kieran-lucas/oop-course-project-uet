@@ -6,7 +6,7 @@
 -- Vòng đời trạng thái: PENDING → APPROVED | REJECTED
 -- ============================================================
 
-CREATE TABLE deposit_requests (
+CREATE TABLE IF NOT EXISTS deposit_requests (
     id          BIGSERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     amount      DECIMAL(15,2) NOT NULL,               -- Số tiền yêu cầu nạp
@@ -17,4 +17,4 @@ CREATE TABLE deposit_requests (
 );
 
 -- Tăng tốc truy vấn danh sách yêu cầu đang chờ duyệt (PENDING)
-CREATE INDEX idx_deposit_requests_status ON deposit_requests(status);
+CREATE INDEX IF NOT EXISTS idx_deposit_requests_status ON deposit_requests(status);

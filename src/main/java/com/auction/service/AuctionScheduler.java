@@ -5,7 +5,7 @@ import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.model.Auction;
-import com.auction.model.Item;
+import com.auction.model.AuctionStatus;
 import com.auction.model.User;
 import com.auction.pattern.observer.AuctionEventManager;
 import java.math.BigDecimal;
@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * Bộ lập lịch nền — tự động chuyển trạng thái phiên đấu giá theo thời gian.
@@ -58,6 +59,7 @@ public class AuctionScheduler {
   private final UserDao userDao;
   private final ItemDao itemDao;
   private final AuctionEventManager eventManager;
+  private final org.jdbi.v3.core.Jdbi jdbi;
 
   /** Thread pool 1 thread — đủ cho scheduler đơn giản này */
   private final ScheduledExecutorService scheduler =
@@ -75,11 +77,16 @@ public class AuctionScheduler {
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   public AuctionScheduler(
-      AuctionDao auctionDao, UserDao userDao, ItemDao itemDao, AuctionEventManager eventManager) {
+      AuctionDao auctionDao,
+      UserDao userDao,
+      ItemDao itemDao,
+      AuctionEventManager eventManager,
+      org.jdbi.v3.core.Jdbi jdbi) {
     this.auctionDao = auctionDao;
     this.userDao = userDao;
     this.itemDao = itemDao;
     this.eventManager = eventManager;
+    this.jdbi = jdbi;
   }
 
   // ── Lifecycle ────────────────────────────────────────────
@@ -159,24 +166,17 @@ public class AuctionScheduler {
    * @param now thời điểm hiện tại
    */
   private void openToRunning(LocalDateTime now) {
-    List<Auction> openAuctions = auctionDao.findByStatus("OPEN");
-
-    for (Auction auction : openAuctions) {
-      if (auction.getStartTime() == null) {
-        continue;
-      }
-
-      if (!auction.getStartTime().isAfter(now)) {
-        try {
-          auction.setStatus("RUNNING");
-          auctionDao.update(auction);
-          LOG.info(
-              "Phiên #{} chuyển OPEN → RUNNING (startTime={})",
-              auction.getId(),
-              auction.getStartTime());
-        } catch (Exception e) {
-          LOG.error("Không thể chuyển phiên #{} sang RUNNING", auction.getId(), e);
+    List<Long> ids = auctionDao.findDueAuctionIds("OPEN", now);
+    for (Long id : ids) {
+      try {
+        boolean ok = auctionDao.atomicTransition(id, "OPEN", "RUNNING");
+        if (ok) {
+          LOG.info("Phiên #{} OPEN → RUNNING", id);
+        } else {
+          LOG.debug("Phiên #{} skip — đã transition trước", id);
         }
+      } catch (Exception e) {
+        LOG.error("Không thể chuyển phiên #{} sang RUNNING", id, e);
       }
     }
   }
@@ -192,21 +192,19 @@ public class AuctionScheduler {
    * @param now thời điểm hiện tại
    */
   private void runningToFinished(LocalDateTime now) {
-    List<Auction> runningAuctions = auctionDao.findByStatus("RUNNING");
-
-    for (Auction auction : runningAuctions) {
-      if (auction.getEndTime() == null) {
-        continue;
-      }
-
-      if (!auction.getEndTime().isAfter(now)) {
-        try {
-          settleAndClose(auction);
-          notifyAuctionEnded(auction);
-        } catch (Exception e) {
-          LOG.error("Không thể kết thúc phiên #{}", auction.getId(), e);
-        }
-      }
+    List<Long> ids = auctionDao.findExpiredAuctionIds("RUNNING", now);
+    for (Long id : ids) {
+      auctionDao
+          .findById(id)
+          .ifPresent(
+              auction -> {
+                try {
+                  settleAndClose(auction);
+                  notifyAuctionEnded(auction);
+                } catch (Exception e) {
+                  LOG.error("Không thể kết thúc phiên #{}", id, e);
+                }
+              });
     }
   }
 
@@ -215,52 +213,101 @@ public class AuctionScheduler {
    * PAID. - Nếu không ai bid: status → FINISHED.
    */
   private void settleAndClose(Auction auction) {
-    Long winnerId = auction.getLeadingBidderId();
+    MDC.put("auctionId", String.valueOf(auction.getId()));
+    try {
+      boolean claimed = auctionDao.atomicTransition(auction.getId(), "RUNNING", "SETTLING");
+      if (!claimed) {
+        LOG.warn("Phiên #{} đã được settle bởi thread/process khác, bỏ qua", auction.getId());
+        return;
+      }
 
-    if (winnerId != null) {
-      BigDecimal price = auction.getCurrentPrice();
+      jdbi.useTransaction(
+          handle -> {
+            Long winnerId = auction.getLeadingBidderId();
 
-      userDao
-          .findById(winnerId)
-          .ifPresent(
-              winner -> {
-                BigDecimal balance =
-                    winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
-                if (balance.compareTo(price) >= 0) {
-                  userDao.updateBalance(winnerId, price.negate());
-                  LOG.info("Phiên #{}: trừ {} từ bidder #{}", auction.getId(), price, winnerId);
-                } else {
-                  LOG.warn(
-                      "Phiên #{}: bidder #{} không đủ số dư ({}) để thanh toán {}. Không trừ.",
+            if (winnerId != null) {
+              BigDecimal price = auction.getCurrentPrice();
+
+              // Khóa row winner để trừ tiền an toàn
+              User winner = userDao.findByIdForUpdate(handle, winnerId);
+              BigDecimal balance =
+                  winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
+
+              if (balance.compareTo(price) >= 0) {
+                BigDecimal balanceBefore = balance;
+                // Trừ tiền bidder
+                handle
+                    .createUpdate("UPDATE users SET balance = balance - :price WHERE id = :userId")
+                    .bind("price", price)
+                    .bind("userId", winnerId)
+                    .execute();
+                LOG.info("Phiên #{}: trừ {} từ bidder #{}", auction.getId(), price, winnerId);
+                LOG.info(
+                    "Phiên #{}: bidder #{} balance {} → {}",
+                    auction.getId(),
+                    winnerId,
+                    balanceBefore,
+                    balanceBefore.subtract(price));
+
+                // Cộng tiền seller
+                Long sellerId = auction.getSellerId();
+                if (sellerId != null) {
+                  // Khóa row seller để cộng tiền
+                  User seller = userDao.findByIdForUpdate(handle, sellerId);
+                  BigDecimal sellerBalanceBefore =
+                      seller.getBalance() != null ? seller.getBalance() : BigDecimal.ZERO;
+                  handle
+                      .createUpdate(
+                          "UPDATE users SET balance = balance + :price WHERE id = :userId")
+                      .bind("price", price)
+                      .bind("userId", sellerId)
+                      .execute();
+                  LOG.info("Phiên #{}: cộng {} cho seller #{}", auction.getId(), price, sellerId);
+                  LOG.info(
+                      "Phiên #{}: seller #{} balance {} → {}",
                       auction.getId(),
-                      winnerId,
-                      balance,
-                      price);
+                      sellerId,
+                      sellerBalanceBefore,
+                      sellerBalanceBefore.add(price));
                 }
-              });
 
-      // Cộng tiền seller (atomic — same race condition applies)
-      Long sellerId = auction.getSellerId();
-      if (sellerId == null) {
-        sellerId = itemDao.findById(auction.getItemId()).map(Item::getSellerId).orElse(null);
-      }
-      if (sellerId != null) {
-        userDao.updateBalance(sellerId, price);
-        LOG.info("Phiên #{}: cộng {} cho seller #{}", auction.getId(), price, sellerId);
-      }
+                auction.setStatus(AuctionStatus.PAID);
 
-      auction.setStatus("PAID");
-    } else {
-      auction.setStatus("FINISHED");
+                // Lưu thông báo thắng cuộc cho bidder
+                String winMsg =
+                    String.format(
+                        "Chúc mừng! Bạn đã thắng phiên đấu giá #%d với giá %,d VNĐ",
+                        auction.getId(), price.longValue());
+                handle.execute(
+                    "INSERT INTO notifications (user_id, message, notification_type) VALUES (?, ?, 'AUCTION_WON')",
+                    winnerId,
+                    winMsg);
+              } else {
+                LOG.warn(
+                    "Phiên #{}: bidder #{} không đủ số dư ({}) để thanh toán {}. Chuyển FINISHED (nợ).",
+                    auction.getId(),
+                    winnerId,
+                    balance,
+                    price);
+                auction.setStatus(AuctionStatus.FINISHED);
+              }
+            } else {
+              auction.setStatus(AuctionStatus.FINISHED);
+            }
+
+            // Cập nhật trạng thái auction cuối cùng
+            auctionDao.updateInTransaction(handle, auction);
+          });
+
+      LOG.info(
+          "Phiên #{} → {} (endTime={}, winner={})",
+          auction.getId(),
+          auction.getStatus(),
+          auction.getEndTime(),
+          auction.getLeadingBidderId());
+    } finally {
+      MDC.remove("auctionId");
     }
-
-    auctionDao.update(auction);
-    LOG.info(
-        "Phiên #{} → {} (endTime={}, winner={})",
-        auction.getId(),
-        auction.getStatus(),
-        auction.getEndTime(),
-        winnerId);
   }
 
   // ── Notification ─────────────────────────────────────────

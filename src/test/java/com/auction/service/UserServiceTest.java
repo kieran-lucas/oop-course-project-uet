@@ -52,7 +52,6 @@ class UserServiceTest {
   @Order(1)
   @DisplayName("testRegisterSuccess() — Đăng ký thành công dùng RegisterRequest")
   void testRegisterSuccess() {
-    when(userDao.findByUsername(any())).thenReturn(Optional.empty());
     when(userDao.insert(any(User.class)))
         .thenAnswer(
             invocation -> {
@@ -71,7 +70,10 @@ class UserServiceTest {
   @Order(2)
   @DisplayName("testRegisterDuplicateUsername() — Trùng tên -> Throw DuplicateException")
   void testRegisterDuplicateUsername() {
-    when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
+    when(userDao.insert(any(User.class)))
+        .thenThrow(
+            new org.jdbi.v3.core.statement.UnableToExecuteStatementException(
+                "duplicate key value violates unique constraint \"users_username_key\""));
 
     RegisterRequest regReq =
         new RegisterRequest("nhomAnhDuc", "pass123", "nad@gmail.com", "BIDDER");

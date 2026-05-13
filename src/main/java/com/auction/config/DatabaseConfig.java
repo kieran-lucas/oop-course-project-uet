@@ -6,6 +6,7 @@ import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import java.io.File;
 import java.nio.file.Files;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import org.flywaydb.core.Flyway;
@@ -96,7 +97,11 @@ public class DatabaseConfig {
         LOGGER.warn("⚠️  Đã xóa postmaster.pid còn sót từ lần chạy trước");
       }
 
-      embeddedPostgres = EmbeddedPostgres.builder().setDataDirectory(EMBEDDED_DATA_DIR).start();
+      embeddedPostgres =
+          EmbeddedPostgres.builder()
+              .setDataDirectory(EMBEDDED_DATA_DIR)
+              .setCleanDataDirectory(false)
+              .start();
 
       int port = embeddedPostgres.getPort();
       String dbUser = "postgres";
@@ -107,15 +112,17 @@ public class DatabaseConfig {
       // ── Tạo database auction_db nếu chưa tồn tại ─────────────────────
       // Phải connect vào DB mặc định "postgres" trước, không thể connect thẳng vào auction_db
       try (Connection conn = embeddedPostgres.getPostgresDatabase().getConnection();
-          Statement stmt = conn.createStatement()) {
-        ResultSet rs =
-            stmt.executeQuery(
-                "SELECT 1 FROM pg_database WHERE datname = '" + EMBEDDED_DB_NAME + "'");
-        if (!rs.next()) {
-          stmt.execute("CREATE DATABASE " + EMBEDDED_DB_NAME);
-          LOGGER.info("✅ Đã tạo database '{}'", EMBEDDED_DB_NAME);
-        } else {
-          LOGGER.info("ℹ️  Database '{}' đã tồn tại, bỏ qua bước tạo", EMBEDDED_DB_NAME);
+          Statement stmt = conn.createStatement();
+          PreparedStatement ps =
+              conn.prepareStatement("SELECT 1 FROM pg_database WHERE datname = ?")) {
+        ps.setString(1, EMBEDDED_DB_NAME);
+        try (ResultSet rs = ps.executeQuery()) {
+          if (!rs.next()) {
+            stmt.execute("CREATE DATABASE " + EMBEDDED_DB_NAME);
+            LOGGER.info("✅ Đã tạo database '{}'", EMBEDDED_DB_NAME);
+          } else {
+            LOGGER.info("ℹ️  Database '{}' đã tồn tại, bỏ qua bước tạo", EMBEDDED_DB_NAME);
+          }
         }
       }
 
@@ -128,18 +135,6 @@ public class DatabaseConfig {
       runMigrations(dataSource);
 
       jdbi = Jdbi.create(dataSource);
-
-      // ── Đăng ký shutdown hook ngay tại đây ───────────────────────────
-      // Đảm bảo PostgreSQL luôn được đóng sạch dù server tắt theo cách nào
-      // (Ctrl+C, kill, đóng cửa sổ terminal...) — không phụ thuộc vào App.java
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  () -> {
-                    LOGGER.info("⏹ JVM shutdown — đóng database...");
-                    shutDown();
-                  },
-                  "db-shutdown-hook"));
 
       LOGGER.info("✅ Kết nối Embedded PostgreSQL thành công");
 

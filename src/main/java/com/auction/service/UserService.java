@@ -11,10 +11,10 @@ import com.auction.dto.UserResponse;
 import com.auction.exception.DuplicateException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
-import com.auction.model.Bidder;
+import com.auction.model.Admin;
 import com.auction.model.DepositRecord;
-import com.auction.model.Seller;
 import com.auction.model.User;
+import com.auction.pattern.factory.UserFactory;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -28,10 +28,13 @@ import java.util.List;
 public class UserService {
   private final UserDao userDao;
   private final DepositRequestDao depositRequestDao;
+  private final org.jdbi.v3.core.Jdbi jdbi;
 
-  public UserService(UserDao userDao, DepositRequestDao depositRequestDao) {
+  public UserService(
+      UserDao userDao, DepositRequestDao depositRequestDao, org.jdbi.v3.core.Jdbi jdbi) {
     this.userDao = userDao;
     this.depositRequestDao = depositRequestDao;
+    this.jdbi = jdbi;
   }
 
   /**
@@ -61,28 +64,34 @@ public class UserService {
       throw new IllegalArgumentException("Mật khẩu phải có ít nhất 6 ký tự.");
     }
 
-    // Kiểm tra trùng username trước khi tạo — tránh lãng phí hash BCrypt
-    if (userDao.findByUsername(req.getUsername()).isPresent()) {
-      throw new DuplicateException("Username '" + req.getUsername() + "' đã tồn tại!");
-    }
-
     // BCrypt với cost factor 12: đủ chậm để chống brute-force, không quá nặng cho server
     String hashedPassword = BCrypt.withDefaults().hashToString(12, req.getPassword().toCharArray());
 
-    // Dùng enhanced switch (Java 21) để tạo đúng subclass theo role
-    // — đây là nơi đa hình được khởi tạo: Bidder và Seller kế thừa User
-    User newUser =
-        switch (req.getRole().toUpperCase()) {
-          case "BIDDER" -> new Bidder();
-          case "SELLER" -> new Seller();
-          default -> throw new IllegalArgumentException("Role không hợp lệ: " + req.getRole());
-        };
+    User newUser;
+    try {
+      newUser = UserFactory.create(req.getRole());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Role không hợp lệ: " + req.getRole());
+    }
+    if (newUser instanceof Admin) {
+      throw new IllegalArgumentException("Role không hợp lệ: " + req.getRole());
+    }
 
     newUser.setUsername(req.getUsername());
     newUser.setPasswordHash(hashedPassword);
     newUser.setEmail(req.getEmail());
 
-    return userDao.insert(newUser);
+    try {
+      return userDao.insert(newUser);
+    } catch (org.jdbi.v3.core.statement.UnableToExecuteStatementException e) {
+      String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+      if (msg.contains("unique")
+          || msg.contains("duplicate")
+          || msg.contains("users_username_key")) {
+        throw new DuplicateException("Username '" + req.getUsername() + "' đã tồn tại!");
+      }
+      throw e;
+    }
   }
 
   /**
@@ -206,8 +215,8 @@ public class UserService {
   /**
    * Admin phê duyệt yêu cầu nạp tiền: cộng tiền vào số dư user và chuyển trạng thái → APPROVED.
    *
-   * <p>Lưu ý: hai thao tác (cập nhật số dư và cập nhật trạng thái) hiện chưa nằm trong cùng một
-   * transaction — cần cân nhắc wrap lại nếu yêu cầu tính nhất quán cao hơn.
+   * <p>Sử dụng transaction để đảm bảo tính nguyên tử giữa việc cộng tiền và cập nhật trạng thái.
+   * Khóa row user để tránh race condition nếu có nhiều yêu cầu nạp tiền được duyệt cùng lúc.
    *
    * @param requestId ID của yêu cầu nạp tiền
    * @return {@link UserResponse} phản ánh số dư sau khi được cộng thêm
@@ -215,28 +224,35 @@ public class UserService {
    * @throws IllegalStateException nếu yêu cầu đã được xử lý trước đó (không còn PENDING)
    */
   public UserResponse approveDeposit(Long requestId) {
-    DepositRecord record =
-        depositRequestDao
-            .findById(requestId)
-            .orElseThrow(
-                () -> new NotFoundException("Không tìm thấy yêu cầu nạp tiền: " + requestId));
+    return jdbi.inTransaction(
+        handle -> {
+          DepositRecord record =
+              depositRequestDao
+                  .findById(requestId)
+                  .orElseThrow(
+                      () -> new NotFoundException("Không tìm thấy yêu cầu nạp tiền: " + requestId));
 
-    if (!"PENDING".equals(record.getStatus())) {
-      throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
-    }
+          if (!"PENDING".equals(record.getStatus())) {
+            throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+          }
 
-    User user =
-        userDao
-            .findById(record.getUserId())
-            .orElseThrow(
-                () -> new NotFoundException("Không tìm thấy người dùng: " + record.getUserId()));
+          // Khóa row user để cập nhật balance an toàn
+          User user = userDao.findByIdForUpdate(handle, record.getUserId());
 
-    // Xử lý trường hợp balance null (user mới chưa từng nạp tiền)
-    BigDecimal current = user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO;
-    user.setBalance(current.add(record.getAmount()));
-    userDao.update(user);
-    depositRequestDao.updateStatus(requestId, "APPROVED");
-    return UserResponse.from(user);
+          BigDecimal current = user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO;
+          user.setBalance(current.add(record.getAmount()));
+
+          // Cập nhật cả 2 trong cùng transaction
+          handle
+              .createUpdate("UPDATE users SET balance = :balance WHERE id = :id")
+              .bind("balance", user.getBalance())
+              .bind("id", user.getId())
+              .execute();
+
+          depositRequestDao.updateStatusInTransaction(handle, requestId, "APPROVED");
+
+          return UserResponse.from(user);
+        });
   }
 
   /**

@@ -2,6 +2,7 @@ package com.auction.controller;
 
 import com.auction.dto.AuctionResponse;
 import com.auction.dto.CreateAuctionRequest;
+import com.auction.dto.PageRequest;
 import com.auction.exception.UnauthorizedException;
 import com.auction.model.Auction;
 import com.auction.service.AuctionService;
@@ -100,8 +101,11 @@ public class AuctionController {
   private static void handleGetAll(Context ctx, AuctionService auctionService) {
     // Lấy query param lọc trạng thái (có thể null nếu không truyền)
     String statusFilter = ctx.queryParam("status");
+    int page = Integer.parseInt(ctx.queryParamAsClass("page", String.class).getOrDefault("0"));
+    int size = Integer.parseInt(ctx.queryParamAsClass("size", String.class).getOrDefault("20"));
+    PageRequest pageRequest = (statusFilter == null) ? PageRequest.of(page, size) : null;
 
-    List<AuctionResponse> auctions = auctionService.getAll(statusFilter);
+    List<AuctionResponse> auctions = auctionService.getAll(statusFilter, pageRequest);
     ctx.status(200).json(auctions);
   }
 

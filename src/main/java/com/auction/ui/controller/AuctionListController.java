@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -21,15 +23,18 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
@@ -72,6 +77,15 @@ public class AuctionListController implements Navigable {
   private static final ObjectMapper MAPPER =
       new ObjectMapper().registerModule(new JavaTimeModule());
   private static final NumberFormat VND = NumberFormat.getCurrencyInstance(Locale.of("vi", "VN"));
+  private static final NumberFormat VND_AMOUNT =
+      NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
+  private static final Pattern AUCTION_ID_PATTERN = Pattern.compile("#(\\d+)");
+  private static final Pattern VND_AMOUNT_PATTERN =
+      Pattern.compile("([+-]?\\s*[\\d.,]+\\s*(?:VND|VNĐ|₫|đ))", Pattern.CASE_INSENSITIVE);
+  private static final Pattern NEW_BALANCE_PATTERN =
+      Pattern.compile("Số dư mới:\\s*([\\d.,]+)", Pattern.CASE_INSENSITIVE);
+  private static final Pattern BALANCE_DELTA_PATTERN =
+      Pattern.compile("([+-]\\s*[\\d.,]+\\s*(?:VND|VNĐ|₫|đ))", Pattern.CASE_INSENSITIVE);
 
   @FXML private Label usernameLabel;
   @FXML private TableView<AuctionResponse> auctionTable;
@@ -258,7 +272,7 @@ public class AuctionListController implements Navigable {
 
   /**
    * Xử lý click chuông thông báo: đánh dấu tất cả thông báo đã đọc, cập nhật badge về 0, rồi mở
-   * Popup hiển thị tối đa 8 thông báo gần nhất. Popup tự đóng khi click ra ngoài.
+   * Popup hiển thị tối đa 50 thông báo gần nhất. Popup tự đóng khi click ra ngoài.
    */
   @FXML
   public void handleBellClick() {
@@ -288,30 +302,35 @@ public class AuctionListController implements Navigable {
     content.getChildren().addAll(header, sep);
 
     ObservableList<String> notifications = store.getNotifications();
+    ScrollPane scrollPane = null;
     if (notifications.isEmpty()) {
       Label empty = new Label("Chưa có thông báo nào.");
       empty.setStyle("-fx-text-fill: #78909c; -fx-font-size: 13px; -fx-padding: 4 0 4 0;");
       content.getChildren().add(empty);
     } else {
       VBox items = new VBox(4);
-      int limit = Math.min(notifications.size(), 8);
+      int limit = Math.min(notifications.size(), 50);
+      // Hien thi tu cu nhat (index 0) den moi nhat (index limit-1)
+      // VBox se co: [cu nhat o tren, moi nhat o duoi] -> setVvalue(1.0) cuon xuong day = thay moi
+      // nhat
+      BigDecimal previousBalance = findPreviousBalanceBefore(notifications, limit);
       for (int i = 0; i < limit; i++) {
-        Label item = new Label(notifications.get(i));
-        item.setWrapText(true);
-        item.setMaxWidth(Double.MAX_VALUE);
-        item.setPadding(new Insets(7, 10, 7, 10));
-        item.setStyle(
-            "-fx-text-fill: #e0e0e0; -fx-font-size: 12px; "
-                + "-fx-background-color: rgba(255,255,255,0.06); "
-                + "-fx-background-radius: 6;");
-        items.getChildren().add(item);
+        NotificationRow row = buildNotificationRow(notifications.get(i), previousBalance);
+        items.getChildren().add(row.node());
+        if (row.newBalance() != null) {
+          previousBalance = row.newBalance();
+        }
       }
-      if (notifications.size() > 8) {
-        Label more = new Label("... và " + (notifications.size() - 8) + " thông báo khác");
-        more.setStyle("-fx-text-fill: #78909c; -fx-font-size: 11px; -fx-padding: 2 0 0 0;");
-        items.getChildren().add(more);
-      }
-      content.getChildren().add(items);
+      scrollPane = new ScrollPane(items);
+      scrollPane.setMaxHeight(400);
+      scrollPane.setFitToWidth(true);
+      scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+      scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+      scrollPane.setStyle(
+          "-fx-background-color: transparent; "
+              + "-fx-background: transparent; "
+              + "-fx-control-inner-background: transparent;");
+      content.getChildren().add(scrollPane);
     }
 
     popup.getContent().add(content);
@@ -319,6 +338,10 @@ public class AuctionListController implements Navigable {
     javafx.geometry.Bounds bounds = bellButton.localToScreen(bellButton.getBoundsInLocal());
     popup.show(
         stage, bounds.getMinX() - content.getPrefWidth() + bounds.getWidth(), bounds.getMaxY() + 6);
+    ScrollPane shownScrollPane = scrollPane;
+    if (shownScrollPane != null) {
+      Platform.runLater(() -> shownScrollPane.setVvalue(1.0));
+    }
   }
 
   // ========== PRIVATE HELPERS ==========
@@ -341,6 +364,160 @@ public class AuctionListController implements Navigable {
       badgeLabel.setManaged(false);
     }
   }
+
+  private NotificationRow buildNotificationRow(String notification, BigDecimal previousBalance) {
+    BalanceDisplay balance = toBalanceDisplay(notification, previousBalance);
+    if (balance != null) {
+      return new NotificationRow(
+          createNotificationLabel(balance.text(), balance.color()), balance.newBalance());
+    }
+
+    String text = replaceAuctionIdWithName(notification);
+    PriceSplit priceSplit = splitCurrentPrice(text);
+    if (priceSplit != null) {
+      return new NotificationRow(createPriceNotificationNode(priceSplit), null);
+    }
+    return new NotificationRow(createNotificationLabel(text, "#e0e0e0"), null);
+  }
+
+  private Label createNotificationLabel(String text, String color) {
+    Label item = new Label(text);
+    item.setWrapText(true);
+    item.setMaxWidth(Double.MAX_VALUE);
+    item.setPadding(new Insets(7, 10, 7, 10));
+    item.setStyle(
+        "-fx-text-fill: "
+            + color
+            + "; -fx-font-size: 12px; "
+            + "-fx-background-color: rgba(255,255,255,0.06); "
+            + "-fx-background-radius: 6;");
+    return item;
+  }
+
+  private Node createPriceNotificationNode(PriceSplit split) {
+    HBox item = new HBox(4);
+    item.setMaxWidth(Double.MAX_VALUE);
+    item.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+    item.setPadding(new Insets(7, 10, 7, 10));
+    item.setStyle("-fx-background-color: rgba(255,255,255,0.06); " + "-fx-background-radius: 6;");
+    Label beforeLabel = createInlineNotificationLabel(split.before(), "#e0e0e0");
+    beforeLabel.setWrapText(true);
+    Label priceLabel = createInlineNotificationLabel(split.price(), "#ffd600");
+    item.getChildren().add(beforeLabel);
+    item.getChildren().add(priceLabel);
+    if (!split.after().isBlank()) {
+      item.getChildren().add(createInlineNotificationLabel(split.after(), "#e0e0e0"));
+    }
+    HBox.setHgrow(beforeLabel, javafx.scene.layout.Priority.ALWAYS);
+    return item;
+  }
+
+  private Label createInlineNotificationLabel(String text, String color) {
+    Label label = new Label(text);
+    label.setWrapText(false);
+    label.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+    label.setStyle("-fx-text-fill: " + color + "; -fx-font-size: 12px;");
+    return label;
+  }
+
+  private String replaceAuctionIdWithName(String notification) {
+    Matcher matcher = AUCTION_ID_PATTERN.matcher(notification);
+    if (!matcher.find()) {
+      return notification;
+    }
+    Long auctionId = Long.valueOf(matcher.group(1));
+    String displayName = resolveAuctionDisplayName(auctionId);
+    String replacement = "tại phiên " + (displayName != null ? displayName : "#" + auctionId);
+    return notification.replaceFirst(
+        "(?:tại\\s+)?(?:phiên\\s+)?#" + auctionId, Matcher.quoteReplacement(replacement));
+  }
+
+  private String resolveAuctionDisplayName(Long auctionId) {
+    return allAuctions.stream()
+        .filter(a -> auctionId.equals(a.getId()))
+        .map(AuctionResponse::getItemName)
+        .filter(name -> name != null && !name.isBlank())
+        .findFirst()
+        .orElse(null);
+  }
+
+  private PriceSplit splitCurrentPrice(String text) {
+    String lower = text.toLowerCase(Locale.ROOT);
+    if (!lower.contains("giá") && !lower.contains("bid") && !lower.contains("price")) {
+      return null;
+    }
+    Matcher matcher = VND_AMOUNT_PATTERN.matcher(text);
+    if (!matcher.find()) {
+      return null;
+    }
+    // Normalize ky hieu tien te: doi "đ" / "₫" thanh "VND"
+    String priceText = matcher.group(1).replaceAll("[₫đĐ]", "").trim();
+    if (!priceText.toUpperCase().contains("VND")) {
+      priceText = priceText + " VND";
+    }
+    return new PriceSplit(
+        text.substring(0, matcher.start()), priceText, text.substring(matcher.end()));
+  }
+
+  private BalanceDisplay toBalanceDisplay(String notification, BigDecimal previousBalance) {
+    Matcher newBalanceMatcher = NEW_BALANCE_PATTERN.matcher(notification);
+    if (newBalanceMatcher.find()) {
+      BigDecimal newBalance = parseAmount(newBalanceMatcher.group(1));
+      BigDecimal delta =
+          previousBalance != null ? newBalance.subtract(previousBalance) : newBalance;
+      // Giu lai phan chu truoc "So du moi:" lam prefix (VD: "Yeu cau nap tien da duoc duyet")
+      String rawPrefix = notification.substring(0, newBalanceMatcher.start()).trim();
+      String prefix = rawPrefix.replaceAll("(?i)[.,\\s]*S\u1ed1 d\u01b0 m\u1edbi:\\s*$", "").trim();
+      String deltaText = prefix.isEmpty() ? formatDelta(delta) : prefix + ": " + formatDelta(delta);
+      return new BalanceDisplay(deltaText, delta.signum() >= 0 ? "#4caf50" : "#ef5350", newBalance);
+    }
+
+    String lower = notification.toLowerCase(Locale.ROOT);
+    if (lower.contains("số dư") || lower.contains("so du") || lower.contains("balance")) {
+      Matcher deltaMatcher = BALANCE_DELTA_PATTERN.matcher(notification);
+      if (deltaMatcher.find()) {
+        BigDecimal delta = parseAmount(deltaMatcher.group(1));
+        return new BalanceDisplay(
+            formatDelta(delta), delta.signum() >= 0 ? "#4caf50" : "#ef5350", null);
+      }
+    }
+    return null;
+  }
+
+  private BigDecimal findPreviousBalanceBefore(
+      ObservableList<String> notifications, int displayedLimit) {
+    for (int i = notifications.size() - 1; i >= displayedLimit; i--) {
+      BigDecimal balance = parseNewBalance(notifications.get(i));
+      if (balance != null) {
+        return balance;
+      }
+    }
+    return null;
+  }
+
+  private BigDecimal parseNewBalance(String notification) {
+    Matcher matcher = NEW_BALANCE_PATTERN.matcher(notification);
+    return matcher.find() ? parseAmount(matcher.group(1)) : null;
+  }
+
+  private BigDecimal parseAmount(String text) {
+    String normalized = text.replaceAll("[^0-9-]", "");
+    if (normalized.isBlank() || "-".equals(normalized)) {
+      return BigDecimal.ZERO;
+    }
+    return new BigDecimal(normalized);
+  }
+
+  private String formatDelta(BigDecimal delta) {
+    String sign = delta.signum() >= 0 ? "+ " : "- ";
+    return sign + VND_AMOUNT.format(delta.abs()) + " VND";
+  }
+
+  private record NotificationRow(Node node, BigDecimal newBalance) {}
+
+  private record BalanceDisplay(String text, String color, BigDecimal newBalance) {}
+
+  private record PriceSplit(String before, String price, String after) {}
 
   /**
    * Cập nhật danh sách tùy chọn của bộ lọc danh mục dựa trên dữ liệu phiên hiện tại. Luôn giữ các
@@ -385,7 +562,7 @@ public class AuctionListController implements Navigable {
               @Override
               protected void updateItem(BigDecimal price, boolean empty) {
                 super.updateItem(price, empty);
-                setText(empty || price == null ? null : VND.format(price));
+                setText(empty || price == null ? null : VND_AMOUNT.format(price) + " VND");
               }
             });
 

@@ -28,6 +28,7 @@ import com.auction.model.Admin;
 import com.auction.model.AutoBidConfig;
 import com.auction.model.DepositRecord;
 import com.auction.pattern.observer.AuctionEventManager;
+import com.auction.pattern.strategy.AutoBidStrategy;
 import com.auction.service.AuctionScheduler;
 import com.auction.service.AuctionService;
 import com.auction.service.BidService;
@@ -80,7 +81,6 @@ public class App {
     // ── 2. Khởi tạo Database ─────────────────────────────────
     Jdbi jdbi = DatabaseConfig.create();
     LOGGER.info("Kết nối database thành công");
-    ensureSchemaExists(jdbi);
 
     // ── 3. Khởi tạo DAOs ────────────────────────────────────
     var userDao = new UserDao(jdbi);
@@ -101,10 +101,11 @@ public class App {
     var wsHandler = new AuctionWebSocketHandler(eventManager, jdbi);
 
     // ── 6. Khởi tạo Services ────────────────────────────────
-    var userService = new UserService(userDao, depositRequestDao);
-    var passwordResetService = new PasswordResetService(userDao, passwordResetRequestDao);
+    var userService = new UserService(userDao, depositRequestDao, jdbi);
+    var passwordResetService = new PasswordResetService(userDao, passwordResetRequestDao, jdbi);
     var itemService = new ItemService(itemDao);
-    var auctionService = new AuctionService(auctionDao, itemDao, userDao);
+    var auctionService = new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi);
+    var autoBidStrategy = new AutoBidStrategy(autoBidConfigDao);
     var bidService =
         new BidService(
             auctionDao,
@@ -113,30 +114,44 @@ public class App {
             eventManager,
             jdbi,
             auctionService,
-            userDao);
+            userDao,
+            autoBidStrategy);
+    var bidController = new BidController(bidService);
 
     // ── 7. Khởi tạo Scheduler (tự chuyển trạng thái phiên) ──
-    var scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager);
+    var scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager, jdbi);
     scheduler.start();
 
     // Đăng ký shutdown hook để dừng scheduler khi server tắt
+    registerShutdownHook(scheduler);
+    /*
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread(
                 () -> {
                   LOGGER.info("Server đang tắt...");
                   scheduler.stop();
-                  DatabaseConfig.shutDown(); // <-- THÊM DÒNG NÀY
+                  DatabaseConfig.shutDown();
                 }));
+    */
 
     // ── 8. Tạo Javalin instance ──────────────────────────────
-    Javalin app =
+    Javalin app = buildJavalin(mapper);
+    /*
+    Javalin ignoredApp =
         Javalin.create(
             config -> {
               config.jsonMapper(new JavalinJackson(mapper, false));
               config.http.defaultContentType = "application/json";
-              config.bundledPlugins.enableCors(cors -> cors.addRule(it -> it.anyHost()));
+              config.bundledPlugins.enableCors(
+                  cors ->
+                      cors.addRule(
+                          it -> {
+                            it.allowHost("localhost:3000", "localhost:8080");
+                            // TODO: replace with production domain before deployment
+                          }));
             });
+    */
 
     // ── 9. Đăng ký JWT Middleware ────────────────────────────
     app.before("/api/*", JwtMiddleware::handle);
@@ -153,7 +168,6 @@ public class App {
     AuctionController.register(app, auctionService);
 
     // Đăng ký BidController với BidService mới
-    var bidController = new BidController(bidService);
     bidController.register(app);
 
     // ── User profile endpoints ────────────────────────────
@@ -234,8 +248,14 @@ public class App {
         ctx -> {
           requireAdmin(ctx);
           Long requestId = Long.parseLong(ctx.pathParam("id"));
-          passwordResetService.approveReset(requestId);
-          ctx.status(200).json(Map.of("message", "Đã đặt lại mật khẩu về 123456."));
+          String tempPwd = passwordResetService.approveReset(requestId);
+          ctx.status(200)
+              .json(
+                  Map.of(
+                      "message",
+                      "Mật khẩu tạm thời đã được tạo. Hiển thị cho user một lần duy nhất.",
+                      "tempPassword",
+                      tempPwd));
         });
 
     app.post(
@@ -270,6 +290,10 @@ public class App {
         ctx -> {
           requireAdmin(ctx);
           Long userId = Long.parseLong(ctx.pathParam("id"));
+          Long requesterId = ctx.attribute("userId");
+          if (userId.equals(requesterId)) {
+            throw new UnauthorizedException("Admin không thể tự xóa chính mình.");
+          }
           userService.delete(userId);
           ctx.status(204);
         });
@@ -376,6 +400,28 @@ public class App {
           ctx.status(204);
         });
 
+    // Đánh dấu tất cả thông báo của user hiện tại là đã đọc
+    // Gọi endpoint này khi user mở popup chuông
+    app.patch(
+        "/api/notifications/mark-all-read",
+        ctx -> {
+          Long userId = ctx.attribute("userId");
+
+          int updated =
+              jdbi.withHandle(
+                  handle ->
+                      handle.execute(
+                          """
+                          UPDATE notifications
+                          SET is_read = true
+                          WHERE user_id = ?
+                            AND is_read = false
+                          """,
+                          userId));
+
+          ctx.json(Map.of("updated", updated));
+        });
+
     // ── 12. Đăng ký WebSocket ────────────────────────────────
     app.ws(
         "/ws/auction/{id}",
@@ -400,179 +446,52 @@ public class App {
   }
 
   /** Ném UnauthorizedException nếu request không đến từ ADMIN. */
+  private static Javalin buildJavalin(ObjectMapper mapper) {
+    return Javalin.create(
+        config -> {
+          config.jsonMapper(new JavalinJackson(mapper, false));
+          config.http.defaultContentType = "application/json";
+          config.bundledPlugins.enableCors(
+              cors ->
+                  cors.addRule(
+                      it -> {
+                        it.allowHost("localhost:3000", "localhost:8080");
+                        // TODO: replace with production domain before deployment
+                      }));
+        });
+  }
+
+  private static void registerShutdownHook(AuctionScheduler scheduler) {
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  LOGGER.info("Server Ä‘ang táº¯t...");
+                  scheduler.stop();
+                  DatabaseConfig.shutDown();
+                }));
+  }
+
   private static void requireAdmin(io.javalin.http.Context ctx) {
     if (!"ADMIN".equals(ctx.attribute("role"))) {
       throw new UnauthorizedException("Chỉ ADMIN mới có quyền thực hiện thao tác này");
     }
   }
 
-  /**
-   * Tạo hoặc cập nhật tài khoản admin mặc định (admin / 123456) khi server khởi động. Đảm bảo admin
-   * luôn có thể đăng nhập trong môi trường dev/test.
-   */
+  /** Tạo tài khoản admin mặc định (admin / 123456) khi server khởi động nếu chưa tồn tại. */
   private static void seedAdminIfNeeded(UserDao userDao) {
     try {
-      String hash = BCrypt.withDefaults().hashToString(12, "123456".toCharArray());
       var existing = userDao.findByUsername("admin");
       if (existing.isEmpty()) {
+        String hash = BCrypt.withDefaults().hashToString(12, "123456".toCharArray());
         Admin admin = new Admin("admin", hash, "admin@auction.com");
         userDao.insert(admin);
         LOGGER.info("Đã tạo tài khoản admin mặc định: username=admin, password=123456");
       } else {
-        existing.get().setPasswordHash(hash);
-        userDao.update(existing.get());
-        LOGGER.info("Đã đồng bộ mật khẩu admin: username=admin, password=123456");
+        LOGGER.info("Tài khoản admin đã tồn tại, bỏ qua seed.");
       }
     } catch (Exception e) {
       LOGGER.warn("Không thể seed admin: {}", e.getMessage());
-    }
-  }
-
-  /**
-   * Áp dụng các migration còn thiếu theo kiểu idempotent (IF NOT EXISTS). Thay thế cho Flyway vì
-   * project không cấu hình auto-migration. An toàn để gọi nhiều lần — không ảnh hưởng schema đã tồn
-   * tại.
-   */
-  private static void ensureSchemaExists(Jdbi jdbi) {
-    try {
-      jdbi.useHandle(
-          handle -> {
-            // ── V1: Bảng users (core) ─────────────────────────────────────
-            handle.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    id            BIGSERIAL PRIMARY KEY,
-                    username      VARCHAR(50)  UNIQUE NOT NULL,
-                    password_hash VARCHAR(255) NOT NULL,
-                    email         VARCHAR(100) UNIQUE NOT NULL,
-                    role          VARCHAR(20)  NOT NULL DEFAULT 'BIDDER'
-                                  CHECK (role IN ('BIDDER', 'SELLER', 'ADMIN')),
-                    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-                    balance       DECIMAL(15,2) NOT NULL DEFAULT 0
-                )
-                """);
-
-            // ── V2: Bảng items ────────────────────────────────────────────
-            handle.execute(
-                """
-                CREATE TABLE IF NOT EXISTS items (
-                    id          BIGSERIAL PRIMARY KEY,
-                    name        VARCHAR(200) NOT NULL,
-                    description TEXT,
-                    seller_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    category    VARCHAR(20) NOT NULL DEFAULT 'ELECTRONICS'
-                                CHECK (category IN ('ELECTRONICS', 'ART', 'VEHICLE')),
-                    brand       VARCHAR(100),
-                    artist      VARCHAR(100),
-                    year        INTEGER,
-                    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-                    updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
-                )
-                """);
-
-            // ── V3: Bảng auctions ─────────────────────────────────────────
-            handle.execute(
-                """
-                CREATE TABLE IF NOT EXISTS auctions (
-                    id                BIGSERIAL PRIMARY KEY,
-                    item_id           BIGINT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
-                    starting_price    DECIMAL(15,2) NOT NULL,
-                    current_price     DECIMAL(15,2) NOT NULL,
-                    leading_bidder_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                    start_time        TIMESTAMP NOT NULL,
-                    end_time          TIMESTAMP NOT NULL,
-                    status            VARCHAR(20) NOT NULL DEFAULT 'OPEN'
-                                      CHECK (status IN ('OPEN', 'RUNNING', 'FINISHED', 'PAID', 'CANCELED')),
-                    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
-                    updated_at        TIMESTAMP NOT NULL DEFAULT NOW()
-                )
-                """);
-            handle.execute("CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status)");
-
-            // ── V4: Bảng bid_transactions ─────────────────────────────────
-            handle.execute(
-                """
-                CREATE TABLE IF NOT EXISTS bid_transactions (
-                    id          BIGSERIAL PRIMARY KEY,
-                    auction_id  BIGINT NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
-                    bidder_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    amount      DECIMAL(15,2) NOT NULL,
-                    auto_bid    BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
-                )
-                """);
-            handle.execute(
-                "CREATE INDEX IF NOT EXISTS idx_bid_transactions_auction ON bid_transactions(auction_id)");
-
-            // ── V5: Bảng auto_bid_configs ─────────────────────────────────
-            handle.execute(
-                """
-                CREATE TABLE IF NOT EXISTS auto_bid_configs (
-                    id          BIGSERIAL PRIMARY KEY,
-                    auction_id  BIGINT NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
-                    bidder_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    max_bid     DECIMAL(15,2) NOT NULL,
-                    increment   DECIMAL(15,2) NOT NULL,
-                    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
-                    UNIQUE (auction_id, bidder_id)
-                )
-                """);
-
-            // ── V6: Cột balance (idempotent nếu bảng đã tồn tại trước) ───
-            handle.execute(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) NOT NULL DEFAULT 0");
-
-            // ── V7: Bảng deposit_requests ─────────────────────────────────
-            handle.execute(
-                """
-                CREATE TABLE IF NOT EXISTS deposit_requests (
-                    id          BIGSERIAL PRIMARY KEY,
-                    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    amount      DECIMAL(15,2) NOT NULL,
-                    status      VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-                                CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
-                    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-                    reviewed_at TIMESTAMP
-                )
-                """);
-            handle.execute(
-                "CREATE INDEX IF NOT EXISTS idx_deposit_requests_status ON deposit_requests(status)");
-
-            // ── V8: Bảng password_reset_requests ─────────────────────────
-            handle.execute(
-                """
-                CREATE TABLE IF NOT EXISTS password_reset_requests (
-                    id          BIGSERIAL PRIMARY KEY,
-                    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    status      VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-                                CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
-                    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-                    reviewed_at TIMESTAMP
-                )
-                """);
-
-            // ── V9: Bảng notifications ─────────────────────────────
-            handle.execute(
-                """
-                CREATE TABLE IF NOT EXISTS notifications (
-                    id BIGSERIAL PRIMARY KEY,
-                    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    message TEXT NOT NULL,
-                    notification_type VARCHAR(50) NOT NULL,
-                    is_read BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TIMESTAMP NOT NULL DEFAULT NOW()
-                )
-                """);
-
-            handle.execute(
-                "CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)");
-
-            handle.execute(
-                "CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)");
-          });
-      LOGGER.info("Schema kiểm tra xong — tất cả bảng tồn tại.");
-    } catch (Exception e) {
-      LOGGER.error("Lỗi khi đảm bảo schema: {}", e.getMessage(), e);
     }
   }
 

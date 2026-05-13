@@ -34,6 +34,7 @@ public class AuctionResponse {
 
   private Long id;
   private Long itemId;
+  private Long sellerId;
   private String itemName;
   private String itemCategory;
   private String itemDescription;
@@ -64,12 +65,13 @@ public class AuctionResponse {
     AuctionResponse response = new AuctionResponse();
     response.id = auction.getId();
     response.itemId = auction.getItemId();
+    response.sellerId = auction.getSellerId();
     response.startingPrice = auction.getStartingPrice();
     response.currentPrice = auction.getCurrentPrice();
     response.leadingBidderId = auction.getLeadingBidderId();
     response.startTime = auction.getStartTime();
     response.endTime = auction.getEndTime();
-    response.status = auction.getStatus();
+    response.status = auction.getStatus().name();
     response.remainingTimeMs = auction.getRemainingTimeMs();
     return response;
   }
@@ -90,6 +92,14 @@ public class AuctionResponse {
 
   public void setItemId(Long itemId) {
     this.itemId = itemId;
+  }
+
+  public Long getSellerId() {
+    return sellerId;
+  }
+
+  public void setSellerId(Long sellerId) {
+    this.sellerId = sellerId;
   }
 
   public String getItemName() {

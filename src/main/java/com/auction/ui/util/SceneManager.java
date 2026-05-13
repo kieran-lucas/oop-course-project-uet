@@ -343,6 +343,18 @@ public class SceneManager {
   }
 
   /**
+   * Điều hướng tới màn hình mới mà không đưa màn hình hiện tại vào backStack.
+   *
+   * <p>Dùng cho các bước onboarding cần thay thế màn hình trung gian nhưng vẫn giữ lịch sử trước
+   * đó, ví dụ welcome → login → register nhưng Back từ register phải về welcome thay vì login.
+   *
+   * @param fxmlName tên file FXML đích
+   */
+  public void replaceCurrentWith(String fxmlName) {
+    performNavigate(fxmlName, null, false);
+  }
+
+  /**
    * Quay lại màn hình trước trong lịch sử điều hướng.
    *
    * <p>Pop một entry từ {@link #backStack} và điều hướng tới đó. Nếu stack rỗng (ví dụ: người dùng
@@ -531,6 +543,18 @@ public class SceneManager {
     com.auction.util.NotificationStore.getInstance().clear();
     globalBadgeLabel.setVisible(false);
     globalBadgeLabel.setManaged(false);
+
+    // Dừng background tasks (Timeline, WebSocket...) trên tất cả controller đang cache
+    // trước khi xóa cache, tránh leak Timeline chạy sau khi token đã bị clear
+    for (Object ctrl : controllerCache.values()) {
+      if (ctrl instanceof Navigable nav) {
+        try {
+          nav.onNavigatedFrom();
+        } catch (Exception ignored) {
+          // Không để lỗi của một controller chặn cleanup các controller còn lại
+        }
+      }
+    }
 
     // Xóa cache các view cần auth, giữ lại welcome + login + register
     viewCache

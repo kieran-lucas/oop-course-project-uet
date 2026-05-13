@@ -88,6 +88,11 @@ public class RunningState implements AuctionState {
       throw new InvalidBidException("Seller không thể đặt giá cho phiên của chính mình");
     }
 
+    // Ràng buộc 3: bidder đang dẫn đầu không được tự đặt giá tiếp (tránh bid ảo, tăng giá ảo)
+    if (bidderId.equals(auction.getLeadingBidderId())) {
+      throw new InvalidBidException("Bạn đang là người dẫn đầu, không thể đặt giá tiếp.");
+    }
+
     // Cập nhật in-memory — BidService sẽ chịu trách nhiệm persist & notify sau bước này
     auction.setCurrentPrice(amount);
     auction.setLeadingBidderId(bidderId);

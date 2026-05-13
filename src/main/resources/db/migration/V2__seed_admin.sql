@@ -15,4 +15,5 @@ VALUES (
     'admin@auction.com',
     'ADMIN',
     NOW()
-);
+)
+ON CONFLICT (username) DO NOTHING;

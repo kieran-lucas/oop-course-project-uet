@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
  * Controller cho màn hình quên mật khẩu (forgot-password.fxml).
  *
  * <p>Luồng: User nhập email → gọi {@code POST /api/auth/forgot-password} → tạo yêu cầu PENDING →
- * Admin xét duyệt trong Admin Panel → mật khẩu được reset về {@code "123456"}.
+ * Admin xét duyệt trong Admin Panel → server tạo mật khẩu tạm thời một lần.
  */
 public class ForgotPasswordController implements Navigable {
 

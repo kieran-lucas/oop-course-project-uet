@@ -13,15 +13,16 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.Assumptions;
 
 /**
- * Test suite kiểm tra toàn bộ các thao tác của {@link BidTransactionDao} — lớp DAO quản lý
- * lịch sử lượt đặt giá trên bảng {@code bid_transactions}.
+ * Test suite kiểm tra toàn bộ các thao tác của {@link BidTransactionDao} — lớp DAO quản lý lịch sử
+ * lượt đặt giá trên bảng {@code bid_transactions}.
  *
  * <p><b>Phạm vi kiểm tra:</b>
+ *
  * <ul>
- *   <li>Insert lượt đặt giá thường và lượt đặt giá tự động ({@code autoBid = true}).</li>
- *   <li>Truy vấn lọc: findByAuctionId, findByBidderId.</li>
+ *   <li>Insert lượt đặt giá thường và lượt đặt giá tự động ({@code autoBid = true}).
+ *   <li>Truy vấn lọc: findByAuctionId, findByBidderId.
  *   <li>Truy vấn nghiệp vụ: findLastBid (lượt đặt gần nhất), getHighestPrice (giá cao nhất),
- *       countByAuctionId (tổng số lượt).</li>
+ *       countByAuctionId (tổng số lượt).
  * </ul>
  *
  * <p><b>Chiến lược dữ liệu:</b> Mỗi test chạy trong trạng thái DB sạch. {@code init()} TRUNCATE
@@ -53,8 +54,8 @@ class BidTransactionDaoTest {
   /**
    * Khởi tạo JDBI và tất cả DAO một lần duy nhất cho cả class.
    *
-   * <p>Nếu DB không khả dụng, class bị bỏ qua hoàn toàn qua {@link Assumptions#abort}
-   * để tránh báo lỗi giả trong môi trường không có DB.
+   * <p>Nếu DB không khả dụng, class bị bỏ qua hoàn toàn qua {@link Assumptions#abort} để tránh báo
+   * lỗi giả trong môi trường không có DB.
    */
   @BeforeAll
   static void setup() {
@@ -72,12 +73,12 @@ class BidTransactionDaoTest {
   /**
    * Chuẩn bị trạng thái DB sạch và dữ liệu mẫu trước mỗi test.
    *
-   * <p><b>Bước 1 — Dọn dẹp:</b> TRUNCATE theo thứ tự con → cha để tuân thủ FK constraint.
-   * {@code RESTART IDENTITY} trên {@code users} đưa sequence về 1 để ID luôn cố định.
+   * <p><b>Bước 1 — Dọn dẹp:</b> TRUNCATE theo thứ tự con → cha để tuân thủ FK constraint. {@code
+   * RESTART IDENTITY} trên {@code users} đưa sequence về 1 để ID luôn cố định.
    *
-   * <p><b>Bước 2 — Seed dữ liệu:</b> Tạo Seller (id=1), Bidder (id=2), một Item và một Auction
-   * với giá khởi điểm 100.000. Bộ dữ liệu này là nền cần thiết để insert {@link BidTransaction}
-   * vì bảng {@code bid_transactions} có FK tới cả {@code auctions} lẫn {@code users}.
+   * <p><b>Bước 2 — Seed dữ liệu:</b> Tạo Seller (id=1), Bidder (id=2), một Item và một Auction với
+   * giá khởi điểm 100.000. Bộ dữ liệu này là nền cần thiết để insert {@link BidTransaction} vì bảng
+   * {@code bid_transactions} có FK tới cả {@code auctions} lẫn {@code users}.
    */
   @BeforeEach
   void init() {
@@ -96,7 +97,9 @@ class BidTransactionDaoTest {
     testSeller = userDao.insert(new Seller("bid_seller", "hash", "seller@test.com"));
     testBidder = userDao.insert(new Bidder("bid_bidder", "hash", "bidder@test.com"));
 
-    testItem = itemDao.insert(new Electronics("Bid Item", "Test", testSeller.getId(), "Brand"));
+    testItem = new Item("Bid Item", "Test", testSeller.getId(), "ELECTRONICS");
+    testItem.setBrand("Brand");
+    itemDao.insert(testItem);
 
     testAuction =
         auctionDao.insert(
@@ -114,9 +117,9 @@ class BidTransactionDaoTest {
   }
 
   /**
-   * Kiểm tra insert lượt đặt giá thường: xác nhận ID được sinh tự động, các trường
-   * ({@code auctionId}, {@code bidderId}, {@code amount}) được lưu đúng, cờ {@code autoBid}
-   * là {@code false} và {@code createdAt} không null.
+   * Kiểm tra insert lượt đặt giá thường: xác nhận ID được sinh tự động, các trường ({@code
+   * auctionId}, {@code bidderId}, {@code amount}) được lưu đúng, cờ {@code autoBid} là {@code
+   * false} và {@code createdAt} không null.
    */
   @Test
   @DisplayName("Insert should create bid transaction")
@@ -136,8 +139,8 @@ class BidTransactionDaoTest {
   }
 
   /**
-   * Kiểm tra findByAuctionId: sau khi insert 2 lượt đặt giá với số tiền khác nhau,
-   * danh sách trả về phải có đúng 2 phần tử và được sắp xếp tăng dần theo amount (hoặc ID).
+   * Kiểm tra findByAuctionId: sau khi insert 2 lượt đặt giá với số tiền khác nhau, danh sách trả về
+   * phải có đúng 2 phần tử và được sắp xếp tăng dần theo amount (hoặc ID).
    */
   @Test
   @DisplayName("FindByAuctionId should return all bids for an auction")
@@ -157,8 +160,8 @@ class BidTransactionDaoTest {
   }
 
   /**
-   * Kiểm tra findByBidderId: tất cả lượt đặt giá của một bidder phải được trả về và
-   * toàn bộ phải thuộc đúng {@code testBidder}.
+   * Kiểm tra findByBidderId: tất cả lượt đặt giá của một bidder phải được trả về và toàn bộ phải
+   * thuộc đúng {@code testBidder}.
    */
   @Test
   @DisplayName("FindByBidderId should return all bids by a bidder")
@@ -177,11 +180,11 @@ class BidTransactionDaoTest {
   }
 
   /**
-   * Kiểm tra findLastBid: sau khi insert 2 lượt đặt giá, lượt được insert sau cùng
-   * (giá 250.000) phải được nhận dạng là lượt đặt gần nhất và có ID tương ứng.
+   * Kiểm tra findLastBid: sau khi insert 2 lượt đặt giá, lượt được insert sau cùng (giá 250.000)
+   * phải được nhận dạng là lượt đặt gần nhất và có ID tương ứng.
    *
-   * <p>Lượt đặt giá đầu (150.000) được insert trước để xác nhận DAO không đơn giản
-   * trả về lượt đầu tiên mà phải tìm đúng lượt cuối cùng.
+   * <p>Lượt đặt giá đầu (150.000) được insert trước để xác nhận DAO không đơn giản trả về lượt đầu
+   * tiên mà phải tìm đúng lượt cuối cùng.
    */
   @Test
   @DisplayName("FindLastBid should return the most recent bid")
@@ -204,8 +207,8 @@ class BidTransactionDaoTest {
   }
 
   /**
-   * Kiểm tra countByAuctionId: sau khi insert 2 lượt đặt giá, tổng số lượt đếm được
-   * phải chính xác là 2.
+   * Kiểm tra countByAuctionId: sau khi insert 2 lượt đặt giá, tổng số lượt đếm được phải chính xác
+   * là 2.
    */
   @Test
   @DisplayName("CountByAuctionId should return correct count")
@@ -222,9 +225,9 @@ class BidTransactionDaoTest {
   }
 
   /**
-   * Kiểm tra getHighestPrice: trong số 3 lượt đặt giá (150.000, 350.000, 250.000),
-   * giá cao nhất phải là 350.000. Dùng {@code compareTo} thay vì {@code equals} để tránh
-   * sai lệch do scale của {@link BigDecimal}.
+   * Kiểm tra getHighestPrice: trong số 3 lượt đặt giá (150.000, 350.000, 250.000), giá cao nhất
+   * phải là 350.000. Dùng {@code compareTo} thay vì {@code equals} để tránh sai lệch do scale của
+   * {@link BigDecimal}.
    */
   @Test
   @DisplayName("GetHighestPrice should return max bid amount")
@@ -246,8 +249,8 @@ class BidTransactionDaoTest {
   }
 
   /**
-   * Kiểm tra insert lượt đặt giá tự động ({@code autoBid = true}): xác nhận cờ {@code autoBid}
-   * được lưu và đọc lại đúng, giúp phân biệt lượt đặt thủ công và tự động trong lịch sử.
+   * Kiểm tra insert lượt đặt giá tự động ({@code autoBid = true}): xác nhận cờ {@code autoBid} được
+   * lưu và đọc lại đúng, giúp phân biệt lượt đặt thủ công và tự động trong lịch sử.
    */
   @Test
   @DisplayName("Insert with autoBid flag should work")

@@ -115,7 +115,6 @@ public class AuthController {
         .json(
             Map.of(
                 "message",
-                "Yêu cầu đã được gửi. Admin sẽ xét duyệt và mật khẩu sẽ được đặt lại về"
-                    + " 123456."));
+                "Yêu cầu đã được gửi. Admin sẽ xét duyệt và cấp mật khẩu tạm thời nếu được duyệt."));
   }
 }

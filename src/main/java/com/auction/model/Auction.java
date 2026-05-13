@@ -35,7 +35,7 @@ public class Auction extends Entity {
   private Long leadingBidderId; // foreign key → bảng users (ai đang dẫn đầu)
   private LocalDateTime startTime;
   private LocalDateTime endTime;
-  private String status; // OPEN, RUNNING, FINISHED, PAID, CANCELED
+  private AuctionStatus status; // OPEN, RUNNING, SETTLING, FINISHED, PAID, CANCELED
 
   /**
    * Thời điểm cập nhật gần nhất (giá mới, trạng thái mới, gia hạn...).
@@ -58,7 +58,7 @@ public class Auction extends Entity {
     this.leadingBidderId = null; // chưa có ai dẫn đầu
     this.startTime = startTime;
     this.endTime = endTime;
-    this.status = "OPEN";
+    this.status = AuctionStatus.OPEN;
     this.updatedAt = this.getCreatedAt(); // mới tạo → updatedAt = createdAt
   }
 
@@ -80,7 +80,7 @@ public class Auction extends Entity {
     this.leadingBidderId = leadingBidderId;
     this.startTime = startTime;
     this.endTime = endTime;
-    this.status = status;
+    this.status = AuctionStatus.from(status);
   }
 
   // === Business methods ===
@@ -94,7 +94,7 @@ public class Auction extends Entity {
 
   /** Kiểm tra phiên đang trong thời gian đấu giá. */
   public boolean isActive() {
-    return "RUNNING".equals(status) && !isExpired();
+    return AuctionStatus.RUNNING == status && !isExpired();
   }
 
   /**
@@ -163,11 +163,11 @@ public class Auction extends Entity {
     this.endTime = endTime;
   }
 
-  public String getStatus() {
+  public AuctionStatus getStatus() {
     return status;
   }
 
-  public void setStatus(String status) {
+  public void setStatus(AuctionStatus status) {
     this.status = status;
   }
 

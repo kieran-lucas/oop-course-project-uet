@@ -6,6 +6,7 @@ import com.auction.model.Auction;
 import com.auction.model.AutoBidConfig;
 import com.auction.model.BidTransaction;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -155,15 +156,22 @@ public class AutoBidStrategy implements BidStrategy {
     // Tracks bidders skipped because they were the leader, reset when a bid is placed.
     // If a bidder is seen as leader twice without any bid in between, the chain is stuck.
     Set<Long> skippedAsLeader = new HashSet<>();
+    List<AutoBidConfig> skippedLeaderConfigs = new ArrayList<>();
 
     while (!queue.isEmpty() && autoBidCount < MAX_AUTO_BIDS_PER_TRIGGER) {
       AutoBidConfig config = queue.poll();
+      AutoBidConfig freshConfig = autoBidConfigDao.findById(config.getId()).orElse(null);
+      if (freshConfig == null || !freshConfig.isActive()) {
+        LOGGER.info("Auto-bid config #{} was deactivated mid-chain — skipping", config.getId());
+        continue;
+      }
+      config = freshConfig;
 
       // Skip if this bidder is already the current leader (don't bid against yourself).
       // Re-add once so they can respond if someone else outbids them later in this chain.
       if (config.getBidderId().equals(currentLeaderId)) {
         if (skippedAsLeader.add(config.getBidderId())) {
-          queue.offer(config); // put back for a possible later response
+          skippedLeaderConfigs.add(config); // requeue after another bidder advances the price
         }
         continue;
       }
@@ -191,6 +199,8 @@ public class AutoBidStrategy implements BidStrategy {
         skippedAsLeader.clear(); // new bid → previous leader skip tracking is stale
         // Re-add so this bidder can respond to subsequent bids from others
         queue.offer(config);
+        queue.addAll(skippedLeaderConfigs);
+        skippedLeaderConfigs.clear();
         LOGGER.info(
             "Auto-bid thành công: bidder={}, amount={}, phiên={}",
             config.getBidderId(),

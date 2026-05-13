@@ -1,6 +1,8 @@
 package com.auction.dao;
 
+import com.auction.dto.PageRequest;
 import com.auction.model.Auction;
+import com.auction.model.AuctionStatus;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -78,7 +80,7 @@ public class AuctionDao {
    * mất thông tin cập nhật cuối cùng.
    */
   private static final String SELECT_COLUMNS =
-      "id, item_id, starting_price, current_price, leading_bidder_id, "
+      "id, item_id, starting_price, current_price, leading_bidder_id, seller_id, "
           + "start_time, end_time, status, created_at, updated_at";
 
   private final Jdbi jdbi;
@@ -115,8 +117,10 @@ public class AuctionDao {
               getLongOrNull(rs, "leading_bidder_id"),
               rs.getTimestamp("start_time").toLocalDateTime(),
               rs.getTimestamp("end_time").toLocalDateTime(),
-              rs.getString("status"),
+              AuctionStatus.from(rs.getString("status")).name(),
               rs.getTimestamp("created_at").toLocalDateTime());
+
+      auction.setSellerId(rs.getLong("seller_id"));
 
       // [FIX #6] Đọc updated_at và set vào Auction
       var updatedAtTs = rs.getTimestamp("updated_at");
@@ -150,11 +154,11 @@ public class AuctionDao {
         """
         INSERT INTO auctions (
             item_id, starting_price, current_price,
-            leading_bidder_id, start_time, end_time,
+            leading_bidder_id, seller_id, start_time, end_time,
             status, created_at, updated_at
         ) VALUES (
             :itemId, :startingPrice, :currentPrice,
-            :leadingBidderId, :startTime, :endTime,
+            :leadingBidderId, :sellerId, :startTime, :endTime,
             :status, :createdAt, :updatedAt
         )
         RETURNING id
@@ -162,6 +166,18 @@ public class AuctionDao {
 
     return jdbi.withHandle(
         handle -> {
+          Long sellerId = auction.getSellerId();
+          if (sellerId == null) {
+            sellerId =
+                handle
+                    .createQuery("SELECT seller_id FROM items WHERE id = :itemId")
+                    .bind("itemId", auction.getItemId())
+                    .mapTo(Long.class)
+                    .findOne()
+                    .orElse(null);
+            auction.setSellerId(sellerId);
+          }
+
           long id =
               handle
                   .createQuery(sql)
@@ -169,9 +185,10 @@ public class AuctionDao {
                   .bind("startingPrice", auction.getStartingPrice())
                   .bind("currentPrice", auction.getCurrentPrice())
                   .bind("leadingBidderId", auction.getLeadingBidderId())
+                  .bind("sellerId", sellerId)
                   .bind("startTime", auction.getStartTime())
                   .bind("endTime", auction.getEndTime())
-                  .bind("status", auction.getStatus())
+                  .bind("status", auction.getStatus().name())
                   .bind("createdAt", auction.getCreatedAt())
                   .bind("updatedAt", auction.getCreatedAt()) // mới tạo, updatedAt = createdAt
                   .mapTo(Long.class)
@@ -254,6 +271,19 @@ public class AuctionDao {
     return jdbi.withHandle(handle -> handle.createQuery(sql).map(new AuctionMapper()).list());
   }
 
+  public List<Auction> findAll(PageRequest req) {
+    return jdbi.withHandle(
+        h ->
+            h.createQuery(
+                    "SELECT "
+                        + SELECT_COLUMNS
+                        + " FROM auctions ORDER BY end_time ASC LIMIT :limit OFFSET :offset")
+                .bind("limit", req.size())
+                .bind("offset", req.offset())
+                .map(new AuctionMapper())
+                .list());
+  }
+
   /**
    * Lấy các phiên đấu giá theo trạng thái.
    *
@@ -274,6 +304,30 @@ public class AuctionDao {
 
     return jdbi.withHandle(
         handle -> handle.createQuery(sql).bind("status", status).map(new AuctionMapper()).list());
+  }
+
+  public List<Long> findDueAuctionIds(String status, LocalDateTime deadline) {
+    return jdbi.withHandle(
+        h ->
+            h.createQuery(
+                    "SELECT id FROM auctions "
+                        + "WHERE status = :status AND start_time <= :deadline ORDER BY id")
+                .bind("status", status)
+                .bind("deadline", deadline)
+                .mapTo(Long.class)
+                .list());
+  }
+
+  public List<Long> findExpiredAuctionIds(String status, LocalDateTime now) {
+    return jdbi.withHandle(
+        h ->
+            h.createQuery(
+                    "SELECT id FROM auctions "
+                        + "WHERE status = :status AND end_time <= :now ORDER BY id")
+                .bind("status", status)
+                .bind("now", now)
+                .mapTo(Long.class)
+                .list());
   }
 
   /**
@@ -350,7 +404,7 @@ public class AuctionDao {
             .bind("currentPrice", auction.getCurrentPrice())
             .bind("leadingBidderId", auction.getLeadingBidderId())
             .bind("endTime", auction.getEndTime())
-            .bind("status", auction.getStatus())
+            .bind("status", auction.getStatus().name())
             .bind("updatedAt", LocalDateTime.now())
             .bind("id", auction.getId())
             .execute();
@@ -389,7 +443,7 @@ public class AuctionDao {
                     .bind("currentPrice", auction.getCurrentPrice())
                     .bind("leadingBidderId", auction.getLeadingBidderId())
                     .bind("endTime", auction.getEndTime())
-                    .bind("status", auction.getStatus())
+                    .bind("status", auction.getStatus().name())
                     .bind("updatedAt", LocalDateTime.now())
                     .bind("id", auction.getId())
                     .execute());
@@ -403,6 +457,20 @@ public class AuctionDao {
     } else {
       LOGGER.warn("Auction not found for update: id={}", auction.getId());
     }
+  }
+
+  public boolean atomicTransition(Long id, String fromStatus, String toStatus) {
+    int rows =
+        jdbi.withHandle(
+            h ->
+                h.createUpdate(
+                        "UPDATE auctions SET status = :to, updated_at = NOW() "
+                            + "WHERE id = :id AND status = :from")
+                    .bind("to", toStatus)
+                    .bind("from", fromStatus)
+                    .bind("id", id)
+                    .execute());
+    return rows > 0; // false = another thread/process already transitioned this row
   }
 
   // ============================================================
