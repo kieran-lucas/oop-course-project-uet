@@ -81,9 +81,10 @@ public class AuthController {
     LoginRequest request = ctx.bodyAsClass(LoginRequest.class);
     String token = userService.login(request);
 
-    String role = userService.getRoleByUsername(request.getUsername());
-    String username = request.getUsername();
-    long userId = JwtUtil.verifyToken(token).getClaim("userId").asLong();
+    var decoded = JwtUtil.verifyToken(token);
+    String username = decoded.getClaim("username").asString();
+    String role = userService.getRoleByUsername(username);
+    long userId = decoded.getClaim("userId").asLong();
 
     LOGGER.info("Đăng nhập thành công: username={}", username);
 

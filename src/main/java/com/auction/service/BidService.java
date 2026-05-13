@@ -102,20 +102,7 @@ public class BidService {
       BidTransaction savedTransaction =
           jdbi.inTransaction(
               handle -> {
-                // 1. Khóa row user để check balance an toàn
-                User bidder = userDao.findByIdForUpdate(handle, bidderId);
-                BigDecimal balance =
-                    bidder.getBalance() != null ? bidder.getBalance() : BigDecimal.ZERO;
-                if (balance.compareTo(amount) < 0) {
-                  throw new InvalidBidException(
-                      "Số dư không đủ. Số dư hiện tại: "
-                          + balance
-                          + ", giá bid: "
-                          + amount
-                          + ". Vui lòng nạp thêm tiền.");
-                }
-
-                // 2. Khóa row auction
+                // 1. Khóa row auction trước để mọi bid trên cùng phiên được serialize.
                 Auction auction;
                 try {
                   auction = auctionDao.findByIdForUpdate(handle, auctionId);
@@ -124,10 +111,23 @@ public class BidService {
                 }
                 auctionRef.set(auction);
 
-                // 3. State pattern: kiểm tra amount > currentPrice, bidderId != sellerId,
+                // 2. State pattern: kiểm tra amount > currentPrice, bidderId != sellerId,
                 // và cập nhật auction trong bộ nhớ. Ném exception nếu không hợp lệ.
                 Long previousLeaderId = auction.getLeadingBidderId();
+                BigDecimal previousPrice = auction.getCurrentPrice();
                 auctionService.getState(auction).placeBid(auction, amount, bidderId);
+
+                // 3. Khóa bidder để kiểm tra phần balance còn khả dụng sau các khoản đang giữ.
+                User bidder = userDao.findByIdForUpdate(handle, bidderId);
+                BigDecimal availableBalance = bidder.getAvailableBalance();
+                if (availableBalance.compareTo(amount) < 0) {
+                  throw new InvalidBidException(
+                      "Số dư khả dụng không đủ. Số dư khả dụng hiện tại: "
+                          + availableBalance
+                          + ", giá bid: "
+                          + amount
+                          + ". Vui lòng nạp thêm tiền.");
+                }
 
                 if (auction.getRemainingTimeMs() < ANTI_SNIPE_THRESHOLD_MS) {
                   auction.setEndTime(
@@ -135,10 +135,17 @@ public class BidService {
                   antiSnipeTriggered.set(true);
                 }
 
-                // 4. Ghi nguyên tử: lưu cả cập nhật giá lẫn gia hạn endTime (nếu có) trong một lần
+                // 4. Release khoản giữ của người dẫn đầu cũ, rồi giữ tiền cho người dẫn đầu mới.
+                if (previousLeaderId != null) {
+                  userDao.releaseReservedBalanceInTransaction(
+                      handle, previousLeaderId, previousPrice);
+                }
+                userDao.updateReservedBalanceInTransaction(handle, bidderId, amount);
+
+                // 5. Ghi nguyên tử: lưu cả cập nhật giá lẫn gia hạn endTime (nếu có) trong một lần
                 auctionDao.updateInTransaction(handle, auction);
 
-                // 5. Lưu thông báo cho người bị vượt giá (nếu có và không phải chính mình)
+                // 6. Lưu thông báo cho người bị vượt giá (nếu có và không phải chính mình)
                 if (previousLeaderId != null && !previousLeaderId.equals(bidderId)) {
                   String outbidMsg =
                       String.format(

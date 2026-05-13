@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.*;
@@ -621,12 +622,45 @@ class BidServiceTest {
   class ConcurrencyTests {
 
     @Test
-    @Disabled(
-        "Requires real embedded DB — run manually with ./gradlew test --tests *ConcurrencyTests*")
+    @SuppressWarnings("checkstyle:MethodName")
     @DisplayName("10 concurrent bids on same auction — exactly 1 succeeds (SELECT FOR UPDATE)")
     void concurrentBids_onlyOneWins() throws Exception {
-      // TODO: replace the mocked service setup with DatabaseConfig.create() and seeded real rows.
       long auctionId = AUCTION_ID;
+      AtomicBoolean firstBid = new AtomicBoolean(true);
+
+      when(userDao.findByIdForUpdate(eq(mockHandle), anyLong()))
+          .thenAnswer(
+              invocation -> {
+                long bidderId = invocation.getArgument(1);
+                Bidder bidder = new Bidder();
+                bidder.setId(bidderId);
+                bidder.setBalance(new BigDecimal("100000000"));
+                return bidder;
+              });
+      when(userDao.findById(anyLong()))
+          .thenAnswer(
+              invocation -> {
+                long bidderId = invocation.getArgument(0);
+                Bidder bidder = new Bidder();
+                bidder.setId(bidderId);
+                bidder.setUsername("bidder" + bidderId);
+                bidder.setBalance(new BigDecimal("100000000"));
+                return Optional.of(bidder);
+              });
+      when(auctionDao.findByIdForUpdate(eq(mockHandle), eq(auctionId)))
+          .thenAnswer(
+              invocation -> {
+                Auction auction = runningAuction();
+                if (!firstBid.getAndSet(false)) {
+                  auction.setCurrentPrice(new BigDecimal("2000000"));
+                  auction.setLeadingBidderId(200L);
+                }
+                return auction;
+              });
+      doNothing().when(auctionDao).updateInTransaction(eq(mockHandle), any(Auction.class));
+      when(bidTransactionDao.insert(eq(mockHandle), any(BidTransaction.class)))
+          .thenAnswer(invocation -> invocation.getArgument(1));
+
       int threadCount = 10;
       ExecutorService pool = Executors.newFixedThreadPool(threadCount);
       CountDownLatch startGate = new CountDownLatch(1);
@@ -673,6 +707,7 @@ class BidServiceTest {
   class AutoBidChainTests {
 
     @Test
+    @SuppressWarnings("checkstyle:MethodName")
     @DisplayName("Chain terminates when a bidder's budget is exhausted")
     void autoBidChain_stopsAtBudget() {
       Auction auction = runningAuction();

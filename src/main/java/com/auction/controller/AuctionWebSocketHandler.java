@@ -102,7 +102,7 @@ public class AuctionWebSocketHandler {
       }
 
       DecodedJWT decoded = JwtUtil.verifyToken(token);
-      String username = decoded.getSubject();
+      String username = decoded.getClaim("username").asString();
 
       // Lưu connection
       connections.computeIfAbsent(auctionId, k -> new CopyOnWriteArraySet<>()).add(ctx);
@@ -218,7 +218,7 @@ public class AuctionWebSocketHandler {
       }
 
       DecodedJWT decoded = JwtUtil.verifyToken(token);
-      String username = decoded.getSubject();
+      String username = decoded.getClaim("username").asString();
       Long tokenUserId = decoded.getClaim("userId").asLong();
       if (!tokenUserId.equals(userId)) {
         LOGGER.warn(

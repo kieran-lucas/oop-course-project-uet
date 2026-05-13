@@ -7,7 +7,6 @@ import com.auction.dto.AuctionResponse;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.dto.CreateAuctionRequest;
 import com.auction.dto.PageRequest;
-import com.auction.exception.AuctionClosedException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.model.Auction;
@@ -75,13 +74,12 @@ public class AuctionService {
   }
 
   public List<AuctionResponse> getAll(String status, PageRequest pageRequest) {
+    PageRequest page = pageRequest != null ? pageRequest : PageRequest.of(0, 20);
     List<Auction> auctions;
     if (status != null && !status.isBlank()) {
-      auctions = auctionDao.findByStatus(status.toUpperCase());
-    } else if (pageRequest != null) {
-      auctions = auctionDao.findAll(pageRequest);
+      auctions = auctionDao.findByStatus(status.toUpperCase(), page);
     } else {
-      auctions = auctionDao.findAll();
+      auctions = auctionDao.findAll(page);
     }
     return auctions.stream().map(this::enrichAuctionResponse).toList();
   }
@@ -247,8 +245,9 @@ public class AuctionService {
 
     // ADMIN: được hủy bất chấp mọi trạng thái
     if ("ADMIN".equals(role)) {
+      AuctionStatus previousStatus = auction.getStatus();
       auction.setStatus(AuctionStatus.CANCELED);
-      auctionDao.update(auction);
+      persistCanceledAuction(auction, previousStatus);
       notifyLeadingBidderIfCanceled(auction);
       LOGGER.info("ADMIN (userId={}) đã cưỡng chế hủy phiên đấu giá #{}", userId, auctionId);
       return;
@@ -277,8 +276,9 @@ public class AuctionService {
                 + status);
       }
 
+      AuctionStatus previousStatus = status;
       auction.setStatus(AuctionStatus.CANCELED);
-      auctionDao.update(auction);
+      persistCanceledAuction(auction, previousStatus);
       notifyLeadingBidderIfCanceled(auction);
       LOGGER.info(
           "SELLER (userId={}) đã hủy phiên đấu giá #{} (trạng thái trước: {})",
@@ -317,47 +317,6 @@ public class AuctionService {
   }
 
   /**
-   * Chuyển trạng thái OPEN → RUNNING. Chỉ hợp lệ khi auction đang ở OPEN. Gọi bởi AuctionScheduler.
-   *
-   * @throws AuctionClosedException nếu auction không ở trạng thái OPEN
-   */
-  public void transitionToRunning(Long auctionId) {
-    Auction auction =
-        auctionDao
-            .findById(auctionId)
-            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
-
-    if (auction.getStatus() != AuctionStatus.OPEN) {
-      throw new AuctionClosedException(
-          "Không thể chuyển sang RUNNING từ trạng thái: " + auction.getStatus());
-    }
-
-    auction.setStatus(AuctionStatus.RUNNING);
-    auctionDao.update(auction);
-    LOGGER.info("Auction #{} → RUNNING", auctionId);
-  }
-
-  /**
-   * Chuyển trạng thái RUNNING → FINISHED. Chỉ hợp lệ khi auction đang ở RUNNING. Gọi bởi
-   * AuctionScheduler.
-   */
-  public void transitionToFinished(Long auctionId) {
-    Auction auction =
-        auctionDao
-            .findById(auctionId)
-            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
-
-    if (auction.getStatus() != AuctionStatus.RUNNING) {
-      throw new AuctionClosedException(
-          "Không thể chuyển sang FINISHED từ trạng thái: " + auction.getStatus());
-    }
-
-    auction.setStatus(AuctionStatus.FINISHED);
-    auctionDao.update(auction);
-    LOGGER.info("Auction #{} → FINISHED", auctionId);
-  }
-
-  /**
    * Trả về AuctionState tương ứng với trạng thái hiện tại của auction. Dùng để delegate behavior
    * theo State pattern.
    *
@@ -387,6 +346,22 @@ public class AuctionService {
                   auction.getLeadingBidderId(),
                   "Phiên đấu giá #" + auction.getId() + " đã bị hủy bởi người bán."));
     }
+  }
+
+  private void persistCanceledAuction(Auction auction, AuctionStatus previousStatus) {
+    if (jdbi == null) {
+      auctionDao.update(auction);
+      return;
+    }
+
+    jdbi.useTransaction(
+        handle -> {
+          if (previousStatus == AuctionStatus.RUNNING && auction.getLeadingBidderId() != null) {
+            userDao.releaseReservedBalanceInTransaction(
+                handle, auction.getLeadingBidderId(), auction.getCurrentPrice());
+          }
+          auctionDao.updateInTransaction(handle, auction);
+        });
   }
 
   /**

@@ -58,7 +58,7 @@ public class UserDao {
 
   /** Danh sách cột SELECT dùng chung, tránh copy-paste */
   private static final String SELECT_COLUMNS =
-      "id, username, password_hash, email, role, created_at, balance";
+      "id, username, password_hash, email, role, created_at, balance, reserved_balance";
 
   private final Jdbi jdbi;
 
@@ -126,6 +126,8 @@ public class UserDao {
 
       BigDecimal balance = rs.getBigDecimal("balance");
       user.setBalance(balance != null ? balance : BigDecimal.ZERO);
+      BigDecimal reservedBalance = rs.getBigDecimal("reserved_balance");
+      user.setReservedBalance(reservedBalance != null ? reservedBalance : BigDecimal.ZERO);
       return user;
     }
   }
@@ -342,6 +344,43 @@ public class UserDao {
                 .bind("delta", delta)
                 .bind("userId", userId)
                 .execute());
+  }
+
+  public void updateReservedBalanceInTransaction(
+      org.jdbi.v3.core.Handle handle, Long userId, BigDecimal delta) {
+    int rows =
+        handle
+            .createUpdate(
+                """
+                UPDATE users
+                SET reserved_balance = reserved_balance + :delta
+                WHERE id = :userId
+                  AND reserved_balance + :delta >= 0
+                """)
+            .bind("delta", delta)
+            .bind("userId", userId)
+            .execute();
+    if (rows == 0) {
+      throw new IllegalStateException("Không thể cập nhật tiền giữ chỗ cho user: " + userId);
+    }
+  }
+
+  public void releaseReservedBalanceInTransaction(
+      org.jdbi.v3.core.Handle handle, Long userId, BigDecimal amount) {
+    int rows =
+        handle
+            .createUpdate(
+                """
+                UPDATE users
+                SET reserved_balance = GREATEST(reserved_balance - :amount, 0)
+                WHERE id = :userId
+                """)
+            .bind("amount", amount)
+            .bind("userId", userId)
+            .execute();
+    if (rows == 0) {
+      throw new IllegalStateException("Không tìm thấy user để release tiền giữ chỗ: " + userId);
+    }
   }
 
   // ============================================================

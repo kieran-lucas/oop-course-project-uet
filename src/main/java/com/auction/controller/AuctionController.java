@@ -103,7 +103,7 @@ public class AuctionController {
     String statusFilter = ctx.queryParam("status");
     int page = Integer.parseInt(ctx.queryParamAsClass("page", String.class).getOrDefault("0"));
     int size = Integer.parseInt(ctx.queryParamAsClass("size", String.class).getOrDefault("20"));
-    PageRequest pageRequest = (statusFilter == null) ? PageRequest.of(page, size) : null;
+    PageRequest pageRequest = PageRequest.of(page, size);
 
     List<AuctionResponse> auctions = auctionService.getAll(statusFilter, pageRequest);
     ctx.status(200).json(auctions);

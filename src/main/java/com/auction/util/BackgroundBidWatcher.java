@@ -4,6 +4,8 @@ import com.auction.dto.BidUpdateMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javafx.application.Platform;
@@ -130,8 +132,11 @@ public class BackgroundBidWatcher {
                 Long leaderId = msg.getLeadingBidderId();
                 BigDecimal price = msg.getCurrentPrice();
                 if (leaderId != null && !leaderId.equals(userId)) {
-                  // Người khác vừa vượt giá của user
-                  String notification = "⚠️ Bạn bị vượt giá tại " + name + ": " + price;
+                  NumberFormat fmt = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
+                  String priceStr = price != null ? fmt.format(price) + " VND" : "?";
+                  // Format: dong 1 = mo ta, dong 2 = gia (splitCurrentPrice se to vang)
+                  String notification =
+                      "Bạn đã bị vượt giá tại phiên " + name + ". Giá hiện tại: " + priceStr;
                   Platform.runLater(() -> NotificationStore.getInstance().add(notification));
                 }
               }
@@ -139,8 +144,13 @@ public class BackgroundBidWatcher {
                 Long leaderId = msg.getLeadingBidderId();
                 BigDecimal price = msg.getCurrentPrice();
                 if (leaderId != null && leaderId.equals(userId)) {
-                  // Auto-bid đặt thành công cho chính user này
-                  String notification = "🤖 Auto-bid đặt " + price + " cho bạn tại " + name;
+                  NumberFormat fmt = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
+                  String priceStr = price != null ? fmt.format(price) + " VND" : "?";
+                  String notification =
+                      "Auto-bid đặt giá thành công tại phiên "
+                          + name
+                          + ". Giá hiện tại: "
+                          + priceStr;
                   Platform.runLater(() -> NotificationStore.getInstance().add(notification));
                 }
               }

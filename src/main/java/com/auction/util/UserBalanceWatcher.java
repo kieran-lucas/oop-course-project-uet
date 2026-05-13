@@ -124,7 +124,7 @@ public class UserBalanceWatcher {
                         java.text.NumberFormat.getNumberInstance(java.util.Locale.of("vi", "VN"));
                     String text =
                         approved && newBalance != null
-                            ? "Yêu cầu nạp tiền đã được duyệt. Số dư mới: "
+                            ? "Yêu cầu nạp tiền đã được duyệt. Số dư biến động: "
                                 + vndFmt.format(newBalance)
                                 + " VND"
                             : "❌ Yêu cầu nạp tiền bị từ chối";

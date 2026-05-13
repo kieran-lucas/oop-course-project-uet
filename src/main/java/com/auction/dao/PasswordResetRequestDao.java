@@ -134,6 +134,19 @@ public class PasswordResetRequestDao {
         handle -> handle.createQuery(sql).bind("id", id).map(new Mapper()).findOne());
   }
 
+  public Optional<PasswordResetRecord> findByIdForUpdate(org.jdbi.v3.core.Handle handle, Long id) {
+    String sql =
+        """
+        SELECT pr.id, pr.user_id, pr.status, pr.created_at, pr.reviewed_at,
+               u.username, u.email
+        FROM password_reset_requests pr
+        JOIN users u ON u.id = pr.user_id
+        WHERE pr.id = :id
+        FOR UPDATE OF pr
+        """;
+    return handle.createQuery(sql).bind("id", id).map(new Mapper()).findOne();
+  }
+
   /**
    * Lấy tất cả yêu cầu theo status, kèm username và email của từng user.
    *
@@ -200,5 +213,25 @@ public class PasswordResetRequestDao {
         jdbi.withHandle(
             handle -> handle.createUpdate(sql).bind("status", newStatus).bind("id", id).execute());
     return rows > 0;
+  }
+
+  public void transitionStatusInTransaction(
+      org.jdbi.v3.core.Handle handle, Long id, String fromStatus, String toStatus) {
+    String sql =
+        """
+        UPDATE password_reset_requests
+        SET status = :toStatus, reviewed_at = NOW()
+        WHERE id = :id AND status = :fromStatus
+        """;
+    int rows =
+        handle
+            .createUpdate(sql)
+            .bind("toStatus", toStatus)
+            .bind("fromStatus", fromStatus)
+            .bind("id", id)
+            .execute();
+    if (rows == 0) {
+      throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+    }
   }
 }

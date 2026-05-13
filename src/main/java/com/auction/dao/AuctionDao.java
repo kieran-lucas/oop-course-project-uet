@@ -306,6 +306,22 @@ public class AuctionDao {
         handle -> handle.createQuery(sql).bind("status", status).map(new AuctionMapper()).list());
   }
 
+  public List<Auction> findByStatus(String status, PageRequest req) {
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM auctions WHERE status = :status ORDER BY end_time ASC LIMIT :limit OFFSET :offset";
+
+    return jdbi.withHandle(
+        h ->
+            h.createQuery(sql)
+                .bind("status", status)
+                .bind("limit", req.size())
+                .bind("offset", req.offset())
+                .map(new AuctionMapper())
+                .list());
+  }
+
   public List<Long> findDueAuctionIds(String status, LocalDateTime deadline) {
     return jdbi.withHandle(
         h ->

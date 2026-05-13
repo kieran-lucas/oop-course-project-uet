@@ -87,6 +87,14 @@ public class NotificationStore {
    * @param notification nội dung thông báo cần thêm; không được {@code null}
    */
   public void add(String notification) {
+    // Deduplicate: bo qua neu thong bao giong het da ton tai trong 5 phan tu dau
+    // (phong truong hop loadOfflineNotifications va WebSocket push cung mot thong bao)
+    int checkLimit = Math.min(notifications.size(), 5);
+    for (int i = 0; i < checkLimit; i++) {
+      if (notification.equals(notifications.get(i))) {
+        return; // Da co roi, bo qua
+      }
+    }
     notifications.add(0, notification);
     refreshUnreadCount();
   }

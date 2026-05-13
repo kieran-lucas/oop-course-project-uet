@@ -1,21 +1,20 @@
 # Security Policy
 
-## Supported Versions
+## Báo cáo lỗ hổng bảo mật
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Nếu bạn phát hiện lỗ hổng bảo mật, vui lòng:
+1. KHÔNG tạo GitHub Issue công khai.
+2. Gửi email mô tả: loại lỗ hổng, file/endpoint bị ảnh hưởng, steps to reproduce.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+## Phiên bản được hỗ trợ
 
-## Reporting a Vulnerability
+| Phiên bản | Trạng thái     |
+| --------- | -------------- |
+| 1.0.x     | ✅ Được hỗ trợ |
 
-Use this section to tell people how to report a vulnerability.
+## Thông tin bảo mật
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+- Mật khẩu được hash bằng **BCrypt** (cost factor = 12).
+- JWT token có thời hạn **24 giờ**, ký bằng HMAC-256.
+- Đặt biến môi trường `JWT_SECRET` trước khi deploy production.
+- Mật khẩu admin mặc định phải được đổi ngay sau lần đầu đăng nhập.

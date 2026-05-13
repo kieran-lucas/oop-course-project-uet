@@ -130,6 +130,19 @@ public class DepositRequestDao {
         handle -> handle.createQuery(sql).bind("id", id).map(new DepositRecordMapper()).findOne());
   }
 
+  public Optional<DepositRecord> findByIdForUpdate(org.jdbi.v3.core.Handle handle, Long id) {
+    String sql =
+        """
+        SELECT dr.id, dr.user_id, dr.amount, dr.status, dr.created_at, dr.reviewed_at,
+               u.username
+        FROM deposit_requests dr
+        JOIN users u ON u.id = dr.user_id
+        WHERE dr.id = :id
+        FOR UPDATE OF dr
+        """;
+    return handle.createQuery(sql).bind("id", id).map(new DepositRecordMapper()).findOne();
+  }
+
   /**
    * Lấy tất cả yêu cầu theo status, JOIN với users để lấy username.
    *
@@ -214,6 +227,26 @@ public class DepositRequestDao {
     int rows = handle.createUpdate(sql).bind("status", newStatus).bind("id", id).execute();
     if (rows == 0) {
       throw new IllegalStateException("Không tìm thấy yêu cầu nạp tiền: " + id);
+    }
+  }
+
+  public void transitionStatusInTransaction(
+      org.jdbi.v3.core.Handle handle, Long id, String fromStatus, String toStatus) {
+    String sql =
+        """
+        UPDATE deposit_requests
+        SET status = :toStatus, reviewed_at = NOW()
+        WHERE id = :id AND status = :fromStatus
+        """;
+    int rows =
+        handle
+            .createUpdate(sql)
+            .bind("toStatus", toStatus)
+            .bind("fromStatus", fromStatus)
+            .bind("id", id)
+            .execute();
+    if (rows == 0) {
+      throw new IllegalStateException("Yêu cầu nạp tiền này đã được xử lý rồi.");
     }
   }
 }

@@ -62,7 +62,11 @@ public class PasswordResetService {
       throw new DuplicateException("Bạn đã có yêu cầu đang chờ Admin xét duyệt.");
     }
 
-    resetDao.insert(new PasswordResetRecord(user.getId()));
+    try {
+      resetDao.insert(new PasswordResetRecord(user.getId()));
+    } catch (org.jdbi.v3.core.statement.UnableToExecuteStatementException e) {
+      throw new DuplicateException("Bạn đã có yêu cầu đang chờ Admin xét duyệt.");
+    }
   }
 
   /**
@@ -86,7 +90,7 @@ public class PasswordResetService {
         handle -> {
           PasswordResetRecord record =
               resetDao
-                  .findById(requestId)
+                  .findByIdForUpdate(handle, requestId)
                   .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu: " + requestId));
           if (!"PENDING".equals(record.getStatus())) {
             throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
@@ -98,10 +102,7 @@ public class PasswordResetService {
               .bind("h", hash)
               .bind("id", record.getUserId())
               .execute();
-          handle
-              .createUpdate("UPDATE password_reset_requests SET status = 'APPROVED' WHERE id = :id")
-              .bind("id", requestId)
-              .execute();
+          resetDao.transitionStatusInTransaction(handle, requestId, "PENDING", "APPROVED");
           return tempPwd;
         });
   }
@@ -114,15 +115,18 @@ public class PasswordResetService {
    * @throws IllegalStateException nếu yêu cầu đã được xử lý rồi
    */
   public void rejectReset(Long requestId) {
-    PasswordResetRecord record =
-        resetDao
-            .findById(requestId)
-            .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu: " + requestId));
+    jdbi.useTransaction(
+        handle -> {
+          PasswordResetRecord record =
+              resetDao
+                  .findByIdForUpdate(handle, requestId)
+                  .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu: " + requestId));
 
-    if (!"PENDING".equals(record.getStatus())) {
-      throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
-    }
+          if (!"PENDING".equals(record.getStatus())) {
+            throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+          }
 
-    resetDao.updateStatus(requestId, "REJECTED");
+          resetDao.transitionStatusInTransaction(handle, requestId, "PENDING", "REJECTED");
+        });
   }
 }

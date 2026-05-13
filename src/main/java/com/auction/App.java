@@ -60,10 +60,10 @@ import org.slf4j.LoggerFactory;
  *   <li>Javalin: Middleware → Exception handlers → Routes → Start.
  * </ol>
  *
- * <p>Biến môi trường yêu cầu (đọc từ .env):
+ * <p>Biến môi trường:
  *
  * <ul>
- *   <li>DB_URL, DB_USER, DB_PASSWORD — kết nối PostgreSQL.
+ *   <li>Database luôn dùng Embedded PostgreSQL và lưu tại {@code data/postgres}; không cần DB_URL.
  *   <li>JWT_SECRET — khóa ký JWT (default: "auction-secret-key-dev").
  * </ul>
  */
@@ -124,34 +124,9 @@ public class App {
 
     // Đăng ký shutdown hook để dừng scheduler khi server tắt
     registerShutdownHook(scheduler);
-    /*
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread(
-                () -> {
-                  LOGGER.info("Server đang tắt...");
-                  scheduler.stop();
-                  DatabaseConfig.shutDown();
-                }));
-    */
 
     // ── 8. Tạo Javalin instance ──────────────────────────────
     Javalin app = buildJavalin(mapper);
-    /*
-    Javalin ignoredApp =
-        Javalin.create(
-            config -> {
-              config.jsonMapper(new JavalinJackson(mapper, false));
-              config.http.defaultContentType = "application/json";
-              config.bundledPlugins.enableCors(
-                  cors ->
-                      cors.addRule(
-                          it -> {
-                            it.allowHost("localhost:3000", "localhost:8080");
-                            // TODO: replace with production domain before deployment
-                          }));
-            });
-    */
 
     // ── 9. Đăng ký JWT Middleware ────────────────────────────
     app.before("/api/*", JwtMiddleware::handle);
@@ -314,6 +289,36 @@ public class App {
           }
           BigDecimal maxBid = req.getMaxBid();
           BigDecimal increment = req.getIncrement();
+          if (maxBid.signum() <= 0 || increment.signum() <= 0) {
+            throw new InvalidBidException("maxBid và increment phải lớn hơn 0");
+          }
+
+          var auction =
+              auctionDao
+                  .findById(auctionId)
+                  .orElseThrow(
+                      () -> new NotFoundException("Không tìm thấy phiên đấu giá: " + auctionId));
+          if (auction.getStatus() != com.auction.model.AuctionStatus.OPEN
+              && auction.getStatus() != com.auction.model.AuctionStatus.RUNNING) {
+            throw new InvalidBidException(
+                "Chỉ có thể bật auto-bid cho phiên OPEN hoặc RUNNING. Trạng thái hiện tại: "
+                    + auction.getStatus());
+          }
+          if (auction.getSellerId().equals(bidderId)) {
+            throw new InvalidBidException("Bạn không thể bật auto-bid cho phiên của chính mình");
+          }
+          if (maxBid.compareTo(auction.getCurrentPrice()) <= 0) {
+            throw new InvalidBidException("maxBid phải cao hơn giá hiện tại của phiên");
+          }
+
+          var bidder =
+              userDao
+                  .findById(bidderId)
+                  .orElseThrow(
+                      () -> new NotFoundException("Không tìm thấy người dùng: " + bidderId));
+          if (bidder.getAvailableBalance().compareTo(maxBid) < 0) {
+            throw new InvalidBidException("Số dư khả dụng không đủ cho maxBid");
+          }
 
           var existing = autoBidConfigDao.findByAuctionAndBidder(auctionId, bidderId);
           if (existing.isPresent()) {

@@ -19,14 +19,14 @@ public class JwtUtil {
   private static final Algorithm ALGORITHM =
       Algorithm.HMAC256(
           SECRET_KEY); // Đây là thuật toán mã hóa đối xứng. Nghĩa là hệ thống dùng chung 1 cái
+
   // SECRET_KEY vừa để khóa (tạo token) vừa để mở khóa (xác minh token).
 
-  private static final JWTVerifier VERIFIER =
-      JWT.require(ALGORITHM)
-          .build(); // Đây là cái "Máy quét thẻ". Thầy để nó là static final (biến tĩnh hằng số) để
-
-  // máy tính chỉ khởi tạo nó đúng 1 lần duy nhất khi chạy server, giúp tiết kiệm
-  // bộ nhớ và tăng tốc độ xử lý khi có hàng nghìn người dùng cùng truy cập.
+  /**
+   * Singleton verifier — initialized once at class load, reused for every request. Thread-safe:
+   * JWT.require().build() produces an immutable JWTVerifier instance.
+   */
+  private static final JWTVerifier VERIFIER = JWT.require(ALGORITHM).build();
 
   public static String createToken(Long userId, String username, String role) {
     return JWT.create()

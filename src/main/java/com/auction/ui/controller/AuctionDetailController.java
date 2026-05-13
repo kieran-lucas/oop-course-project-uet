@@ -75,11 +75,11 @@ public class AuctionDetailController implements Navigable {
       new ObjectMapper().registerModule(new JavaTimeModule());
   private static final NumberFormat VND_FMT = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
 
-  private static String VND(java.math.BigDecimal v) {
+  private static String vnd(java.math.BigDecimal v) {
     return v == null ? "?" : VND_FMT.format(v) + " VND";
   }
 
-  private static String VND(double v) {
+  private static String vnd(double v) {
     return VND_FMT.format(v) + " VND";
   }
 
@@ -328,7 +328,7 @@ public class AuctionDetailController implements Navigable {
     if (lastKnownBalance != null && amount.compareTo(lastKnownBalance) > 0) {
       showBidError(
           "Số dư của bạn ("
-              + VND(lastKnownBalance)
+              + vnd(lastKnownBalance)
               + ") không đủ. Hãy nạp tiền trước khi đặt giá.");
       return;
     }
@@ -556,7 +556,7 @@ public class AuctionDetailController implements Navigable {
                               String.format(
                                   "%s — %s",
                                   bidderLabel,
-                                  bid.getAmount() != null ? VND(bid.getAmount()) : "?"));
+                                  bid.getAmount() != null ? vnd(bid.getAmount()) : "?"));
                           if (bid.getAmount() != null) {
                             bidSeries
                                 .getData()
@@ -610,7 +610,7 @@ public class AuctionDetailController implements Navigable {
     switch (msg.getType()) {
       case BidUpdateMessage.TYPE_BID_UPDATE -> {
         if (msg.getCurrentPrice() != null) {
-          currentPriceLabel.setText(VND(msg.getCurrentPrice()));
+          currentPriceLabel.setText(vnd(msg.getCurrentPrice()));
           bidSeries
               .getData()
               .add(
@@ -649,7 +649,7 @@ public class AuctionDetailController implements Navigable {
             msg.getLeadingBidderUsername() != null
                 ? msg.getLeadingBidderUsername()
                 : "Không có người thắng";
-        String price = msg.getCurrentPrice() != null ? VND(msg.getCurrentPrice()) : "—";
+        String price = msg.getCurrentPrice() != null ? vnd(msg.getCurrentPrice()) : "—";
         winnerLabel.setText("Người thắng: " + winner + " — Giá cuối: " + price);
 
         String currentRole = SceneManager.getInstance().getCurrentRole();
@@ -682,7 +682,7 @@ public class AuctionDetailController implements Navigable {
 
     String bidder =
         msg.getLeadingBidderUsername() != null ? msg.getLeadingBidderUsername() : "Ẩn danh";
-    String price = msg.getCurrentPrice() != null ? VND(msg.getCurrentPrice()) : "—";
+    String price = msg.getCurrentPrice() != null ? vnd(msg.getCurrentPrice()) : "—";
     String itemLabel = currentItemName != null ? "[" + currentItemName + "] " : "";
 
     String text;
@@ -764,7 +764,7 @@ public class AuctionDetailController implements Navigable {
     if (balanceLabel == null) {
       return;
     }
-    balanceLabel.setText("Số dư: " + VND(balance));
+    balanceLabel.setText("Số dư: " + vnd(balance));
     balanceLabel.setStyle(
         balance.compareTo(BigDecimal.ZERO) == 0
             ? "-fx-font-size: 11px; -fx-text-fill: #ef5350;"
@@ -818,7 +818,7 @@ public class AuctionDetailController implements Navigable {
                                           if (lastKnownBalance != null
                                               && balance.compareTo(lastKnownBalance) > 0) {
                                             BigDecimal diff = balance.subtract(lastKnownBalance);
-                                            showBalanceChangeNotification("+" + VND(diff));
+                                            showBalanceChangeNotification("+" + vnd(diff));
                                           }
                                           lastKnownBalance = balance;
                                           updateBalanceLabel(balance);
@@ -864,7 +864,7 @@ public class AuctionDetailController implements Navigable {
     applyStatusStyle(auctionStatusLabel, auction.getStatus());
 
     if (auction.getCurrentPrice() != null) {
-      currentPriceLabel.setText(VND(auction.getCurrentPrice()));
+      currentPriceLabel.setText(vnd(auction.getCurrentPrice()));
     }
     leadingBidderLabel.setText(
         auction.getLeadingBidderUsername() != null

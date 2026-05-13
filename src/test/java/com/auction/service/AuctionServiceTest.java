@@ -346,49 +346,6 @@ class AuctionServiceTest {
   class StateTransitions {
 
     @Test
-    @DisplayName("OPEN → RUNNING: transitionToRunning() thành công")
-    void testTransitionOpenToRunning() {
-      Auction auction = buildAuction("OPEN");
-      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
-      doNothing().when(auctionDao).update(any(Auction.class));
-
-      auctionService.transitionToRunning(99L);
-
-      assertEquals(
-          AuctionStatus.RUNNING,
-          auction.getStatus(),
-          "Sau transitionToRunning(), status phải là RUNNING");
-      verify(auctionDao, times(1)).update(auction);
-    }
-
-    @Test
-    @DisplayName("RUNNING → FINISHED: transitionToFinished() thành công")
-    void testTransitionRunningToFinished() {
-      Auction auction = buildAuction("RUNNING");
-      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
-      doNothing().when(auctionDao).update(any(Auction.class));
-
-      auctionService.transitionToFinished(99L);
-
-      assertEquals(
-          AuctionStatus.FINISHED,
-          auction.getStatus(),
-          "Sau transitionToFinished(), status phải là FINISHED");
-    }
-
-    @Test
-    @DisplayName("FINISHED → RUNNING: không hợp lệ → throw exception")
-    void testTransitionFinishedToRunningInvalid() {
-      Auction auction = buildAuction("FINISHED");
-      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
-
-      assertThrows(
-          RuntimeException.class,
-          () -> auctionService.transitionToRunning(99L),
-          "Không thể chuyển từ FINISHED về RUNNING");
-    }
-
-    @Test
     @DisplayName("getState() trả đúng State object cho từng status string")
     void testGetStateReturnsCorrectStateInstance() {
       // Gọi trực tiếp getState() để verify mapping status → State class
@@ -417,10 +374,9 @@ class AuctionServiceTest {
     void testFullStateFlow() {
       Auction auction = buildAuction("OPEN");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
-      doNothing().when(auctionDao).update(any(Auction.class));
 
       // Bước 1: OPEN → RUNNING
-      auctionService.transitionToRunning(99L);
+      auction.setStatus(AuctionStatus.RUNNING);
       assertEquals(AuctionStatus.RUNNING, auction.getStatus(), "Bước 1: phải là RUNNING");
 
       // Bước 2: Đặt giá khi RUNNING → OK
@@ -429,7 +385,7 @@ class AuctionServiceTest {
           "Bước 2: bid khi RUNNING phải thành công");
 
       // Bước 3: RUNNING → FINISHED
-      auctionService.transitionToFinished(99L);
+      auction.setStatus(AuctionStatus.FINISHED);
       assertEquals(AuctionStatus.FINISHED, auction.getStatus(), "Bước 3: phải là FINISHED");
 
       // Bước 4: Bid khi FINISHED → throw

@@ -16,6 +16,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -215,29 +216,45 @@ public class AuctionScheduler {
   private void settleAndClose(Auction auction) {
     MDC.put("auctionId", String.valueOf(auction.getId()));
     try {
-      boolean claimed = auctionDao.atomicTransition(auction.getId(), "RUNNING", "SETTLING");
-      if (!claimed) {
-        LOG.warn("Phiên #{} đã được settle bởi thread/process khác, bỏ qua", auction.getId());
-        return;
-      }
-
+      AtomicReference<AuctionStatus> finalStatus = new AtomicReference<>();
       jdbi.useTransaction(
           handle -> {
+            int claimed =
+                handle
+                    .createUpdate(
+                        """
+                        UPDATE auctions
+                        SET status = 'SETTLING', updated_at = NOW()
+                        WHERE id = :id AND status = 'RUNNING'
+                        """)
+                    .bind("id", auction.getId())
+                    .execute();
+            if (claimed == 0) {
+              LOG.warn("Phiên #{} đã được settle bởi thread/process khác, bỏ qua", auction.getId());
+              return;
+            }
+
             Long winnerId = auction.getLeadingBidderId();
 
             if (winnerId != null) {
               BigDecimal price = auction.getCurrentPrice();
 
-              // Khóa row winner để trừ tiền an toàn
+              // Khóa row winner để chuyển khoản giữ chỗ thành thanh toán an toàn
               User winner = userDao.findByIdForUpdate(handle, winnerId);
               BigDecimal balance =
                   winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
 
               if (balance.compareTo(price) >= 0) {
                 BigDecimal balanceBefore = balance;
-                // Trừ tiền bidder
+                // Trừ tiền bidder và release phần tiền đã giữ cho bid thắng.
                 handle
-                    .createUpdate("UPDATE users SET balance = balance - :price WHERE id = :userId")
+                    .createUpdate(
+                        """
+                        UPDATE users
+                        SET balance = balance - :price,
+                            reserved_balance = GREATEST(reserved_balance - :price, 0)
+                        WHERE id = :userId
+                        """)
                     .bind("price", price)
                     .bind("userId", winnerId)
                     .execute();
@@ -289,6 +306,15 @@ public class AuctionScheduler {
                     winnerId,
                     balance,
                     price);
+                handle
+                    .createUpdate(
+                        """
+                        UPDATE users
+                        SET reserved_balance = 0
+                        WHERE id = :userId
+                        """)
+                    .bind("userId", winnerId)
+                    .execute();
                 auction.setStatus(AuctionStatus.FINISHED);
               }
             } else {
@@ -297,8 +323,12 @@ public class AuctionScheduler {
 
             // Cập nhật trạng thái auction cuối cùng
             auctionDao.updateInTransaction(handle, auction);
+            finalStatus.set(auction.getStatus());
           });
 
+      if (finalStatus.get() == null) {
+        return;
+      }
       LOG.info(
           "Phiên #{} → {} (endTime={}, winner={})",
           auction.getId(),

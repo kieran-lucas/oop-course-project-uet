@@ -50,18 +50,32 @@ public class UserService {
    * @throws DuplicateException nếu username đã tồn tại trong hệ thống
    */
   public User register(RegisterRequest req) {
-    if (req.getUsername() == null || req.getUsername().trim().isEmpty()) {
+    String username = req.getUsername() != null ? req.getUsername().trim() : null;
+    String email = req.getEmail() != null ? req.getEmail().trim() : null;
+    String role = req.getRole() != null ? req.getRole().trim() : null;
+
+    if (username == null || username.isEmpty()) {
       throw new IllegalArgumentException("Username không được để trống");
     }
 
     // Regex cơ bản: kiểm tra có ký tự @ và phần domain phía sau
     String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
-    if (req.getEmail() == null || !req.getEmail().matches(emailRegex)) {
+    if (email == null || !email.matches(emailRegex)) {
       throw new IllegalArgumentException("Định dạng email không hợp lệ.");
     }
 
     if (req.getPassword() == null || req.getPassword().length() < 6) {
       throw new IllegalArgumentException("Mật khẩu phải có ít nhất 6 ký tự.");
+    }
+    if (role == null || role.isEmpty()) {
+      throw new IllegalArgumentException("Role không hợp lệ: " + req.getRole());
+    }
+
+    if (userDao.existsByUsername(username)) {
+      throw new DuplicateException("Username '" + username + "' đã tồn tại!");
+    }
+    if (userDao.existsByEmail(email)) {
+      throw new DuplicateException("Email '" + email + "' đã tồn tại!");
     }
 
     // BCrypt với cost factor 12: đủ chậm để chống brute-force, không quá nặng cho server
@@ -69,26 +83,29 @@ public class UserService {
 
     User newUser;
     try {
-      newUser = UserFactory.create(req.getRole());
+      newUser = UserFactory.create(role);
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException("Role không hợp lệ: " + req.getRole());
+      throw new IllegalArgumentException("Role không hợp lệ: " + role);
     }
     if (newUser instanceof Admin) {
-      throw new IllegalArgumentException("Role không hợp lệ: " + req.getRole());
+      throw new IllegalArgumentException("Role không hợp lệ: " + role);
     }
 
-    newUser.setUsername(req.getUsername());
+    newUser.setUsername(username);
     newUser.setPasswordHash(hashedPassword);
-    newUser.setEmail(req.getEmail());
+    newUser.setEmail(email);
 
     try {
       return userDao.insert(newUser);
     } catch (org.jdbi.v3.core.statement.UnableToExecuteStatementException e) {
       String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-      if (msg.contains("unique")
-          || msg.contains("duplicate")
-          || msg.contains("users_username_key")) {
-        throw new DuplicateException("Username '" + req.getUsername() + "' đã tồn tại!");
+      if (msg.contains("users_email_key") || msg.contains("email")) {
+        throw new DuplicateException("Email '" + email + "' đã tồn tại!");
+      }
+      if (msg.contains("users_username_key")
+          || msg.contains("unique")
+          || msg.contains("duplicate")) {
+        throw new DuplicateException("Username '" + username + "' đã tồn tại!");
       }
       throw e;
     }
@@ -105,13 +122,25 @@ public class UserService {
    * @throws UnauthorizedException nếu password không khớp
    */
   public String login(LoginRequest req) {
+    String username = req.getUsername() != null ? req.getUsername().trim() : null;
+    if (username == null || username.isEmpty()) {
+      throw new IllegalArgumentException("Username không được để trống");
+    }
+    if (req.getPassword() == null || req.getPassword().isEmpty()) {
+      throw new IllegalArgumentException("Mật khẩu không được để trống");
+    }
+
     User user =
         userDao
-            .findByUsername(req.getUsername())
+            .findByUsername(username)
             .orElseThrow(() -> new NotFoundException("Không tìm thấy tài khoản với username này."));
 
-    BCrypt.Result result =
-        BCrypt.verifyer().verify(req.getPassword().toCharArray(), user.getPasswordHash());
+    BCrypt.Result result;
+    try {
+      result = BCrypt.verifyer().verify(req.getPassword().toCharArray(), user.getPasswordHash());
+    } catch (RuntimeException e) {
+      throw new UnauthorizedException("Sai mật khẩu.");
+    }
     if (!result.verified) {
       throw new UnauthorizedException("Sai mật khẩu.");
     }
@@ -128,10 +157,12 @@ public class UserService {
    * @throws NotFoundException nếu username không tồn tại
    */
   public String getRoleByUsername(String username) {
+    String normalizedUsername = username != null ? username.trim() : null;
     return userDao
-        .findByUsername(username)
+        .findByUsername(normalizedUsername)
         .map(User::getRole)
-        .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + username));
+        .orElseThrow(
+            () -> new NotFoundException("Không tìm thấy người dùng: " + normalizedUsername));
   }
 
   /**
@@ -228,7 +259,7 @@ public class UserService {
         handle -> {
           DepositRecord record =
               depositRequestDao
-                  .findById(requestId)
+                  .findByIdForUpdate(handle, requestId)
                   .orElseThrow(
                       () -> new NotFoundException("Không tìm thấy yêu cầu nạp tiền: " + requestId));
 
@@ -249,7 +280,7 @@ public class UserService {
               .bind("id", user.getId())
               .execute();
 
-          depositRequestDao.updateStatusInTransaction(handle, requestId, "APPROVED");
+          depositRequestDao.transitionStatusInTransaction(handle, requestId, "PENDING", "APPROVED");
 
           return UserResponse.from(user);
         });
@@ -264,17 +295,20 @@ public class UserService {
    * @throws IllegalStateException nếu yêu cầu đã được xử lý trước đó
    */
   public Long rejectDeposit(Long requestId) {
-    DepositRecord record =
-        depositRequestDao
-            .findById(requestId)
-            .orElseThrow(
-                () -> new NotFoundException("Không tìm thấy yêu cầu nạp tiền: " + requestId));
+    return jdbi.inTransaction(
+        handle -> {
+          DepositRecord record =
+              depositRequestDao
+                  .findByIdForUpdate(handle, requestId)
+                  .orElseThrow(
+                      () -> new NotFoundException("Không tìm thấy yêu cầu nạp tiền: " + requestId));
 
-    if (!"PENDING".equals(record.getStatus())) {
-      throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
-    }
-    depositRequestDao.updateStatus(requestId, "REJECTED");
-    return record.getUserId();
+          if (!"PENDING".equals(record.getStatus())) {
+            throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+          }
+          depositRequestDao.transitionStatusInTransaction(handle, requestId, "PENDING", "REJECTED");
+          return record.getUserId();
+        });
   }
 
   /**

@@ -92,11 +92,10 @@ dependencies {
     implementation("io.github.cdimascio:dotenv-java:3.0.0")
 
     // ── EMBEDDED DATABASE ────────────────────────────────────────────────────
-    // Embedded PostgreSQL: tự động khởi động PostgreSQL bên trong JVM khi không
-    // có biến môi trường DB_URL. Người dùng chỉ cần chạy java -jar mà không cần
-    // cài PostgreSQL riêng.
+    // Embedded PostgreSQL: server luôn khởi động PostgreSQL riêng bên trong JVM.
+    // Không đọc DB_URL và không cần cài PostgreSQL trên máy người dùng.
+    // Runtime lưu dữ liệu bền tại data/postgres.
     // Lần đầu chạy: tải binary PostgreSQL phù hợp với OS (~15MB, tự cache).
-    // Liên kết: DatabaseConfig.java kiểm tra DB_URL → nếu không có → dùng cái này.
     implementation("io.zonky.test:embedded-postgres:2.0.7")
 
     // ── DATABASE MIGRATION ───────────────────────────────────────────────────
@@ -230,6 +229,8 @@ tasks.register<JavaExec>("runClient") {
 tasks.test {
     useJUnitPlatform()
     maxHeapSize = "512m"
+    systemProperty("auction.db.dir", layout.buildDirectory.dir("embedded-postgres/test").get().asFile.absolutePath)
+    systemProperty("auction.db.pid", layout.buildDirectory.file("embedded-postgres/test-postgres.pid").get().asFile.absolutePath)
 
     testLogging {
         events("passed", "skipped", "failed")
@@ -343,7 +344,7 @@ tasks.named("build") {
 
 // ── 1. Fat JAR server ────────────────────────────────────────────────────────
 // Entry point: App.java (Javalin + Database)
-// Embedded PostgreSQL tự khởi động nếu không có biến môi trường DB_URL.
+// Embedded PostgreSQL luôn tự khởi động và lưu dữ liệu tại data/postgres.
 //
 // Cách dùng:
 //   java -jar build/libs/auction-server.jar

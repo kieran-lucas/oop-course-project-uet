@@ -23,7 +23,7 @@ public class UserResponse {
     r.username = user.getUsername();
     r.email = user.getEmail();
     r.role = user.getRole();
-    r.balance = user.getBalance();
+    r.balance = user.getAvailableBalance();
     r.createdAt = user.getCreatedAt();
     return r;
   }

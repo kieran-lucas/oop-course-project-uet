@@ -6,8 +6,14 @@ import com.auction.config.DatabaseConfig;
 import com.auction.model.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.Assumptions;
@@ -348,5 +354,102 @@ class AuctionDaoTest {
 
     assertTrue(price.isPresent());
     assertEquals(0, new BigDecimal("500000").compareTo(price.get()));
+  }
+
+  @Test
+  @SuppressWarnings("checkstyle:MethodName")
+  void atomicTransition_correctStatus_returnsTrue() {
+    Auction auction =
+        new Auction(
+            testItem.getId(),
+            new BigDecimal("100000"),
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    auction.setStatus(AuctionStatus.RUNNING);
+    Auction saved = auctionDao.insert(auction);
+
+    boolean transitionResult = auctionDao.atomicTransition(saved.getId(), "RUNNING", "SETTLING");
+
+    assertTrue(transitionResult);
+    String status =
+        jdbi.withHandle(
+            handle ->
+                handle
+                    .createQuery("SELECT status FROM auctions WHERE id = :id")
+                    .bind("id", saved.getId())
+                    .mapTo(String.class)
+                    .one());
+    assertEquals("SETTLING", status);
+  }
+
+  @Test
+  @SuppressWarnings("checkstyle:MethodName")
+  void atomicTransition_wrongStatus_returnsFalse() {
+    Auction auction =
+        new Auction(
+            testItem.getId(),
+            new BigDecimal("100000"),
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    auction.setStatus(AuctionStatus.RUNNING);
+    Auction saved = auctionDao.insert(auction);
+
+    boolean transitionResult = auctionDao.atomicTransition(saved.getId(), "OPEN", "RUNNING");
+
+    assertFalse(transitionResult);
+    String status =
+        jdbi.withHandle(
+            handle ->
+                handle
+                    .createQuery("SELECT status FROM auctions WHERE id = :id")
+                    .bind("id", saved.getId())
+                    .mapTo(String.class)
+                    .one());
+    assertEquals("RUNNING", status);
+  }
+
+  @Test
+  @SuppressWarnings("checkstyle:MethodName")
+  void atomicTransition_concurrent_onlyOneWins() throws Exception {
+    Auction auction =
+        new Auction(
+            testItem.getId(),
+            new BigDecimal("100000"),
+            LocalDateTime.now().minusHours(1),
+            LocalDateTime.now().plusHours(1));
+    auction.setStatus(AuctionStatus.RUNNING);
+    Auction saved = auctionDao.insert(auction);
+
+    int threadCount = 5;
+    ExecutorService pool = Executors.newFixedThreadPool(threadCount);
+    CountDownLatch startGate = new CountDownLatch(1);
+    List<Future<Boolean>> futures = new ArrayList<>();
+
+    for (int i = 0; i < threadCount; i++) {
+      futures.add(
+          pool.submit(
+              () -> {
+                startGate.await();
+                return auctionDao.atomicTransition(saved.getId(), "RUNNING", "SETTLING");
+              }));
+    }
+
+    startGate.countDown();
+    pool.shutdown();
+    assertTrue(pool.awaitTermination(10, TimeUnit.SECONDS));
+
+    long wins =
+        futures.stream()
+            .mapToLong(
+                future -> {
+                  try {
+                    return future.get() ? 1L : 0L;
+                  } catch (Exception e) {
+                    return 0L;
+                  }
+                })
+            .sum();
+
+    assertEquals(1L, wins);
   }
 }

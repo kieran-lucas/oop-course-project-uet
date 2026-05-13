@@ -83,7 +83,9 @@ public class AuctionListController implements Navigable {
   private static final Pattern VND_AMOUNT_PATTERN =
       Pattern.compile("([+-]?\\s*[\\d.,]+\\s*(?:VND|VNĐ|₫|đ))", Pattern.CASE_INSENSITIVE);
   private static final Pattern NEW_BALANCE_PATTERN =
-      Pattern.compile("Số dư mới:\\s*([\\d.,]+)", Pattern.CASE_INSENSITIVE);
+      Pattern.compile(
+          "S\u1ed1 d\u01b0 (?:m\u1edbi|bi\u1ebfn \u0111\u1ed9ng):\\s*([\\d.,]+)",
+          Pattern.CASE_INSENSITIVE);
   private static final Pattern BALANCE_DELTA_PATTERN =
       Pattern.compile("([+-]\\s*[\\d.,]+\\s*(?:VND|VNĐ|₫|đ))", Pattern.CASE_INSENSITIVE);
 
@@ -313,13 +315,14 @@ public class AuctionListController implements Navigable {
       // Hien thi tu cu nhat (index 0) den moi nhat (index limit-1)
       // VBox se co: [cu nhat o tren, moi nhat o duoi] -> setVvalue(1.0) cuon xuong day = thay moi
       // nhat
-      BigDecimal previousBalance = findPreviousBalanceBefore(notifications, limit);
-      for (int i = 0; i < limit; i++) {
-        NotificationRow row = buildNotificationRow(notifications.get(i), previousBalance);
+      // NotificationStore: index 0 = moi nhat, index N = cu nhat
+      // Duyet limit-1 -> 0 de VBox hien thi cu tren, moi duoi
+      // previousBalance: tim balance cua thong bao ngay sau (index+1) trong list
+      for (int i = limit - 1; i >= 0; i--) {
+        // Tim previousBalance tu thong bao ngay sau trong list (cu hon, index cao hon)
+        BigDecimal prevBal = findPreviousBalanceAt(notifications, i + 1, limit);
+        NotificationRow row = buildNotificationRow(notifications.get(i), prevBal);
         items.getChildren().add(row.node());
-        if (row.newBalance() != null) {
-          previousBalance = row.newBalance();
-        }
       }
       scrollPane = new ScrollPane(items);
       scrollPane.setMaxHeight(400);
@@ -368,8 +371,7 @@ public class AuctionListController implements Navigable {
   private NotificationRow buildNotificationRow(String notification, BigDecimal previousBalance) {
     BalanceDisplay balance = toBalanceDisplay(notification, previousBalance);
     if (balance != null) {
-      return new NotificationRow(
-          createNotificationLabel(balance.text(), balance.color()), balance.newBalance());
+      return new NotificationRow(createBalanceNotificationNode(balance), balance.newBalance());
     }
 
     String text = replaceAuctionIdWithName(notification);
@@ -400,16 +402,88 @@ public class AuctionListController implements Navigable {
     item.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
     item.setPadding(new Insets(7, 10, 7, 10));
     item.setStyle("-fx-background-color: rgba(255,255,255,0.06); " + "-fx-background-radius: 6;");
-    Label beforeLabel = createInlineNotificationLabel(split.before(), "#e0e0e0");
-    beforeLabel.setWrapText(true);
-    Label priceLabel = createInlineNotificationLabel(split.price(), "#ffd600");
-    item.getChildren().add(beforeLabel);
-    item.getChildren().add(priceLabel);
-    if (!split.after().isBlank()) {
-      item.getChildren().add(createInlineNotificationLabel(split.after(), "#e0e0e0"));
+    // Dung VBox thay HBox: dong 1 = text mo ta (wrap duoc), dong 2 = HBox(label + so tien mau)
+    VBox vbox = new VBox(2);
+    vbox.setMaxWidth(Double.MAX_VALUE);
+    vbox.setPadding(new Insets(7, 10, 7, 10));
+    vbox.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-background-radius: 6;");
+    item.setPadding(new Insets(0));
+    item.setStyle("");
+    if (!split.before().isBlank()) {
+      Label beforeLabel = new Label(split.before().trim());
+      beforeLabel.setWrapText(true);
+      beforeLabel.setMaxWidth(Double.MAX_VALUE);
+      beforeLabel.setStyle("-fx-text-fill: #e0e0e0; -fx-font-size: 12px;");
+      vbox.getChildren().add(beforeLabel);
     }
-    HBox.setHgrow(beforeLabel, javafx.scene.layout.Priority.ALWAYS);
-    return item;
+    HBox priceRow = new HBox(0);
+    priceRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+    Label priceLabel = createInlineNotificationLabel(split.price(), "#ffd600");
+    priceRow.getChildren().add(priceLabel);
+    if (!split.after().isBlank()) {
+      priceRow.getChildren().add(createInlineNotificationLabel(split.after(), "#e0e0e0"));
+    }
+    vbox.getChildren().add(priceRow);
+    return vbox;
+  }
+
+  /**
+   * Tao node thong bao bien dong so du: dong chu mo ta mau trang, dong so tien co mau tuong ung.
+   * prefix (VD: "Yeu cau nap tien da duoc duyet") mau trang, delta (VD: "+ 435.345 VND") co mau.
+   */
+  private Node createBalanceNotificationNode(BalanceDisplay balance) {
+    String[] parts = balance.text().split("\n", 2);
+    VBox box = new VBox(2);
+    box.setMaxWidth(Double.MAX_VALUE);
+    box.setPadding(new Insets(7, 10, 7, 10));
+    box.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-background-radius: 6;");
+    if (parts.length == 2 && !parts[0].isBlank()) {
+      // Dong 1: mo ta (VD: "Yeu cau nap tien da duoc duyet.") - trang
+      Label descLabel = new Label(parts[0]);
+      descLabel.setWrapText(true);
+      descLabel.setMaxWidth(Double.MAX_VALUE);
+      descLabel.setStyle("-fx-text-fill: #e0e0e0; -fx-font-size: 12px;");
+      box.getChildren().add(descLabel);
+      // Dong 2: "So du bien dong: " trang + "+ 50.000.000 VND" co mau
+      // Tach tai dau "+" hoac "-" de lay phan label va phan so
+      int signIdx = -1;
+      for (int ci = 0; ci < parts[1].length(); ci++) {
+        char ch = parts[1].charAt(ci);
+        if (ch == '+' || ch == '-') {
+          signIdx = ci;
+          break;
+        }
+      }
+      HBox amountRow = new HBox(0);
+      amountRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+      if (signIdx > 0) {
+        Label labelPart = new Label(parts[1].substring(0, signIdx));
+        labelPart.setStyle("-fx-text-fill: #e0e0e0; -fx-font-size: 12px;");
+        Label amountPart = new Label(parts[1].substring(signIdx));
+        amountPart.setWrapText(false);
+        amountPart.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+        amountPart.setStyle(
+            "-fx-text-fill: " + balance.color() + "; -fx-font-size: 12px; -fx-font-weight: bold;");
+        amountRow.getChildren().addAll(labelPart, amountPart);
+      } else {
+        Label amountPart = new Label(parts[1]);
+        amountPart.setWrapText(false);
+        amountPart.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+        amountPart.setStyle(
+            "-fx-text-fill: " + balance.color() + "; -fx-font-size: 12px; -fx-font-weight: bold;");
+        amountRow.getChildren().add(amountPart);
+      }
+      box.getChildren().add(amountRow);
+    } else {
+      // Chi co so tien, khong co prefix
+      Label amountLabel = new Label(balance.text());
+      amountLabel.setWrapText(false);
+      amountLabel.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+      amountLabel.setStyle(
+          "-fx-text-fill: " + balance.color() + "; -fx-font-size: 12px; -fx-font-weight: bold;");
+      box.getChildren().add(amountLabel);
+    }
+    return box;
   }
 
   private Label createInlineNotificationLabel(String text, String color) {
@@ -466,9 +540,18 @@ public class AuctionListController implements Navigable {
       BigDecimal delta =
           previousBalance != null ? newBalance.subtract(previousBalance) : newBalance;
       // Giu lai phan chu truoc "So du moi:" lam prefix (VD: "Yeu cau nap tien da duoc duyet")
+      // Dong 1: phan chu truoc "So du bien dong:" (VD: "Yeu cau nap tien da duoc duyet.")
+      // Dong 2: "So du bien dong: + 50.000.000 VND"
       String rawPrefix = notification.substring(0, newBalanceMatcher.start()).trim();
-      String prefix = rawPrefix.replaceAll("(?i)[.,\\s]*S\u1ed1 d\u01b0 m\u1edbi:\\s*$", "").trim();
-      String deltaText = prefix.isEmpty() ? formatDelta(delta) : prefix + ": " + formatDelta(delta);
+      // Strip "So du bien dong:" / "So du moi:" khoi cuoi prefix (neu co)
+      String prefix =
+          rawPrefix
+              .replaceAll(
+                  "(?i)[.,\\s]*S\u1ed1 d\u01b0 (?:m\u1edbi|bi\u1ebfn \u0111\u1ed9ng):\\s*$", "")
+              .trim();
+      prefix = prefix.replaceAll("[.,;:]+$", "").trim();
+      String deltaLine = "S\u1ed1 d\u01b0 bi\u1ebfn \u0111\u1ed9ng: " + formatDelta(delta);
+      String deltaText = prefix.isEmpty() ? deltaLine : prefix + "\n" + deltaLine;
       return new BalanceDisplay(deltaText, delta.signum() >= 0 ? "#4caf50" : "#ef5350", newBalance);
     }
 
@@ -487,6 +570,22 @@ public class AuctionListController implements Navigable {
   private BigDecimal findPreviousBalanceBefore(
       ObservableList<String> notifications, int displayedLimit) {
     for (int i = notifications.size() - 1; i >= displayedLimit; i--) {
+      BigDecimal balance = parseNewBalance(notifications.get(i));
+      if (balance != null) {
+        return balance;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Tim newBalance cua thong bao ngay sau (cu hon) tai vi tri fromIndex tro di trong list. Dung de
+   * tinh delta = newBalance_hien_tai - newBalance_truoc_do.
+   */
+  private BigDecimal findPreviousBalanceAt(
+      ObservableList<String> notifications, int fromIndex, int limit) {
+    // Tim trong cac thong bao cu hon (index >= fromIndex)
+    for (int i = fromIndex; i < notifications.size(); i++) {
       BigDecimal balance = parseNewBalance(notifications.get(i));
       if (balance != null) {
         return balance;
@@ -570,6 +669,11 @@ public class AuctionListController implements Navigable {
     timeCol.setCellFactory(
         col ->
             new TableCell<>() {
+              {
+                setWrapText(true);
+                setAlignment(javafx.geometry.Pos.CENTER);
+              }
+
               @Override
               protected void updateItem(Long ignored, boolean empty) {
                 super.updateItem(ignored, empty);
@@ -584,28 +688,51 @@ public class AuctionListController implements Navigable {
                   setStyle("");
                   return;
                 }
-                String st = a.getStatus();
+                String st = computeClientStatus(a);
                 if ("FINISHED".equals(st) || "CANCELED".equals(st) || "PAID".equals(st)) {
                   setText("Đã kết thúc");
                   setStyle("-fx-font-size: 11px;");
                   return;
                 }
                 setStyle("");
-                LocalDateTime endTime = a.getEndTime();
-                if (endTime == null) {
-                  setText("—");
-                  return;
-                }
-                long ms = java.time.Duration.between(LocalDateTime.now(), endTime).toMillis();
-                if (ms <= 0) {
-                  setText("Đã kết thúc");
-                  setStyle("-fx-font-size: 11px;");
+                LocalDateTime now = LocalDateTime.now();
+                if ("OPEN".equals(st)) {
+                  // Phien chua bat dau: hien thi thoi gian den khi bat dau
+                  LocalDateTime startTime = a.getStartTime();
+                  if (startTime == null) {
+                    setText("—");
+                    return;
+                  }
+                  long ms = java.time.Duration.between(now, startTime).toMillis();
+                  if (ms <= 0) {
+                    setText("Sắp bắt đầu");
+                  } else {
+                    long totalSec = ms / 1000;
+                    long h = totalSec / 3600;
+                    long m = (totalSec % 3600) / 60;
+                    long s = totalSec % 60;
+                    String timeStr = String.format("%02d:%02d:%02d", h, m, s);
+                    setText("BD: " + timeStr);
+                    setTooltip(new javafx.scene.control.Tooltip("Bắt đầu sau: " + timeStr));
+                  }
                 } else {
-                  long totalSec = ms / 1000;
-                  long h = totalSec / 3600;
-                  long m = (totalSec % 3600) / 60;
-                  long s = totalSec % 60;
-                  setText(String.format("%02d:%02d:%02d", h, m, s));
+                  // RUNNING: hien thi thoi gian den khi ket thuc
+                  LocalDateTime endTime = a.getEndTime();
+                  if (endTime == null) {
+                    setText("—");
+                    return;
+                  }
+                  long ms = java.time.Duration.between(now, endTime).toMillis();
+                  if (ms <= 0) {
+                    setText("Đã kết thúc");
+                    setStyle("-fx-font-size: 11px;");
+                  } else {
+                    long totalSec = ms / 1000;
+                    long h = totalSec / 3600;
+                    long m = (totalSec % 3600) / 60;
+                    long s = totalSec % 60;
+                    setText(String.format("%02d:%02d:%02d", h, m, s));
+                  }
                 }
               }
             });
@@ -621,9 +748,11 @@ public class AuctionListController implements Navigable {
                   setText(null);
                   setStyle("");
                 } else {
-                  setText(status);
+                  // Tinh status tu thoi gian phia client de hien thi luc tuc
+                  String effective = computeClientStatus(getTableRow().getItem());
+                  setText(effective);
                   String color =
-                      switch (status) {
+                      switch (effective) {
                         case "RUNNING" -> "-fx-text-fill: #00c853; -fx-font-weight: bold;";
                         case "OPEN" -> "-fx-text-fill: #2196f3; -fx-font-weight: bold;";
                         case "FINISHED", "PAID" -> "-fx-text-fill: #9e9e9e;";
@@ -839,6 +968,35 @@ public class AuctionListController implements Navigable {
   }
 
   /** Hiển thị thông báo trạng thái ở thanh dưới bảng (số phiên, lỗi kết nối, v.v.). */
+  /**
+   * Tinh trang thai phien dua tren thoi gian hien tai phia client. Neu server tra ve
+   * FINISHED/CANCELED/PAID thi giu nguyen, khong tinh lai. OPEN: startTime > now (chua bat dau)
+   * RUNNING: startTime <= now < endTime FINISHED: endTime <= now
+   */
+  private static String computeClientStatus(AuctionResponse a) {
+    if (a == null) {
+      return "OPEN";
+    }
+    String serverStatus = a.getStatus();
+    // Cac trang thai ket thuc khong tinh lai
+    if ("FINISHED".equals(serverStatus)
+        || "CANCELED".equals(serverStatus)
+        || "PAID".equals(serverStatus)
+        || "SETTLING".equals(serverStatus)) {
+      return serverStatus;
+    }
+    LocalDateTime now = LocalDateTime.now();
+    LocalDateTime start = a.getStartTime();
+    LocalDateTime end = a.getEndTime();
+    if (start != null && now.isBefore(start)) {
+      return "OPEN";
+    }
+    if (end != null && !now.isBefore(end)) {
+      return "FINISHED";
+    }
+    return "RUNNING";
+  }
+
   private void setStatus(String text) {
     statusLabel.setText(text);
     statusLabel.setVisible(true);

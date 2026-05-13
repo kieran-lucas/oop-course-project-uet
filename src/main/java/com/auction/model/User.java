@@ -24,6 +24,7 @@ public abstract class User extends Entity {
 
   private String email;
   private BigDecimal balance = BigDecimal.ZERO;
+  private BigDecimal reservedBalance = BigDecimal.ZERO;
 
   /** Constructor mặc định — phục vụ framework/JDBI khi tạo object */
   protected User() {}
@@ -105,6 +106,20 @@ public abstract class User extends Entity {
 
   public void setBalance(BigDecimal balance) {
     this.balance = balance;
+  }
+
+  public BigDecimal getReservedBalance() {
+    return reservedBalance;
+  }
+
+  public void setReservedBalance(BigDecimal reservedBalance) {
+    this.reservedBalance = reservedBalance;
+  }
+
+  public BigDecimal getAvailableBalance() {
+    BigDecimal total = balance != null ? balance : BigDecimal.ZERO;
+    BigDecimal reserved = reservedBalance != null ? reservedBalance : BigDecimal.ZERO;
+    return total.subtract(reserved);
   }
 
   @Override

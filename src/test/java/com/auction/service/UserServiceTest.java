@@ -85,12 +85,41 @@ class UserServiceTest {
         });
   }
 
+  @Test
+  @Order(3)
+  @DisplayName("testRegisterDuplicateEmail() — Trùng email -> Throw DuplicateException")
+  void testRegisterDuplicateEmail() {
+    when(userDao.existsByEmail("nad@gmail.com")).thenReturn(true);
+
+    RegisterRequest regReq = new RegisterRequest("newUser", "pass123", "nad@gmail.com", "BIDDER");
+
+    DuplicateException ex =
+        assertThrows(DuplicateException.class, () -> userService.register(regReq));
+    assertTrue(ex.getMessage().contains("Email"));
+  }
+
+  @Test
+  @Order(4)
+  @DisplayName("testRegisterDuplicateEmailFromDb() — DB unique email -> Throw DuplicateException")
+  void testRegisterDuplicateEmailFromDb() {
+    when(userDao.insert(any(User.class)))
+        .thenThrow(
+            new org.jdbi.v3.core.statement.UnableToExecuteStatementException(
+                "duplicate key value violates unique constraint \"users_email_key\""));
+
+    RegisterRequest regReq = new RegisterRequest("newUser", "pass123", "nad@gmail.com", "BIDDER");
+
+    DuplicateException ex =
+        assertThrows(DuplicateException.class, () -> userService.register(regReq));
+    assertTrue(ex.getMessage().contains("Email"));
+  }
+
   // ============================================================
   // 2. TEST ĐĂNG NHẬP (LOGIN)
   // ============================================================
 
   @Test
-  @Order(3)
+  @Order(5)
   @DisplayName("testLoginSuccess() — nhomAnhDuc login -> Token")
   void testLoginSuccess() {
     when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
@@ -104,7 +133,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(4)
+  @Order(6)
   @DisplayName("testLoginWrongPassword() — Sai mật khẩu -> UnauthorizedException")
   void testLoginWrongPassword() {
     when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
@@ -120,7 +149,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(5)
+  @Order(7)
   @DisplayName("testLoginUserNotFound() — Không tồn tại User -> NotFoundException")
   void testLoginUserNotFound() {
     when(userDao.findByUsername(any())).thenReturn(Optional.empty());
@@ -132,5 +161,17 @@ class UserServiceTest {
         () -> {
           userService.login(loginReq);
         });
+  }
+
+  @Test
+  @Order(8)
+  @DisplayName("testLoginInvalidStoredHash() — Hash lỗi trong DB -> UnauthorizedException")
+  void testLoginInvalidStoredHash() {
+    mockUser.setPasswordHash("hash");
+    when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
+
+    LoginRequest loginReq = new LoginRequest("nhomAnhDuc", plainPassword);
+
+    assertThrows(UnauthorizedException.class, () -> userService.login(loginReq));
   }
 }
