@@ -332,6 +332,14 @@ public class UserService {
     userDao
         .findById(userId)
         .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + userId));
-    userDao.delete(userId);
+    if (userDao.hasDeleteBlockingReferences(userId)) {
+      throw new IllegalStateException(
+          "Không thể xóa người dùng "
+              + userId
+              + " vì tài khoản đã có lịch sử đấu giá, sản phẩm, lượt bid hoặc giao dịch liên quan.");
+    }
+    if (!userDao.delete(userId)) {
+      throw new NotFoundException("Không tìm thấy người dùng: " + userId);
+    }
   }
 }

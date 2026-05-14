@@ -214,6 +214,98 @@ class UserDaoTest {
 
   @Test
   @Order(8)
+  @DisplayName("Seller with item/auction history cannot be hard-deleted")
+  void sellerWithItemAndAuctionBlocksHardDelete() {
+    User seller = userDao.insert(new Seller("seller_history", "hash", "seller_history@test.com"));
+
+    jdbi.useHandle(
+        handle -> {
+          Long itemId =
+              handle
+                  .createQuery(
+                      """
+                      INSERT INTO items (seller_id, name, category)
+                      VALUES (:sellerId, 'Camera', 'ELECTRONICS')
+                      RETURNING id
+                      """)
+                  .bind("sellerId", seller.getId())
+                  .mapTo(Long.class)
+                  .one();
+          handle
+              .createUpdate(
+                  """
+                  INSERT INTO auctions (
+                    item_id, seller_id, starting_price, current_price, start_time, end_time, status
+                  )
+                  VALUES (:itemId, :sellerId, 100, 100, NOW(), NOW() + INTERVAL '1 hour', 'OPEN')
+                  """)
+              .bind("itemId", itemId)
+              .bind("sellerId", seller.getId())
+              .execute();
+        });
+
+    assertTrue(userDao.hasDeleteBlockingReferences(seller.getId()));
+    assertThrows(Exception.class, () -> userDao.delete(seller.getId()));
+    assertTrue(userDao.findById(seller.getId()).isPresent());
+  }
+
+  @Test
+  @Order(11)
+  @DisplayName("Bidder with bid history cannot be hard-deleted")
+  void bidderWithBidHistoryBlocksHardDelete() {
+    User seller = userDao.insert(new Seller("bid_seller", "hash", "bid_seller@test.com"));
+    User bidder = userDao.insert(new Bidder("bidder_history", "hash", "bidder_history@test.com"));
+
+    jdbi.useHandle(
+        handle -> {
+          Long itemId =
+              handle
+                  .createQuery(
+                      """
+                      INSERT INTO items (seller_id, name, category)
+                      VALUES (:sellerId, 'Watch', 'ELECTRONICS')
+                      RETURNING id
+                      """)
+                  .bind("sellerId", seller.getId())
+                  .mapTo(Long.class)
+                  .one();
+          Long auctionId =
+              handle
+                  .createQuery(
+                      """
+                      INSERT INTO auctions (
+                        item_id, seller_id, starting_price, current_price, leading_bidder_id,
+                        start_time, end_time, status
+                      )
+                      VALUES (
+                        :itemId, :sellerId, 100, 150, :bidderId, NOW(),
+                        NOW() + INTERVAL '1 hour', 'RUNNING'
+                      )
+                      RETURNING id
+                      """)
+                  .bind("itemId", itemId)
+                  .bind("sellerId", seller.getId())
+                  .bind("bidderId", bidder.getId())
+                  .mapTo(Long.class)
+                  .one();
+          handle
+              .createUpdate(
+                  """
+                  INSERT INTO bid_transactions (auction_id, bidder_id, amount)
+                  VALUES (:auctionId, :bidderId, 150)
+                  """)
+              .bind("auctionId", auctionId)
+              .bind("bidderId", bidder.getId())
+              .execute();
+        });
+
+    assertTrue(userDao.hasDeleteBlockingReferences(bidder.getId()));
+    assertThrows(Exception.class, () -> userDao.delete(bidder.getId()));
+    assertTrue(userDao.findById(bidder.getId()).isPresent());
+  }
+
+  @Test
+  @Order(12)
   @DisplayName("Release reserved_balance bằng đúng amount thì về 0")
   void releaseReservedBalanceExactAmountSucceeds() {
     User saved = userDao.insert(new Bidder("reserve_exact", "hash", "exact@test.com"));

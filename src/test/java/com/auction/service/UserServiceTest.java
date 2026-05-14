@@ -214,4 +214,31 @@ class UserServiceTest {
     assertFalse(
         BCrypt.verifyer().verify(plainPassword.toCharArray(), updated.getPasswordHash()).verified);
   }
+
+  @Test
+  @Order(11)
+  @DisplayName("delete() hard-deletes user without history")
+  void deleteUserWithoutHistorySucceeds() {
+    when(userDao.findById(1L)).thenReturn(Optional.of(mockUser));
+    when(userDao.hasDeleteBlockingReferences(1L)).thenReturn(false);
+    when(userDao.delete(1L)).thenReturn(true);
+
+    assertDoesNotThrow(() -> userService.delete(1L));
+
+    verify(userDao).delete(1L);
+  }
+
+  @Test
+  @Order(12)
+  @DisplayName("delete() rejects user with business history before FK violation")
+  void deleteUserWithHistoryThrowsConflictState() {
+    when(userDao.findById(1L)).thenReturn(Optional.of(mockUser));
+    when(userDao.hasDeleteBlockingReferences(1L)).thenReturn(true);
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> userService.delete(1L));
+
+    assertTrue(ex.getMessage().contains("lịch sử"));
+    verify(userDao, never()).delete(1L);
+  }
 }

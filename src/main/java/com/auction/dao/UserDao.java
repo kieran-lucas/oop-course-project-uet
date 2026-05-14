@@ -399,8 +399,8 @@ public class UserDao {
   /**
    * Xóa user khỏi database.
    *
-   * <p>Lưu ý: do có ON DELETE CASCADE trong bảng items và auctions, khi xóa user, tất cả sản phẩm
-   * và phiên đấu giá của user đó cũng bị xóa.
+   * <p>Only safe for accounts with no business history. Core auction tables keep foreign keys to
+   * users so items, auctions, bids, and auto-bid history are preserved instead of cascade-deleted.
    *
    * <p>Chỉ Admin mới có quyền gọi method này.
    *
@@ -419,6 +419,24 @@ public class UserDao {
 
     LOGGER.warn("User not found for deletion: id={}", id);
     return false;
+  }
+
+  public boolean hasDeleteBlockingReferences(Long userId) {
+    String sql =
+        """
+        SELECT (
+          (SELECT COUNT(*) FROM items WHERE seller_id = :userId) +
+          (SELECT COUNT(*) FROM auctions WHERE seller_id = :userId OR leading_bidder_id = :userId) +
+          (SELECT COUNT(*) FROM bid_transactions WHERE bidder_id = :userId) +
+          (SELECT COUNT(*) FROM auto_bid_configs WHERE bidder_id = :userId) +
+          (SELECT COUNT(*) FROM deposit_requests WHERE user_id = :userId) +
+          (SELECT COUNT(*) FROM password_reset_requests WHERE user_id = :userId) +
+          (SELECT COUNT(*) FROM notifications WHERE user_id = :userId)
+        ) > 0
+        """;
+
+    return jdbi.withHandle(
+        handle -> handle.createQuery(sql).bind("userId", userId).mapTo(Boolean.class).one());
   }
 
   // ============================================================
