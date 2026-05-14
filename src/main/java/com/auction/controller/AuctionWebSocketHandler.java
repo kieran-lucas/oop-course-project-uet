@@ -1,10 +1,14 @@
 package com.auction.controller;
 
 import com.auction.config.JwtUtil;
+import com.auction.dao.UserDao;
 import com.auction.dto.BidUpdateMessage;
+import com.auction.exception.UnauthorizedException;
+import com.auction.model.User;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.pattern.observer.WebSocketObserver;
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -57,6 +61,7 @@ public class AuctionWebSocketHandler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionWebSocketHandler.class);
   private final Jdbi jdbi;
+  private final UserDao userDao;
 
   /**
    * Map auctionId → set WebSocket sessions đang kết nối. ConcurrentHashMap + CopyOnWriteArraySet để
@@ -90,6 +95,7 @@ public class AuctionWebSocketHandler {
   public AuctionWebSocketHandler(AuctionEventManager eventManager, Jdbi jdbi) {
     this.eventManager = eventManager;
     this.jdbi = jdbi;
+    this.userDao = new UserDao(jdbi);
     this.objectMapper = new ObjectMapper();
     this.objectMapper.registerModule(new JavaTimeModule());
   }
@@ -118,6 +124,7 @@ public class AuctionWebSocketHandler {
       }
 
       DecodedJWT decoded = JwtUtil.verifyToken(token);
+      verifyTokenVersion(decoded);
       String username = decoded.getClaim("username").asString();
       registerExpiration(ctx, decoded);
 
@@ -131,7 +138,7 @@ public class AuctionWebSocketHandler {
 
       LOGGER.info("WebSocket kết nối: user={}, phiên=#{}", username, auctionId);
 
-    } catch (JWTVerificationException e) {
+    } catch (JWTVerificationException | UnauthorizedException e) {
       LOGGER.warn("WebSocket từ chối: token không hợp lệ");
       ctx.session.close(4001, "Invalid token");
     } catch (Exception e) {
@@ -238,6 +245,7 @@ public class AuctionWebSocketHandler {
       }
 
       DecodedJWT decoded = JwtUtil.verifyToken(token);
+      verifyTokenVersion(decoded);
       String username = decoded.getClaim("username").asString();
       Long tokenUserId = decoded.getClaim("userId").asLong();
       if (!tokenUserId.equals(userId)) {
@@ -251,7 +259,7 @@ public class AuctionWebSocketHandler {
       userConnections.computeIfAbsent(userId, k -> new CopyOnWriteArraySet<>()).add(ctx);
       LOGGER.info("User WebSocket kết nối: user={}, userId=#{}", username, userId);
 
-    } catch (JWTVerificationException e) {
+    } catch (JWTVerificationException | UnauthorizedException e) {
       ctx.session.close(4001, "Invalid token");
     } catch (Exception e) {
       LOGGER.error("Lỗi kết nối User WebSocket: {}", e.getMessage());
@@ -386,6 +394,30 @@ public class AuctionWebSocketHandler {
     if (task != null) {
       task.cancel(false);
     }
+  }
+
+  private void verifyTokenVersion(DecodedJWT decoded) {
+    Long userId = decoded.getClaim("userId").asLong();
+    if (userId == null) {
+      throw new UnauthorizedException("Token is missing userId.");
+    }
+
+    User currentUser =
+        userDao
+            .findById(userId)
+            .orElseThrow(() -> new UnauthorizedException("Token user no longer exists."));
+    if (currentUser.getTokenVersion() != extractTokenVersion(decoded)) {
+      throw new UnauthorizedException("Token has been invalidated.");
+    }
+  }
+
+  private static int extractTokenVersion(DecodedJWT decoded) {
+    Claim claim = decoded.getClaim("tokenVersion");
+    if (claim.isMissing() || claim.isNull()) {
+      return 0;
+    }
+    Integer version = claim.asInt();
+    return version != null ? version : 0;
   }
 
   static long millisUntilExpiration(DecodedJWT decoded, Instant now) {

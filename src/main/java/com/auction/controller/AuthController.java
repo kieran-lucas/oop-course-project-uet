@@ -63,7 +63,9 @@ public class AuthController {
   private static void handleRegister(Context ctx, UserService userService) {
     RegisterRequest request = ctx.bodyAsClass(RegisterRequest.class);
     User newUser = userService.register(request);
-    String token = JwtUtil.createToken(newUser.getId(), newUser.getUsername(), newUser.getRole());
+    String token =
+        JwtUtil.createToken(
+            newUser.getId(), newUser.getUsername(), newUser.getRole(), newUser.getTokenVersion());
 
     LOGGER.info(
         "Đăng ký thành công: username={}, role={}", newUser.getUsername(), newUser.getRole());

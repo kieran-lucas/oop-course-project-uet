@@ -1,7 +1,10 @@
 package com.auction.middleware;
 
 import com.auction.config.JwtUtil;
+import com.auction.dao.UserDao;
 import com.auction.exception.UnauthorizedException;
+import com.auction.model.User;
+import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import io.javalin.http.Context;
 
@@ -18,6 +21,12 @@ import io.javalin.http.Context;
  * </ol>
  */
 public class JwtMiddleware {
+
+  private static volatile UserDao userDao;
+
+  public static void configure(UserDao configuredUserDao) {
+    userDao = configuredUserDao;
+  }
 
   /**
    * Entry point của middleware. Javalin gọi phương thức này cho mỗi HTTP request đến.
@@ -66,9 +75,7 @@ public class JwtMiddleware {
           DecodedJWT jwt = JwtUtil.verifyToken(token);
 
           // Gắn thông tin người dùng vào attribute bag để các handler sau có thể đọc
-          ctx.attribute("userId", jwt.getClaim("userId").asLong());
-          ctx.attribute("username", jwt.getClaim("username").asString());
-          ctx.attribute("role", jwt.getClaim("role").asString());
+          attachUserClaims(ctx, jwt);
         } catch (Exception e) {
           // Token lỗi (hết hạn, sai chữ ký, ...) nhưng đây là GET public
           // → không ném exception, chỉ đánh dấu userId = null (anonymous)
@@ -97,6 +104,7 @@ public class JwtMiddleware {
 
       // Xác thực chữ ký và thời hạn của token
       DecodedJWT jwt = JwtUtil.verifyToken(token);
+      validateTokenVersion(jwt);
 
       // Đẩy thông tin người dùng vào attribute bag của Javalin context.
       // Các Controller ở downstream chỉ cần ctx.attribute("userId") để dùng,
@@ -110,5 +118,42 @@ public class JwtMiddleware {
       // Bọc lại thành UnauthorizedException để GlobalExceptionHandler trả về HTTP 401.
       throw new UnauthorizedException("Token không hợp lệ hoặc đã hết hạn: " + e.getMessage());
     }
+  }
+
+  private static void attachUserClaims(Context ctx, DecodedJWT jwt) {
+    validateTokenVersion(jwt);
+    ctx.attribute("userId", jwt.getClaim("userId").asLong());
+    ctx.attribute("username", jwt.getClaim("username").asString());
+    ctx.attribute("role", jwt.getClaim("role").asString());
+  }
+
+  private static void validateTokenVersion(DecodedJWT jwt) {
+    UserDao configuredUserDao = userDao;
+    if (configuredUserDao == null) {
+      return;
+    }
+
+    Long userId = jwt.getClaim("userId").asLong();
+    if (userId == null) {
+      throw new UnauthorizedException("Token is missing userId.");
+    }
+
+    User currentUser =
+        configuredUserDao
+            .findById(userId)
+            .orElseThrow(() -> new UnauthorizedException("Token user no longer exists."));
+    int tokenVersion = extractTokenVersion(jwt);
+    if (currentUser.getTokenVersion() != tokenVersion) {
+      throw new UnauthorizedException("Token has been invalidated. Please log in again.");
+    }
+  }
+
+  private static int extractTokenVersion(DecodedJWT jwt) {
+    Claim claim = jwt.getClaim("tokenVersion");
+    if (claim.isMissing() || claim.isNull()) {
+      return 0;
+    }
+    Integer version = claim.asInt();
+    return version != null ? version : 0;
   }
 }

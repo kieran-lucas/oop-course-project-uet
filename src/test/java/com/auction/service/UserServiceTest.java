@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.auction.config.JwtUtil;
 import com.auction.dao.UserDao;
+import com.auction.dto.ChangePasswordRequest;
 import com.auction.dto.LoginRequest;
 import com.auction.dto.RegisterRequest;
 import com.auction.exception.DuplicateException;
@@ -17,6 +18,7 @@ import com.auction.model.User;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -189,5 +191,27 @@ class UserServiceTest {
     LoginRequest loginReq = new LoginRequest("nhomAnhDuc", plainPassword);
 
     assertThrows(UnauthorizedException.class, () -> userService.login(loginReq));
+  }
+
+  @Test
+  @Order(10)
+  @DisplayName("changePassword() rehashes password and increments tokenVersion")
+  void changePasswordIncrementsTokenVersion() {
+    mockUser.setTokenVersion(4);
+    when(userDao.findById(1L)).thenReturn(Optional.of(mockUser));
+    ChangePasswordRequest req = new ChangePasswordRequest();
+    req.setCurrentPassword(plainPassword);
+    req.setNewPassword("newPass123");
+
+    userService.changePassword(1L, req);
+
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(userDao).update(captor.capture());
+    User updated = captor.getValue();
+    assertEquals(5, updated.getTokenVersion());
+    assertTrue(
+        BCrypt.verifyer().verify("newPass123".toCharArray(), updated.getPasswordHash()).verified);
+    assertFalse(
+        BCrypt.verifyer().verify(plainPassword.toCharArray(), updated.getPasswordHash()).verified);
   }
 }

@@ -146,7 +146,8 @@ public class UserService {
     }
 
     // Nhúng userId, username, role vào payload của JWT để middleware đọc sau này
-    return JwtUtil.createToken(user.getId(), user.getUsername(), user.getRole());
+    return JwtUtil.createToken(
+        user.getId(), user.getUsername(), user.getRole(), user.getTokenVersion());
   }
 
   /**
@@ -208,6 +209,7 @@ public class UserService {
 
     String newHash = BCrypt.withDefaults().hashToString(12, req.getNewPassword().toCharArray());
     user.setPasswordHash(newHash);
+    user.setTokenVersion(user.getTokenVersion() + 1);
     userDao.update(user);
   }
 

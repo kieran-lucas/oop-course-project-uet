@@ -161,6 +161,7 @@ public class App {
     registerShutdownHook(app, scheduler);
 
     // ── 9. Đăng ký JWT Middleware ────────────────────────────
+    JwtMiddleware.configure(userDao);
     app.before("/api/*", JwtMiddleware::handle);
 
     // ── 10. Đăng ký Exception Handlers ──────────────────────

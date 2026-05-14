@@ -52,6 +52,17 @@ class JwtUtilTest {
     assertEquals(userId, decoded.getClaim("userId").asLong());
     assertEquals(role, decoded.getClaim("role").asString());
     assertEquals(username, decoded.getClaim("username").asString());
+    assertEquals(0, decoded.getClaim("tokenVersion").asInt());
+  }
+
+  @Test
+  @Order(2)
+  @DisplayName("createToken() stores explicit tokenVersion claim")
+  void createTokenStoresExplicitTokenVersion() {
+    String token = JwtUtil.createToken(7L, "alice", "BIDDER", 3);
+    DecodedJWT decoded = JwtUtil.verifyToken(token);
+
+    assertEquals(3, decoded.getClaim("tokenVersion").asInt());
   }
 
   /**
@@ -64,7 +75,7 @@ class JwtUtilTest {
    * cụ thể, để linh hoạt với các phiên bản thư viện khác nhau.
    */
   @Test
-  @Order(2)
+  @Order(3)
   @DisplayName("testInvalidToken() — verify 'garbage' -> throw")
   void testInvalidToken() {
     String garbage = "ey.invalid.token";
@@ -79,7 +90,7 @@ class JwtUtilTest {
   }
 
   @Test
-  @Order(3)
+  @Order(4)
   @DisplayName("requireJwtSecret() rejects missing, blank, and short secrets")
   void requireJwtSecretRejectsInvalidSecrets() {
     assertThrows(IllegalStateException.class, () -> JwtUtil.requireJwtSecret(null));
@@ -88,7 +99,7 @@ class JwtUtilTest {
   }
 
   @Test
-  @Order(4)
+  @Order(5)
   @DisplayName("requireJwtSecret() accepts secrets with at least 32 UTF-8 bytes")
   void requireJwtSecretAcceptsValidSecret() {
     String secret = "12345678901234567890123456789012";
@@ -111,7 +122,7 @@ class JwtUtilTest {
    * </ol>
    */
   @Test
-  @Order(5)
+  @Order(6)
   @DisplayName("testExpiredToken()")
   void testExpiredToken() {
     // Tạm thời bỏ trống — xem Javadoc của method này để biết lý do và hướng cải thiện.

@@ -45,10 +45,15 @@ public class JwtUtil {
   }
 
   public static String createToken(Long userId, String username, String role) {
+    return createToken(userId, username, role, 0);
+  }
+
+  public static String createToken(Long userId, String username, String role, int tokenVersion) {
     return JWT.create()
         .withClaim("userId", userId)
         .withClaim("username", username)
         .withClaim("role", role)
+        .withClaim("tokenVersion", tokenVersion)
         .withExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS))
         .sign(ALGORITHM);
   }

@@ -985,7 +985,7 @@ All members jointly own `model/` (14 domain classes), `dto/` (13 transfer object
 | Connection Pool | HikariCP | 6.2.1 | Lowest-latency JDBC pool |
 | SQL Mapper | JDBI 3 | 3.45.4 | SQL-first - every query is explicit and easy to debug under concurrency |
 | JSON | Jackson + JSR310 | 2.18.2 | De-facto standard; JSR310 handles `LocalDateTime` natively |
-| Auth | JWT (Auth0) | 4.4.0 | Stateless - server holds no session state |
+| Auth | JWT (Auth0) | 4.4.0 | HMAC JWT with per-user tokenVersion check after password changes |
 | Password | BCrypt | 0.10.2 | One-way hash with salt, cost factor 12 |
 | Testing | JUnit 5 + Mockito | 5.11.4 | Parameterized tests + mock injection |
 | Coverage | JaCoCo | - | GitHub Actions artifact + 20% minimum instruction coverage gate in `check` |

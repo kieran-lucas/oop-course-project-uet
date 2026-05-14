@@ -58,7 +58,8 @@ public class UserDao {
 
   /** Danh sách cột SELECT dùng chung, tránh copy-paste */
   private static final String SELECT_COLUMNS =
-      "id, username, password_hash, email, role, created_at, balance, reserved_balance";
+      "id, username, password_hash, email, role, created_at, balance, reserved_balance, "
+          + "token_version";
 
   private final Jdbi jdbi;
 
@@ -128,6 +129,7 @@ public class UserDao {
       user.setBalance(balance != null ? balance : BigDecimal.ZERO);
       BigDecimal reservedBalance = rs.getBigDecimal("reserved_balance");
       user.setReservedBalance(reservedBalance != null ? reservedBalance : BigDecimal.ZERO);
+      user.setTokenVersion(rs.getInt("token_version"));
       return user;
     }
   }
@@ -159,8 +161,8 @@ public class UserDao {
   public User insert(User user) {
     String sql =
         """
-        INSERT INTO users (username, password_hash, email, role, created_at, balance)
-        VALUES (:username, :passwordHash, :email, :role, :createdAt, :balance)
+        INSERT INTO users (username, password_hash, email, role, created_at, balance, token_version)
+        VALUES (:username, :passwordHash, :email, :role, :createdAt, :balance, :tokenVersion)
         RETURNING id
         """;
 
@@ -177,6 +179,7 @@ public class UserDao {
                   .bind(
                       "balance",
                       user.getBalance() != null ? user.getBalance() : java.math.BigDecimal.ZERO)
+                  .bind("tokenVersion", user.getTokenVersion())
                   .mapTo(Long.class)
                   .one();
 
@@ -303,7 +306,8 @@ public class UserDao {
         UPDATE users
         SET password_hash = :passwordHash,
             email = :email,
-            balance = :balance
+            balance = :balance,
+            token_version = :tokenVersion
         WHERE id = :id
         """;
 
@@ -317,6 +321,7 @@ public class UserDao {
                     .bind(
                         "balance",
                         user.getBalance() != null ? user.getBalance() : java.math.BigDecimal.ZERO)
+                    .bind("tokenVersion", user.getTokenVersion())
                     .bind("id", user.getId())
                     .execute());
 
