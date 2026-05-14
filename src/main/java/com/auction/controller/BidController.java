@@ -5,22 +5,23 @@ import com.auction.exception.UnauthorizedException;
 import com.auction.model.BidTransaction;
 import com.auction.service.BidService;
 import io.javalin.Javalin;
+import io.javalin.http.Context;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Controller xử lý các endpoint đặt giá và lịch sử bid
+ * Controller xu ly cac endpoint dat gia va lich su bid.
  *
- * <p>Danh sách endpoints:
+ * <p>Danh sach endpoints:
  *
  * <ul>
- *   <li>{@code POST /api/auctions/{id}/bid} — Đặt giá, chỉ BIDDER
- *   <li>{@code GET /api/auctions/{id}/bids} — Lấy lịch sử bid của phiên (để vẽ chart)
+ *   <li>{@code POST /api/auctions/{id}/bid} - Dat gia, chi BIDDER
+ *   <li>{@code GET /api/auctions/{id}/bids} - Lay lich su bid cua phien
  * </ul>
  *
- * <p>Controller này delegate toàn bộ business logic sang {@link BidService}: validate giá,
- * anti-sniping, auto-bid chain, và WebSocket broadcast.
+ * <p>Controller nay delegate business logic sang {@link BidService}: validate gia, anti-sniping,
+ * auto-bid chain, va WebSocket broadcast.
  */
 public class BidController {
 
@@ -33,34 +34,10 @@ public class BidController {
   }
 
   public void register(Javalin app) {
-    // POST /api/auctions/{id}/bid — Đặt giá
-    // Yêu cầu: role = BIDDER (SELLER không được tự bid phiên của chính mình nhưng vẫn được bid
-    // phiên của người khác)
-    // Body: {"amount": 500000}
-    // Response 201: BidTransaction JSON
-    app.post(
-        "/api/auctions/{id}/bid",
-        ctx -> {
-          String role = ctx.attribute("role");
+    // POST /api/auctions/{id}/bid - chi BIDDER duoc dat gia thu cong.
+    app.post("/api/auctions/{id}/bid", this::handleManualBid);
 
-          if (!"BIDDER".equals(role) && !"SELLER".equals(role)) {
-            throw new UnauthorizedException("Chỉ BIDDER hoặc SELLER mới được tham gia đặt giá");
-          }
-
-          Long auctionId = Long.parseLong(ctx.pathParam("id"));
-          Long bidderId = ctx.attribute("userId");
-          BidRequest request = ctx.bodyAsClass(BidRequest.class);
-
-          // Gọi BidService với signature mới
-          BidTransaction bid = bidService.placeBid(auctionId, bidderId, request.getAmount(), false);
-
-          LOGGER.info("Bid đặt thành công qua API: auction={}, bidder={}", auctionId, bidderId);
-          ctx.status(201).json(bid);
-        });
-
-    // GET /api/auctions/{id}/bids — Lịch sử bid
-    // Dùng cho Bid History Chart (trục X = thời gian, trục Y = giá)
-    // Response: List<BidTransaction> sắp xếp theo createdAt ASC
+    // GET /api/auctions/{id}/bids - lich su bid.
     app.get(
         "/api/auctions/{id}/bids",
         ctx -> {
@@ -68,5 +45,22 @@ public class BidController {
           List<BidTransaction> bids = bidService.getBidHistory(auctionId);
           ctx.json(bids);
         });
+  }
+
+  void handleManualBid(Context ctx) {
+    String role = ctx.attribute("role");
+
+    if (!"BIDDER".equals(role)) {
+      throw new UnauthorizedException("Chi BIDDER moi duoc tham gia dat gia");
+    }
+
+    Long auctionId = Long.parseLong(ctx.pathParam("id"));
+    Long bidderId = ctx.attribute("userId");
+    BidRequest request = ctx.bodyAsClass(BidRequest.class);
+
+    BidTransaction bid = bidService.placeBid(auctionId, bidderId, request.getAmount(), false);
+
+    LOGGER.info("Bid dat thanh cong qua API: auction={}, bidder={}", auctionId, bidderId);
+    ctx.status(201).json(bid);
   }
 }
