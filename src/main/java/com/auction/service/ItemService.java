@@ -54,6 +54,7 @@ public class ItemService {
             existing.getSellerId(),
             request.getCategory().toUpperCase());
     updatedItem.setId(id);
+    updatedItem.setStatus(existing.getStatus());
     mapCategoryDetail(updatedItem, request.getCategoryDetail());
 
     itemDao.update(updatedItem);

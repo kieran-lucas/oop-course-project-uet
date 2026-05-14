@@ -137,6 +137,19 @@ class ModelTest {
   }
 
   @Nested
+  @DisplayName("Item — lifecycle status")
+  class ItemTests {
+
+    @Test
+    @DisplayName("New item has status AVAILABLE")
+    void newItemDefaultsToAvailable() {
+      Item item = new Item("Phone", "New phone", 1L, "ELECTRONICS");
+
+      assertEquals("AVAILABLE", item.getStatus());
+    }
+  }
+
+  @Nested
   @DisplayName("AutoBidConfig — budget check")
   class AutoBidTests {
 

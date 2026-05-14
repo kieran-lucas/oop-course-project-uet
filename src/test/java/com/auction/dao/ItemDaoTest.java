@@ -58,6 +58,7 @@ class ItemDaoTest {
     assertNotNull(saved.getId());
     assertEquals("ELECTRONICS", saved.getCategory());
     assertEquals("Apple", saved.getBrand());
+    assertEquals("AVAILABLE", saved.getStatus());
   }
 
   @Test
@@ -72,6 +73,20 @@ class ItemDaoTest {
     assertTrue(found.isPresent());
     assertEquals("Test Laptop", found.get().getName());
     assertEquals("Dell", found.get().getBrand());
+    assertEquals("AVAILABLE", found.get().getStatus());
+  }
+
+  @Test
+  @DisplayName("Item status should round-trip through DAO")
+  void testItemStatusRoundTrip() {
+    Item item = new Item("Painting", "Art", testSeller.getId(), "ART");
+    item.setStatus("IN_AUCTION");
+
+    Item saved = itemDao.insert(item);
+    Optional<Item> found = itemDao.findById(saved.getId());
+
+    assertTrue(found.isPresent());
+    assertEquals("IN_AUCTION", found.get().getStatus());
   }
 
   @Test
@@ -107,6 +122,7 @@ class ItemDaoTest {
 
     saved.setName("New Name");
     saved.setBrand("New Brand");
+    saved.setStatus("SOLD");
 
     boolean updated = itemDao.update(saved);
 
@@ -116,11 +132,12 @@ class ItemDaoTest {
     assertTrue(found.isPresent());
     assertEquals("New Name", found.get().getName());
     assertEquals("New Brand", found.get().getBrand());
+    assertEquals("SOLD", found.get().getStatus());
   }
 
   @Test
-  @DisplayName("Delete should remove item")
-  void testDelete() {
+  @DisplayName("Delete should mark item as REMOVED")
+  void testDeleteMarksItemRemoved() {
     Item item = new Item("To Delete", "Temp", testSeller.getId(), "ELECTRONICS");
     Item saved = itemDao.insert(item);
 
@@ -128,6 +145,7 @@ class ItemDaoTest {
 
     assertTrue(deleted);
     Optional<Item> found = itemDao.findById(saved.getId());
-    assertFalse(found.isPresent());
+    assertTrue(found.isPresent());
+    assertEquals("REMOVED", found.get().getStatus());
   }
 }

@@ -23,7 +23,8 @@ public class ItemDao {
   private static final Logger LOGGER = LoggerFactory.getLogger(ItemDao.class);
 
   private static final String SELECT_COLUMNS =
-      "id, name, description, seller_id, category, brand, artist, year, created_at, updated_at";
+      "id, name, description, seller_id, category, status, brand, artist, year, created_at,"
+          + " updated_at";
 
   private final Jdbi jdbi;
 
@@ -41,6 +42,7 @@ public class ItemDao {
       item.setDescription(rs.getString("description"));
       item.setSellerId(rs.getLong("seller_id"));
       item.setCategory(rs.getString("category"));
+      item.setStatus(rs.getString("status"));
       item.setBrand(rs.getString("brand"));
       item.setArtist(rs.getString("artist"));
       int year = rs.getInt("year");
@@ -56,9 +58,9 @@ public class ItemDao {
     String sql =
         """
         INSERT INTO items (name, description, seller_id, category,
-                           brand, artist, year, created_at, updated_at)
+                           status, brand, artist, year, created_at, updated_at)
         VALUES (:name, :description, :sellerId, :category,
-                :brand, :artist, :year, :createdAt, :updatedAt)
+                :status, :brand, :artist, :year, :createdAt, :updatedAt)
         RETURNING id
         """;
 
@@ -71,6 +73,7 @@ public class ItemDao {
                   .bind("description", item.getDescription())
                   .bind("sellerId", item.getSellerId())
                   .bind("category", item.getCategory())
+                  .bind("status", item.getStatus())
                   .bind("brand", item.getBrand())
                   .bind("artist", item.getArtist())
                   .bind("year", item.getYear())
@@ -134,6 +137,7 @@ public class ItemDao {
         UPDATE items
         SET name = :name,
             description = :description,
+            status = :status,
             brand = :brand,
             artist = :artist,
             year = :year,
@@ -148,6 +152,7 @@ public class ItemDao {
                     .createUpdate(sql)
                     .bind("name", item.getName())
                     .bind("description", item.getDescription())
+                    .bind("status", item.getStatus())
                     .bind("brand", item.getBrand())
                     .bind("artist", item.getArtist())
                     .bind("year", item.getYear())
@@ -159,7 +164,7 @@ public class ItemDao {
   }
 
   public boolean delete(Long id) {
-    String sql = "DELETE FROM items WHERE id = :id";
+    String sql = "UPDATE items SET status = 'REMOVED', updated_at = NOW() WHERE id = :id";
     int rowsAffected = jdbi.withHandle(handle -> handle.createUpdate(sql).bind("id", id).execute());
     return rowsAffected > 0;
   }

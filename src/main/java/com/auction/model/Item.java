@@ -16,6 +16,7 @@ public class Item extends Entity {
   private String description;
   private Long sellerId; // khóa ngoại tham chiếu đến bảng users
   private String category; // "ELECTRONICS", "ART", "VEHICLE"
+  private String status = "AVAILABLE"; // AVAILABLE, IN_AUCTION, SOLD, REMOVED
 
   // Các trường đặc thù (có thể null tùy vào category)
   private String brand; // dùng cho ELECTRONICS
@@ -43,12 +44,14 @@ public class Item extends Entity {
       String description,
       Long sellerId,
       String category,
+      String status,
       LocalDateTime createdAt) {
     super(id, createdAt);
     this.name = name;
     this.description = description;
     this.sellerId = sellerId;
     this.category = category;
+    this.status = status;
   }
 
   // === Getters & Setters ===
@@ -85,6 +88,14 @@ public class Item extends Entity {
     this.category = category;
   }
 
+  public String getStatus() {
+    return status;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
+
   public String getBrand() {
     return brand;
   }
@@ -111,6 +122,14 @@ public class Item extends Entity {
 
   @Override
   public String toString() {
-    return "Item{name='" + name + "', category='" + category + "', seller=" + sellerId + "}";
+    return "Item{name='"
+        + name
+        + "', category='"
+        + category
+        + "', status='"
+        + status
+        + "', seller="
+        + sellerId
+        + "}";
   }
 }

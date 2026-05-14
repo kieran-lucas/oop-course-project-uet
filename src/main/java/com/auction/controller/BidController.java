@@ -11,17 +11,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Controller xu ly cac endpoint dat gia va lich su bid.
+ * Controller xử lý các endpoint đặt giá và lịch sử bid.
  *
- * <p>Danh sach endpoints:
+ * <p>Danh sách endpoints:
  *
  * <ul>
- *   <li>{@code POST /api/auctions/{id}/bid} - Dat gia, chi BIDDER
- *   <li>{@code GET /api/auctions/{id}/bids} - Lay lich su bid cua phien
+ *   <li>{@code POST /api/auctions/{id}/bid} - Đặt giá, chỉ BIDDER
+ *   <li>{@code GET /api/auctions/{id}/bids} - Lấy lịch sử bid của phiên
  * </ul>
  *
- * <p>Controller nay delegate business logic sang {@link BidService}: validate gia, anti-sniping,
- * auto-bid chain, va WebSocket broadcast.
+ * <p>Controller này delegate business logic sang {@link BidService}: validate giá, anti-sniping,
+ * auto-bid chain, và WebSocket broadcast.
  */
 public class BidController {
 
@@ -34,10 +34,10 @@ public class BidController {
   }
 
   public void register(Javalin app) {
-    // POST /api/auctions/{id}/bid - chi BIDDER duoc dat gia thu cong.
+    // POST /api/auctions/{id}/bid - chỉ BIDDER được đặt giá thủ công.
     app.post("/api/auctions/{id}/bid", this::handleManualBid);
 
-    // GET /api/auctions/{id}/bids - lich su bid.
+    // GET /api/auctions/{id}/bids - lịch sử bid.
     app.get(
         "/api/auctions/{id}/bids",
         ctx -> {
@@ -51,7 +51,7 @@ public class BidController {
     String role = ctx.attribute("role");
 
     if (!"BIDDER".equals(role)) {
-      throw new UnauthorizedException("Chi BIDDER moi duoc tham gia dat gia");
+      throw new UnauthorizedException("Chỉ BIDDER mới được tham gia đặt giá");
     }
 
     Long auctionId = Long.parseLong(ctx.pathParam("id"));
@@ -60,7 +60,7 @@ public class BidController {
 
     BidTransaction bid = bidService.placeBid(auctionId, bidderId, request.getAmount(), false);
 
-    LOGGER.info("Bid dat thanh cong qua API: auction={}, bidder={}", auctionId, bidderId);
+    LOGGER.info("Bid đặt thành công qua API: auction={}, bidder={}", auctionId, bidderId);
     ctx.status(201).json(bid);
   }
 }
