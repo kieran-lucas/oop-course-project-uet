@@ -27,6 +27,7 @@ import com.auction.exception.UnauthorizedException;
 import com.auction.middleware.JwtMiddleware;
 import com.auction.model.Admin;
 import com.auction.model.AutoBidConfig;
+import com.auction.model.AutoBidStatus;
 import com.auction.model.DepositRecord;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.pattern.strategy.AutoBidStrategy;
@@ -397,7 +398,7 @@ public class App {
             AutoBidConfig config = existing.get();
             config.setMaxBid(maxBid);
             config.setIncrement(increment);
-            config.setActive(true);
+            config.setStatus(AutoBidStatus.ACTIVE);
             autoBidConfigDao.update(config);
             ctx.status(200).json(config);
           } else {
@@ -420,7 +421,7 @@ public class App {
               .findByAuctionAndBidder(auctionId, bidderId)
               .ifPresent(
                   config -> {
-                    config.setActive(false);
+                    config.setStatus(AutoBidStatus.STOPPED);
                     autoBidConfigDao.update(config);
                   });
           ctx.status(204);

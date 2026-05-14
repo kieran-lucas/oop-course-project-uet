@@ -4,6 +4,8 @@ import com.auction.dao.AutoBidConfigDao;
 import com.auction.exception.InvalidBidException;
 import com.auction.model.Auction;
 import com.auction.model.AutoBidConfig;
+import com.auction.model.AutoBidFailureReason;
+import com.auction.model.AutoBidStatus;
 import com.auction.model.BidTransaction;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -177,7 +179,8 @@ public class AutoBidStrategy implements BidStrategy {
       }
 
       if (!config.canBidAt(currentPrice)) {
-        config.setActive(false);
+        config.setStatus(AutoBidStatus.EXHAUSTED);
+        config.setFailureReason(AutoBidFailureReason.MAX_PRICE_TOO_LOW);
         try {
           autoBidConfigDao.update(config);
           LOGGER.info(

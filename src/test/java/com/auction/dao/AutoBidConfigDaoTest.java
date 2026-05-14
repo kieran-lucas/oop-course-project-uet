@@ -145,6 +145,8 @@ class AutoBidConfigDaoTest {
     assertEquals(0, new BigDecimal("1000000").compareTo(saved.getMaxBid()));
     assertEquals(0, new BigDecimal("50000").compareTo(saved.getIncrement()));
     assertTrue(saved.isActive());
+    assertEquals(AutoBidStatus.ACTIVE, saved.getStatus());
+    assertNull(saved.getFailureReason());
     assertNotNull(saved.getRegisteredAt());
   }
 
@@ -263,6 +265,7 @@ class AutoBidConfigDaoTest {
     assertTrue(found.isPresent());
     assertEquals(0, BigDecimal.valueOf(1_500_000L).compareTo(found.get().getMaxBid()));
     assertFalse(found.get().isActive());
+    assertEquals(AutoBidStatus.STOPPED, found.get().getStatus());
   }
 
   /**
@@ -295,6 +298,7 @@ class AutoBidConfigDaoTest {
     assertTrue(found.isPresent());
     assertEquals(0, BigDecimal.valueOf(2_000_000L).compareTo(found.get().getMaxBid()));
     assertFalse(found.get().isActive());
+    assertEquals(AutoBidStatus.STOPPED, found.get().getStatus());
   }
 
   /**
@@ -316,6 +320,29 @@ class AutoBidConfigDaoTest {
         autoBidDao.findByAuctionAndBidder(testAuction.getId(), testBidder1.getId());
     assertTrue(found.isPresent());
     assertFalse(found.get().isActive());
+    assertEquals(AutoBidStatus.STOPPED, found.get().getStatus());
+    assertNull(found.get().getFailureReason());
+  }
+
+  @Test
+  @DisplayName("Status and failure_reason should round-trip through DAO")
+  void testStatusAndFailureReasonRoundTrip() {
+    AutoBidConfig config =
+        new AutoBidConfig(
+            testAuction.getId(),
+            testBidder1.getId(),
+            BigDecimal.valueOf(1_000_000L),
+            BigDecimal.valueOf(50_000L));
+    AutoBidConfig saved = autoBidDao.insert(config);
+    saved.setStatus(AutoBidStatus.FAILED);
+    saved.setFailureReason(AutoBidFailureReason.INSUFFICIENT_BALANCE);
+
+    assertTrue(autoBidDao.update(saved));
+
+    AutoBidConfig found = autoBidDao.findById(saved.getId()).orElseThrow();
+    assertFalse(found.isActive());
+    assertEquals(AutoBidStatus.FAILED, found.getStatus());
+    assertEquals(AutoBidFailureReason.INSUFFICIENT_BALANCE, found.getFailureReason());
   }
 
   /**

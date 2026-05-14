@@ -28,7 +28,8 @@ public class AutoBidConfig extends Entity {
   private Long bidderId;
   private BigDecimal maxBid;
   private BigDecimal increment;
-  private boolean active;
+  private AutoBidStatus status = AutoBidStatus.ACTIVE;
+  private AutoBidFailureReason failureReason;
   private LocalDateTime registeredAt; // thời điểm đăng ký auto-bid, dùng cho PriorityQueue
 
   public AutoBidConfig() {}
@@ -39,7 +40,7 @@ public class AutoBidConfig extends Entity {
     this.bidderId = bidderId;
     this.maxBid = maxBid;
     this.increment = increment;
-    this.active = true;
+    this.status = AutoBidStatus.ACTIVE;
     this.registeredAt = LocalDateTime.now();
   }
 
@@ -52,18 +53,41 @@ public class AutoBidConfig extends Entity {
       boolean active,
       LocalDateTime registeredAt,
       LocalDateTime createdAt) {
+    this(
+        id,
+        auctionId,
+        bidderId,
+        maxBid,
+        increment,
+        active ? AutoBidStatus.ACTIVE : AutoBidStatus.STOPPED,
+        null,
+        registeredAt,
+        createdAt);
+  }
+
+  public AutoBidConfig(
+      Long id,
+      Long auctionId,
+      Long bidderId,
+      BigDecimal maxBid,
+      BigDecimal increment,
+      AutoBidStatus status,
+      AutoBidFailureReason failureReason,
+      LocalDateTime registeredAt,
+      LocalDateTime createdAt) {
     super(id, createdAt);
     this.auctionId = auctionId;
     this.bidderId = bidderId;
     this.maxBid = maxBid;
     this.increment = increment;
-    this.active = active;
+    this.status = status != null ? status : AutoBidStatus.ACTIVE;
+    this.failureReason = failureReason;
     this.registeredAt = registeredAt;
   }
 
   /** Kiểm tra auto-bid này còn đủ budget để bid ở mức giá hiện tại không. */
   public boolean canBidAt(BigDecimal currentPrice) {
-    return active && currentPrice.add(increment).compareTo(maxBid) <= 0;
+    return isActive() && currentPrice.add(increment).compareTo(maxBid) <= 0;
   }
 
   /** Tính giá bid tiếp theo. */
@@ -106,11 +130,33 @@ public class AutoBidConfig extends Entity {
   }
 
   public boolean isActive() {
-    return active;
+    return status == AutoBidStatus.ACTIVE;
   }
 
   public void setActive(boolean active) {
-    this.active = active;
+    this.status = active ? AutoBidStatus.ACTIVE : AutoBidStatus.STOPPED;
+    if (active) {
+      this.failureReason = null;
+    }
+  }
+
+  public AutoBidStatus getStatus() {
+    return status;
+  }
+
+  public void setStatus(AutoBidStatus status) {
+    this.status = status != null ? status : AutoBidStatus.ACTIVE;
+    if (this.status == AutoBidStatus.ACTIVE) {
+      this.failureReason = null;
+    }
+  }
+
+  public AutoBidFailureReason getFailureReason() {
+    return failureReason;
+  }
+
+  public void setFailureReason(AutoBidFailureReason failureReason) {
+    this.failureReason = failureReason;
   }
 
   public LocalDateTime getRegisteredAt() {

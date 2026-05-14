@@ -1,6 +1,8 @@
 package com.auction.dao;
 
 import com.auction.model.AutoBidConfig;
+import com.auction.model.AutoBidFailureReason;
+import com.auction.model.AutoBidStatus;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -62,7 +64,8 @@ public class AutoBidConfigDao {
 
   /** Danh sách cột SELECT dùng chung, tránh copy-paste. [FIX #10] */
   private static final String SELECT_COLUMNS =
-      "id, auction_id, bidder_id, max_bid, increment_amount, active, registered_at";
+      "id, auction_id, bidder_id, max_bid, increment_amount, active, status, "
+          + "failure_reason, registered_at";
 
   private final Jdbi jdbi;
 
@@ -98,7 +101,8 @@ public class AutoBidConfigDao {
           rs.getLong("bidder_id"),
           rs.getBigDecimal("max_bid"),
           rs.getBigDecimal("increment_amount"),
-          rs.getBoolean("active"),
+          AutoBidStatus.from(rs.getString("status")),
+          AutoBidFailureReason.from(rs.getString("failure_reason")),
           registeredAt,
           registeredAt // createdAt = registeredAt (bảng không có cột created_at)
           );
@@ -126,9 +130,9 @@ public class AutoBidConfigDao {
     String sql =
         """
         INSERT INTO auto_bid_configs
-            (auction_id, bidder_id, max_bid, increment_amount, active, registered_at)
+            (auction_id, bidder_id, max_bid, increment_amount, active, status, failure_reason, registered_at)
         VALUES
-            (:auctionId, :bidderId, :maxBid, :increment, :active, :registeredAt)
+            (:auctionId, :bidderId, :maxBid, :increment, :active, :status, :failureReason, :registeredAt)
         RETURNING id
         """;
 
@@ -142,6 +146,10 @@ public class AutoBidConfigDao {
                   .bind("maxBid", config.getMaxBid())
                   .bind("increment", config.getIncrement())
                   .bind("active", config.isActive())
+                  .bind("status", config.getStatus().name())
+                  .bind(
+                      "failureReason",
+                      config.getFailureReason() != null ? config.getFailureReason().name() : null)
                   .bind("registeredAt", config.getRegisteredAt())
                   .mapTo(Long.class)
                   .one();
@@ -218,7 +226,7 @@ public class AutoBidConfigDao {
         "SELECT "
             + SELECT_COLUMNS
             + " FROM auto_bid_configs"
-            + " WHERE auction_id = :auctionId AND active = true"
+            + " WHERE auction_id = :auctionId AND status = 'ACTIVE'"
             + " ORDER BY registered_at ASC";
 
     return jdbi.withHandle(
@@ -300,7 +308,9 @@ public class AutoBidConfigDao {
         UPDATE auto_bid_configs
         SET max_bid = :maxBid,
             increment_amount = :increment,
-            active = :active
+            active = :active,
+            status = :status,
+            failure_reason = :failureReason
         WHERE id = :id
         """;
 
@@ -312,6 +322,10 @@ public class AutoBidConfigDao {
                     .bind("maxBid", config.getMaxBid())
                     .bind("increment", config.getIncrement())
                     .bind("active", config.isActive())
+                    .bind("status", config.getStatus().name())
+                    .bind(
+                        "failureReason",
+                        config.getFailureReason() != null ? config.getFailureReason().name() : null)
                     .bind("id", config.getId())
                     .execute());
 
@@ -347,9 +361,13 @@ public class AutoBidConfigDao {
         UPDATE auto_bid_configs
         SET max_bid = :maxBid,
             increment_amount = :increment,
-            active = :active
+            active = :active,
+            status = :status,
+            failure_reason = NULL
         WHERE auction_id = :auctionId AND bidder_id = :bidderId
         """;
+
+    AutoBidStatus status = active ? AutoBidStatus.ACTIVE : AutoBidStatus.STOPPED;
 
     int rowsAffected =
         jdbi.withHandle(
@@ -359,6 +377,7 @@ public class AutoBidConfigDao {
                     .bind("maxBid", maxBid)
                     .bind("increment", increment)
                     .bind("active", active)
+                    .bind("status", status.name())
                     .bind("auctionId", auctionId)
                     .bind("bidderId", bidderId)
                     .execute());
@@ -396,8 +415,10 @@ public class AutoBidConfigDao {
     String sql =
         """
         UPDATE auto_bid_configs
-        SET active = false
-        WHERE auction_id = :auctionId AND bidder_id = :bidderId AND active = true
+        SET active = false,
+            status = 'STOPPED',
+            failure_reason = NULL
+        WHERE auction_id = :auctionId AND bidder_id = :bidderId AND status = 'ACTIVE'
         """;
 
     int rowsAffected =
@@ -429,8 +450,10 @@ public class AutoBidConfigDao {
     String sql =
         """
         UPDATE auto_bid_configs
-        SET active = false
-        WHERE auction_id = :auctionId AND active = true
+        SET active = false,
+            status = 'STOPPED',
+            failure_reason = NULL
+        WHERE auction_id = :auctionId AND status = 'ACTIVE'
         """;
 
     int rowsAffected =
@@ -494,7 +517,7 @@ public class AutoBidConfigDao {
     String sql =
         """
         SELECT COUNT(*) FROM auto_bid_configs
-        WHERE auction_id = :auctionId AND bidder_id = :bidderId AND active = true
+        WHERE auction_id = :auctionId AND bidder_id = :bidderId AND status = 'ACTIVE'
         """;
 
     long count =
@@ -520,7 +543,7 @@ public class AutoBidConfigDao {
     String sql =
         """
         SELECT COUNT(*) FROM auto_bid_configs
-        WHERE auction_id = :auctionId AND active = true
+        WHERE auction_id = :auctionId AND status = 'ACTIVE'
         """;
 
     return jdbi.withHandle(
