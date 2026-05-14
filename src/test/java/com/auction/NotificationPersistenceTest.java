@@ -5,6 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.auction.config.DatabaseConfig;
+import com.auction.dao.NotificationDao;
+import com.auction.service.NotificationService;
+import java.util.List;
+import java.util.Map;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -32,6 +36,7 @@ import org.junit.jupiter.api.Test;
 class NotificationPersistenceTest {
 
   private static Jdbi jdbi;
+  private static NotificationService notificationService;
 
   private static final long USER_A_ID = 101L;
   private static final long USER_B_ID = 102L;
@@ -40,6 +45,7 @@ class NotificationPersistenceTest {
   static void connectDb() {
     try {
       jdbi = DatabaseConfig.create();
+      notificationService = new NotificationService(new NotificationDao(jdbi));
     } catch (Exception e) {
       Assumptions.abort("No DB available, skipping: " + e.getMessage());
     }
@@ -108,15 +114,8 @@ class NotificationPersistenceTest {
     long notifId = insertNotification(USER_A_ID, "Bạn bị vượt giá phiên #1");
     assertFalse(isRead(notifId), "Precondition: notification starts unread");
 
-    int updated =
-        jdbi.withHandle(
-            handle ->
-                handle.execute(
-                    "UPDATE notifications SET is_read = true WHERE id = ? AND user_id = ?",
-                    notifId,
-                    USER_A_ID));
+    notificationService.markRead(notifId, USER_A_ID);
 
-    assertEquals(1, updated, "Exactly one row should be updated");
     assertTrue(isRead(notifId), "is_read must be true after marking");
   }
 
@@ -127,12 +126,7 @@ class NotificationPersistenceTest {
     long n2 = insertNotification(USER_A_ID, "Thông báo 2");
     assertEquals(2L, countUnread(USER_A_ID), "Precondition: 2 unread");
 
-    int updated =
-        jdbi.withHandle(
-            handle ->
-                handle.execute(
-                    "UPDATE notifications SET is_read = true WHERE user_id = ? AND is_read = false",
-                    USER_A_ID));
+    int updated = notificationService.markAllRead(USER_A_ID);
 
     assertEquals(2, updated, "Both notifications should be marked");
     assertTrue(isRead(n1), "Notification 1 must be read");
@@ -146,15 +140,8 @@ class NotificationPersistenceTest {
     long notifId = insertNotification(USER_A_ID, "Riêng của A");
     assertFalse(isRead(notifId), "Precondition: notification is unread");
 
-    int updated =
-        jdbi.withHandle(
-            handle ->
-                handle.execute(
-                    "UPDATE notifications SET is_read = true WHERE id = ? AND user_id = ?",
-                    notifId,
-                    USER_B_ID)); // wrong user
+    notificationService.markRead(notifId, USER_B_ID); // wrong user
 
-    assertEquals(0, updated, "User B must not be able to mark User A's notification");
     assertFalse(isRead(notifId), "Notification must remain unread");
   }
 
@@ -166,11 +153,7 @@ class NotificationPersistenceTest {
     assertEquals(2L, countUnread(USER_A_ID));
 
     // Simulate PATCH /api/notifications/mark-all-read
-    jdbi.useHandle(
-        handle ->
-            handle.execute(
-                "UPDATE notifications SET is_read = true WHERE user_id = ? AND is_read = false",
-                USER_A_ID));
+    notificationService.markAllRead(USER_A_ID);
 
     // Simulate GET /api/notifications filtering unread (client only adds is_read=false)
     long unreadAfterRefetch = countUnread(USER_A_ID);
@@ -187,13 +170,27 @@ class NotificationPersistenceTest {
     long notifB = insertNotification(USER_B_ID, "Của B");
 
     // User A marks all read
-    jdbi.useHandle(
-        handle ->
-            handle.execute(
-                "UPDATE notifications SET is_read = true WHERE user_id = ? AND is_read = false",
-                USER_A_ID));
+    notificationService.markAllRead(USER_A_ID);
 
     assertTrue(isRead(notifA), "User A's notification should be read");
     assertFalse(isRead(notifB), "User B's notification must remain unread");
+  }
+
+  @Test
+  @DisplayName("GET notifications returns only current user's latest notifications")
+  void listNotificationsIsolatedToCurrentUser() {
+    insertNotification(USER_A_ID, "A newest");
+    insertNotification(USER_A_ID, "A older");
+    insertNotification(USER_B_ID, "B private");
+
+    List<Map<String, Object>> notifications = notificationService.getRecentNotifications(USER_A_ID);
+
+    assertEquals(2, notifications.size(), "User A should only see User A notifications");
+    assertTrue(
+        notifications.stream().allMatch(row -> row.containsKey("notification_type")),
+        "Response shape keeps notification_type key");
+    assertTrue(
+        notifications.stream().noneMatch(row -> "B private".equals(row.get("message"))),
+        "User A must not see User B notifications");
   }
 }

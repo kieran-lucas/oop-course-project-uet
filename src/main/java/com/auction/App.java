@@ -8,11 +8,13 @@ import com.auction.controller.AuctionWebSocketHandler;
 import com.auction.controller.AuthController;
 import com.auction.controller.BidController;
 import com.auction.controller.ItemController;
+import com.auction.controller.NotificationController;
 import com.auction.dao.AuctionDao;
 import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
 import com.auction.dao.DepositRequestDao;
 import com.auction.dao.ItemDao;
+import com.auction.dao.NotificationDao;
 import com.auction.dao.PasswordResetRequestDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.AutoBidRequest;
@@ -34,6 +36,7 @@ import com.auction.service.AuctionScheduler;
 import com.auction.service.AuctionService;
 import com.auction.service.BidService;
 import com.auction.service.ItemService;
+import com.auction.service.NotificationService;
 import com.auction.service.PasswordResetService;
 import com.auction.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -114,6 +117,7 @@ public class App {
     var autoBidConfigDao = new AutoBidConfigDao(jdbi);
     var depositRequestDao = new DepositRequestDao(jdbi);
     var passwordResetRequestDao = new PasswordResetRequestDao(jdbi);
+    var notificationDao = new NotificationDao(jdbi);
 
     // ── 3b. Seed tài khoản admin mặc định ───────────────────
     seedAdminIfNeeded(userDao);
@@ -128,6 +132,7 @@ public class App {
     var userService = new UserService(userDao, depositRequestDao, jdbi);
     var passwordResetService = new PasswordResetService(userDao, passwordResetRequestDao, jdbi);
     var itemService = new ItemService(itemDao);
+    var notificationService = new NotificationService(notificationDao);
     var auctionService =
         new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao);
     var autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
@@ -190,6 +195,7 @@ public class App {
     AuthController.registerPasswordReset(app, passwordResetService);
     ItemController.register(app, itemService);
     AuctionController.register(app, auctionService);
+    NotificationController.register(app, notificationService);
 
     // Đăng ký BidController với BidService mới
     bidController.register(app);
@@ -381,79 +387,6 @@ public class App {
                     autoBidConfigDao.update(config);
                   });
           ctx.status(204);
-        });
-
-    // ── Notifications endpoints ─────────────────────────────
-
-    app.get(
-        "/api/notifications",
-        ctx -> {
-          Long userId = ctx.attribute("userId");
-
-          var result =
-              jdbi.withHandle(
-                  handle ->
-                      handle
-                          .createQuery(
-                              """
-                              SELECT id,
-                                     message,
-                                     notification_type,
-                                     is_read,
-                                     created_at
-                              FROM notifications
-                              WHERE user_id = :userId
-                              ORDER BY created_at DESC
-                              LIMIT 50
-                              """)
-                          .bind("userId", userId)
-                          .mapToMap()
-                          .list());
-
-          ctx.json(result);
-        });
-
-    app.patch(
-        "/api/notifications/{id}/read",
-        ctx -> {
-          Long userId = ctx.attribute("userId");
-          Long notificationId = Long.parseLong(ctx.pathParam("id"));
-
-          jdbi.useHandle(
-              handle ->
-                  handle.execute(
-                      """
-                      UPDATE notifications
-                      SET is_read = true
-                      WHERE id = ?
-                        AND user_id = ?
-                      """,
-                      notificationId,
-                      userId));
-
-          ctx.status(204);
-        });
-
-    // Đánh dấu tất cả thông báo của user hiện tại là đã đọc
-    // Gọi endpoint này khi user mở popup chuông
-    app.patch(
-        "/api/notifications/mark-all-read",
-        ctx -> {
-          Long userId = ctx.attribute("userId");
-
-          int updated =
-              jdbi.withHandle(
-                  handle ->
-                      handle.execute(
-                          """
-                          UPDATE notifications
-                          SET is_read = true
-                          WHERE user_id = ?
-                            AND is_read = false
-                          """,
-                          userId));
-
-          ctx.json(Map.of("updated", updated));
         });
 
     // ── 12. Đăng ký WebSocket ────────────────────────────────
