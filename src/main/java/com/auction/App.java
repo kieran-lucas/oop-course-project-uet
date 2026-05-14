@@ -128,7 +128,8 @@ public class App {
     var userService = new UserService(userDao, depositRequestDao, jdbi);
     var passwordResetService = new PasswordResetService(userDao, passwordResetRequestDao, jdbi);
     var itemService = new ItemService(itemDao);
-    var auctionService = new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi);
+    var auctionService =
+        new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao);
     var autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
     var bidService =
         new BidService(

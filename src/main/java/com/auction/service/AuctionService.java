@@ -1,6 +1,7 @@
 package com.auction.service;
 
 import com.auction.dao.AuctionDao;
+import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.AuctionResponse;
@@ -32,23 +33,26 @@ public class AuctionService {
   private final UserDao userDao;
   private final AuctionEventManager eventManager;
   private final Jdbi jdbi;
+  private final BidTransactionDao bidTransactionDao;
 
   public AuctionService(
       AuctionDao auctionDao,
       ItemDao itemDao,
       UserDao userDao,
       AuctionEventManager eventManager,
-      Jdbi jdbi) {
+      Jdbi jdbi,
+      BidTransactionDao bidTransactionDao) {
     this.auctionDao = auctionDao;
     this.itemDao = itemDao;
     this.userDao = userDao;
     this.eventManager = eventManager;
     this.jdbi = jdbi;
+    this.bidTransactionDao = bidTransactionDao;
   }
 
   /** For unit tests that don't need notification. */
   AuctionService(AuctionDao auctionDao, ItemDao itemDao, UserDao userDao) {
-    this(auctionDao, itemDao, userDao, null, null);
+    this(auctionDao, itemDao, userDao, null, null, null);
   }
 
   /**
@@ -361,13 +365,29 @@ public class AuctionService {
   }
 
   /**
-   * Xóa cứng phiên đấu giá khỏi DB (chỉ ADMIN). Xóa toàn bộ bid_transactions và auto_bid_configs
-   * liên quan trong cùng một transaction.
+   * Xóa cứng phiên đấu giá khỏi DB (chỉ ADMIN). Chỉ cho phép khi status là OPEN và chưa có
+   * bid_transactions. Mọi trường hợp khác phải dùng soft-cancel (DELETE /api/auctions/{id}).
    */
   public void hardDelete(Long auctionId) {
-    auctionDao
-        .findById(auctionId)
-        .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+    Auction auction =
+        auctionDao
+            .findById(auctionId)
+            .orElseThrow(() -> new NotFoundException("Auction not found: " + auctionId));
+
+    if (auction.getStatus() != AuctionStatus.OPEN) {
+      throw new IllegalStateException(
+          "Hard delete is only allowed for OPEN auctions with no bid history."
+              + " Current status: "
+              + auction.getStatus()
+              + ". Use DELETE /api/auctions/{id} to soft-cancel instead.");
+    }
+
+    if (bidTransactionDao.countByAuctionId(auctionId) > 0) {
+      throw new IllegalStateException(
+          "Hard delete is not allowed when bid history exists."
+              + " Use DELETE /api/auctions/{id} to soft-cancel instead.");
+    }
+
     auctionDao.hardDelete(auctionId);
     LOGGER.info("Admin hard-deleted auction #{}", auctionId);
   }

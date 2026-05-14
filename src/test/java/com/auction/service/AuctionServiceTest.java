@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.never;
 
 import com.auction.dao.AuctionDao;
+import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.CreateAuctionRequest;
@@ -63,6 +64,7 @@ class AuctionServiceTest {
   @Mock private AuctionDao auctionDao;
   @Mock private ItemDao itemDao;
   @Mock private UserDao userDao;
+  @Mock private BidTransactionDao bidTransactionDao;
 
   // ── System Under Test ────────────────────────────────────
   @InjectMocks private AuctionService auctionService;
@@ -428,7 +430,73 @@ class AuctionServiceTest {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // Nhóm 6: Xóa phiên đấu giá
+  // Nhóm 6: Hard delete (admin)
+  // ═══════════════════════════════════════════════════════════
+
+  @Nested
+  @DisplayName("Hard delete phiên đấu giá (admin)")
+  class HardDeleteTests {
+
+    @Test
+    @DisplayName("OPEN và chưa có bid → hard delete thành công")
+    void testHardDeleteOpenNoBidsSuccess() {
+      Auction auction = buildAuction("OPEN");
+      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
+      when(bidTransactionDao.countByAuctionId(99L)).thenReturn(0);
+
+      assertDoesNotThrow(() -> auctionService.hardDelete(99L));
+      verify(auctionDao, times(1)).hardDelete(99L);
+    }
+
+    @Test
+    @DisplayName("PAID → hard delete bị từ chối (bảo vệ lịch sử)")
+    void testHardDeletePaidThrowsIllegalState() {
+      Auction auction = buildAuction("PAID");
+      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
+
+      IllegalStateException ex =
+          assertThrows(IllegalStateException.class, () -> auctionService.hardDelete(99L));
+      assertTrue(ex.getMessage().contains("PAID") || ex.getMessage().contains("OPEN"));
+      verify(auctionDao, never()).hardDelete(anyLong());
+    }
+
+    @Test
+    @DisplayName("RUNNING với bid history → hard delete bị từ chối")
+    void testHardDeleteRunningWithBidsThrowsIllegalState() {
+      Auction auction = buildAuction("RUNNING");
+      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
+
+      assertThrows(IllegalStateException.class, () -> auctionService.hardDelete(99L));
+      verify(auctionDao, never()).hardDelete(anyLong());
+      verify(bidTransactionDao, never()).countByAuctionId(anyLong());
+    }
+
+    @Test
+    @DisplayName("OPEN nhưng đã có bid → hard delete bị từ chối (không xóa lịch sử bid)")
+    void testHardDeleteOpenWithBidsThrowsIllegalState() {
+      Auction auction = buildAuction("OPEN");
+      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
+      when(bidTransactionDao.countByAuctionId(99L)).thenReturn(3);
+
+      assertThrows(IllegalStateException.class, () -> auctionService.hardDelete(99L));
+      verify(auctionDao, never()).hardDelete(anyLong());
+    }
+
+    @Test
+    @DisplayName("Admin soft-cancel RUNNING với leading bidder → reserved balance được release")
+    void testSoftCancelRunningReleasesReservedBalance() {
+      Auction auction = buildAuction("RUNNING");
+      auction.setLeadingBidderId(BIDDER_ID);
+      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
+
+      assertDoesNotThrow(() -> auctionService.delete(99L, 999L, "ADMIN"));
+      assertEquals(AuctionStatus.CANCELED, auction.getStatus());
+      verify(auctionDao, never()).hardDelete(anyLong());
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Nhóm 7: Xóa phiên đấu giá
   // ═══════════════════════════════════════════════════════════
 
   @Nested

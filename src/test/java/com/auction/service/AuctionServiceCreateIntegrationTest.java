@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.auction.config.DatabaseConfig;
 import com.auction.dao.AuctionDao;
+import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.CreateAuctionRequest;
@@ -54,8 +55,10 @@ class AuctionServiceCreateIntegrationTest {
     userDao = new UserDao(jdbi);
     itemDao = new ItemDao(jdbi);
     auctionDao = new AuctionDao(jdbi);
+    BidTransactionDao bidTransactionDao = new BidTransactionDao(jdbi);
     auctionService =
-        new AuctionService(auctionDao, itemDao, userDao, new AuctionEventManager(), jdbi);
+        new AuctionService(
+            auctionDao, itemDao, userDao, new AuctionEventManager(), jdbi, bidTransactionDao);
   }
 
   @BeforeEach

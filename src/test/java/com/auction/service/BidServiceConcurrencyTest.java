@@ -51,7 +51,7 @@ class BidServiceConcurrencyTest {
 
     AuctionEventManager eventManager = new AuctionEventManager();
     AuctionService auctionService =
-        new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi);
+        new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao);
     AutoBidStrategy autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
     bidService =
         new BidService(

@@ -53,7 +53,7 @@ class AuctionSchedulerSettlementTest {
     BidTransactionDao bidTransactionDao = new BidTransactionDao(jdbi);
     AuctionEventManager eventManager = new AuctionEventManager();
     AuctionService auctionService =
-        new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi);
+        new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao);
     AutoBidStrategy autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
     scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager, jdbi);
     bidService =
