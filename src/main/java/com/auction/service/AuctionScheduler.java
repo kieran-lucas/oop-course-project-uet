@@ -11,12 +11,12 @@ import com.auction.pattern.observer.AuctionEventManager;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -195,17 +195,11 @@ public class AuctionScheduler {
   private void runningToFinished(LocalDateTime now) {
     List<Long> ids = auctionDao.findExpiredAuctionIds("RUNNING", now);
     for (Long id : ids) {
-      auctionDao
-          .findById(id)
-          .ifPresent(
-              auction -> {
-                try {
-                  settleAndClose(auction);
-                  notifyAuctionEnded(auction);
-                } catch (Exception e) {
-                  LOG.error("Không thể kết thúc phiên #{}", id, e);
-                }
-              });
+      try {
+        settleAndClose(id).ifPresent(this::notifyAuctionEnded);
+      } catch (Exception e) {
+        LOG.error("Không thể kết thúc phiên #{}", id, e);
+      }
     }
   }
 
@@ -213,10 +207,10 @@ public class AuctionScheduler {
    * Thanh toán và đóng phiên: - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status →
    * PAID. - Nếu không ai bid: status → FINISHED.
    */
-  private void settleAndClose(Auction auction) {
-    MDC.put("auctionId", String.valueOf(auction.getId()));
+  private Optional<Auction> settleAndClose(Long auctionId) {
+    MDC.put("auctionId", String.valueOf(auctionId));
     try {
-      AtomicReference<AuctionStatus> finalStatus = new AtomicReference<>();
+      final Auction[] settledAuction = new Auction[1];
       jdbi.useTransaction(
           handle -> {
             int claimed =
@@ -227,13 +221,22 @@ public class AuctionScheduler {
                         SET status = 'SETTLING', updated_at = NOW()
                         WHERE id = :id AND status = 'RUNNING'
                         """)
-                    .bind("id", auction.getId())
+                    .bind("id", auctionId)
                     .execute();
             if (claimed == 0) {
-              LOG.warn("Phiên #{} đã được settle bởi thread/process khác, bỏ qua", auction.getId());
+              LOG.warn("Phiên #{} đã được settle bởi thread/process khác, bỏ qua", auctionId);
               return;
             }
 
+            Optional<Auction> refetchedAuction =
+                auctionDao.findByIdForUpdateOptional(handle, auctionId);
+            if (refetchedAuction.isEmpty()) {
+              LOG.warn(
+                  "Không tìm thấy phiên #{} sau khi claim SETTLING, bỏ qua settlement", auctionId);
+              return;
+            }
+
+            Auction auction = refetchedAuction.get();
             Long winnerId = auction.getLeadingBidderId();
 
             if (winnerId != null) {
@@ -325,18 +328,19 @@ public class AuctionScheduler {
 
             // Cập nhật trạng thái auction cuối cùng
             auctionDao.updateInTransaction(handle, auction);
-            finalStatus.set(auction.getStatus());
+            settledAuction[0] = auction;
           });
 
-      if (finalStatus.get() == null) {
-        return;
+      if (settledAuction[0] == null) {
+        return Optional.empty();
       }
       LOG.info(
           "Phiên #{} → {} (endTime={}, winner={})",
-          auction.getId(),
-          auction.getStatus(),
-          auction.getEndTime(),
-          auction.getLeadingBidderId());
+          settledAuction[0].getId(),
+          settledAuction[0].getStatus(),
+          settledAuction[0].getEndTime(),
+          settledAuction[0].getLeadingBidderId());
+      return Optional.of(settledAuction[0]);
     } finally {
       MDC.remove("auctionId");
     }

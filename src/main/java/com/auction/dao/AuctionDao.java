@@ -307,6 +307,12 @@ public class AuctionDao {
         .one(); // throw exception nếu không tìm thấy
   }
 
+  public Optional<Auction> findByIdForUpdateOptional(org.jdbi.v3.core.Handle handle, Long id) {
+    String sql = "SELECT " + SELECT_COLUMNS + " FROM auctions WHERE id = :id FOR UPDATE";
+
+    return handle.createQuery(sql).bind("id", id).map(new AuctionMapper()).findOne();
+  }
+
   /**
    * Lấy tất cả phiên đấu giá.
    *

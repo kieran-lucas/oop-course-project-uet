@@ -73,7 +73,7 @@ class AuctionSchedulerSettlementTest {
     Auction auctionA = createRunningAuction("Item A", new BigDecimal("600000"));
     Auction auctionB = createRunningAuction("Item B", new BigDecimal("400000"));
 
-    invokeSettleAndClose(auctionA);
+    invokeSettleAndClose(auctionA.getId());
 
     User foundBidder = userDao.findById(bidder.getId()).orElseThrow();
     Auction foundAuctionA = auctionDao.findById(auctionA.getId()).orElseThrow();
@@ -84,12 +84,50 @@ class AuctionSchedulerSettlementTest {
     assertEquals(AuctionStatus.RUNNING, foundAuctionB.getStatus());
   }
 
+  @Test
+  @DisplayName("Settlement dùng bidder và giá mới nhất sau khi refetch trong transaction")
+  void settlementUsesLatestBidAfterStaleSchedulerSnapshot() throws Exception {
+    User oldLeader = createBidder("old_leader", new BigDecimal("1000000"));
+    User newLeader = createBidder("new_leader", new BigDecimal("1000000"));
+    reserveBalance(oldLeader.getId(), new BigDecimal("600000"));
+    Auction auction =
+        createRunningAuction("Race Item", oldLeader.getId(), new BigDecimal("600000"));
+
+    Auction staleSnapshot = auctionDao.findById(auction.getId()).orElseThrow();
+    commitNewWinningBid(
+        staleSnapshot.getId(), oldLeader.getId(), newLeader.getId(), new BigDecimal("800000"));
+
+    invokeSettleAndClose(staleSnapshot.getId());
+
+    User foundOldLeader = userDao.findById(oldLeader.getId()).orElseThrow();
+    User foundNewLeader = userDao.findById(newLeader.getId()).orElseThrow();
+    User foundSeller = userDao.findById(seller.getId()).orElseThrow();
+    Auction foundAuction = auctionDao.findById(staleSnapshot.getId()).orElseThrow();
+
+    assertEquals(0, new BigDecimal("1000000").compareTo(foundOldLeader.getBalance()));
+    assertEquals(0, BigDecimal.ZERO.compareTo(foundOldLeader.getReservedBalance()));
+    assertEquals(0, new BigDecimal("200000").compareTo(foundNewLeader.getBalance()));
+    assertEquals(0, BigDecimal.ZERO.compareTo(foundNewLeader.getReservedBalance()));
+    assertEquals(0, new BigDecimal("800000").compareTo(foundSeller.getBalance()));
+    assertEquals(newLeader.getId(), foundAuction.getLeadingBidderId());
+    assertEquals(0, new BigDecimal("800000").compareTo(foundAuction.getCurrentPrice()));
+    assertEquals(AuctionStatus.PAID, foundAuction.getStatus());
+  }
+
   private void reserveBidderBalance(BigDecimal amount) {
+    reserveBalance(bidder.getId(), amount);
+  }
+
+  private void reserveBalance(Long bidderId, BigDecimal amount) {
     jdbi.useTransaction(
-        handle -> userDao.updateReservedBalanceInTransaction(handle, bidder.getId(), amount));
+        handle -> userDao.updateReservedBalanceInTransaction(handle, bidderId, amount));
   }
 
   private Auction createRunningAuction(String itemName, BigDecimal currentPrice) {
+    return createRunningAuction(itemName, bidder.getId(), currentPrice);
+  }
+
+  private Auction createRunningAuction(String itemName, Long leaderId, BigDecimal currentPrice) {
     Item item = itemDao.insert(new Item(itemName, "Settlement test item", seller.getId(), "ART"));
     Auction auction =
         new Auction(
@@ -99,15 +137,43 @@ class AuctionSchedulerSettlementTest {
             LocalDateTime.now().minusMinutes(1));
     auction.setSellerId(seller.getId());
     auction.setCurrentPrice(currentPrice);
-    auction.setLeadingBidderId(bidder.getId());
+    auction.setLeadingBidderId(leaderId);
     auction.setStatus(AuctionStatus.RUNNING);
     return auctionDao.insert(auction);
   }
 
-  private void invokeSettleAndClose(Auction auction) throws Exception {
-    Method settleAndClose =
-        AuctionScheduler.class.getDeclaredMethod("settleAndClose", Auction.class);
+  private User createBidder(String username, BigDecimal balance) {
+    Bidder newBidder = new Bidder(username, "hash", username + "@test.com");
+    newBidder.setBalance(balance);
+    return userDao.insert(newBidder);
+  }
+
+  private void commitNewWinningBid(
+      Long auctionId, Long oldLeaderId, Long newLeaderId, BigDecimal newPrice) {
+    jdbi.useTransaction(
+        handle -> {
+          userDao.releaseReservedBalanceInTransaction(
+              handle, oldLeaderId, new BigDecimal("600000"));
+          userDao.updateReservedBalanceInTransaction(handle, newLeaderId, newPrice);
+          handle
+              .createUpdate(
+                  """
+                  UPDATE auctions
+                  SET current_price = :price,
+                      leading_bidder_id = :bidderId,
+                      updated_at = NOW()
+                  WHERE id = :auctionId
+                  """)
+              .bind("price", newPrice)
+              .bind("bidderId", newLeaderId)
+              .bind("auctionId", auctionId)
+              .execute();
+        });
+  }
+
+  private void invokeSettleAndClose(Long auctionId) throws Exception {
+    Method settleAndClose = AuctionScheduler.class.getDeclaredMethod("settleAndClose", Long.class);
     settleAndClose.setAccessible(true);
-    settleAndClose.invoke(scheduler, auction);
+    settleAndClose.invoke(scheduler, auctionId);
   }
 }
