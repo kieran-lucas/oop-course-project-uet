@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
@@ -200,6 +201,54 @@ public class AuctionDao {
         });
   }
 
+  public Auction insertInTransaction(Handle handle, Auction auction) {
+    String sql =
+        """
+        INSERT INTO auctions (
+            item_id, starting_price, current_price,
+            leading_bidder_id, seller_id, start_time, end_time,
+            status, created_at, updated_at
+        ) VALUES (
+            :itemId, :startingPrice, :currentPrice,
+            :leadingBidderId, :sellerId, :startTime, :endTime,
+            :status, :createdAt, :updatedAt
+        )
+        RETURNING id
+        """;
+
+    Long sellerId = auction.getSellerId();
+    if (sellerId == null) {
+      sellerId =
+          handle
+              .createQuery("SELECT seller_id FROM items WHERE id = :itemId")
+              .bind("itemId", auction.getItemId())
+              .mapTo(Long.class)
+              .findOne()
+              .orElse(null);
+      auction.setSellerId(sellerId);
+    }
+
+    long id =
+        handle
+            .createQuery(sql)
+            .bind("itemId", auction.getItemId())
+            .bind("startingPrice", auction.getStartingPrice())
+            .bind("currentPrice", auction.getCurrentPrice())
+            .bind("leadingBidderId", auction.getLeadingBidderId())
+            .bind("sellerId", sellerId)
+            .bind("startTime", auction.getStartTime())
+            .bind("endTime", auction.getEndTime())
+            .bind("status", auction.getStatus().name())
+            .bind("createdAt", auction.getCreatedAt())
+            .bind("updatedAt", auction.getCreatedAt())
+            .mapTo(Long.class)
+            .one();
+
+    auction.setId(id);
+    LOGGER.debug("Inserted auction in transaction: id={}, itemId={}", id, auction.getItemId());
+    return auction;
+  }
+
   // ============================================================
   // READ (SELECT)
   // ============================================================
@@ -363,6 +412,38 @@ public class AuctionDao {
 
     return jdbi.withHandle(
         handle -> handle.createQuery(sql).bind("itemId", itemId).map(new AuctionMapper()).list());
+  }
+
+  public boolean existsActiveAuctionForItem(Long itemId) {
+    return jdbi.withHandle(handle -> existsActiveAuctionForItem(handle, itemId));
+  }
+
+  public boolean existsActiveAuctionForItem(Handle handle, Long itemId) {
+    String sql =
+        """
+        SELECT COUNT(*)
+        FROM auctions
+        WHERE item_id = :itemId
+          AND status IN ('OPEN', 'RUNNING', 'SETTLING')
+        """;
+    long count = handle.createQuery(sql).bind("itemId", itemId).mapTo(Long.class).one();
+    return count > 0;
+  }
+
+  public boolean existsPaidAuctionForItem(Long itemId) {
+    return jdbi.withHandle(handle -> existsPaidAuctionForItem(handle, itemId));
+  }
+
+  public boolean existsPaidAuctionForItem(Handle handle, Long itemId) {
+    String sql =
+        """
+        SELECT COUNT(*)
+        FROM auctions
+        WHERE item_id = :itemId
+          AND status = 'PAID'
+        """;
+    long count = handle.createQuery(sql).bind("itemId", itemId).mapTo(Long.class).one();
+    return count > 0;
   }
 
   /**

@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
@@ -93,6 +94,11 @@ public class ItemDao {
         handle -> handle.createQuery(sql).bind("id", id).map(new ItemMapper()).findOne());
   }
 
+  public Optional<Item> findByIdForUpdate(Handle handle, Long id) {
+    String sql = "SELECT " + SELECT_COLUMNS + " FROM items WHERE id = :id FOR UPDATE";
+    return handle.createQuery(sql).bind("id", id).map(new ItemMapper()).findOne();
+  }
+
   public List<Item> findBySellerId(Long sellerId) {
     String sql =
         "SELECT "
@@ -161,6 +167,19 @@ public class ItemDao {
                     .execute());
 
     return rowsAffected > 0;
+  }
+
+  public void updateStatusInTransaction(Handle handle, Long id, String status) {
+    int rowsAffected =
+        handle
+            .createUpdate("UPDATE items SET status = :status, updated_at = NOW() WHERE id = :id")
+            .bind("status", status)
+            .bind("id", id)
+            .execute();
+
+    if (rowsAffected == 0) {
+      throw new IllegalStateException("Không tìm thấy sản phẩm #" + id + " để cập nhật trạng thái");
+    }
   }
 
   public boolean delete(Long id) {

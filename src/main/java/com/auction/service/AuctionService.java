@@ -7,6 +7,7 @@ import com.auction.dto.AuctionResponse;
 import com.auction.dto.BidUpdateMessage;
 import com.auction.dto.CreateAuctionRequest;
 import com.auction.dto.PageRequest;
+import com.auction.exception.DuplicateException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.model.Auction;
@@ -134,21 +135,86 @@ public class AuctionService {
       throw new IllegalArgumentException("End time must be after start time");
     }
 
+    if (jdbi != null) {
+      return createInTransaction(req, sellerId);
+    }
+
     Item item =
         itemDao
             .findById(req.getItemId())
             .orElseThrow(() -> new NotFoundException("Item not found with id: " + req.getItemId()));
 
-    if (!item.getSellerId().equals(sellerId)) {
-      throw new UnauthorizedException("You can only create auctions for your own items");
-    }
+    validateItemCanBeAuctioned(req.getItemId(), sellerId, item);
 
     Auction auction =
         new Auction(req.getItemId(), req.getStartingPrice(), req.getStartTime(), req.getEndTime());
     auction.setSellerId(sellerId);
     auctionDao.insert(auction);
+    item.setStatus("IN_AUCTION");
+    itemDao.update(item);
     LOGGER.info("Auction created (via create): itemId={}, seller={}", req.getItemId(), sellerId);
     return auction;
+  }
+
+  private Auction createInTransaction(CreateAuctionRequest req, Long sellerId) {
+    return jdbi.inTransaction(
+        handle -> {
+          Item item =
+              itemDao
+                  .findByIdForUpdate(handle, req.getItemId())
+                  .orElseThrow(
+                      () -> new NotFoundException("Item not found with id: " + req.getItemId()));
+
+          validateItemCanBeAuctionedInTransaction(handle, req.getItemId(), sellerId, item);
+
+          Auction auction =
+              new Auction(
+                  req.getItemId(), req.getStartingPrice(), req.getStartTime(), req.getEndTime());
+          auction.setSellerId(sellerId);
+          auctionDao.insertInTransaction(handle, auction);
+          itemDao.updateStatusInTransaction(handle, req.getItemId(), "IN_AUCTION");
+
+          LOGGER.info(
+              "Auction created (via create): itemId={}, seller={}", req.getItemId(), sellerId);
+          return auction;
+        });
+  }
+
+  private void validateItemCanBeAuctioned(Long itemId, Long sellerId, Item item) {
+    if (!item.getSellerId().equals(sellerId)) {
+      throw new UnauthorizedException("Bạn chỉ có thể tạo phiên đấu giá cho sản phẩm của mình");
+    }
+
+    if (!"AVAILABLE".equals(item.getStatus())) {
+      throw new DuplicateException("Sản phẩm #" + itemId + " không còn ở trạng thái AVAILABLE");
+    }
+
+    if (auctionDao.existsActiveAuctionForItem(itemId)) {
+      throw new DuplicateException("Sản phẩm #" + itemId + " đã có phiên đấu giá đang hoạt động");
+    }
+
+    if (auctionDao.existsPaidAuctionForItem(itemId)) {
+      throw new DuplicateException("Sản phẩm #" + itemId + " đã được bán");
+    }
+  }
+
+  private void validateItemCanBeAuctionedInTransaction(
+      org.jdbi.v3.core.Handle handle, Long itemId, Long sellerId, Item item) {
+    if (!item.getSellerId().equals(sellerId)) {
+      throw new UnauthorizedException("Bạn chỉ có thể tạo phiên đấu giá cho sản phẩm của mình");
+    }
+
+    if (!"AVAILABLE".equals(item.getStatus())) {
+      throw new DuplicateException("Sản phẩm #" + itemId + " không còn ở trạng thái AVAILABLE");
+    }
+
+    if (auctionDao.existsActiveAuctionForItem(handle, itemId)) {
+      throw new DuplicateException("Sản phẩm #" + itemId + " đã có phiên đấu giá đang hoạt động");
+    }
+
+    if (auctionDao.existsPaidAuctionForItem(handle, itemId)) {
+      throw new DuplicateException("Sản phẩm #" + itemId + " đã được bán");
+    }
   }
 
   /**
