@@ -17,6 +17,8 @@ import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
 import com.auction.model.AuctionStatus;
 import com.auction.model.AutoBidConfig;
+import com.auction.model.AutoBidFailureReason;
+import com.auction.model.AutoBidStatus;
 import com.auction.model.BidTransaction;
 import com.auction.model.Bidder;
 import com.auction.model.Seller;
@@ -738,6 +740,166 @@ class BidServiceTest {
 
       assertEquals(
           1L, successCount, "Exactly one concurrent bid should succeed; all others must fail");
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Nhóm 10: createAutoBid — H-AUTOBID-01
+  // ═══════════════════════════════════════════════════════════
+
+  @Nested
+  @DisplayName("createAutoBid — tạo auto-bid và đặt giá ban đầu")
+  class CreateAutoBidTests {
+
+    private static final BigDecimal STEP = new BigDecimal("500000"); // 500k
+    private static final BigDecimal MAX_BID = new BigDecimal("5000000"); // 5 triệu
+
+    @BeforeEach
+    void setupMocks() {
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID)).thenReturn(runningAuction());
+      when(autoBidConfigDao.hasActiveConfig(mockHandle, AUCTION_ID, BIDDER_ID)).thenReturn(false);
+      doNothing().when(auctionDao).updateInTransaction(eq(mockHandle), any(Auction.class));
+      when(bidTransactionDao.insert(eq(mockHandle), any(BidTransaction.class)))
+          .thenAnswer(inv -> inv.getArgument(1));
+      when(autoBidConfigDao.upsertInTransaction(eq(mockHandle), any(AutoBidConfig.class)))
+          .thenAnswer(
+              inv -> {
+                AutoBidConfig c = inv.getArgument(1);
+                c.setId(99L);
+                return c;
+              });
+    }
+
+    @Test
+    @SuppressWarnings("checkstyle:MethodName")
+    @DisplayName("Happy path: initial bid xuất hiện, currentPrice tăng, leader đổi")
+    void createAutoBid_happyPath_initialBidAndPriceUpdated() {
+      BigDecimal expectedInitialBid = STARTING.add(STEP); // 1.5 triệu
+
+      AutoBidConfig result = bidService.createAutoBid(AUCTION_ID, BIDDER_ID, MAX_BID, STEP);
+
+      assertEquals(AutoBidStatus.ACTIVE, result.getStatus());
+      assertNull(result.getFailureReason());
+
+      ArgumentCaptor<BidTransaction> txCaptor = ArgumentCaptor.forClass(BidTransaction.class);
+      verify(bidTransactionDao).insert(eq(mockHandle), txCaptor.capture());
+      assertEquals(0, expectedInitialBid.compareTo(txCaptor.getValue().getAmount()));
+      assertTrue(txCaptor.getValue().isAutoBid());
+      assertEquals(AUCTION_ID, txCaptor.getValue().getAuctionId());
+      assertEquals(BIDDER_ID, txCaptor.getValue().getBidderId());
+
+      ArgumentCaptor<Auction> auctionCaptor = ArgumentCaptor.forClass(Auction.class);
+      verify(auctionDao).updateInTransaction(eq(mockHandle), auctionCaptor.capture());
+      assertEquals(0, expectedInitialBid.compareTo(auctionCaptor.getValue().getCurrentPrice()));
+      assertEquals(BIDDER_ID, auctionCaptor.getValue().getLeadingBidderId());
+    }
+
+    @Test
+    @SuppressWarnings("checkstyle:MethodName")
+    @DisplayName("Happy path: reserved balance frozen = initialBid, không phải maxBid")
+    void createAutoBid_freezesInitialBidNotMaxBid() {
+      BigDecimal largeMaxBid = new BigDecimal("10000000");
+      BigDecimal expectedInitialBid = STARTING.add(STEP); // 1.5 triệu
+
+      bidService.createAutoBid(AUCTION_ID, BIDDER_ID, largeMaxBid, STEP);
+
+      verify(userDao)
+          .updateReservedBalanceInTransaction(
+              eq(mockHandle), eq(BIDDER_ID), eq(expectedInitialBid));
+      verify(userDao, never())
+          .updateReservedBalanceInTransaction(eq(mockHandle), eq(BIDDER_ID), eq(largeMaxBid));
+    }
+
+    @Test
+    @SuppressWarnings("checkstyle:MethodName")
+    @DisplayName("Bidder là current leader → reject với InvalidBidException")
+    void createAutoBid_currentLeader_rejected() {
+      Auction auction = runningAuction();
+      auction.setLeadingBidderId(BIDDER_ID);
+      auction.setCurrentPrice(new BigDecimal("2000000"));
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID)).thenReturn(auction);
+
+      assertThrows(
+          InvalidBidException.class,
+          () -> bidService.createAutoBid(AUCTION_ID, BIDDER_ID, MAX_BID, STEP));
+
+      verify(bidTransactionDao, never()).insert(any(), any());
+      verify(autoBidConfigDao, never()).upsertInTransaction(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("checkstyle:MethodName")
+    @DisplayName("ACTIVE config đã tồn tại → reject với InvalidBidException")
+    void createAutoBid_activeConfigExists_rejected() {
+      when(autoBidConfigDao.hasActiveConfig(mockHandle, AUCTION_ID, BIDDER_ID)).thenReturn(true);
+
+      assertThrows(
+          InvalidBidException.class,
+          () -> bidService.createAutoBid(AUCTION_ID, BIDDER_ID, MAX_BID, STEP));
+
+      verify(bidTransactionDao, never()).insert(any(), any());
+      verify(autoBidConfigDao, never()).upsertInTransaction(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("checkstyle:MethodName")
+    @DisplayName("initialBid > maxBid → tạo config EXHAUSTED, không insert bid, không freeze")
+    void createAutoBid_maxBidTooLow_exhausted() {
+      // STEP=500k, currentPrice=1M → initialBid=1.5M > tooLowMaxBid=1.2M
+      BigDecimal tooLowMaxBid = new BigDecimal("1200000");
+
+      AutoBidConfig result = bidService.createAutoBid(AUCTION_ID, BIDDER_ID, tooLowMaxBid, STEP);
+
+      assertEquals(AutoBidStatus.EXHAUSTED, result.getStatus());
+      assertEquals(AutoBidFailureReason.MAX_PRICE_TOO_LOW, result.getFailureReason());
+
+      verify(bidTransactionDao, never()).insert(any(), any());
+      verify(auctionDao, never()).updateInTransaction(any(), any());
+      verify(userDao, never()).updateReservedBalanceInTransaction(any(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("checkstyle:MethodName")
+    @DisplayName("Số dư không đủ initialBid → tạo config FAILED, không insert bid, không freeze")
+    void createAutoBid_insufficientBalance_failed() {
+      Bidder poorBidder = new Bidder();
+      poorBidder.setId(BIDDER_ID);
+      poorBidder.setBalance(new BigDecimal("100000")); // chỉ 100k, cần 1.5M
+      when(userDao.findByIdForUpdate(mockHandle, BIDDER_ID)).thenReturn(poorBidder);
+
+      AutoBidConfig result = bidService.createAutoBid(AUCTION_ID, BIDDER_ID, MAX_BID, STEP);
+
+      assertEquals(AutoBidStatus.FAILED, result.getStatus());
+      assertEquals(AutoBidFailureReason.INSUFFICIENT_BALANCE, result.getFailureReason());
+
+      verify(bidTransactionDao, never()).insert(any(), any());
+      verify(auctionDao, never()).updateInTransaction(any(), any());
+      verify(userDao, never()).updateReservedBalanceInTransaction(any(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("checkstyle:MethodName")
+    @DisplayName("Phiên không RUNNING → reject với InvalidBidException")
+    void createAutoBid_auctionNotRunning_rejected() {
+      when(auctionDao.findByIdForUpdate(mockHandle, AUCTION_ID))
+          .thenReturn(buildAuction("OPEN", 3600));
+
+      assertThrows(
+          InvalidBidException.class,
+          () -> bidService.createAutoBid(AUCTION_ID, BIDDER_ID, MAX_BID, STEP));
+
+      verify(bidTransactionDao, never()).insert(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("checkstyle:MethodName")
+    @DisplayName("increment <= 0 → reject với InvalidBidException trước khi chạm DB")
+    void createAutoBid_invalidIncrement_rejected() {
+      assertThrows(
+          InvalidBidException.class,
+          () -> bidService.createAutoBid(AUCTION_ID, BIDDER_ID, MAX_BID, BigDecimal.ZERO));
+
+      verify(auctionDao, never()).findByIdForUpdate(any(), any());
     }
   }
 

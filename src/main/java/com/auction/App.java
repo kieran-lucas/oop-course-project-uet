@@ -26,7 +26,6 @@ import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.middleware.JwtMiddleware;
 import com.auction.model.Admin;
-import com.auction.model.AutoBidConfig;
 import com.auction.model.AutoBidStatus;
 import com.auction.model.DepositRecord;
 import com.auction.pattern.observer.AuctionEventManager;
@@ -43,7 +42,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.javalin.Javalin;
 import io.javalin.json.JavalinJackson;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -360,52 +358,9 @@ public class App {
           if (req.getMaxBid() == null || req.getIncrement() == null) {
             throw new InvalidBidException("maxBid và increment là bắt buộc");
           }
-          BigDecimal maxBid = req.getMaxBid();
-          BigDecimal increment = req.getIncrement();
-          if (maxBid.signum() <= 0 || increment.signum() <= 0) {
-            throw new InvalidBidException("maxBid và increment phải lớn hơn 0");
-          }
-
-          var auction =
-              auctionDao
-                  .findById(auctionId)
-                  .orElseThrow(
-                      () -> new NotFoundException("Không tìm thấy phiên đấu giá: " + auctionId));
-          if (auction.getStatus() != com.auction.model.AuctionStatus.OPEN
-              && auction.getStatus() != com.auction.model.AuctionStatus.RUNNING) {
-            throw new InvalidBidException(
-                "Chỉ có thể bật auto-bid cho phiên OPEN hoặc RUNNING. Trạng thái hiện tại: "
-                    + auction.getStatus());
-          }
-          if (auction.getSellerId().equals(bidderId)) {
-            throw new InvalidBidException("Bạn không thể bật auto-bid cho phiên của chính mình");
-          }
-          if (maxBid.compareTo(auction.getCurrentPrice()) <= 0) {
-            throw new InvalidBidException("maxBid phải cao hơn giá hiện tại của phiên");
-          }
-
-          var bidder =
-              userDao
-                  .findById(bidderId)
-                  .orElseThrow(
-                      () -> new NotFoundException("Không tìm thấy người dùng: " + bidderId));
-          if (bidder.getAvailableBalance().compareTo(maxBid) < 0) {
-            throw new InvalidBidException("Số dư khả dụng không đủ cho maxBid");
-          }
-
-          var existing = autoBidConfigDao.findByAuctionAndBidder(auctionId, bidderId);
-          if (existing.isPresent()) {
-            AutoBidConfig config = existing.get();
-            config.setMaxBid(maxBid);
-            config.setIncrement(increment);
-            config.setStatus(AutoBidStatus.ACTIVE);
-            autoBidConfigDao.update(config);
-            ctx.status(200).json(config);
-          } else {
-            AutoBidConfig config = new AutoBidConfig(auctionId, bidderId, maxBid, increment);
-            autoBidConfigDao.insert(config);
-            ctx.status(201).json(config);
-          }
+          var config =
+              bidService.createAutoBid(auctionId, bidderId, req.getMaxBid(), req.getIncrement());
+          ctx.status(201).json(config);
         });
 
     app.delete(

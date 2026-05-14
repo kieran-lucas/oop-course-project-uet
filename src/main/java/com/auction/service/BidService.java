@@ -8,6 +8,10 @@ import com.auction.dto.BidUpdateMessage;
 import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
+import com.auction.model.AuctionStatus;
+import com.auction.model.AutoBidConfig;
+import com.auction.model.AutoBidFailureReason;
+import com.auction.model.AutoBidStatus;
 import com.auction.model.BidTransaction;
 import com.auction.model.User;
 import com.auction.pattern.observer.AuctionEventManager;
@@ -208,6 +212,165 @@ public class BidService {
       throw new NotFoundException("Không tìm thấy phiên đấu giá với id: " + auctionId);
     }
     return bidTransactionDao.findByAuctionId(auctionId);
+  }
+
+  /**
+   * Tạo cấu hình auto-bid và đặt giá ban đầu nguyên tử trong một transaction.
+   *
+   * <p><b>Luồng xử lý:</b>
+   *
+   * <ol>
+   *   <li>Lock auction (SELECT FOR UPDATE).
+   *   <li>Auction phải RUNNING.
+   *   <li>Bidder không được là người đang dẫn đầu.
+   *   <li>Không được có ACTIVE config trong phiên này.
+   *   <li>initialBid = currentPrice + increment.
+   *   <li>Nếu initialBid > maxBid → tạo config EXHAUSTED, không bid.
+   *   <li>Nếu balance không đủ initialBid → tạo config FAILED, không bid.
+   *   <li>Ngược lại → tạo config ACTIVE, insert BidTransaction, freeze initialBid.
+   * </ol>
+   *
+   * @param auctionId ID phiên đấu giá
+   * @param bidderId ID người đặt giá (đã được xác thực là BIDDER ở tầng endpoint)
+   * @param maxBid giá tối đa người dùng chấp nhận trả
+   * @param increment bước giá tự động mỗi lần bid
+   * @return AutoBidConfig đã được lưu (status có thể là ACTIVE, EXHAUSTED hoặc FAILED)
+   */
+  public AutoBidConfig createAutoBid(
+      Long auctionId, Long bidderId, BigDecimal maxBid, BigDecimal increment) {
+    MDC.put("auctionId", String.valueOf(auctionId));
+    MDC.put("userId", String.valueOf(bidderId));
+    try {
+      if (increment == null || increment.signum() <= 0) {
+        throw new InvalidBidException("increment phải lớn hơn 0");
+      }
+      if (maxBid == null || maxBid.signum() <= 0) {
+        throw new InvalidBidException("maxBid phải lớn hơn 0");
+      }
+
+      AtomicReference<Auction> auctionRef = new AtomicReference<>();
+      AtomicBoolean antiSnipeTriggered = new AtomicBoolean(false);
+      AtomicBoolean bidPlaced = new AtomicBoolean(false);
+
+      AutoBidConfig savedConfig =
+          jdbi.inTransaction(
+              handle -> {
+                Auction auction;
+                try {
+                  auction = auctionDao.findByIdForUpdate(handle, auctionId);
+                } catch (IllegalStateException e) {
+                  throw new NotFoundException("Không tìm thấy phiên đấu giá: " + auctionId);
+                }
+                auctionRef.set(auction);
+
+                if (auction.getStatus() != AuctionStatus.RUNNING) {
+                  throw new InvalidBidException(
+                      "Auto-bid chỉ được tạo cho phiên RUNNING. Trạng thái hiện tại: "
+                          + auction.getStatus());
+                }
+
+                if (bidderId.equals(auction.getLeadingBidderId())) {
+                  throw new InvalidBidException(
+                      "Bạn đang là người đặt giá cao nhất, không cần bật auto-bid");
+                }
+
+                if (autoBidConfigDao.hasActiveConfig(handle, auctionId, bidderId)) {
+                  throw new InvalidBidException(
+                      "Bạn đã có auto-bid đang hoạt động cho phiên này."
+                          + " Hãy dừng trước khi tạo mới.");
+                }
+
+                BigDecimal initialBid = auction.getCurrentPrice().add(increment);
+
+                if (initialBid.compareTo(maxBid) > 0) {
+                  AutoBidConfig config = new AutoBidConfig(auctionId, bidderId, maxBid, increment);
+                  config.setStatus(AutoBidStatus.EXHAUSTED);
+                  config.setFailureReason(AutoBidFailureReason.MAX_PRICE_TOO_LOW);
+                  autoBidConfigDao.upsertInTransaction(handle, config);
+                  handle.execute(
+                      "INSERT INTO notifications (user_id, message, notification_type)"
+                          + " VALUES (?, ?, 'AUTOBID_FAILED')",
+                      bidderId,
+                      String.format(
+                          "Auto-bid cho phiên #%d không được kích hoạt:"
+                              + " maxBid thấp hơn giá đặt ban đầu (%,d VNĐ)",
+                          auctionId, initialBid.longValue()));
+                  return config;
+                }
+
+                User bidder = userDao.findByIdForUpdate(handle, bidderId);
+                if (bidder.getAvailableBalance().compareTo(initialBid) < 0) {
+                  AutoBidConfig config = new AutoBidConfig(auctionId, bidderId, maxBid, increment);
+                  config.setStatus(AutoBidStatus.FAILED);
+                  config.setFailureReason(AutoBidFailureReason.INSUFFICIENT_BALANCE);
+                  autoBidConfigDao.upsertInTransaction(handle, config);
+                  handle.execute(
+                      "INSERT INTO notifications (user_id, message, notification_type)"
+                          + " VALUES (?, ?, 'AUTOBID_FAILED')",
+                      bidderId,
+                      String.format(
+                          "Auto-bid cho phiên #%d không được kích hoạt:"
+                              + " số dư không đủ. Cần %,d VNĐ, có %,d VNĐ",
+                          auctionId,
+                          initialBid.longValue(),
+                          bidder.getAvailableBalance().longValue()));
+                  return config;
+                }
+
+                Long previousLeaderId = auction.getLeadingBidderId();
+                BigDecimal previousPrice = auction.getCurrentPrice();
+
+                auction.setCurrentPrice(initialBid);
+                auction.setLeadingBidderId(bidderId);
+
+                if (auction.getRemainingTimeMs() < ANTI_SNIPE_THRESHOLD_MS) {
+                  auction.setEndTime(
+                      auction.getEndTime().plusSeconds(ANTI_SNIPE_EXTENSION_SECONDS));
+                  antiSnipeTriggered.set(true);
+                }
+
+                if (previousLeaderId != null) {
+                  userDao.releaseReservedBalanceInTransaction(
+                      handle, previousLeaderId, previousPrice);
+                }
+                userDao.updateReservedBalanceInTransaction(handle, bidderId, initialBid);
+
+                auctionDao.updateInTransaction(handle, auction);
+
+                if (previousLeaderId != null && !previousLeaderId.equals(bidderId)) {
+                  handle.execute(
+                      "INSERT INTO notifications (user_id, message, notification_type)"
+                          + " VALUES (?, ?, 'OUTBID')",
+                      previousLeaderId,
+                      String.format(
+                          "Bạn đã bị vượt giá tại phiên #%d. Giá hiện tại: %,d VNĐ",
+                          auctionId, initialBid.longValue()));
+                }
+
+                BidTransaction tx = new BidTransaction(auctionId, bidderId, initialBid, true);
+                bidTransactionDao.insert(handle, tx);
+
+                AutoBidConfig config = new AutoBidConfig(auctionId, bidderId, maxBid, increment);
+                autoBidConfigDao.upsertInTransaction(handle, config);
+
+                bidPlaced.set(true);
+                return config;
+              });
+
+      if (bidPlaced.get()) {
+        Auction auction = auctionRef.get();
+        if (antiSnipeTriggered.get()) {
+          BidUpdateMessage timeMsg = BidUpdateMessage.timeExtended(auctionId, auction.getEndTime());
+          eventManager.notifyTimeExtended(auctionId, timeMsg);
+        }
+        notifyBidUpdate(auction, auctionId, bidderId, auction.getCurrentPrice(), true);
+        triggerAutoBid(auctionId, auction.getCurrentPrice(), bidderId);
+      }
+
+      return savedConfig;
+    } finally {
+      MDC.clear();
+    }
   }
 
   // ── Phương thức nội bộ ────────────────────────────────────

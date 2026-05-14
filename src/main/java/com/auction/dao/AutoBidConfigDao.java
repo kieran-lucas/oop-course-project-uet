@@ -467,6 +467,52 @@ public class AutoBidConfigDao {
     return rowsAffected;
   }
 
+  /**
+   * Upsert auto-bid config trong một transaction đang mở.
+   *
+   * <p>INSERT mới nếu chưa có config nào cho cặp (auction_id, bidder_id); UPDATE nếu đã có config
+   * với status khác ACTIVE (STOPPED/EXHAUSTED/FAILED). Caller phải đảm bảo không có ACTIVE config
+   * trước khi gọi method này.
+   */
+  public AutoBidConfig upsertInTransaction(Handle handle, AutoBidConfig config) {
+    String sql =
+        """
+        INSERT INTO auto_bid_configs
+            (auction_id, bidder_id, max_bid, increment_amount, active, status,
+             failure_reason, registered_at)
+        VALUES
+            (:auctionId, :bidderId, :maxBid, :increment, :active, :status,
+             :failureReason, :registeredAt)
+        ON CONFLICT (auction_id, bidder_id) DO UPDATE
+            SET max_bid          = EXCLUDED.max_bid,
+                increment_amount = EXCLUDED.increment_amount,
+                active           = EXCLUDED.active,
+                status           = EXCLUDED.status,
+                failure_reason   = EXCLUDED.failure_reason,
+                registered_at    = EXCLUDED.registered_at
+        RETURNING id
+        """;
+
+    long id =
+        handle
+            .createQuery(sql)
+            .bind("auctionId", config.getAuctionId())
+            .bind("bidderId", config.getBidderId())
+            .bind("maxBid", config.getMaxBid())
+            .bind("increment", config.getIncrement())
+            .bind("active", config.isActive())
+            .bind("status", config.getStatus().name())
+            .bind(
+                "failureReason",
+                config.getFailureReason() != null ? config.getFailureReason().name() : null)
+            .bind("registeredAt", config.getRegisteredAt())
+            .mapTo(Long.class)
+            .one();
+
+    config.setId(id);
+    return config;
+  }
+
   // ============================================================
   // DELETE (Chỉ dùng cho test)
   // ============================================================
