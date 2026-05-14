@@ -20,8 +20,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Khởi tạo và quản lý kết nối database (Singleton, thread-safe).
  *
- * <p>Luôn dùng Embedded PostgreSQL — không cần cài PostgreSQL trên máy. Người dùng chỉ cần chạy
- * {@code java -jar auction-server.jar} là đủ.
+ * <p>Mặc định dùng Embedded PostgreSQL — không cần cài PostgreSQL trên máy. CI/test có thể truyền
+ * {@code DB_URL}, {@code DB_USER}, {@code DB_PASSWORD} để dùng PostgreSQL service bên ngoài.
  *
  * <p>Data được lưu cố định tại {@code data/postgres/} trong thư mục chạy ứng dụng, đảm bảo không bị
  * reset giữa các lần chạy.
@@ -65,11 +65,37 @@ public class DatabaseConfig {
     if (jdbi == null) {
       synchronized (DatabaseConfig.class) {
         if (jdbi == null) {
-          initEmbeddedPostgres();
+          String externalDbUrl = System.getenv("DB_URL");
+          if (externalDbUrl != null && !externalDbUrl.isBlank()) {
+            initExternalPostgres(externalDbUrl);
+          } else {
+            initEmbeddedPostgres();
+          }
         }
       }
     }
     return jdbi;
+  }
+
+  /** Connect to a caller-provided PostgreSQL database and let Flyway prepare the schema. */
+  private static void initExternalPostgres(String dbUrl) {
+    LOGGER.info("Connecting to external PostgreSQL database: {}", dbUrl);
+
+    String dbUser = System.getenv().getOrDefault("DB_USER", "postgres");
+    String dbPass = System.getenv().getOrDefault("DB_PASSWORD", "");
+
+    try {
+      HikariConfig config = buildHikariConfig(dbUrl, dbUser, dbPass);
+      dataSource = new HikariDataSource(config);
+
+      runMigrations(dataSource);
+
+      jdbi = Jdbi.create(dataSource);
+      LOGGER.info("External PostgreSQL connection initialized successfully");
+    } catch (Exception e) {
+      LOGGER.error("Could not initialize external PostgreSQL: {}", e.getMessage(), e);
+      throw new RuntimeException("Could not initialize external database", e);
+    }
   }
 
   /**

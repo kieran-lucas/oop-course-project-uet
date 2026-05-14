@@ -1013,7 +1013,8 @@ auction-system/
 │       └── ci.yml                              ← GitHub Actions pipeline (trigger: push + PR → main)
 │                                                  Steps: spotlessCheck → clean test check jacocoTestReport
 │                                                  check runs Checkstyle and SpotBugs through Gradle
-│                                                  Spins up a PostgreSQL 16 service container for integration tests
+│                                                  Spins up an empty PostgreSQL 16 test database
+│                                                  Flyway applies all migrations during test bootstrap
 │                                                  Uploads coverage artifact on completion
 │
 ├── assets/
