@@ -2,6 +2,7 @@ package com.auction;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.auction.config.DatabaseConfig;
+import com.auction.config.JwtUtil;
 import com.auction.controller.AuctionController;
 import com.auction.controller.AuctionWebSocketHandler;
 import com.auction.controller.AuthController;
@@ -76,7 +77,7 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>Database luôn dùng Embedded PostgreSQL và lưu tại {@code data/postgres}; không cần DB_URL.
- *   <li>JWT_SECRET — khóa ký JWT (default: "auction-secret-key-dev").
+ *   <li>JWT_SECRET — required JWT signing key; must be at least 32 bytes in UTF-8.
  * </ul>
  */
 public class App {
@@ -86,6 +87,7 @@ public class App {
   private static final Path DATA_DIR = Path.of("data");
   private static final Path SERVER_PID_FILE = DATA_DIR.resolve("server.pid");
   private static final Path SERVER_TOKEN_FILE = DATA_DIR.resolve("server.token");
+  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
   private static final AtomicBoolean SHUTTING_DOWN = new AtomicBoolean(false);
 
   public static void main(String[] args) {
@@ -93,6 +95,8 @@ public class App {
       System.out.printf("Server is already running at http://localhost:%d%n", SERVER_PORT);
       return;
     }
+
+    JwtUtil.validateConfiguration();
 
     // ── 1. Cấu hình Jackson ───────────────────────────��──────
     ObjectMapper mapper = new ObjectMapper();
@@ -593,7 +597,7 @@ public class App {
       }
 
       byte[] bytes = new byte[32];
-      new SecureRandom().nextBytes(bytes);
+      SECURE_RANDOM.nextBytes(bytes);
       String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
       Files.writeString(SERVER_TOKEN_FILE, token, StandardCharsets.UTF_8);
       return token;

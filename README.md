@@ -68,7 +68,7 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 - [x] MVC on client side (FXML + ui/controller) and server side (Controller → Service → DAO)
 - [x] Gradle build tool, Google Java Style, Conventional Commits
 - [x] Unit Tests - 17 files, JUnit 5 + Mockito, integration tests against real PostgreSQL
-- [x] CI/CD - GitHub Actions: format → lint → test → coverage
+- [x] CI/CD - GitHub Actions: format check → static analysis → test → coverage
 
 ### Advanced
 
@@ -879,6 +879,20 @@ java -version
 
 ### ▶️ Running the Application
 
+#### Configuration
+
+`JWT_SECRET` is required before starting the server. It must be unique per environment
+and at least 32 bytes when encoded as UTF-8. The server fails fast if it is missing,
+blank, or too short.
+
+```bash
+export JWT_SECRET="replace-with-a-random-secret-of-at-least-32-bytes"
+```
+
+```powershell
+$env:JWT_SECRET = "replace-with-a-random-secret-of-at-least-32-bytes"
+```
+
 **Step 1 - Start the server** (wait for `Javalin started in X ms` before proceeding)
 
 ```bash
@@ -996,7 +1010,8 @@ auction-system/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                              ← GitHub Actions pipeline (trigger: push + PR → main)
-│                                                  Steps: spotlessCheck → checkstyleMain → test → jacocoTestReport
+│                                                  Steps: spotlessCheck → clean test check jacocoTestReport
+│                                                  check runs Checkstyle and SpotBugs through Gradle
 │                                                  Spins up a PostgreSQL 16 service container for integration tests
 │                                                  Uploads coverage artifact on completion
 │

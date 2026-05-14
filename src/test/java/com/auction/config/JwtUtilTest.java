@@ -78,6 +78,24 @@ class JwtUtilTest {
         });
   }
 
+  @Test
+  @Order(3)
+  @DisplayName("requireJwtSecret() rejects missing, blank, and short secrets")
+  void requireJwtSecretRejectsInvalidSecrets() {
+    assertThrows(IllegalStateException.class, () -> JwtUtil.requireJwtSecret(null));
+    assertThrows(IllegalStateException.class, () -> JwtUtil.requireJwtSecret("   "));
+    assertThrows(IllegalStateException.class, () -> JwtUtil.requireJwtSecret("too-short"));
+  }
+
+  @Test
+  @Order(4)
+  @DisplayName("requireJwtSecret() accepts secrets with at least 32 UTF-8 bytes")
+  void requireJwtSecretAcceptsValidSecret() {
+    String secret = "12345678901234567890123456789012";
+
+    assertEquals(secret, JwtUtil.requireJwtSecret(secret));
+  }
+
   /**
    * Placeholder cho test kiểm tra token hết hạn — hiện chưa thực hiện được tự động.
    *
@@ -93,7 +111,7 @@ class JwtUtilTest {
    * </ol>
    */
   @Test
-  @Order(3)
+  @Order(5)
   @DisplayName("testExpiredToken()")
   void testExpiredToken() {
     // Tạm thời bỏ trống — xem Javadoc của method này để biết lý do và hướng cải thiện.

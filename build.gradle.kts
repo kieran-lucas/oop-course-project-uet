@@ -229,6 +229,7 @@ tasks.register<JavaExec>("runClient") {
 tasks.test {
     useJUnitPlatform()
     maxHeapSize = "512m"
+    environment("JWT_SECRET", "test-only-jwt-secret-with-at-least-32-bytes")
     systemProperty("auction.db.dir", layout.buildDirectory.dir("embedded-postgres/test").get().asFile.absolutePath)
     systemProperty("auction.db.pid", layout.buildDirectory.file("embedded-postgres/test-postgres.pid").get().asFile.absolutePath)
 
