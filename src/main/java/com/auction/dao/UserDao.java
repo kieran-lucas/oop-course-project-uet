@@ -372,14 +372,18 @@ public class UserDao {
             .createUpdate(
                 """
                 UPDATE users
-                SET reserved_balance = GREATEST(reserved_balance - :amount, 0)
+                SET reserved_balance = reserved_balance - :amount
                 WHERE id = :userId
+                  AND reserved_balance >= :amount
                 """)
             .bind("amount", amount)
             .bind("userId", userId)
             .execute();
     if (rows == 0) {
-      throw new IllegalStateException("Không tìm thấy user để release tiền giữ chỗ: " + userId);
+      throw new IllegalStateException(
+          "Không thể release tiền giữ chỗ cho user "
+              + userId
+              + ": reserved_balance không đủ hoặc user không tồn tại");
     }
   }
 

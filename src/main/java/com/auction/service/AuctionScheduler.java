@@ -247,17 +247,27 @@ public class AuctionScheduler {
               if (balance.compareTo(price) >= 0) {
                 BigDecimal balanceBefore = balance;
                 // Trừ tiền bidder và release phần tiền đã giữ cho bid thắng.
-                handle
-                    .createUpdate(
-                        """
+                int winnerRows =
+                    handle
+                        .createUpdate(
+                            """
                         UPDATE users
                         SET balance = balance - :price,
-                            reserved_balance = GREATEST(reserved_balance - :price, 0)
+                            reserved_balance = reserved_balance - :price
                         WHERE id = :userId
+                          AND reserved_balance >= :price
                         """)
-                    .bind("price", price)
-                    .bind("userId", winnerId)
-                    .execute();
+                        .bind("price", price)
+                        .bind("userId", winnerId)
+                        .execute();
+                if (winnerRows == 0) {
+                  throw new IllegalStateException(
+                      "Không thể thanh toán phiên #"
+                          + auction.getId()
+                          + ": tiền giữ chỗ của bidder #"
+                          + winnerId
+                          + " không đủ");
+                }
                 LOG.info("Phiên #{}: trừ {} từ bidder #{}", auction.getId(), price, winnerId);
                 LOG.info(
                     "Phiên #{}: bidder #{} balance {} → {}",

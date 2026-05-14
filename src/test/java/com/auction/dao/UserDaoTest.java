@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.auction.config.DatabaseConfig;
 import com.auction.model.*;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.jdbi.v3.core.Jdbi;
@@ -209,5 +210,59 @@ class UserDaoTest {
 
     assertTrue(deleted);
     assertFalse(userDao.findById(saved.getId()).isPresent());
+  }
+
+  @Test
+  @Order(8)
+  @DisplayName("Release reserved_balance bằng đúng amount thì về 0")
+  void releaseReservedBalanceExactAmountSucceeds() {
+    User saved = userDao.insert(new Bidder("reserve_exact", "hash", "exact@test.com"));
+
+    jdbi.useTransaction(
+        handle -> {
+          userDao.updateReservedBalanceInTransaction(handle, saved.getId(), new BigDecimal("100"));
+          userDao.releaseReservedBalanceInTransaction(handle, saved.getId(), new BigDecimal("100"));
+        });
+
+    User found = userDao.findById(saved.getId()).orElseThrow();
+    assertEquals(0, BigDecimal.ZERO.compareTo(found.getReservedBalance()));
+  }
+
+  @Test
+  @Order(9)
+  @DisplayName("Release reserved_balance nhỏ hơn số đang giữ thì trừ đúng amount")
+  void releaseReservedBalancePartialAmountSucceeds() {
+    User saved = userDao.insert(new Bidder("reserve_partial", "hash", "partial@test.com"));
+
+    jdbi.useTransaction(
+        handle -> {
+          userDao.updateReservedBalanceInTransaction(handle, saved.getId(), new BigDecimal("150"));
+          userDao.releaseReservedBalanceInTransaction(handle, saved.getId(), new BigDecimal("40"));
+        });
+
+    User found = userDao.findById(saved.getId()).orElseThrow();
+    assertEquals(0, new BigDecimal("110").compareTo(found.getReservedBalance()));
+  }
+
+  @Test
+  @Order(10)
+  @DisplayName("Release reserved_balance lớn hơn số đang giữ thì throw và rollback")
+  void releaseReservedBalanceUnderflowThrowsAndRollsBack() {
+    User saved = userDao.insert(new Bidder("reserve_underflow", "hash", "underflow@test.com"));
+    jdbi.useTransaction(
+        handle ->
+            userDao.updateReservedBalanceInTransaction(
+                handle, saved.getId(), new BigDecimal("50")));
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            jdbi.useTransaction(
+                handle ->
+                    userDao.releaseReservedBalanceInTransaction(
+                        handle, saved.getId(), new BigDecimal("100"))));
+
+    User found = userDao.findById(saved.getId()).orElseThrow();
+    assertEquals(0, new BigDecimal("50").compareTo(found.getReservedBalance()));
   }
 }
