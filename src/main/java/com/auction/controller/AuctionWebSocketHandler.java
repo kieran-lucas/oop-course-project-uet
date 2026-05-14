@@ -13,10 +13,15 @@ import io.javalin.websocket.WsConnectContext;
 import io.javalin.websocket.WsContext;
 import io.javalin.websocket.WsErrorContext;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +73,17 @@ public class AuctionWebSocketHandler {
   /** Map session → WebSocketObserver tương ứng. Dùng để unsubscribe khi client disconnect. */
   private final Map<WsContext, WebSocketObserver> observers = new ConcurrentHashMap<>();
 
+  private final Map<WsContext, Instant> sessionExpiresAt = new ConcurrentHashMap<>();
+  private final Map<WsContext, ScheduledFuture<?>> expirationTasks = new ConcurrentHashMap<>();
+
+  private final ScheduledExecutorService expirationScheduler =
+      Executors.newSingleThreadScheduledExecutor(
+          r -> {
+            Thread t = new Thread(r, "ws-token-expiration");
+            t.setDaemon(true);
+            return t;
+          });
+
   private final AuctionEventManager eventManager;
   private final ObjectMapper objectMapper;
 
@@ -103,6 +119,7 @@ public class AuctionWebSocketHandler {
 
       DecodedJWT decoded = JwtUtil.verifyToken(token);
       String username = decoded.getClaim("username").asString();
+      registerExpiration(ctx, decoded);
 
       // Lưu connection
       connections.computeIfAbsent(auctionId, k -> new CopyOnWriteArraySet<>()).add(ctx);
@@ -179,7 +196,10 @@ public class AuctionWebSocketHandler {
 
       for (WsContext wsCtx : auctionConnections) {
         try {
-          if (wsCtx.session.isOpen()) {
+          if (isSessionExpired(wsCtx)) {
+            closeExpiredSession(wsCtx);
+            removeConnection(wsCtx);
+          } else if (wsCtx.session.isOpen()) {
             wsCtx.send(json);
           } else {
             auctionConnections.remove(wsCtx);
@@ -227,6 +247,7 @@ public class AuctionWebSocketHandler {
         return;
       }
 
+      registerExpiration(ctx, decoded);
       userConnections.computeIfAbsent(userId, k -> new CopyOnWriteArraySet<>()).add(ctx);
       LOGGER.info("User WebSocket kết nối: user={}, userId=#{}", username, userId);
 
@@ -240,13 +261,13 @@ public class AuctionWebSocketHandler {
 
   /** Xử lý ngắt kết nối kênh user. */
   public void onUserClose(WsCloseContext ctx) {
-    userConnections.values().forEach(set -> set.remove(ctx));
+    removeUserConnection(ctx);
     LOGGER.debug("User WebSocket ngắt kết nối: status={}", ctx.status());
   }
 
   /** Xử lý lỗi kênh user. */
   public void onUserError(WsErrorContext ctx) {
-    userConnections.values().forEach(set -> set.remove(ctx));
+    removeUserConnection(ctx);
     if (ctx.error() != null) {
       LOGGER.error("Lỗi User WebSocket: {}", ctx.error().getMessage());
     }
@@ -283,7 +304,10 @@ public class AuctionWebSocketHandler {
       String json = objectMapper.writeValueAsString(msg);
       for (WsContext wsCtx : sessions) {
         try {
-          if (wsCtx.session.isOpen()) {
+          if (isSessionExpired(wsCtx)) {
+            closeExpiredSession(wsCtx);
+            removeUserConnection(wsCtx);
+          } else if (wsCtx.session.isOpen()) {
             wsCtx.send(json);
           } else {
             sessions.remove(wsCtx);
@@ -306,6 +330,7 @@ public class AuctionWebSocketHandler {
   /** Xóa connection và unsubscribe observer khỏi EventManager. */
   private void removeConnection(WsContext ctx) {
     connections.values().forEach(set -> set.remove(ctx));
+    clearExpirationTracking(ctx);
 
     WebSocketObserver observer = observers.remove(ctx);
     if (observer != null) {
@@ -313,7 +338,65 @@ public class AuctionWebSocketHandler {
     }
   }
 
-  /** Lấy số lượng kết nối đang active cho một phiên — dùng cho health check. */
+  private void removeUserConnection(WsContext ctx) {
+    userConnections.values().forEach(set -> set.remove(ctx));
+    clearExpirationTracking(ctx);
+  }
+
+  private void registerExpiration(WsContext ctx, DecodedJWT decoded) {
+    Instant expiresAt = decoded.getExpiresAtAsInstant();
+    if (expiresAt == null) {
+      ctx.session.close(4001, "Missing token expiration");
+      return;
+    }
+
+    sessionExpiresAt.put(ctx, expiresAt);
+    ScheduledFuture<?> task =
+        expirationScheduler.schedule(
+            () -> {
+              if (isSessionExpired(ctx)) {
+                closeExpiredSession(ctx);
+                removeConnection(ctx);
+                removeUserConnection(ctx);
+              }
+            },
+            millisUntilExpiration(decoded, Instant.now()),
+            TimeUnit.MILLISECONDS);
+    expirationTasks.put(ctx, task);
+  }
+
+  private boolean isSessionExpired(WsContext ctx) {
+    Instant expiresAt = sessionExpiresAt.get(ctx);
+    return expiresAt != null && !Instant.now().isBefore(expiresAt);
+  }
+
+  private void closeExpiredSession(WsContext ctx) {
+    try {
+      if (ctx.session.isOpen()) {
+        ctx.session.close(4001, "Token expired");
+      }
+    } catch (Exception e) {
+      LOGGER.debug("Could not close expired WebSocket session: {}", e.getMessage());
+    }
+  }
+
+  private void clearExpirationTracking(WsContext ctx) {
+    sessionExpiresAt.remove(ctx);
+    ScheduledFuture<?> task = expirationTasks.remove(ctx);
+    if (task != null) {
+      task.cancel(false);
+    }
+  }
+
+  static long millisUntilExpiration(DecodedJWT decoded, Instant now) {
+    Instant expiresAt = decoded.getExpiresAtAsInstant();
+    if (expiresAt == null) {
+      return 0L;
+    }
+    return Math.max(0L, expiresAt.toEpochMilli() - now.toEpochMilli());
+  }
+
+  /** Lấy số lượng kết nối đang active cho một phiên - dùng cho health check. */
   public int getConnectionCount(Long auctionId) {
     Set<WsContext> set = connections.get(auctionId);
     return set != null ? set.size() : 0;

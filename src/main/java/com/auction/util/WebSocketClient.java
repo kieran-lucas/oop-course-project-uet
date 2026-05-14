@@ -235,7 +235,10 @@ public class WebSocketClient {
 
                 auctionSocket = null;
 
-                if (!intentionalAuctionClose) {
+                if (isAuthClose(statusCode, reason)) {
+                  intentionalAuctionClose = true;
+                  LOGGER.warn("Auction WebSocket auth closed by server: {}", reason);
+                } else if (!intentionalAuctionClose) {
                   scheduleAuctionReconnect();
                 }
 
@@ -419,7 +422,10 @@ public class WebSocketClient {
 
                 userSocket = null;
 
-                if (!intentionalUserClose) {
+                if (isAuthClose(statusCode, reason)) {
+                  intentionalUserClose = true;
+                  LOGGER.warn("User WebSocket auth closed by server: {}", reason);
+                } else if (!intentionalUserClose) {
                   scheduleUserReconnect();
                 }
 
@@ -518,6 +524,12 @@ public class WebSocketClient {
   public boolean isUserConnected() {
 
     return userSocket != null && !userSocket.isInputClosed();
+  }
+
+  private boolean isAuthClose(int statusCode, String reason) {
+    return statusCode == 4001
+        && reason != null
+        && reason.toLowerCase(java.util.Locale.ROOT).contains("token");
   }
 
   // =========================================================
