@@ -64,18 +64,26 @@ OPEN ──► RUNNING ──► SETTLING ──► PAID
           └── CANCELED (only from OPEN, before any bid)
 ```
 
-| Status    | Description |
-|-----------|-------------|
-| OPEN      | Created, awaiting `start_time`; seller may edit or cancel |
-| RUNNING   | Accepting bids; transitions when `start_time` is reached |
-| SETTLING  | Locked during settlement processing; all operations blocked |
-| PAID      | Winner paid, seller received funds (terminal) |
-| FINISHED  | Auction ended with no bids, or settlement could not be completed (terminal) |
-| CANCELED  | Cancelled by seller or admin (terminal) |
+### Status reference
+
+| Status     | Stored value | Plain-English meaning | Terminal? |
+|------------|-------------|----------------------|-----------|
+| `OPEN`     | `"OPEN"`    | **Created, not yet started.** `start_time` has not been reached. Bids are NOT accepted. Seller may still edit or cancel. | No |
+| `RUNNING`  | `"RUNNING"` | **Actively accepting bids.** Scheduler transitions from `OPEN` once `start_time` ≤ now. | No |
+| `SETTLING` | `"SETTLING"` | **Settlement in progress.** Scheduler claims this status atomically before processing payment. All client operations are blocked. Transient — resolved within the same scheduler tick. | No |
+| `PAID`     | `"PAID"`    | **Successful outcome.** Winner's funds deducted, seller credited. The only status that represents a completed sale. | Yes |
+| `FINISHED` | `"FINISHED"` | **Ended without a completed sale.** Two sub-cases: (1) auction expired with zero bids — no money moves; (2) winner existed but had insufficient funds at settlement time — reserved balance released, debt logged for admin review. | Yes |
+| `CANCELED` | `"CANCELED"` | **Explicitly cancelled** by seller (only while `OPEN`) or by admin (any non-terminal status). All reserved balances released. | Yes |
+
+> **Common confusion**
+>
+> - `OPEN` does **not** mean "open for bidding." It means the auction exists but `start_time` is in the future. Use `RUNNING` to check whether bids are accepted.
+> - `FINISHED` does **not** mean "successfully finished." It is the failure/no-sale terminal state. A completed sale always ends in `PAID`.
+> - The enum value in code is `CANCELED` (with a D), not `CANCEL`.
 
 ### Seller cancel rule
-- A seller may cancel only while the auction is in `OPEN` status (i.e., no bids have been placed yet).
-- Admins may force-cancel at any point before `PAID`.
+- A seller may cancel only while the auction is in `OPEN` status (i.e., before `start_time` and therefore before any bids).
+- Admins may force-cancel at any non-terminal status (`OPEN`, `RUNNING`, or `SETTLING`).
 
 ### One auction per item
 - An item can belong to at most one `OPEN` or `RUNNING` auction at a time (item status transitions to `IN_AUCTION` on auction creation, preventing a second auction).
