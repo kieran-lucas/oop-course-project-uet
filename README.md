@@ -331,27 +331,18 @@ classDiagram
     AuctionState <|.. CanceledState
     Auction --> AuctionState : delegates to
 
-    class BidStrategy {
-        <<interface>>
-        +execute(Auction, Bidder, BigDecimal, boolean) void
-    }
-    class ManualBidStrategy {
-        +execute(Auction, Bidder, BigDecimal, boolean) void
-    }
     class AutoBidStrategy {
         -PriorityQueue~AutoBidConfig~ queue
-        +execute(Auction, Bidder, BigDecimal, boolean) void
+        +executeAllInTransaction(Handle, Long, BigDecimal, Long, InTransactionBidExecutor) void
     }
     class BidService {
-        -BidStrategy strategy
+        -AutoBidStrategy autoBidStrategy
         -AuctionEventManager eventManager
-        +setStrategy(BidStrategy) void
-        +bid(Auction, Bidder, BigDecimal, boolean) void
+        +placeBid(Long, Long, BigDecimal, boolean) BidTransaction
+        +createAutoBid(Long, Long, BigDecimal, BigDecimal) AutoBidConfig
     }
 
-    BidStrategy <|.. ManualBidStrategy
-    BidStrategy <|.. AutoBidStrategy
-    BidService --> BidStrategy : uses
+    BidService --> AutoBidStrategy : drives chain
     BidService --> AuctionEventManager : notifies
 
     class AuctionEventListener {
@@ -612,8 +603,8 @@ graph TB
          append point to LineChart
          reset countdown timer
 
-6. BidService (after transaction)
-   └─► autoBidStrategy.execute() → trigger auto-bid chain if any configs exist
+6. BidService (inside same transaction, before commit)
+   └─► autoBidStrategy.executeAllInTransaction() → auto-bid chain (atomic with manual bid)
 ```
 
 ---
@@ -648,15 +639,18 @@ ItemFactory.create(CreateItemRequest, sellerId)
 
 `ItemService` calls `ItemFactory` without needing to know which subclass is being instantiated.
 
-### 3. Strategy - Bid Execution
+### 3. Strategy - Auto-Bid Chain Execution
 
 ```
-BidStrategy (interface)
-  └── execute(auction, bidderId, amount, isAutoBid)
+AutoBidStrategy
+  └── executeAllInTransaction(handle, auctionId, currentPrice, leaderId, executor)
 
-ManualBidStrategy   → validate amount > currentPrice → update auction
-AutoBidStrategy     → PriorityQueue<AutoBidConfig> sorted by registeredAt
-                    → chain auto-bids until maxBid is exceeded
+Manual bid validation lives in RunningState.placeBid (State pattern).
+AutoBidStrategy owns the chain logic:
+  → PriorityQueue<AutoBidConfig> sorted by registeredAt (FIFO fairness)
+  → InTransactionBidExecutor callback to avoid circular dependency with BidService
+  → EXHAUSTED when nextBid > maxBid · FAILED on insufficient balance
+  → max 100 auto-bids per chain (safety limit)
 ```
 
 ### 4. State - Auction Lifecycle
@@ -1182,10 +1176,8 @@ auction-system/
 │   │   │   │   │   └── RunningState.java       ← Allows bid + time extension (anti-sniping); rejects edit
 │   │   │   │   │
 │   │   │   │   └── strategy/
-│   │   │   │       ├── AutoBidStrategy.java    ← Iterates PriorityQueue of AutoBidConfigs (sorted by registeredAt)
-│   │   │   │       │                              Chains auto-bids until all participants' maxBids are exceeded
-│   │   │   │       ├── BidStrategy.java        ← Strategy interface: execute(auction, bidderId, amount, isAutoBid)
-│   │   │   │       └── ManualBidStrategy.java  ← Validates amount > currentPrice, updates auction, persists transaction
+│   │   │   │       └── AutoBidStrategy.java    ← Iterates PriorityQueue of AutoBidConfigs (sorted by registeredAt)
+│   │   │   │                                      Chains auto-bids until all participants' maxBids are exceeded
 │   │   │   │
 │   │   │   ├── service/
 │   │   │   │   ├── AuctionScheduler.java       ← ScheduledExecutorService: polls DB to auto-transition states
@@ -1327,7 +1319,7 @@ auction-system/
 | OOP principles | 1.0 | Encapsulation (private + getter/setter) · Inheritance · Polymorphism (`getRole()`, `getCategory()`) · Abstraction (abstract `User`, `Item`) |
 | Design patterns | 1.0 | `pattern/observer/` · `pattern/factory/` · `pattern/strategy/` · `pattern/state/` · `dao/` |
 | User & item management | 1.0 | `AuthController` · `ItemController` · `AuctionController` + 12 JavaFX screens |
-| Auction functionality | 1.0 | `BidService.placeBid()` · `BidController` · `ManualBidStrategy` · `RunningState` |
+| Auction functionality | 1.0 | `BidService.placeBid()` · `BidController` · `RunningState` · `AutoBidStrategy` |
 | Error handling & exceptions | 1.0 | `exception/AuctionException` (abstract) + 5 custom + handlers in `App.java` |
 | Concurrent bidding | 1.0 | `BidService` → `jdbi.inTransaction()` → `AuctionDao.findByIdForUpdate()` (`SELECT FOR UPDATE`) |
 | Real-time updates | 0.5 | `AuctionEventManager` · `WebSocketObserver` · `AuctionWebSocketHandler` |
