@@ -56,7 +56,9 @@ import org.slf4j.LoggerFactory;
  *       /api/auctions/{id}/bids} bằng luồng nền khi vào màn hình.
  *   <li>Kết nối WebSocket để nhận cập nhật giá real-time; ngắt kết nối và chuyển sang {@link
  *       com.auction.util.BackgroundBidWatcher} khi rời màn hình (nếu user đã bid).
- *   <li>Poll số dư tài khoản mỗi 5 giây để hiển thị số dư hiện tại và toast khi số dư tăng.
+ *   <li>Poll số dư tài khoản mỗi 5 giây CHỈ để cập nhật label số dư hiển thị trên form. Thông báo
+ *       biến động số dư (deposit, settlement, payout...) do server đẩy qua WebSocket
+ *       BALANCE_UPDATED — không tự suy ra từ diff polling để tránh thông báo sai.
  * </ul>
  *
  * <p><b>Các phương thức chính:</b>
@@ -127,6 +129,7 @@ public class AuctionDetailController implements Navigable {
 
   // ── Bid history ──
   @FXML private ListView<String> bidHistoryList;
+  @FXML private Label totalBidsLabel;
 
   // ── Bid chart ──
   @FXML private AreaChart<Number, Number> bidChart;
@@ -141,8 +144,12 @@ public class AuctionDetailController implements Navigable {
   private String currentItemName;
   private boolean userHasBid;
   private BigDecimal lastKnownBalance;
+  private BigDecimal currentPriceValue;
   private Timeline balancePollTimeline;
   private RotateTransition autoBidSpinnerTransition;
+
+  /** Last seen auto-bid status — used to detect transitions and surface a notification once. */
+  private String lastAutoBidStatus;
 
   private final WebSocketClient wsClient = new WebSocketClient();
   private final ObservableList<String> bidHistoryItems = FXCollections.observableArrayList();
@@ -177,11 +184,14 @@ public class AuctionDetailController implements Navigable {
     SceneManager sm = SceneManager.getInstance();
     usernameLabel.setText(sm.getCurrentUsername() != null ? sm.getCurrentUsername() : "");
     bidHistoryList.setItems(bidHistoryItems);
+    updateTotalBidsLabel(0);
 
     // Reset per-auction state
     userHasBid = false;
     currentItemName = null;
     lastKnownBalance = null;
+    currentPriceValue = null;
+    lastAutoBidStatus = null;
 
     // Clear stale form state from previous navigation (controller is cached)
     hideBidError();
@@ -191,9 +201,10 @@ public class AuctionDetailController implements Navigable {
       balanceLabel.setText("Số dư: đang tải...");
     }
     autoBidStatusLabel.setText("");
+    autoBidStatusLabel.setStyle("");
     maxBidField.clear();
     incrementField.clear();
-    updateAutoBidActive(false, null, null);
+    applyAutoBidState(null, null, null, null);
 
     // Bind both columns to explicit 60/40 fractions of the available content width.
     // Both use hgrow=NEVER so HBox doesn't redistribute extra space on top of the binding.
@@ -397,9 +408,10 @@ public class AuctionDetailController implements Navigable {
   }
 
   /**
-   * Bật auto-bid cho phiên hiện tại. Validate: cả hai trường maxBid và increment không rỗng và hợp
-   * lệ. Gửi {@code POST /api/auctions/{id}/auto-bid}; server sẽ tự động đặt giá thay người dùng khi
-   * có bid mới cho đến khi đạt maxBid hoặc bị hủy.
+   * Bật auto-bid cho phiên hiện tại. Validate client-side: maxBid và increment đều dương; maxBid
+   * phải lớn hơn hoặc bằng (giá hiện tại + bước tăng) — nếu không, autobid không thể đặt được bid
+   * đầu tiên. Sau khi POST thành công, đọc trạng thái thực tế từ response (ACTIVE / EXHAUSTED /
+   * FAILED) để hiển thị đúng.
    */
   @FXML
   public void handleAutoBid() {
@@ -407,17 +419,33 @@ public class AuctionDetailController implements Navigable {
     String incrementText = incrementField.getText().trim();
 
     if (maxBidText.isEmpty() || incrementText.isEmpty()) {
-      autoBidStatusLabel.setText("Vui lòng nhập đầy đủ thông tin.");
+      showAutoBidMessage("Vui lòng nhập đầy đủ thông tin.", "#ef5350");
       return;
     }
 
     BigDecimal maxBid;
     BigDecimal increment;
     try {
-      maxBid = new BigDecimal(maxBidText.replace(",", ""));
-      increment = new BigDecimal(incrementText.replace(",", ""));
+      maxBid = new BigDecimal(maxBidText.replace(",", "").replace(".", ""));
+      increment = new BigDecimal(incrementText.replace(",", "").replace(".", ""));
     } catch (NumberFormatException e) {
-      autoBidStatusLabel.setText("Giá trị không hợp lệ.");
+      showAutoBidMessage("Giá trị không hợp lệ.", "#ef5350");
+      return;
+    }
+
+    if (maxBid.signum() <= 0 || increment.signum() <= 0) {
+      showAutoBidMessage("Giá tối đa và bước tăng phải lớn hơn 0.", "#ef5350");
+      return;
+    }
+
+    if (currentPriceValue != null && currentPriceValue.add(increment).compareTo(maxBid) > 0) {
+      showAutoBidMessage(
+          "Giá tối đa ("
+              + vnd(maxBid)
+              + ") không đủ để đặt bid đầu tiên ("
+              + vnd(currentPriceValue.add(increment))
+              + ").",
+          "#ef5350");
       return;
     }
 
@@ -426,28 +454,39 @@ public class AuctionDetailController implements Navigable {
     body.put("maxBid", maxBid);
     body.put("increment", increment);
 
+    final Long autoBidAuctionId = this.auctionId;
     Thread.ofVirtual()
         .start(
             () -> {
               try {
                 HttpResponse<String> response =
-                    RestClient.post("/api/auctions/" + auctionId + "/auto-bid", body);
+                    RestClient.post("/api/auctions/" + autoBidAuctionId + "/auto-bid", body);
                 Platform.runLater(
                     () -> {
+                      if (!autoBidAuctionId.equals(auctionId)) {
+                        return;
+                      }
                       autoBidButton.setDisable(false);
                       if (response.statusCode() == 200 || response.statusCode() == 201) {
-                        updateAutoBidActive(true, maxBid, increment);
+                        applyAutoBidStateFromJson(response.body());
                       } else {
-                        autoBidStatusLabel.setText(
-                            "Bật auto-bid thất bại: " + response.statusCode());
+                        String err = extractErrorMessage(response.body());
+                        showAutoBidMessage(
+                            err != null && !err.isBlank()
+                                ? err
+                                : "Bật auto-bid thất bại: " + response.statusCode(),
+                            "#ef5350");
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi bật auto-bid", e);
                 Platform.runLater(
                     () -> {
+                      if (!autoBidAuctionId.equals(auctionId)) {
+                        return;
+                      }
                       autoBidButton.setDisable(false);
-                      autoBidStatusLabel.setText("Không thể kết nối đến server.");
+                      showAutoBidMessage("Không thể kết nối đến server.", "#ef5350");
                     });
               }
             });
@@ -459,26 +498,28 @@ public class AuctionDetailController implements Navigable {
    */
   @FXML
   public void handleCancelAutoBid() {
+    final Long autoBidAuctionId = this.auctionId;
     Thread.ofVirtual()
         .start(
             () -> {
               try {
                 HttpResponse<String> response =
-                    RestClient.delete("/api/auctions/" + auctionId + "/auto-bid");
+                    RestClient.delete("/api/auctions/" + autoBidAuctionId + "/auto-bid");
                 Platform.runLater(
                     () -> {
+                      if (!autoBidAuctionId.equals(auctionId)) {
+                        return;
+                      }
                       if (response.statusCode() == 204 || response.statusCode() == 200) {
-                        updateAutoBidActive(false, null, null);
-                        autoBidStatusLabel.setText("Auto-bid đã được tắt.");
-                        maxBidField.clear();
-                        incrementField.clear();
+                        // applyAutoBidState(STOPPED, ...) tự xóa field + hiện thông báo grey.
+                        applyAutoBidState("STOPPED", null, null, null);
                       } else {
-                        autoBidStatusLabel.setText("Tắt auto-bid thất bại.");
+                        showAutoBidMessage("Tắt auto-bid thất bại.", "#ef5350");
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi tắt auto-bid", e);
-                Platform.runLater(() -> autoBidStatusLabel.setText("Không thể kết nối."));
+                Platform.runLater(() -> showAutoBidMessage("Không thể kết nối.", "#ef5350"));
               }
             });
   }
@@ -492,7 +533,7 @@ public class AuctionDetailController implements Navigable {
   // ========== DATA LOADING ==========
 
   private void loadAutoBidState() {
-    Long currentAuctionId = auctionId;
+    final Long currentAuctionId = auctionId;
     if (currentAuctionId == null) {
       return;
     }
@@ -505,16 +546,11 @@ public class AuctionDetailController implements Navigable {
                 if (response.statusCode() != 200) {
                   return;
                 }
-                var node = MAPPER.readTree(response.body());
-                boolean active = node.path("active").asBoolean(false);
-                BigDecimal maxBid =
-                    node.hasNonNull("maxBid") ? node.get("maxBid").decimalValue() : null;
-                BigDecimal increment =
-                    node.hasNonNull("increment") ? node.get("increment").decimalValue() : null;
+                final String body = response.body();
                 Platform.runLater(
                     () -> {
                       if (currentAuctionId.equals(auctionId)) {
-                        updateAutoBidActive(active, maxBid, increment);
+                        applyAutoBidStateFromJson(body);
                       }
                     });
               } catch (Exception e) {
@@ -523,26 +559,143 @@ public class AuctionDetailController implements Navigable {
             });
   }
 
-  private void updateAutoBidActive(boolean active, BigDecimal maxBid, BigDecimal increment) {
-    if (maxBid != null) {
-      maxBidField.setText(maxBid.stripTrailingZeros().toPlainString());
+  /**
+   * Parse JSON body trả về từ {@code GET/POST /api/auctions/{id}/auto-bid} và áp dụng trạng thái
+   * tương ứng lên UI. Body có thể là:
+   *
+   * <ul>
+   *   <li>{@code {"active": false}} — chưa có config nào.
+   *   <li>Full AutoBidConfig — có các field {@code status}, {@code failureReason}, {@code maxBid},
+   *       {@code increment}.
+   * </ul>
+   */
+  private void applyAutoBidStateFromJson(String body) {
+    try {
+      var node = MAPPER.readTree(body);
+      String status =
+          node.hasNonNull("status")
+              ? node.get("status").asText()
+              : (node.path("active").asBoolean(false) ? "ACTIVE" : null);
+      String reason = node.hasNonNull("failureReason") ? node.get("failureReason").asText() : null;
+      BigDecimal maxBid = node.hasNonNull("maxBid") ? node.get("maxBid").decimalValue() : null;
+      BigDecimal increment =
+          node.hasNonNull("increment") ? node.get("increment").decimalValue() : null;
+      applyAutoBidState(status, reason, maxBid, increment);
+    } catch (Exception e) {
+      LOGGER.debug("Không thể parse auto-bid state: {}", e.getMessage());
     }
-    if (increment != null) {
-      incrementField.setText(increment.stripTrailingZeros().toPlainString());
+  }
+
+  /**
+   * Áp dụng trạng thái auto-bid lên UI: cập nhật label, spinner, nút tắt/bật, các field
+   * maxBid/increment, và trạng thái disable của form. {@code status} có thể là {@code null} (chưa
+   * có config), {@code ACTIVE}, {@code EXHAUSTED}, {@code FAILED}, hoặc {@code STOPPED}.
+   *
+   * <p>Quy tắc UI theo trạng thái:
+   *
+   * <ul>
+   *   <li>ACTIVE: hai field + nút "Bật" bị disable (phải tắt trước rồi mới được sửa); nút "Tắt"
+   *       enable; spinner xoay; label xanh kèm thông số.
+   *   <li>EXHAUSTED/FAILED: form mở để user chỉnh lại giá; nút "Bật" enable; nút "Tắt" disable; có
+   *       điền sẵn maxBid/increment cũ để user thấy giá trị đã thử.
+   *   <li>STOPPED hoặc chưa có: form trống, "Bật" enable, "Tắt" disable.
+   * </ul>
+   */
+  private void applyAutoBidState(
+      String status, String reason, BigDecimal maxBid, BigDecimal increment) {
+    boolean active = "ACTIVE".equals(status);
+
+    // Surface an in-app notification when auto-bid transitions ACTIVE -> EXHAUSTED/FAILED so
+    // the bell list reflects the change immediately instead of only after WS reconnect.
+    if ("ACTIVE".equals(lastAutoBidStatus)
+        && ("EXHAUSTED".equals(status) || "FAILED".equals(status))) {
+      String itemLabel = currentItemName != null ? "[" + currentItemName + "] " : "";
+      String text;
+      if ("EXHAUSTED".equals(status)) {
+        text =
+            itemLabel
+                + "Auto-bid đã đạt mức tối đa"
+                + (maxBid != null ? " (" + vnd(maxBid) + ")" : "")
+                + " và đã được dừng.";
+      } else if ("INSUFFICIENT_BALANCE".equals(reason)) {
+        text = itemLabel + "Auto-bid đã dừng: số dư không đủ để tiếp tục.";
+      } else {
+        text = itemLabel + "Auto-bid đã dừng tự động.";
+      }
+      NotificationStore.getInstance().add(text);
+      displayToast(text, "#ff9800", 4);
     }
-    cancelAutoBidButton.setDisable(!active);
+    lastAutoBidStatus = status;
+
+    autoBidButton.setDisable(active);
+    maxBidField.setDisable(active);
+    incrementField.setDisable(active);
+
     if (active) {
-      autoBidStatusLabel.setText("Auto-bid đang bật.");
+      if (maxBid != null) {
+        maxBidField.setText(maxBid.stripTrailingZeros().toPlainString());
+      }
+      if (increment != null) {
+        incrementField.setText(increment.stripTrailingZeros().toPlainString());
+      }
+      cancelAutoBidButton.setDisable(false);
       startAutoBidSpinner();
+      showAutoBidMessage(
+          "Auto-bid đang hoạt động. Tối đa: "
+              + (maxBid != null ? vnd(maxBid) : "—")
+              + " — Bước: "
+              + (increment != null ? vnd(increment) : "—"),
+          "#2e7d32");
+      return;
+    }
+
+    cancelAutoBidButton.setDisable(true);
+    stopAutoBidSpinner();
+    if (autoBidSpinner != null) {
+      autoBidSpinner.setVisible(false);
+      autoBidSpinner.setManaged(false);
+    }
+
+    if ("EXHAUSTED".equals(status)) {
+      // Giữ lại giá trị cũ để user thấy hạn mức cũ và chỉnh lại nhanh
+      if (maxBid != null) {
+        maxBidField.setText(maxBid.stripTrailingZeros().toPlainString());
+      }
+      if (increment != null) {
+        incrementField.setText(increment.stripTrailingZeros().toPlainString());
+      }
+      String msg =
+          "Auto-bid đã dừng: hạn mức (max) thấp hơn giá hiện tại + bước tăng."
+              + " Hãy chỉnh giá tối đa cao hơn rồi bật lại.";
+      showAutoBidMessage(msg, "#ff9800");
+    } else if ("FAILED".equals(status)) {
+      if (maxBid != null) {
+        maxBidField.setText(maxBid.stripTrailingZeros().toPlainString());
+      }
+      if (increment != null) {
+        incrementField.setText(increment.stripTrailingZeros().toPlainString());
+      }
+      String msg =
+          "INSUFFICIENT_BALANCE".equals(reason)
+              ? "Auto-bid đã dừng: số dư khả dụng không đủ để tiếp tục."
+                  + " Hãy nạp thêm tiền rồi bật lại."
+              : "Auto-bid đã dừng do lỗi" + (reason != null ? " (" + reason + ")." : ".");
+      showAutoBidMessage(msg, "#ef5350");
+    } else if ("STOPPED".equals(status)) {
+      maxBidField.clear();
+      incrementField.clear();
+      showAutoBidMessage("Auto-bid đã tắt.", "#90a4ae");
     } else {
       maxBidField.clear();
       incrementField.clear();
-      stopAutoBidSpinner();
-      if (autoBidSpinner != null) {
-        autoBidSpinner.setVisible(false);
-        autoBidSpinner.setManaged(false);
-      }
+      autoBidStatusLabel.setText("");
+      autoBidStatusLabel.setStyle("");
     }
+  }
+
+  private void showAutoBidMessage(String message, String color) {
+    autoBidStatusLabel.setText(message);
+    autoBidStatusLabel.setStyle("-fx-text-fill: " + color + "; -fx-font-size: 12px;");
   }
 
   private void startAutoBidSpinner() {
@@ -652,6 +805,7 @@ public class AuctionDetailController implements Navigable {
                                 .add(new XYChart.Data<>(i + 1, bid.getAmount().doubleValue()));
                           }
                         }
+                        updateTotalBidsLabel(bids.size());
                       });
                 }
               } catch (Exception e) {
@@ -699,6 +853,7 @@ public class AuctionDetailController implements Navigable {
     switch (msg.getType()) {
       case BidUpdateMessage.TYPE_BID_UPDATE -> {
         if (msg.getCurrentPrice() != null) {
+          currentPriceValue = msg.getCurrentPrice();
           currentPriceLabel.setText(vnd(msg.getCurrentPrice()));
           bidSeries
               .getData()
@@ -716,6 +871,10 @@ public class AuctionDetailController implements Navigable {
         }
         showBidNotification(msg);
         loadBidHistory();
+        // Re-check autobid state — chain bidding may have changed our config to EXHAUSTED/FAILED
+        if ("BIDDER".equals(SceneManager.getInstance().getCurrentRole())) {
+          loadAutoBidState();
+        }
       }
       case BidUpdateMessage.TYPE_TIME_EXTENDED -> {
         if (msg.getEndTime() != null) {
@@ -800,16 +959,6 @@ public class AuctionDetailController implements Navigable {
     displayToast(text, color, 3);
   }
 
-  /** Toast khi số dư tăng — màu xanh đậm, hiển thị 4 giây. Đồng thời thêm vào NotificationStore. */
-  private void showBalanceChangeNotification(String amountText) {
-    if (bidNotificationLabel == null) {
-      return;
-    }
-    String text = "Số dư tăng " + amountText;
-    NotificationStore.getInstance().add(text);
-    displayToast(text, "#1B5E20", 4);
-  }
-
   /**
    * Hiển thị toast notification với màu nền và thời gian tùy chỉnh. Nếu có toast đang hiện,
    * Timeline cũ bị dừng và thay bằng Timeline mới.
@@ -888,6 +1037,10 @@ public class AuctionDetailController implements Navigable {
               }
             });
 
+    // Poll chỉ cập nhật label số dư trong form, KHÔNG hiện toast khi số dư thay đổi.
+    // Nguồn DUY NHẤT phát thông báo biến động số dư là server qua WebSocket BALANCE_UPDATED
+    // (UserBalanceWatcher). Phát hiện diff từ poll có thể fire sai (race với reserved_balance,
+    // chạy chậm sau khi server đã push WS, hoặc trùng với notification đã có).
     balancePollTimeline =
         new Timeline(
             new KeyFrame(
@@ -904,11 +1057,6 @@ public class AuctionDetailController implements Navigable {
                                     BigDecimal balance = node.get("balance").decimalValue();
                                     Platform.runLater(
                                         () -> {
-                                          if (lastKnownBalance != null
-                                              && balance.compareTo(lastKnownBalance) > 0) {
-                                            BigDecimal diff = balance.subtract(lastKnownBalance);
-                                            showBalanceChangeNotification("+" + vnd(diff));
-                                          }
                                           lastKnownBalance = balance;
                                           updateBalanceLabel(balance);
                                         });
@@ -953,6 +1101,7 @@ public class AuctionDetailController implements Navigable {
     applyStatusStyle(auctionStatusLabel, auction.getStatus());
 
     if (auction.getCurrentPrice() != null) {
+      currentPriceValue = auction.getCurrentPrice();
       currentPriceLabel.setText(vnd(auction.getCurrentPrice()));
     }
     leadingBidderLabel.setText(
@@ -1107,6 +1256,13 @@ public class AuctionDetailController implements Navigable {
             + "-fx-font-weight: bold; "
             + "-fx-background-radius: 20; "
             + "-fx-padding: 4 12 4 12;");
+  }
+
+  private void updateTotalBidsLabel(int count) {
+    if (totalBidsLabel == null) {
+      return;
+    }
+    totalBidsLabel.setText(count + " lượt");
   }
 
   /** Hiển thị thông báo lỗi dưới form đặt giá. */

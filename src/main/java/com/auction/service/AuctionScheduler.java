@@ -1,5 +1,6 @@
 package com.auction.service;
 
+import com.auction.controller.AuctionWebSocketHandler;
 import com.auction.dao.AuctionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
@@ -63,6 +64,7 @@ public class AuctionScheduler {
   private final ItemDao itemDao;
   private final AuctionEventManager eventManager;
   private final org.jdbi.v3.core.Jdbi jdbi;
+  private final AuctionWebSocketHandler wsHandler;
 
   /** Thread pool 1 thread — đủ cho scheduler đơn giản này */
   private final ScheduledExecutorService scheduler =
@@ -84,12 +86,14 @@ public class AuctionScheduler {
       UserDao userDao,
       ItemDao itemDao,
       AuctionEventManager eventManager,
-      org.jdbi.v3.core.Jdbi jdbi) {
+      org.jdbi.v3.core.Jdbi jdbi,
+      AuctionWebSocketHandler wsHandler) {
     this.auctionDao = auctionDao;
     this.userDao = userDao;
     this.itemDao = itemDao;
     this.eventManager = eventManager;
     this.jdbi = jdbi;
+    this.wsHandler = wsHandler;
   }
 
   // ── Lifecycle ────────────────────────────────────────────
@@ -198,21 +202,53 @@ public class AuctionScheduler {
     List<Long> ids = auctionDao.findExpiredAuctionIds("RUNNING", now);
     for (Long id : ids) {
       try {
-        settleAndClose(id, now).ifPresent(this::notifyAuctionEnded);
+        SettlementResult result = settleAndClose(id, now);
+        if (result != null) {
+          notifyAuctionEnded(result.auction);
+          if (result.balanceChanges != null) {
+            for (BalanceChange change : result.balanceChanges) {
+              try {
+                wsHandler.notifyBalanceChange(
+                    change.userId,
+                    change.newBalance,
+                    change.delta,
+                    change.message,
+                    change.notificationType);
+              } catch (Exception e) {
+                LOG.error(
+                    "Không thể notify BALANCE_UPDATED cho user #{}: {}",
+                    change.userId,
+                    e.getMessage());
+              }
+            }
+          }
+        }
       } catch (Exception e) {
         LOG.error("Không thể kết thúc phiên #{}", id, e);
       }
     }
   }
 
+  /** Một sự kiện biến động số dư cần push qua WS sau khi transaction commit. */
+  private record BalanceChange(
+      Long userId,
+      BigDecimal newBalance,
+      BigDecimal delta,
+      String message,
+      String notificationType) {}
+
+  /** Kết quả của một lần settlement: phiên đã đóng + danh sách biến động số dư cần phát. */
+  private record SettlementResult(Auction auction, List<BalanceChange> balanceChanges) {}
+
   /**
    * Thanh toán và đóng phiên: - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status →
    * PAID. - Nếu không ai bid: status → FINISHED.
    */
-  private Optional<Auction> settleAndClose(Long auctionId, LocalDateTime now) {
+  private SettlementResult settleAndClose(Long auctionId, LocalDateTime now) {
     MDC.put("auctionId", String.valueOf(auctionId));
     try {
       final Auction[] settledAuction = new Auction[1];
+      final List<BalanceChange> balanceChanges = new java.util.ArrayList<>();
       jdbi.useTransaction(
           handle -> {
             int claimed =
@@ -293,6 +329,20 @@ public class AuctionScheduler {
                     balanceBefore,
                     balanceBefore.subtract(price));
 
+                BigDecimal winnerNewBalance = balanceBefore.subtract(price);
+                BigDecimal winnerDelta = price.negate();
+                String winMsg =
+                    String.format(
+                        Locale.of("vi", "VN"),
+                        "Bạn đã thắng phiên đấu giá #%d với giá %,d VND."
+                            + " Số dư biến động: - %,d VND",
+                        auction.getId(),
+                        price.longValue(),
+                        price.longValue());
+                balanceChanges.add(
+                    new BalanceChange(
+                        winnerId, winnerNewBalance, winnerDelta, winMsg, "AUCTION_WON"));
+
                 // Cộng tiền seller
                 Long sellerId = auction.getSellerId();
                 if (sellerId != null) {
@@ -315,27 +365,25 @@ public class AuctionScheduler {
                       price,
                       "settlement:" + auction.getId());
                   LOG.info("Phiên #{}: cộng {} cho seller #{}", auction.getId(), price, sellerId);
+                  BigDecimal sellerNewBalance = sellerBalanceBefore.add(price);
                   LOG.info(
                       "Phiên #{}: seller #{} balance {} → {}",
                       auction.getId(),
                       sellerId,
                       sellerBalanceBefore,
-                      sellerBalanceBefore.add(price));
+                      sellerNewBalance);
+                  String sellerMsg =
+                      String.format(
+                          Locale.of("vi", "VN"),
+                          "Phiên đấu giá #%d đã thanh toán." + " Số dư biến động: + %,d VND",
+                          auction.getId(),
+                          price.longValue());
+                  balanceChanges.add(
+                      new BalanceChange(
+                          sellerId, sellerNewBalance, price, sellerMsg, "SELLER_PAYOUT"));
                 }
 
                 auction.setStatus(AuctionStatus.PAID);
-
-                // Lưu thông báo thắng cuộc cho bidder
-                String winMsg =
-                    String.format(
-                        Locale.of("vi", "VN"),
-                        "Chúc mừng! Bạn đã thắng phiên đấu giá #%d với giá %,d VND",
-                        auction.getId(),
-                        price.longValue());
-                handle.execute(
-                    "INSERT INTO notifications (user_id, message, notification_type) VALUES (?, ?, 'AUCTION_WON')",
-                    winnerId,
-                    winMsg);
               } else {
                 LOG.warn(
                     "Phiên #{}: bidder #{} không đủ số dư ({}) để thanh toán {}. Chuyển FINISHED (nợ).",
@@ -364,7 +412,7 @@ public class AuctionScheduler {
           });
 
       if (settledAuction[0] == null) {
-        return Optional.empty();
+        return null;
       }
       LOG.info(
           "Phiên #{} → {} (endTime={}, winner={})",
@@ -372,7 +420,7 @@ public class AuctionScheduler {
           settledAuction[0].getStatus(),
           settledAuction[0].getEndTime(),
           settledAuction[0].getLeadingBidderId());
-      return Optional.of(settledAuction[0]);
+      return new SettlementResult(settledAuction[0], balanceChanges);
     } finally {
       MDC.remove("auctionId");
     }

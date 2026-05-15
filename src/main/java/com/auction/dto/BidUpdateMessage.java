@@ -80,6 +80,13 @@ public class BidUpdateMessage {
    */
   private boolean approved;
 
+  /**
+   * Thông điệp đã định dạng để hiển thị cho user — chỉ có trong message BALANCE_UPDATED khi server
+   * muốn truyền nguyên văn thông báo (vd: "Bạn đã thắng phiên #5. Số dư biến động: -1.000.000
+   * VND"). Nếu {@code null}, client tự dựng message từ {@code approved}/{@code balanceDelta}.
+   */
+  private String message;
+
   public BidUpdateMessage() {}
 
   /**
@@ -173,6 +180,28 @@ public class BidUpdateMessage {
     return msg;
   }
 
+  /**
+   * Factory method tạo message BALANCE_UPDATED với thông điệp tùy chỉnh — dùng cho các sự kiện
+   * không phải deposit (settlement: trừ tiền bidder thắng / cộng tiền seller, refund, ...).
+   *
+   * @param userId ID user
+   * @param newBalance số dư mới sau khi thay đổi
+   * @param balanceDelta số tiền thay đổi (âm = trừ, dương = cộng)
+   * @param message thông điệp đã định dạng (sẽ được client hiển thị nguyên văn)
+   */
+  public static BidUpdateMessage balanceChanged(
+      Long userId, BigDecimal newBalance, BigDecimal balanceDelta, String message) {
+    BidUpdateMessage msg = new BidUpdateMessage();
+    msg.type = TYPE_BALANCE_UPDATED;
+    msg.auctionId = userId;
+    msg.newBalance = newBalance;
+    msg.balanceDelta = balanceDelta;
+    msg.approved = balanceDelta != null && balanceDelta.signum() >= 0;
+    msg.message = message;
+    msg.timestamp = LocalDateTime.now();
+    return msg;
+  }
+
   // === Getters & Setters ===
 
   public String getType() {
@@ -262,5 +291,13 @@ public class BidUpdateMessage {
 
   public void setApproved(boolean approved) {
     this.approved = approved;
+  }
+
+  public String getMessage() {
+    return message;
+  }
+
+  public void setMessage(String message) {
+    this.message = message;
   }
 }

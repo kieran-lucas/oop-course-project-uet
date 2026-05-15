@@ -55,7 +55,8 @@ class AuctionSchedulerSettlementTest {
     AuctionService auctionService =
         new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao);
     AutoBidStrategy autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
-    scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager, jdbi);
+    var wsHandler = new com.auction.controller.AuctionWebSocketHandler(eventManager, jdbi);
+    scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager, jdbi, wsHandler);
     bidService =
         new BidService(
             auctionDao,

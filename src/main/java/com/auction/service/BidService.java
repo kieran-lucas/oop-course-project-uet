@@ -305,13 +305,14 @@ public class BidService {
                   autoBidConfigDao.upsertInTransaction(handle, config);
                   handle.execute(
                       "INSERT INTO notifications (user_id, message, notification_type)"
-                          + " VALUES (?, ?, 'AUTOBID_FAILED')",
+                          + " VALUES (?, ?, 'AUTOBID_EXHAUSTED')",
                       bidderId,
                       String.format(
                           Locale.of("vi", "VN"),
                           "Auto-bid cho phiên #%d không được kích hoạt:"
-                              + " maxBid thấp hơn giá đặt ban đầu (%,d VND)",
+                              + " mức tối đa %,d VND thấp hơn giá đặt ban đầu cần thiết %,d VND.",
                           auctionId,
+                          toIntegerVnd(maxBid, "Max bid"),
                           toIntegerVnd(initialBid, "Initial bid")));
                   return config;
                 }

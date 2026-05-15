@@ -171,7 +171,12 @@
             </VBox>
 
             <!-- Bid history -->
-            <Label styleClass="section-title" text="Lịch sử đặt giá" />
+            <HBox alignment="CENTER_LEFT" spacing="10.0">
+               <Label styleClass="section-title" text="Lịch sử đặt giá" />
+               <Region HBox.hgrow="ALWAYS" />
+               <Label fx:id="totalBidsLabel" text="0 lượt"
+                      style="-fx-text-fill: #90a4ae; -fx-font-size: 12px; -fx-font-weight: bold;" />
+            </HBox>
             <ListView fx:id="bidHistoryList" VBox.vgrow="ALWAYS"
                       styleClass="bid-history-list" />
          </VBox>

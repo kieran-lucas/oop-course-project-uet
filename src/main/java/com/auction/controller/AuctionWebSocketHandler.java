@@ -337,6 +337,58 @@ public class AuctionWebSocketHandler {
     }
   }
 
+  /**
+   * Push thông báo biến động số dư tổng quát đến user qua kênh {@code /ws/user/{id}}, kèm thông
+   * điệp do server soạn sẵn (vd: thắng phiên, seller payout). Lưu vào bảng notifications trước, sau
+   * đó push WS nếu user đang online.
+   *
+   * @param userId ID user nhận thông báo
+   * @param newBalance số dư mới sau khi thay đổi
+   * @param balanceDelta số tiền thay đổi (âm = trừ, dương = cộng)
+   * @param message thông điệp đã định dạng (sẽ được hiển thị nguyên văn)
+   * @param notificationType loại notification lưu DB (vd: AUCTION_WON, SELLER_PAYOUT)
+   */
+  public void notifyBalanceChange(
+      Long userId,
+      BigDecimal newBalance,
+      BigDecimal balanceDelta,
+      String message,
+      String notificationType) {
+    saveNotificationToDatabase(userId, message, notificationType);
+
+    Set<WsContext> sessions = userConnections.get(userId);
+    if (sessions == null || sessions.isEmpty()) {
+      return;
+    }
+    try {
+      BidUpdateMessage msg =
+          BidUpdateMessage.balanceChanged(userId, newBalance, balanceDelta, message);
+      String json = objectMapper.writeValueAsString(msg);
+      for (WsContext wsCtx : sessions) {
+        try {
+          if (isSessionExpired(wsCtx)) {
+            closeExpiredSession(wsCtx);
+            removeUserConnection(wsCtx);
+          } else if (wsCtx.session.isOpen()) {
+            wsCtx.send(json);
+          } else {
+            sessions.remove(wsCtx);
+          }
+        } catch (Exception e) {
+          LOGGER.error("Lỗi gửi User WebSocket message: {}", e.getMessage());
+          sessions.remove(wsCtx);
+        }
+      }
+      LOGGER.info(
+          "Đã notify BALANCE_UPDATED (custom) → userId={}, delta={}, newBalance={}",
+          userId,
+          balanceDelta,
+          newBalance);
+    } catch (Exception e) {
+      LOGGER.error("Lỗi serialize BALANCE_UPDATED message: {}", e.getMessage());
+    }
+  }
+
   /** Xóa connection và unsubscribe observer khỏi EventManager. */
   private void removeConnection(WsContext ctx) {
     connections.values().forEach(set -> set.remove(ctx));

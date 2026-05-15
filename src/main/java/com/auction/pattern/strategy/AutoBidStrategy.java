@@ -302,10 +302,11 @@ public class AutoBidStrategy {
             config.getBidderId(),
             String.format(
                 Locale.of("vi", "VN"),
-                "Auto-bid của bạn cho phiên #%d đã hết hạn mức:"
-                    + " maxBid không đủ để tiếp tục (giá hiện tại: %,d VND)",
+                "Auto-bid của bạn cho phiên #%d đã dừng:"
+                    + " giá hiện tại %,d VND đã vượt mức tối đa %,d VND của bạn.",
                 auctionId,
-                toIntegerVnd(currentPrice, "Current price")));
+                toIntegerVnd(currentPrice, "Current price"),
+                toIntegerVnd(config.getMaxBid(), "Max bid")));
         LOGGER.debug("Auto-bid EXHAUSTED: bidder={}, auction={}", config.getBidderId(), auctionId);
         for (AutoBidConfig skipped : skippedLeaderConfigs) {
           queue.offer(skipped);
@@ -348,6 +349,32 @@ public class AutoBidStrategy {
       currentLeaderId = config.getBidderId();
       autoBidCount++;
       skippedAsLeader.clear();
+
+      // If this bid reached the user's max so no further bid is possible, stop the auto-bid
+      // now and notify the user immediately — don't wait for someone else to outbid them first.
+      if (!config.canBidAt(currentPrice)) {
+        config.setStatus(AutoBidStatus.EXHAUSTED);
+        config.setFailureReason(AutoBidFailureReason.MAX_PRICE_TOO_LOW);
+        autoBidConfigDao.updateStatusInTransaction(handle, config);
+        handle.execute(
+            "INSERT INTO notifications (user_id, message, notification_type)"
+                + " VALUES (?, ?, 'AUTOBID_EXHAUSTED')",
+            config.getBidderId(),
+            String.format(
+                Locale.of("vi", "VN"),
+                "Auto-bid của bạn cho phiên #%d đã đạt mức tối đa %,d VND và đã được dừng.",
+                auctionId,
+                toIntegerVnd(config.getMaxBid(), "Max bid")));
+        queue.addAll(skippedLeaderConfigs);
+        skippedLeaderConfigs.clear();
+        LOGGER.debug(
+            "Auto-bid đạt max ngay sau bid: bidder={}, amount={}, phiên={}",
+            config.getBidderId(),
+            nextAmount,
+            auctionId);
+        continue;
+      }
+
       queue.offer(config);
       queue.addAll(skippedLeaderConfigs);
       skippedLeaderConfigs.clear();

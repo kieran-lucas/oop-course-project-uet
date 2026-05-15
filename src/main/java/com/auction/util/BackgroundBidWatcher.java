@@ -44,8 +44,9 @@ import org.slf4j.LoggerFactory;
  * <h2>Các sự kiện được xử lý</h2>
  *
  * <ul>
- *   <li>{@code BID_UPDATE}: thông báo khi người khác vượt giá của user.
- *   <li>{@code AUTO_BID_TRIGGERED}: thông báo khi hệ thống đặt auto-bid thành công cho user.
+ *   <li>{@code BID_UPDATE} (không phải auto-bid): thông báo khi người khác vượt giá của user.
+ *   <li>{@code BID_UPDATE} (auto-bid của chính user): thông báo "auto-bid vừa đặt giá thay bạn" —
+ *       surface bid lên bell khi user đang ở màn hình khác.
  *   <li>{@code AUCTION_ENDED}: thông báo khi phiên kết thúc, kèm tên người thắng. Watcher tự dừng
  *       sau sự kiện này.
  *   <li>Các type khác (ví dụ: {@code TIME_EXTENDED}): bỏ qua.
@@ -131,28 +132,29 @@ public class BackgroundBidWatcher {
               case BidUpdateMessage.TYPE_BID_UPDATE -> {
                 Long leaderId = msg.getLeadingBidderId();
                 BigDecimal price = msg.getCurrentPrice();
-                if (leaderId != null && !leaderId.equals(userId)) {
-                  NumberFormat fmt = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
-                  String priceStr = price != null ? fmt.format(price) + " VND" : "?";
-                  // Format: dong 1 = mo ta, dong 2 = gia (splitCurrentPrice se to vang)
-                  String notification =
-                      "Bạn đã bị vượt giá tại phiên [" + name + "]. Giá hiện tại: " + priceStr;
-                  Platform.runLater(() -> NotificationStore.getInstance().add(notification));
+                NumberFormat fmt = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
+                String priceStr = price != null ? fmt.format(price) + " VND" : "?";
+                String notification;
+                if (leaderId == null) {
+                  break;
                 }
-              }
-              case BidUpdateMessage.TYPE_AUTO_BID_TRIGGERED -> {
-                Long leaderId = msg.getLeadingBidderId();
-                BigDecimal price = msg.getCurrentPrice();
-                if (leaderId != null && leaderId.equals(userId)) {
-                  NumberFormat fmt = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
-                  String priceStr = price != null ? fmt.format(price) + " VND" : "?";
-                  String notification =
-                      "Auto-bid đặt giá thành công tại phiên ["
+                if (leaderId.equals(userId)) {
+                  // The user's own auto-bid placed this bid while they're away from the
+                  // detail screen — surface it in the bell so they know the chain is working.
+                  if (!msg.isAutoBid()) {
+                    break;
+                  }
+                  notification =
+                      "Auto-bid của bạn vừa đặt giá tại phiên ["
                           + name
                           + "]. Giá hiện tại: "
                           + priceStr;
-                  Platform.runLater(() -> NotificationStore.getInstance().add(notification));
+                } else {
+                  notification =
+                      "Bạn đã bị vượt giá tại phiên [" + name + "]. Giá hiện tại: " + priceStr;
                 }
+                final String finalNotification = notification;
+                Platform.runLater(() -> NotificationStore.getInstance().add(finalNotification));
               }
               case BidUpdateMessage.TYPE_AUCTION_ENDED -> {
                 String winner = msg.getLeadingBidderUsername();

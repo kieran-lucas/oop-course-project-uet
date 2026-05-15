@@ -149,7 +149,8 @@ public class App {
     var bidController = new BidController(bidService);
 
     // ── 7. Khởi tạo Scheduler (tự chuyển trạng thái phiên) ──
-    var scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager, jdbi);
+    var scheduler =
+        new AuctionScheduler(auctionDao, userDao, itemDao, eventManager, jdbi, wsHandler);
     scheduler.start();
 
     // Đăng ký shutdown hook để dừng scheduler khi server tắt

@@ -119,21 +119,30 @@ public class UserBalanceWatcher {
               BigDecimal balanceDelta = msg.getBalanceDelta();
               LOGGER.info("Nhận BALANCE_UPDATED: approved={}, newBalance={}", approved, newBalance);
 
+              String serverMessage = msg.getMessage();
               Platform.runLater(
                   () -> {
                     // FIX Bug 1 & 3: UserBalanceWatcher là nguồn DUY NHẤT add vào
                     // NotificationStore.
                     // ProfileController và DepositController KHÔNG được gọi
                     // NotificationStore.add().
-                    java.text.NumberFormat vndFmt =
-                        java.text.NumberFormat.getNumberInstance(java.util.Locale.of("vi", "VN"));
-                    String text =
-                        approved
-                            ? "Yêu cầu nạp tiền đã được duyệt. Số dư biến động: + "
-                                + vndFmt.format(
-                                    balanceDelta != null ? balanceDelta : BigDecimal.ZERO)
-                                + " VND"
-                            : "❌ Yêu cầu nạp tiền bị từ chối";
+                    String text;
+                    if (serverMessage != null && !serverMessage.isBlank()) {
+                      // Server đã soạn message (settlement, payout, refund, ...).
+                      text = serverMessage;
+                    } else {
+                      // Fallback cho luồng deposit cũ: server chỉ truyền approved + delta.
+                      java.text.NumberFormat vndFmt =
+                          java.text.NumberFormat.getNumberInstance(java.util.Locale.of("vi", "VN"));
+                      BigDecimal absDelta =
+                          balanceDelta != null ? balanceDelta.abs() : BigDecimal.ZERO;
+                      text =
+                          approved
+                              ? "Yêu cầu nạp tiền đã được duyệt. Số dư biến động: + "
+                                  + vndFmt.format(absDelta)
+                                  + " VND"
+                              : "❌ Yêu cầu nạp tiền bị từ chối";
+                    }
                     NotificationStore.getInstance().add(text);
 
                     // Notify listener nếu có (màn hình đang hiển thị — chỉ cập nhật UI nội bộ)

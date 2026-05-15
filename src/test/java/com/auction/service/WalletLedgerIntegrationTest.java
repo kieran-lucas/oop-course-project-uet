@@ -86,7 +86,8 @@ class WalletLedgerIntegrationTest {
             auctionService,
             userDao,
             autoBidStrategy);
-    scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager, jdbi);
+    var wsHandler = new com.auction.controller.AuctionWebSocketHandler(eventManager, jdbi);
+    scheduler = new AuctionScheduler(auctionDao, userDao, itemDao, eventManager, jdbi, wsHandler);
 
     seller = userDao.insert(new Seller("ledger_seller", "hash", "seller-ledger@test.com"));
     bidderA = createBidder("ledger_bidder_a", new BigDecimal("1000000"));

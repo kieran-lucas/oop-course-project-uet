@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  * <p><b>Các tính năng:</b>
  *
  * <ul>
- *   <li>SELLER thấy nút "Tạo phiên" và nút Hủy (có thể dùng khi phiên ở trạng thái OPEN/RUNNING).
+ *   <li>SELLER thấy nút "Tạo phiên" để mở màn hình tạo phiên mới.
  *   <li>BIDDER thấy chuông thông báo với badge đếm số thông báo chưa đọc từ {@link
  *       NotificationStore}.
  *   <li>Poll số dư tài khoản mỗi 5 giây (silent fallback; nguồn chính là WebSocket).
@@ -565,6 +565,11 @@ public class AuctionListController implements Navigable {
               .replaceAll("(?i)[.,\\s]*S\u1ed1 d\u01b0 bi\u1ebfn \u0111\u1ed9ng:\\s*$", "")
               .trim();
       prefix = prefix.replaceAll("[.,;:]+$", "").trim();
+      // \u0110\u1ed5i "#5" trong ph\u1ea7n m\u00f4 t\u1ea3 th\u00e0nh "[T\u00ean s\u1ea3n
+      // ph\u1ea9m]" cho th\u00f4ng b\u00e1o settlement/payout
+      if (!prefix.isEmpty()) {
+        prefix = replaceAuctionIdWithName(prefix);
+      }
       String deltaLine = "S\u1ed1 d\u01b0 bi\u1ebfn \u0111\u1ed9ng: " + formatDelta(delta);
       String deltaText = prefix.isEmpty() ? deltaLine : prefix + "\n" + deltaLine;
       return new BalanceDisplay(deltaText, delta.signum() >= 0 ? "#4caf50" : "#ef5350", null);
@@ -669,8 +674,8 @@ public class AuctionListController implements Navigable {
 
   /**
    * Cấu hình các cột bảng phiên đấu giá: tên sản phẩm, danh mục, giá hiện tại (VND), thời gian còn
-   * lại (đồng hồ đếm ngược hoặc "Đã kết thúc"), màu trạng thái badge, và cột hành động (nút Xem +
-   * nút Hủy có điều kiện theo role/trạng thái phiên).
+   * lại (đồng hồ đếm ngược hoặc "Đã kết thúc"), màu trạng thái badge, và cột hành động (chỉ chứa
+   * nút "Xem" — không còn nút Hủy phiên cho Seller).
    */
   private void setupColumns() {
     itemCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
@@ -785,93 +790,26 @@ public class AuctionListController implements Navigable {
                 }
               }
             });
-    actionCol.setMinWidth(130);
+    actionCol.setMinWidth(80);
     actionCol.setCellFactory(
         col ->
             new TableCell<>() {
               private final Button btnEnter = new Button("Xem");
-              private final Button btnCancel = new Button("Hủy");
-              private final javafx.scene.layout.HBox actionBox =
-                  new javafx.scene.layout.HBox(8, btnEnter, btnCancel);
 
               {
-                actionBox.setAlignment(javafx.geometry.Pos.CENTER);
                 btnEnter.setStyle("-fx-cursor: hand;");
-
-                btnEnter.setMinWidth(50);
-                btnCancel.setMinWidth(50);
-
+                btnEnter.setMinWidth(60);
                 btnEnter.setOnAction(
                     e -> {
                       AuctionResponse auction = getTableView().getItems().get(getIndex());
                       SceneManager.getInstance().navigateTo("auction-detail.fxml", auction.getId());
-                    });
-
-                btnCancel.setOnAction(
-                    e -> {
-                      AuctionResponse auction = getTableView().getItems().get(getIndex());
-                      Thread.ofVirtual()
-                          .start(
-                              () -> {
-                                try {
-                                  HttpResponse<String> response =
-                                      RestClient.delete("/api/auctions/" + auction.getId());
-                                  Platform.runLater(
-                                      () -> {
-                                        if (response.statusCode() == 204
-                                            || response.statusCode() == 200) {
-                                          loadAuctions();
-                                        } else {
-                                          setStatus("Hủy phiên thất bại: " + response.statusCode());
-                                        }
-                                      });
-                                } catch (Exception ex) {
-                                  LOGGER.error("Lỗi hủy phiên {}", auction.getId(), ex);
-                                  Platform.runLater(
-                                      () -> setStatus("Không thể kết nối đến server."));
-                                }
-                              });
                     });
               }
 
               @Override
               protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) {
-                  setGraphic(null);
-                } else {
-                  AuctionResponse auction = getTableView().getItems().get(getIndex());
-                  if (auction != null) {
-                    String currentRole = SceneManager.getInstance().getCurrentRole();
-                    boolean isSeller = "SELLER".equals(currentRole);
-                    String st = auction.getStatus();
-                    boolean isCancelable = "OPEN".equals(st) || "RUNNING".equals(st);
-
-                    // LOGIC GIAO DIỆN MỚI
-                    if (isSeller) {
-                      // Luôn hiện nút Hủy cho Seller để giữ form bảng đẹp
-                      btnCancel.setVisible(true);
-                      btnCancel.setManaged(true);
-
-                      if (isCancelable) {
-                        // OPEN hoặc RUNNING -> Nút đỏ, cho phép bấm
-                        btnCancel.setDisable(false);
-                        btnCancel.setStyle(
-                            "-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-cursor: hand;");
-                      } else {
-                        // Đã kết thúc/hủy -> Khóa nút (Disable), chuyển màu xám
-                        btnCancel.setDisable(true);
-                        btnCancel.setStyle(
-                            "-fx-background-color: #e0e0e0; -fx-text-fill: #9e9e9e; -fx-cursor: default;");
-                      }
-                    } else {
-                      // Nếu là BIDDER thì giấu hoàn toàn nút Hủy
-                      btnCancel.setVisible(false);
-                      btnCancel.setManaged(false);
-                    }
-                  }
-                  setGraphic(actionBox);
-                }
+                setGraphic(empty ? null : btnEnter);
                 setAlignment(javafx.geometry.Pos.CENTER);
               }
             });
