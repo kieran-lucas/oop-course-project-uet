@@ -458,14 +458,14 @@
 .table-action-view,
 .table-action-cancel,
 .table-action-delete {
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: bold;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
     -fx-border-width: 1.2;
-    -fx-padding: 4 12 4 12;
-    -fx-pref-height: 28;
-    -fx-min-height: 28;
+    -fx-padding: 6 16 6 16;
+    -fx-pref-height: 32;
+    -fx-min-height: 32;
     -fx-cursor: hand;
 }
 
@@ -519,15 +519,18 @@
 }
 
 /* Solid green — admin "Duyệt" actions inside tables. Compact chip with
-   subtle shadow so it pops against the white row without dominating. */
+   subtle shadow so it pops against the white row without dominating.
+   Geometry matches .table-action-* so per-row toolbars line up. */
 .approve-button {
     -fx-font-size: 12px;
     -fx-font-weight: bold;
     -fx-text-fill: #FFFFFF;
     -fx-background-color: linear-gradient(to bottom, #22C55E 0%, #16A34A 100%);
-    -fx-background-radius: 6;
+    -fx-background-radius: 7;
     -fx-border-color: transparent;
-    -fx-padding: 6 14 6 14;
+    -fx-padding: 6 16 6 16;
+    -fx-pref-height: 32;
+    -fx-min-height: 32;
     -fx-cursor: hand;
     -fx-effect: dropshadow(gaussian, rgba(22,163,74,0.30), 4, 0, 0, 1);
 }
@@ -548,9 +551,11 @@
     -fx-font-weight: bold;
     -fx-text-fill: #FFFFFF;
     -fx-background-color: linear-gradient(to bottom, #EF4444 0%, #DC2626 100%);
-    -fx-background-radius: 6;
+    -fx-background-radius: 7;
     -fx-border-color: transparent;
-    -fx-padding: 6 14 6 14;
+    -fx-padding: 6 16 6 16;
+    -fx-pref-height: 32;
+    -fx-min-height: 32;
     -fx-cursor: hand;
     -fx-effect: dropshadow(gaussian, rgba(220,38,38,0.30), 4, 0, 0, 1);
 }

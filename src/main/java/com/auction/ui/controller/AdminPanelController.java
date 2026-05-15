@@ -473,10 +473,10 @@ public class AdminPanelController implements Navigable {
               private final Button viewBtn = new Button("Xem");
               private final Button cancelBtn = new Button("Hủy");
               private final Button deleteBtn = new Button("Xóa");
-              private final HBox box = new HBox(6, viewBtn, cancelBtn, deleteBtn);
+              private final HBox box = new HBox(8, viewBtn, cancelBtn, deleteBtn);
 
               {
-                box.setMinWidth(200);
+                box.setAlignment(javafx.geometry.Pos.CENTER);
                 viewBtn.getStyleClass().add("table-action-view");
                 cancelBtn.getStyleClass().add("table-action-cancel");
                 deleteBtn.getStyleClass().add("table-action-delete");
@@ -501,6 +501,7 @@ public class AdminPanelController implements Navigable {
               protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : box);
+                setAlignment(javafx.geometry.Pos.CENTER);
               }
             });
   }
@@ -544,6 +545,7 @@ public class AdminPanelController implements Navigable {
               protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : deleteBtn);
+                setAlignment(javafx.geometry.Pos.CENTER);
               }
             });
   }
@@ -653,9 +655,10 @@ public class AdminPanelController implements Navigable {
             new TableCell<>() {
               private final Button approveBtn = new Button("Duyệt");
               private final Button rejectBtn = new Button("Từ chối");
-              private final HBox box = new HBox(6, approveBtn, rejectBtn);
+              private final HBox box = new HBox(8, approveBtn, rejectBtn);
 
               {
+                box.setAlignment(javafx.geometry.Pos.CENTER);
                 approveBtn.getStyleClass().add("approve-button");
                 rejectBtn.getStyleClass().add("reject-button");
                 approveBtn.setOnAction(
@@ -674,6 +677,7 @@ public class AdminPanelController implements Navigable {
               protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : box);
+                setAlignment(javafx.geometry.Pos.CENTER);
               }
             });
   }
@@ -705,9 +709,10 @@ public class AdminPanelController implements Navigable {
             new TableCell<>() {
               private final Button approveBtn = new Button("Duyệt");
               private final Button rejectBtn = new Button("Từ chối");
-              private final HBox box = new HBox(6, approveBtn, rejectBtn);
+              private final HBox box = new HBox(8, approveBtn, rejectBtn);
 
               {
+                box.setAlignment(javafx.geometry.Pos.CENTER);
                 approveBtn.getStyleClass().add("approve-button");
                 rejectBtn.getStyleClass().add("reject-button");
                 approveBtn.setOnAction(
@@ -726,6 +731,7 @@ public class AdminPanelController implements Navigable {
               protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : box);
+                setAlignment(javafx.geometry.Pos.CENTER);
               }
             });
   }
