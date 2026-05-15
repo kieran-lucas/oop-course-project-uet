@@ -32,7 +32,7 @@ A full-stack **desktop auction platform** built with Java 21. A **JavaFX client*
 - A complete **5-state auction lifecycle** enforced by the State pattern - illegal operations throw typed exceptions, not silent failures
 - **12 JavaFX screens** with a clean blue theme (`#1565C0` primary, `#EFF6FF` background), fade transitions, and a live `LineChart` fed directly from WebSocket events
 
-The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle), and a complete lifecycle from item creation through payment and password management - **~99 Java files**, 17 test files, 6 database migrations.
+The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle), and a complete lifecycle from item creation through payment and password management - **~99 Java files**, 20+ test classes, 17 database migrations.
 
 **Environment:** Java 21+ • Windows / macOS / Linux • No external services required
 
@@ -57,7 +57,7 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 - [x] Registration / login with role-based access control (Bidder · Seller · Admin)
 - [x] Create / edit / delete items - 3 categories (Electronics, Art, Vehicle)
 - [x] Create and manage auction sessions; lifecycle `OPEN → RUNNING → FINISHED → PAID / CANCELED`
-- [x] Manual bidding - validates `amount > currentPrice`, stored atomically
+- [x] Manual bidding - BIDDER-only, validates integer VND `amount > currentPrice`, stored atomically
 - [x] Automatic session expiry (`AuctionScheduler`)
 - [x] Winner determination, transitions auction to `PAID`
 - [x] Error handling & exceptions - 5 custom exception types, HTTP status mapping
@@ -67,8 +67,8 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 - [x] Clean Client–Server architecture (Javalin ↔ JavaFX)
 - [x] MVC on client side (FXML + ui/controller) and server side (Controller → Service → DAO)
 - [x] Gradle build tool, Google Java Style, Conventional Commits
-- [x] Unit Tests - 17 files, JUnit 5 + Mockito, integration tests against real PostgreSQL
-- [x] CI/CD - GitHub Actions: format check → static analysis → test → coverage
+- [x] Unit Tests - JUnit 5 + Mockito, integration tests against real PostgreSQL
+- [x] CI/CD - GitHub Actions: `spotlessCheck` → `clean test check jacocoTestReport`
 
 ### Advanced
 
@@ -574,7 +574,7 @@ graph TB
         WSH --> SVC
         SVC --> DAO
     end
-    DAO -->|"SQL via HikariCP pool"| DB[("PostgreSQL<br/>Embedded<br/>7 tables · 6 migrations")]
+    DAO -->|"SQL via HikariCP pool"| DB[("PostgreSQL<br/>Embedded<br/>Flyway migrations")]
 ```
 ---
 
@@ -588,10 +588,11 @@ graph TB
 
 2. JwtMiddleware
    └─► verifyToken() → extract { userId, username, role }
+   └─► reject if role is not BIDDER for manual bids
    └─► BidController.placeBid(ctx)
 
 3. BidService.placeBid()
-   └─► validate: amount > 0, sufficient balance
+   └─► validate: integer VND amount > currentPrice, sufficient available balance
    └─► jdbi.inTransaction(handle -> {
          auctionDao.findByIdForUpdate(handle, id)  ← SELECT FOR UPDATE (row lock)
          RunningState.placeBid()                   ← State: validate amount > currentPrice
@@ -710,21 +711,21 @@ Entity (abstract)           ← id: Long, createdAt: LocalDateTime
 
 | Method | Path | Auth | Role | Description |
 |---|---|---|---|---|
-| `POST` | `/api/auth/register` | ❌ | - | Register (BIDDER / SELLER) |
-| `POST` | `/api/auth/login` | ❌ | - | Login → JWT token |
-| `POST` | `/api/auth/change-password` | ✅ | Any | Change password |
-| `POST` | `/api/auth/forgot-password` | ✅ | Any | Request password reset |
-| `GET` | `/api/items` | ✅ | Any | List all items |
-| `POST` | `/api/items` | ✅ | SELLER | Create item |
-| `GET` | `/api/auctions` | ✅ | Any | List auctions (`?status=`) |
-| `GET` | `/api/auctions/{id}` | ✅ | Any | Auction detail (enriched) |
-| `POST` | `/api/auctions` | ✅ | SELLER | Create auction |
-| `PUT` | `/api/auctions/{id}` | ✅ | SELLER | Edit auction (OPEN state only) |
-| `DELETE` | `/api/auctions/{id}` | ✅ | SELLER/ADMIN | Cancel auction |
-| `POST` | `/api/auctions/{id}/bid` | ✅ | BIDDER | Place manual bid |
-| `POST` | `/api/auctions/{id}/auto-bid` | ✅ | BIDDER | Register auto-bid |
-| `POST` | `/api/users/me/deposit` | ✅ | BIDDER | Submit deposit request |
-| Admin endpoints | `/api/admin/*` | ✅ | ADMIN | Manage users, deposits, password resets |
+| `POST` | `/api/auth/register` | Public | - | Register (BIDDER / SELLER) |
+| `POST` | `/api/auth/login` | Public | - | Login → JWT token |
+| `PUT` | `/api/users/me/password` | Required | Any | Change password |
+| `POST` | `/api/auth/forgot-password` | Public | - | Request password reset |
+| `GET` | `/api/items` | Optional | Any | List all items |
+| `POST` | `/api/items` | Required | SELLER | Create item |
+| `GET` | `/api/auctions` | Optional | Any | List auctions (`?status=`) |
+| `GET` | `/api/auctions/{id}` | Optional | Any | Auction detail (enriched) |
+| `POST` | `/api/auctions` | Required | SELLER | Create auction |
+| `PUT` | `/api/auctions/{id}` | Required | SELLER | Edit auction (OPEN state only) |
+| `DELETE` | `/api/auctions/{id}` | Required | SELLER/ADMIN | Cancel auction |
+| `POST` | `/api/auctions/{id}/bid` | Required | BIDDER only | Place manual bid |
+| `POST` | `/api/auctions/{id}/auto-bid` | Required | BIDDER | Register auto-bid |
+| `POST` | `/api/users/me/deposit` | Required | BIDDER | Submit deposit request |
+| Admin endpoints | `/api/admin/*` | Required | ADMIN | Manage users, deposits, password resets |
 
 All errors return `ErrorResponse { error: String, message: String }` with the corresponding HTTP status (400 / 401 / 404 / 409).
 
@@ -764,16 +765,17 @@ All errors return `ErrorResponse { error: String, message: String }` with the co
 }
 ```
 
-**Response `200 OK`**
+**Response `201 Created`**
 ```json
 {
   "auctionId": 3,
-  "currentPrice": 500000,
-  "leadingBidder": "alice"
+  "bidderId": 7,
+  "amount": 500000,
+  "autoBid": false
 }
 ```
 
-**Error `409 Conflict`** *(bid too low)*
+**Error `400 Bad Request`** *(bid too low or invalid amount)*
 ```json
 {
   "error": "BID_TOO_LOW",
@@ -793,12 +795,14 @@ All errors return `ErrorResponse { error: String, message: String }` with the co
 }
 ```
 
-**Response `200 OK`**
+**Response `201 Created`**
 ```json
 {
-  "message": "Auto-bid registered successfully",
+  "auctionId": 3,
+  "bidderId": 7,
   "maxBid": 2000000,
-  "increment": 50000
+  "increment": 50000,
+  "status": "ACTIVE"
 }
 ```
 </details>
@@ -817,6 +821,17 @@ Endpoint: /ws/auction/{auctionId}?token=<JWT>
 | Server → Client | `TIME_EXTENDED` | `{ newEndTime }` |
 | Server → Client | `AUCTION_ENDED` | `{ winner, finalPrice }` |
 | Server → Client | `AUTO_BID_TRIGGERED` | `{ bidderId, amount }` |
+
+---
+
+## Business Rules Snapshot
+
+- Manual bid endpoint `POST /api/auctions/{id}/bid` is **BIDDER-only**. Sellers and admins are rejected by the HTTP authorization layer.
+- Sellers create items and auctions, and can only edit/cancel their own auctions according to auction state rules. Admins use admin-only routes for moderation.
+- Money inputs use integer VND at service/API boundaries. Negative, zero where positive is required, and decimal amounts such as `1000.50` are rejected.
+- Auto-bid is BIDDER-only, scoped to the authenticated bidder, and cannot be stopped for another bidder. Auto-bid uses `maxBid` and `increment` with integer VND validation.
+- Wallet balance changes are recorded in `wallet_transactions` for deposit approval, bid freeze/release, cancellation release, winner consume, and seller payout.
+- PostgreSQL schema is owned by Flyway migrations under `src/main/resources/db/migration`; CI and local test bootstrap run the full migration set.
 
 ---
 
@@ -863,7 +878,7 @@ Endpoint: /ws/auction/{auctionId}?token=<JWT>
 | RAM | 512 MB minimum | Embedded PostgreSQL + JavaFX |
 | Display | 1280×720 minimum | Required for JavaFX rendering |
 
-PostgreSQL is **embedded** - no installation needed.
+PostgreSQL is **embedded** for local runs - no installation needed. The server starts an embedded PostgreSQL instance in `data/postgres` and applies all Flyway migrations automatically. CI uses an empty PostgreSQL service database and lets the same Flyway migration path prepare the schema.
 
 ```bash
 java -version
@@ -899,10 +914,26 @@ $env:JWT_SECRET = "replace-with-a-random-secret-of-at-least-32-bytes"
 java -jar auction-server-1.0.0.jar
 ```
 
+From source, the equivalent Gradle command is:
+
+```bash
+./gradlew run          # macOS / Linux
+gradlew.bat run        # Windows
+```
+
+On Windows, `server-start.bat`, `server-stop.bat`, and `server-status.bat` wrap the same server workflow.
+
 **Step 2 - Start one or more clients** (each terminal = independent client)
 
 ```bash
 java -jar auction-client-1.0.0.jar
+```
+
+From source:
+
+```bash
+./gradlew runClient          # macOS / Linux
+gradlew.bat runClient        # Windows
 ```
 
 To simulate concurrent bidding, open multiple terminals and run the client command in each.
@@ -934,12 +965,17 @@ Output JARs will be placed in `build/libs/`.
 | Command | Description |
 |---|---|
 | `./gradlew buildJars` | Build server + client fat JARs |
-| `./gradlew test` | Run all 17 test files |
+| `./gradlew run` | Start the Javalin server from source |
+| `./gradlew runClient` | Start the JavaFX client from source |
+| `./gradlew spotlessCheck` | Check Google Java Style formatting, as CI does before tests |
+| `./gradlew test` | Run the JUnit test suite |
 | `./gradlew check` | Run quality gates, including JaCoCo instruction coverage verification at 20% minimum |
 | `./gradlew jacocoTestReport` | Coverage report → `build/reports/jacoco/` |
 | `./gradlew spotlessApply` | Auto-format all Java code |
 | `./gradlew spotbugsMain` | Static analysis |
 | `./gradlew clean` | Clean build artifacts |
+
+CI runs `./gradlew spotlessCheck` first, then `./gradlew clean test check jacocoTestReport --info --stacktrace`.
 
 ### Troubleshooting
 
@@ -962,10 +998,10 @@ Ensure a display server is running. On headless servers, use `export DISPLAY=:0`
 
 | Member | GitHub | Role | Technical Contributions |
 |---|---|---|---|
-| **Bui Ngoc Phu Hung** | [@HumaNormal](https://github.com/HumaNormal) | Backend Lead | Javalin server setup · 5 REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · 7 JDBI DAOs · 5 SQL migration scripts · HikariCP connection pool config |
+| **Bui Ngoc Phu Hung** | [@HumaNormal](https://github.com/HumaNormal) | Backend Lead | Javalin server setup · REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · JDBI DAOs · Flyway migrations · HikariCP connection pool config |
 | **Tran Anh Duc** | [@kieran-lucas](https://github.com/kieran-lucas) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
-| **Nguyen Dinh Viet Duc** | [@Black1206-coder](https://github.com/Black1206-coder) | Business Logic | 6 service classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
-| **Bui Quang Huy** | [@stillqhuy](https://github.com/stillqhuy) | DevOps & QA | 5-stage GitHub Actions CI pipeline · 17 JUnit 5 test files · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
+| **Nguyen Dinh Viet Duc** | [@Black1206-coder](https://github.com/Black1206-coder) | Business Logic | Service-layer classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
+| **Bui Quang Huy** | [@stillqhuy](https://github.com/stillqhuy) | DevOps & QA | GitHub Actions CI pipeline · JUnit 5 regression suite · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
 
 All members jointly own `model/` (14 domain classes), `dto/` (13 transfer objects), and project documentation.
 
@@ -992,7 +1028,7 @@ All members jointly own `model/` (14 domain classes), `dto/` (13 transfer object
 | Build | Gradle (Kotlin DSL) | 8.12.1 | Type-safe build scripts |
 | Code Style | Checkstyle + Spotless | - | Google Java Style, enforced in CI + pre-commit hook |
 | Static Analysis | SpotBugs | 6.0.9 | MAX effort - null dereferences, race conditions |
-| CI/CD | GitHub Actions | - | 5-stage pipeline |
+| CI/CD | GitHub Actions | - | `spotlessCheck` + Gradle verification pipeline |
 
 </details>
 
@@ -1012,7 +1048,7 @@ auction-system/
 │   └── workflows/
 │       └── ci.yml                              ← GitHub Actions pipeline (trigger: push + PR → main)
 │                                                  Steps: spotlessCheck → clean test check jacocoTestReport
-│                                                  check runs Checkstyle and SpotBugs through Gradle
+│                                                  check runs Checkstyle, SpotBugs, and JaCoCo coverage verification
 │                                                  Spins up an empty PostgreSQL 16 test database
 │                                                  Flyway applies all migrations during test bootstrap
 │                                                  Uploads coverage artifact on completion
@@ -1059,7 +1095,7 @@ auction-system/
 │   │   │   │   │                                  Registers WebSocketObserver into AuctionEventManager
 │   │   │   │   │                                  Pushes: BID_UPDATE · TIME_EXTENDED · AUCTION_ENDED · AUTO_BID_TRIGGERED
 │   │   │   │   ├── AuthController.java         ← REST: POST /api/auth/register · /login (public, no JWT)
-│   │   │   │   │                                  POST /api/auth/change-password · /forgot-password (JWT required)
+│   │   │   │   │                                  POST /api/auth/forgot-password (public password reset request)
 │   │   │   │   ├── BidController.java          ← REST: POST /api/auctions/{id}/bid (manual, role: BIDDER)
 │   │   │   │   │                                  POST /api/auctions/{id}/auto-bid (register auto-bid config)
 │   │   │   │   └── ItemController.java         ← REST: GET /api/items · POST /api/items (role: SELLER)
@@ -1171,7 +1207,7 @@ auction-system/
 │   │   │   │   │   ├── AuctionDetailController.java   ← ★ Connects to WebSocket, renders JavaFX LineChart (bid history),
 │   │   │   │   │   │                                     runs countdown timer, handles manual & auto-bid forms
 │   │   │   │   │   ├── AuctionListController.java     ← Fetches auction list via REST; supports status filter
-│   │   │   │   │   ├── ChangePasswordController.java  ← POST /api/auth/change-password flow
+│   │   │   │   │   ├── ChangePasswordController.java  ← PUT /api/users/me/password flow
 │   │   │   │   │   ├── CreateAuctionController.java   ← POST /api/auctions (role: SELLER)
 │   │   │   │   │   ├── CreateItemController.java      ← POST /api/items (role: SELLER); form adapts to category
 │   │   │   │   │   ├── DepositController.java         ← POST /api/users/me/deposit - submits PENDING deposit request
@@ -1201,13 +1237,10 @@ auction-system/
 │   │       │
 │   │       ├── db/
 │   │       │   └── migration/                  ← Versioned SQL migrations (Flyway-style, applied in order)
-│   │       │       ├── V1__initial_schema.sql  ← Creates 5 core tables:
-│   │       │       │                              users, items, auctions, bid_transactions, auto_bid_configs
+│   │       │       ├── V1__initial_schema.sql  ← Creates core tables: users, items, auctions, bids, auto-bid configs
 │   │       │       ├── V2__seed_admin.sql      ← Seeds default admin account
-│   │       │       ├── V3__add_balance.sql     ← ALTER TABLE users ADD COLUMN balance NUMERIC
-│   │       │       ├── V4__deposit_requests.sql← Creates deposit_requests table (PENDING/APPROVED/REJECTED)
-│   │       │       ├── V5__password_reset_requests.sql ← Creates password_reset_requests table
-│   │       │       └── V6__notifications.sql   ← Creates notifications table for WebSocket push messages
+│   │       │       ├── V3..V16                 ← Balance, deposits, notifications, item/auction status, token version
+│   │       │       └── V17__wallet_transactions.sql ← Wallet ledger for balance/reserved-balance movements
 │   │       │
 │   │       ├── fonts/                          ← Lexend typeface bundled at 9 weights (Black → Thin)
 │   │       │   ├── Lexend-Black.ttf
@@ -1301,8 +1334,8 @@ auction-system/
 | Client-Server | 0.5 | `App.java` (Javalin) ↔ `ClientApp.java` (JavaFX) via HTTP + WebSocket |
 | MVC | 0.5 | `ui/fxml/` (View) + `ui/controller/` (Controller) + `model/` + `dto/` (Model) |
 | Build + conventions | 0.5 | `build.gradle.kts` · `checkstyle.xml` · `.editorconfig` · Spotless |
-| Unit Tests | 0.5 | `test/` - 17 files, JUnit 5 + Mockito, integration tests against real PostgreSQL |
-| CI/CD | 0.5 | `.github/workflows/ci.yml` - 5-stage pipeline |
+| Unit Tests | 0.5 | `test/` - JUnit 5 + Mockito, integration tests against real PostgreSQL |
+| CI/CD | 0.5 | `.github/workflows/ci.yml` - `spotlessCheck` + Gradle verification pipeline |
 | Auto-bidding | 0.5 | `AutoBidStrategy` · `AutoBidConfig` · `AutoBidConfigDao` |
 | Anti-sniping | 0.5 | `BidService.placeBid()` - `ANTI_SNIPE_THRESHOLD_MS = 30_000` · `EXTENSION = 60s` |
 | Bid History Chart | 0.5 | `AuctionDetailController` + `auction-detail.fxml` (JavaFX `LineChart`) |
