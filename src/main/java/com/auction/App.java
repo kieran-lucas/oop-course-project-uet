@@ -145,7 +145,8 @@ public class App {
             jdbi,
             auctionService,
             userDao,
-            autoBidStrategy);
+            autoBidStrategy,
+            wsHandler);
     var bidController = new BidController(bidService);
 
     // ── 7. Khởi tạo Scheduler (tự chuyển trạng thái phiên) ──

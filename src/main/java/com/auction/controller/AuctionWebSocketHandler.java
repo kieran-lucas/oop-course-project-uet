@@ -389,6 +389,56 @@ public class AuctionWebSocketHandler {
     }
   }
 
+  /**
+   * Gửi thông báo chung đến user qua kênh {@code /ws/user/{id}} — không kèm biến động số dư. Dùng
+   * cho các sự kiện như: seller nhận thông báo có bid mới, kết quả phiên đấu giá. Lưu DB trước rồi
+   * push WS nếu user online.
+   *
+   * @param userId ID user nhận thông báo
+   * @param message nội dung hiển thị
+   * @param notificationType loại notification lưu DB (vd: SELLER_BID_RECEIVED, AUCTION_RESULT)
+   */
+  public void notifyUser(Long userId, String message, String notificationType) {
+    saveNotificationToDatabase(userId, message, notificationType);
+    pushUserNotification(userId, message);
+  }
+
+  /**
+   * Push thông báo chung qua WS đến user mà KHÔNG lưu DB — dùng khi caller đã insert notification
+   * trong cùng transaction nghiệp vụ (vd: BidService insert notification cùng transaction bid).
+   *
+   * @param userId ID user nhận thông báo
+   * @param message nội dung hiển thị
+   */
+  public void pushUserNotification(Long userId, String message) {
+    Set<WsContext> sessions = userConnections.get(userId);
+    if (sessions == null || sessions.isEmpty()) {
+      return;
+    }
+    try {
+      BidUpdateMessage msg = BidUpdateMessage.userNotification(userId, message);
+      String json = objectMapper.writeValueAsString(msg);
+      for (WsContext wsCtx : sessions) {
+        try {
+          if (isSessionExpired(wsCtx)) {
+            closeExpiredSession(wsCtx);
+            removeUserConnection(wsCtx);
+          } else if (wsCtx.session.isOpen()) {
+            wsCtx.send(json);
+          } else {
+            sessions.remove(wsCtx);
+          }
+        } catch (Exception e) {
+          LOGGER.error("Lỗi gửi User WebSocket message: {}", e.getMessage());
+          sessions.remove(wsCtx);
+        }
+      }
+      LOGGER.info("Đã push USER_NOTIFICATION → userId={}", userId);
+    } catch (Exception e) {
+      LOGGER.error("Lỗi serialize USER_NOTIFICATION message: {}", e.getMessage());
+    }
+  }
+
   /** Xóa connection và unsubscribe observer khỏi EventManager. */
   private void removeConnection(WsContext ctx) {
     connections.values().forEach(set -> set.remove(ctx));

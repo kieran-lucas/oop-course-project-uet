@@ -66,7 +66,8 @@ class AuctionSchedulerSettlementTest {
             jdbi,
             auctionService,
             userDao,
-            autoBidStrategy);
+            autoBidStrategy,
+            wsHandler);
   }
 
   @BeforeEach

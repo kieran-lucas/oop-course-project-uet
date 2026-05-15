@@ -59,6 +59,13 @@ public class BidUpdateMessage {
    */
   public static final String TYPE_BALANCE_UPDATED = "BALANCE_UPDATED";
 
+  /**
+   * Loại message thông báo chung gửi đến kênh riêng của user ({@code /ws/user/{id}}) — không kèm
+   * biến động số dư. Dùng cho các sự kiện như: seller được thông báo có bid mới trên phiên mình,
+   * seller được thông báo kết quả phiên đấu giá thành công/thất bại.
+   */
+  public static final String TYPE_USER_NOTIFICATION = "USER_NOTIFICATION";
+
   private String type;
   private Long auctionId;
   private BigDecimal currentPrice;
@@ -197,6 +204,23 @@ public class BidUpdateMessage {
     msg.newBalance = newBalance;
     msg.balanceDelta = balanceDelta;
     msg.approved = balanceDelta != null && balanceDelta.signum() >= 0;
+    msg.message = message;
+    msg.timestamp = LocalDateTime.now();
+    return msg;
+  }
+
+  /**
+   * Factory method tạo message USER_NOTIFICATION — gửi qua {@code /ws/user/{id}} cho các sự kiện
+   * không liên quan đến biến động số dư (vd: seller nhận thông báo có bid mới, kết quả phiên đấu
+   * giá).
+   *
+   * @param userId ID user nhận thông báo
+   * @param message nội dung hiển thị
+   */
+  public static BidUpdateMessage userNotification(Long userId, String message) {
+    BidUpdateMessage msg = new BidUpdateMessage();
+    msg.type = TYPE_USER_NOTIFICATION;
+    msg.auctionId = userId;
     msg.message = message;
     msg.timestamp = LocalDateTime.now();
     return msg;

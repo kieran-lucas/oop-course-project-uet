@@ -112,6 +112,14 @@ public class UserBalanceWatcher {
         json -> {
           try {
             BidUpdateMessage msg = MAPPER.readValue(json, BidUpdateMessage.class);
+            if (BidUpdateMessage.TYPE_USER_NOTIFICATION.equals(msg.getType())) {
+              String text = msg.getMessage();
+              if (text != null && !text.isBlank()) {
+                LOGGER.info("Nhận USER_NOTIFICATION: {}", text);
+                Platform.runLater(() -> NotificationStore.getInstance().add(text));
+              }
+              return;
+            }
             if (BidUpdateMessage.TYPE_BALANCE_UPDATED.equals(msg.getType())) {
               // FIX Bug 2: đọc field approved riêng thay vì tái dùng autoBid
               boolean approved = msg.isApproved();

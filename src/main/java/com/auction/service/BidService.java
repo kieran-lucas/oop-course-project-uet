@@ -1,5 +1,6 @@
 package com.auction.service;
 
+import com.auction.controller.AuctionWebSocketHandler;
 import com.auction.dao.AuctionDao;
 import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
@@ -67,6 +68,7 @@ public class BidService {
   private final AuctionService auctionService;
   private final UserDao userDao;
   private final AutoBidStrategy autoBidStrategy;
+  private final AuctionWebSocketHandler wsHandler;
 
   public BidService(
       AuctionDao auctionDao,
@@ -76,7 +78,8 @@ public class BidService {
       Jdbi jdbi,
       AuctionService auctionService,
       UserDao userDao,
-      AutoBidStrategy autoBidStrategy) {
+      AutoBidStrategy autoBidStrategy,
+      AuctionWebSocketHandler wsHandler) {
     this.auctionDao = auctionDao;
     this.bidTransactionDao = bidTransactionDao;
     this.autoBidConfigDao = autoBidConfigDao;
@@ -85,6 +88,7 @@ public class BidService {
     this.auctionService = auctionService;
     this.userDao = userDao;
     this.autoBidStrategy = autoBidStrategy;
+    this.wsHandler = wsHandler;
   }
 
   /**
@@ -179,6 +183,25 @@ public class BidService {
                           "Bạn đã bị vượt giá tại phiên #%d. Giá hiện tại: %,d VND",
                           auctionId,
                           toIntegerVnd(amount, "Bid amount")));
+                }
+
+                Long sellerId = auction.getSellerId();
+                if (sellerId != null && !sellerId.equals(bidderId)) {
+                  String bidderName =
+                      bidder.getUsername() != null ? bidder.getUsername() : "Người dùng";
+                  String sellerMsg =
+                      String.format(
+                          Locale.of("vi", "VN"),
+                          "Phiên #%d của bạn vừa nhận bid mới từ %s. Giá hiện tại: %,d VND",
+                          auctionId,
+                          bidderName,
+                          toIntegerVnd(amount, "Bid amount"));
+                  handle.execute(
+                      "INSERT INTO notifications (user_id, message, notification_type)"
+                          + " VALUES (?, ?, 'SELLER_BID_RECEIVED')",
+                      sellerId,
+                      sellerMsg);
+                  postCommitEvents.add(() -> wsHandler.pushUserNotification(sellerId, sellerMsg));
                 }
 
                 BidTransaction tx = new BidTransaction(auctionId, bidderId, amount, isAutoBid);
@@ -381,6 +404,28 @@ public class BidService {
                           toIntegerVnd(initialBid, "Initial bid")));
                 }
 
+                Long sellerId = auction.getSellerId();
+                if (sellerId != null && !sellerId.equals(bidderId)) {
+                  String bidderName =
+                      bidder.getUsername() != null ? bidder.getUsername() : "Người dùng";
+                  String sellerMsg =
+                      String.format(
+                          Locale.of("vi", "VN"),
+                          "Phiên #%d của bạn vừa nhận auto-bid mới từ %s. Giá hiện tại: %,d VND",
+                          auctionId,
+                          bidderName,
+                          toIntegerVnd(initialBid, "Initial bid"));
+                  handle.execute(
+                      "INSERT INTO notifications (user_id, message, notification_type)"
+                          + " VALUES (?, ?, 'SELLER_BID_RECEIVED')",
+                      sellerId,
+                      sellerMsg);
+                  final Long sellerIdFinal = sellerId;
+                  final String sellerMsgFinal = sellerMsg;
+                  postCommitEvents.add(
+                      () -> wsHandler.pushUserNotification(sellerIdFinal, sellerMsgFinal));
+                }
+
                 BidTransaction tx = new BidTransaction(auctionId, bidderId, initialBid, true);
                 BidTransaction savedBid = bidTransactionDao.insert(handle, tx);
                 WalletTransactionDao.insert(
@@ -478,6 +523,32 @@ public class BidService {
               "Bạn đã bị vượt giá tại phiên #%d. Giá hiện tại: %,d VND",
               auctionId,
               toIntegerVnd(amount, "Bid amount")));
+    }
+
+    Long sellerId = auction.getSellerId();
+    if (sellerId != null && !sellerId.equals(bidderId)) {
+      String bidderName =
+          handle
+              .createQuery("SELECT username FROM users WHERE id = :id")
+              .bind("id", bidderId)
+              .mapTo(String.class)
+              .findOne()
+              .orElse("Người dùng");
+      String sellerMsg =
+          String.format(
+              Locale.of("vi", "VN"),
+              "Phiên #%d của bạn vừa nhận auto-bid mới từ %s. Giá hiện tại: %,d VND",
+              auctionId,
+              bidderName,
+              toIntegerVnd(amount, "Bid amount"));
+      handle.execute(
+          "INSERT INTO notifications (user_id, message, notification_type)"
+              + " VALUES (?, ?, 'SELLER_BID_RECEIVED')",
+          sellerId,
+          sellerMsg);
+      final Long sellerIdFinal = sellerId;
+      final String sellerMsgFinal = sellerMsg;
+      postCommitEvents.add(() -> wsHandler.pushUserNotification(sellerIdFinal, sellerMsgFinal));
     }
 
     BidTransaction tx = new BidTransaction(auctionId, bidderId, amount, true);

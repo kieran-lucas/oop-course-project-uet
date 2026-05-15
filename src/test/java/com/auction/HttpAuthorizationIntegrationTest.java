@@ -87,6 +87,7 @@ class HttpAuthorizationIntegrationTest {
     AuctionService auctionService =
         new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao);
     AutoBidStrategy autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
+    var wsHandler = new com.auction.controller.AuctionWebSocketHandler(eventManager, jdbi);
     BidService bidService =
         new BidService(
             auctionDao,
@@ -96,7 +97,8 @@ class HttpAuthorizationIntegrationTest {
             jdbi,
             auctionService,
             userDao,
-            autoBidStrategy);
+            autoBidStrategy,
+            wsHandler);
 
     app = buildTestApp();
     JwtMiddleware.configure(userDao);

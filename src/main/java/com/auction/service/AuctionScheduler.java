@@ -205,6 +205,18 @@ public class AuctionScheduler {
         SettlementResult result = settleAndClose(id, now);
         if (result != null) {
           notifyAuctionEnded(result.auction);
+          if (result.userNotifications != null) {
+            for (UserNotification note : result.userNotifications) {
+              try {
+                wsHandler.pushUserNotification(note.userId, note.message);
+              } catch (Exception e) {
+                LOG.error(
+                    "Không thể push USER_NOTIFICATION cho user #{}: {}",
+                    note.userId,
+                    e.getMessage());
+              }
+            }
+          }
           if (result.balanceChanges != null) {
             for (BalanceChange change : result.balanceChanges) {
               try {
@@ -237,8 +249,17 @@ public class AuctionScheduler {
       String message,
       String notificationType) {}
 
-  /** Kết quả của một lần settlement: phiên đã đóng + danh sách biến động số dư cần phát. */
-  private record SettlementResult(Auction auction, List<BalanceChange> balanceChanges) {}
+  /** Thông báo chung (không kèm biến động số dư) cần push trước balance change. */
+  private record UserNotification(Long userId, String message, String notificationType) {}
+
+  /**
+   * Kết quả của một lần settlement: phiên đã đóng + danh sách user notifications (kết quả phiên)
+   * cần phát trước balance changes.
+   */
+  private record SettlementResult(
+      Auction auction,
+      List<UserNotification> userNotifications,
+      List<BalanceChange> balanceChanges) {}
 
   /**
    * Thanh toán và đóng phiên: - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status →
@@ -249,6 +270,7 @@ public class AuctionScheduler {
     try {
       final Auction[] settledAuction = new Auction[1];
       final List<BalanceChange> balanceChanges = new java.util.ArrayList<>();
+      final List<UserNotification> userNotifications = new java.util.ArrayList<>();
       jdbi.useTransaction(
           handle -> {
             int claimed =
@@ -280,6 +302,7 @@ public class AuctionScheduler {
 
             Auction auction = refetchedAuction.get();
             Long winnerId = auction.getLeadingBidderId();
+            Long sellerId = auction.getSellerId();
 
             if (winnerId != null) {
               BigDecimal price = auction.getCurrentPrice();
@@ -344,7 +367,6 @@ public class AuctionScheduler {
                         winnerId, winnerNewBalance, winnerDelta, winMsg, "AUCTION_WON"));
 
                 // Cộng tiền seller
-                Long sellerId = auction.getSellerId();
                 if (sellerId != null) {
                   // Khóa row seller để cộng tiền
                   User seller = userDao.findByIdForUpdate(handle, sellerId);
@@ -378,9 +400,24 @@ public class AuctionScheduler {
                           "Phiên đấu giá #%d đã thanh toán." + " Số dư biến động: + %,d VND",
                           auction.getId(),
                           price.longValue());
-                  balanceChanges.add(
-                      new BalanceChange(
-                          sellerId, sellerNewBalance, price, sellerMsg, "SELLER_PAYOUT"));
+                  String winnerName =
+                      winner != null && winner.getUsername() != null
+                          ? winner.getUsername()
+                          : "Người dùng #" + winnerId;
+                  String sellerResultMsg =
+                      String.format(
+                          Locale.of("vi", "VN"),
+                          "Phiên #%d đấu giá thành công! Người thắng: %s với giá %,d VND.",
+                          auction.getId(),
+                          winnerName,
+                          price.longValue());
+                  handle.execute(
+                      "INSERT INTO notifications (user_id, message, notification_type)"
+                          + " VALUES (?, ?, 'AUCTION_RESULT')",
+                      sellerId,
+                      sellerResultMsg);
+                  userNotifications.add(
+                      new UserNotification(sellerId, sellerResultMsg, "AUCTION_RESULT"));
                 }
 
                 auction.setStatus(AuctionStatus.PAID);
@@ -400,9 +437,45 @@ public class AuctionScheduler {
                     "RELEASE",
                     price,
                     "settlement_insufficient_balance:" + auction.getId());
+
+                if (sellerId != null) {
+                  String winnerName =
+                      winner != null && winner.getUsername() != null
+                          ? winner.getUsername()
+                          : "Người dùng #" + winnerId;
+                  String sellerFailMsg =
+                      String.format(
+                          Locale.of("vi", "VN"),
+                          "Phiên #%d kết thúc thất bại: người thắng (%s) không đủ tiền thanh toán %,d VND.",
+                          auction.getId(),
+                          winnerName,
+                          price.longValue());
+                  handle.execute(
+                      "INSERT INTO notifications (user_id, message, notification_type)"
+                          + " VALUES (?, ?, 'AUCTION_RESULT')",
+                      sellerId,
+                      sellerFailMsg);
+                  userNotifications.add(
+                      new UserNotification(sellerId, sellerFailMsg, "AUCTION_RESULT"));
+                }
+
                 auction.setStatus(AuctionStatus.FINISHED);
               }
             } else {
+              if (sellerId != null) {
+                String sellerFailMsg =
+                    String.format(
+                        Locale.of("vi", "VN"),
+                        "Phiên #%d kết thúc — không có ai đặt giá. Phiên đấu giá thất bại.",
+                        auction.getId());
+                handle.execute(
+                    "INSERT INTO notifications (user_id, message, notification_type)"
+                        + " VALUES (?, ?, 'AUCTION_RESULT')",
+                    sellerId,
+                    sellerFailMsg);
+                userNotifications.add(
+                    new UserNotification(sellerId, sellerFailMsg, "AUCTION_RESULT"));
+              }
               auction.setStatus(AuctionStatus.FINISHED);
             }
 
@@ -420,7 +493,7 @@ public class AuctionScheduler {
           settledAuction[0].getStatus(),
           settledAuction[0].getEndTime(),
           settledAuction[0].getLeadingBidderId());
-      return new SettlementResult(settledAuction[0], balanceChanges);
+      return new SettlementResult(settledAuction[0], userNotifications, balanceChanges);
     } finally {
       MDC.remove("auctionId");
     }

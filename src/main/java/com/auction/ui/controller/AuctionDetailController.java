@@ -900,9 +900,9 @@ public class AuctionDetailController implements Navigable {
         String price = msg.getCurrentPrice() != null ? vnd(msg.getCurrentPrice()) : "—";
         winnerLabel.setText("Người thắng: " + winner + " — Giá cuối: " + price);
 
-        String currentRole = SceneManager.getInstance().getCurrentRole();
         String label = currentItemName != null ? "[" + currentItemName + "] " : "";
-        if (userHasBid || "SELLER".equals(currentRole)) {
+        if (userHasBid) {
+          // Seller nhận thông báo AUCTION_RESULT qua /ws/user/{sellerId} — không add ở đây.
           NotificationStore.getInstance()
               .add(label + "Phiên đã kết thúc — " + winner + " thắng với " + price);
         }
@@ -939,7 +939,7 @@ public class AuctionDetailController implements Navigable {
     if (isSeller) {
       text = itemLabel + "Có bid mới: " + price + " từ " + bidder;
       color = "#0277BD";
-      NotificationStore.getInstance().add(text);
+      // Bell entry được đẩy qua kênh /ws/user/{sellerId} (SELLER_BID_RECEIVED) — tránh nhân đôi.
     } else if (isOwnBid && msg.isAutoBid()) {
       text = itemLabel + "Auto-bid đặt " + price + " cho bạn";
       color = "#2e7d32";

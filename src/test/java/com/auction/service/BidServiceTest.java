@@ -80,6 +80,7 @@ class BidServiceTest {
   @Mock private AuctionService auctionService;
   @Mock private Handle mockHandle;
   @Mock private AutoBidStrategy autoBidStrategy;
+  @Mock private com.auction.controller.AuctionWebSocketHandler wsHandler;
 
   // ── System Under Test ────────────────────────────────────
   private BidService bidService;
@@ -126,7 +127,8 @@ class BidServiceTest {
             jdbi,
             auctionService,
             userDao,
-            autoBidStrategy);
+            autoBidStrategy,
+            wsHandler);
 
     // Bidder có số dư đủ lớn để bid (100 triệu)
     Bidder bidder = new Bidder();

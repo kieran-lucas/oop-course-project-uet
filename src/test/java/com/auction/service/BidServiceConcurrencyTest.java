@@ -55,6 +55,7 @@ class BidServiceConcurrencyTest {
     AuctionService auctionService =
         new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao);
     AutoBidStrategy autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
+    var wsHandler = new com.auction.controller.AuctionWebSocketHandler(eventManager, jdbi);
     bidService =
         new BidService(
             auctionDao,
@@ -64,7 +65,8 @@ class BidServiceConcurrencyTest {
             jdbi,
             auctionService,
             userDao,
-            autoBidStrategy);
+            autoBidStrategy,
+            wsHandler);
   }
 
   @BeforeEach
