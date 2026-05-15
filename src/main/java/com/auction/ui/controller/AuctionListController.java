@@ -41,6 +41,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Popup;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.slf4j.Logger;
@@ -323,9 +324,11 @@ public class AuctionListController implements Navigable {
       }
       scrollPane = new ScrollPane(items);
       // Always reserve a tall viewport so the popup doesn't collapse to a single-row height
-      // when the user only has 1–2 notifications.
-      scrollPane.setPrefViewportHeight(600);
-      scrollPane.setMaxHeight(600);
+      // when the user only has 1–2 notifications. Cap at ~1/3 of screen height so the popup
+      // never overflows the visible area.
+      double notifPopupHeight = Screen.getPrimary().getVisualBounds().getHeight() / 3.0;
+      scrollPane.setPrefViewportHeight(notifPopupHeight);
+      scrollPane.setMaxHeight(notifPopupHeight);
       scrollPane.setFitToWidth(true);
       scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
       scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
