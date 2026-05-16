@@ -95,6 +95,7 @@ public class AuctionDetailController implements Navigable {
   @FXML private Label itemBrandLabel; // ELECTRONICS: hãng sản xuất
   @FXML private Label itemArtistLabel; // ART: nghệ sĩ
   @FXML private Label itemYearLabel; // VEHICLE: năm sản xuất
+  @FXML private Label startingPriceLabel; // Giá khởi điểm — hiển thị cạnh mô tả sản phẩm
   @FXML private Label auctionStatusLabel;
 
   // ── Price & countdown ──
@@ -158,7 +159,20 @@ public class AuctionDetailController implements Navigable {
 
   private String currentItemName;
   private boolean userHasBid;
+
+  /**
+   * Số dư khả dụng (tổng đã nạp − tiền đang giữ chỗ). Dùng cho pre-flight check trước khi bid; nếu
+   * bid > availableBalance thì hiển thị lỗi sớm thay vì phải chờ server trả 400.
+   */
   private BigDecimal lastKnownBalance;
+
+  /**
+   * Tổng số dư đã nạp ({@code users.balance}). Đây là con số label "Số dư" hiển thị cho người dùng
+   * — bid không làm giảm trường này, chỉ tăng reservedBalance phía DB. UI vì thế đứng yên, thao tác
+   * giữ chỗ chạy âm thầm trong logic.
+   */
+  private BigDecimal lastKnownTotalBalance;
+
   private BigDecimal currentPriceValue;
   private Timeline balancePollTimeline;
   private RotateTransition autoBidSpinnerTransition;
@@ -283,6 +297,9 @@ public class AuctionDetailController implements Navigable {
       itemArtistLabel.setManaged(false);
       itemYearLabel.setVisible(false);
       itemYearLabel.setManaged(false);
+      startingPriceLabel.setText("");
+      startingPriceLabel.setVisible(false);
+      startingPriceLabel.setManaged(false);
       auctionStatusLabel.setText("");
       auctionStatusLabel.setStyle("");
       winnerLabel.setText("");
@@ -311,6 +328,7 @@ public class AuctionDetailController implements Navigable {
         currentPriceValue = null;
       }
       lastKnownBalance = null;
+      lastKnownTotalBalance = null;
       lastAutoBidStatus = null;
       if (balanceLabel != null) {
         balanceLabel.setText("Số dư: đang tải...");
@@ -476,10 +494,10 @@ public class AuctionDetailController implements Navigable {
     }
 
     if (lastKnownBalance != null && amount.compareTo(lastKnownBalance) > 0) {
-      showBidError(
-          "Số dư của bạn ("
-              + vnd(lastKnownBalance)
-              + ") không đủ. Hãy nạp tiền trước khi đặt giá.");
+      // Cảnh báo dựa trên số dư khả dụng (đã trừ tiền giữ chỗ cho các phiên đang dẫn đầu);
+      // label "Số dư" ở trên vẫn hiển thị tổng. Nói rõ "khả dụng" để user hiểu vì sao bid bị chặn
+      // dù label balance còn nhiều.
+      showBidError("Số dư khả dụng (" + vnd(lastKnownBalance) + ") không đủ cho mức giá này.");
       return;
     }
 
@@ -1169,26 +1187,7 @@ public class AuctionDetailController implements Navigable {
    */
   private void startBalancePoll() {
     // Fetch initial balance and show it in the form
-    Thread.ofVirtual()
-        .start(
-            () -> {
-              try {
-                HttpResponse<String> resp = RestClient.get("/api/users/me");
-                if (resp.statusCode() == 200) {
-                  var node = MAPPER.readTree(resp.body());
-                  if (node.has("balance")) {
-                    BigDecimal balance = node.get("balance").decimalValue();
-                    Platform.runLater(
-                        () -> {
-                          lastKnownBalance = balance;
-                          updateBalanceLabel(balance);
-                        });
-                  }
-                }
-              } catch (Exception e) {
-                LOGGER.debug("Không thể load balance ban đầu", e);
-              }
-            });
+    Thread.ofVirtual().start(this::fetchAndApplyBalance);
 
     // Poll chỉ cập nhật label số dư trong form, KHÔNG hiện toast khi số dư thay đổi.
     // Nguồn DUY NHẤT phát thông báo biến động số dư là server qua WebSocket BALANCE_UPDATED
@@ -1197,30 +1196,44 @@ public class AuctionDetailController implements Navigable {
     balancePollTimeline =
         new Timeline(
             new KeyFrame(
-                Duration.seconds(5),
-                ev ->
-                    Thread.ofVirtual()
-                        .start(
-                            () -> {
-                              try {
-                                HttpResponse<String> resp = RestClient.get("/api/users/me");
-                                if (resp.statusCode() == 200) {
-                                  var node = MAPPER.readTree(resp.body());
-                                  if (node.has("balance")) {
-                                    BigDecimal balance = node.get("balance").decimalValue();
-                                    Platform.runLater(
-                                        () -> {
-                                          lastKnownBalance = balance;
-                                          updateBalanceLabel(balance);
-                                        });
-                                  }
-                                }
-                              } catch (Exception e) {
-                                LOGGER.debug("Không thể poll balance: {}", e.getMessage());
-                              }
-                            })));
+                Duration.seconds(5), ev -> Thread.ofVirtual().start(this::fetchAndApplyBalance)));
     balancePollTimeline.setCycleCount(Timeline.INDEFINITE);
     balancePollTimeline.play();
+  }
+
+  /**
+   * Đọc {@code /api/users/me} rồi cập nhật label + state.
+   *
+   * <p><b>Hiển thị</b> luôn là {@code balance} (tổng đã nạp) — không đổi khi user đang giữ chỗ tiền
+   * cho phiên bid → tránh cảm giác "tiền bị trừ" mỗi lần đặt giá.
+   *
+   * <p><b>Pre-flight check</b> dùng {@code availableBalance} ({@code balance − reservedBalance}) để
+   * bắt sớm trường hợp số tiền giữ chỗ làm cạn quota — đỡ phải chờ server trả 400.
+   */
+  private void fetchAndApplyBalance() {
+    try {
+      HttpResponse<String> resp = RestClient.get("/api/users/me");
+      if (resp.statusCode() != 200) {
+        return;
+      }
+      var node = MAPPER.readTree(resp.body());
+      if (!node.has("balance")) {
+        return;
+      }
+      BigDecimal total = node.get("balance").decimalValue();
+      BigDecimal available =
+          node.has("availableBalance") && !node.get("availableBalance").isNull()
+              ? node.get("availableBalance").decimalValue()
+              : total;
+      Platform.runLater(
+          () -> {
+            lastKnownTotalBalance = total;
+            lastKnownBalance = available;
+            updateBalanceLabel(total);
+          });
+    } catch (Exception e) {
+      LOGGER.debug("Không thể poll balance: {}", e.getMessage());
+    }
   }
 
   /** Dừng và hủy Timeline poll số dư nếu đang chạy. */
@@ -1248,6 +1261,18 @@ public class AuctionDetailController implements Navigable {
 
     // Hiển thị field đặc thù theo category
     updateCategoryMetadata(auction);
+
+    // Giá khởi điểm — luôn cho người xem biết giá xuất phát của phiên,
+    // nằm cùng khối mô tả sản phẩm để dễ so sánh với giá hiện tại ở stat strip.
+    if (auction.getStartingPrice() != null) {
+      startingPriceLabel.setText("Giá khởi điểm: " + vnd(auction.getStartingPrice()));
+      startingPriceLabel.setVisible(true);
+      startingPriceLabel.setManaged(true);
+    } else {
+      startingPriceLabel.setText("");
+      startingPriceLabel.setVisible(false);
+      startingPriceLabel.setManaged(false);
+    }
 
     String statusText = auction.getStatus() != null ? auction.getStatus() : "";
     auctionStatusLabel.setText(statusText);

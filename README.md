@@ -9,11 +9,12 @@
 [![CI](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![Javalin](https://img.shields.io/badge/Javalin-6.4.0-black)](https://javalin.io)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Flyway%20V1–V17-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Embedded%20%2F%20CI%2016-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Flyway](https://img.shields.io/badge/Flyway-V1--V17-CC0200?logo=flyway&logoColor=white)](https://flywaydb.org/)
 [![Gradle](https://img.shields.io/badge/Gradle-Kotlin%20DSL-02303A?logo=gradle&logoColor=white)](https://gradle.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
-**[⬇️ Download JARs](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)** • **[CI pipeline](https://github.com/kieran-labs/oop-course-project-uet/actions)** • **[License](LICENSE)**
+**[⬇️ Download v1.0.0 JARs](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)** • **[Setup](docs/SETUP.md)** • **[Schema](docs/SCHEMA.md)** • **[CI pipeline](https://github.com/kieran-labs/oop-course-project-uet/actions)** • **[License](LICENSE)**
 
 </div>
 
@@ -21,19 +22,33 @@
 
 ## 🧩 Overview
 
-A full-stack **desktop auction platform** built with Java 21. A **JavaFX client** communicates with a **Javalin HTTP/WebSocket server** backed by a PostgreSQL database (embedded, zero-install). Multiple clients can bid simultaneously with real-time price updates pushed over WebSocket - no polling, no stale data.
+A full-stack **desktop auction platform** built with Java 21. A **JavaFX client** communicates with a **Javalin HTTP/WebSocket server** backed by PostgreSQL, using embedded PostgreSQL for the default local run. Multiple clients can bid simultaneously, with active auction views receiving price updates over WebSocket instead of client-side polling.
 
 **What makes this project non-trivial:**
 
-- **Concurrent bid safety** via database-level `SELECT FOR UPDATE` inside a JDBI transaction - prevents lost updates and double-winners under simultaneous bids
+- **Concurrent bid safety** via PostgreSQL row-level locking: the core bid update path uses `SELECT FOR UPDATE` inside a JDBI transaction to serialize price, leader, wallet-reservation, and bid-history updates
 - **Anti-sniping protection**: bids in the final 30 seconds automatically extend the deadline by 60 seconds
 - **Auto-bidding engine** using a `PriorityQueue` with FIFO tie-breaking, capable of chaining multiple auto-bids in a single transaction
-- A complete **6-state auction lifecycle** enforced by the State pattern - illegal operations throw typed exceptions, not silent failures
+- A **6-state auction lifecycle** enforced by the State pattern - illegal state operations throw typed exceptions instead of failing silently
 - **12 JavaFX screens** with a clean blue theme (`#1565C0` primary, `#EFF6FF` background) and a live `AreaChart` fed directly from WebSocket events
 
-The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle) stored in a flattened `Item` model, and a complete lifecycle from item creation through payment and password management — **99 production Java files**, **28 test classes**, and **17 Flyway migrations**.
+The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle) stored in a flattened `Item` model, and the main auction workflow from item creation to settlement, with supporting deposit and password-reset flows — **99 production Java files**, **28 test classes**, and **17 Flyway migrations**.
 
-**Environment:** Java 21+ • Windows / macOS / Linux • No external services required
+**Environment:** Java 21+ • Windows / macOS / Linux • Default local run uses embedded PostgreSQL; no separately installed local database is required
+
+> The release links point to the published `v1.0.0` JARs. For the latest source-tree behavior described below, build from source with the Gradle Wrapper.
+
+---
+
+## Review Focus
+
+| Area | Evidence in this repository |
+|---|---|
+| Desktop client/server architecture | JavaFX client, Javalin REST/WebSocket server, shared DTOs |
+| Concurrent bidding | JDBI transactions, `SELECT FOR UPDATE`, wallet reservation ledger, regression tests |
+| Real-time UX | Auction and user WebSocket channels, Observer pattern, live bid chart |
+| Maintainability | Gradle Kotlin DSL, Checkstyle, Spotless, SpotBugs, JaCoCo, GitHub Actions CI |
+| Honest scope | Documented limitations for payment gateway, horizontal scaling, embedded PostgreSQL, and password reset |
 
 ---
 
@@ -58,25 +73,26 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 - [x] Create and manage auction sessions; lifecycle `OPEN → RUNNING → SETTLING → FINISHED / PAID / CANCELED`
 - [x] Manual bidding - BIDDER-only, validates integer VND `amount > currentPrice`, stored atomically
 - [x] Automatic session expiry (`AuctionScheduler`)
-- [x] Winner determination and settlement; successful payment transitions auction to `PAID`, otherwise finalizes as `FINISHED`
+- [x] Winner determination and balance-based settlement; completed settlement transitions an auction to `PAID`, otherwise it remains `FINISHED`
 - [x] Error handling & exceptions - 5 custom exception types, HTTP status mapping
 - [x] JavaFX GUI - 12 screens, Lexend font, blue theme
 - [x] Concurrent bidding safety - `SELECT FOR UPDATE` inside JDBI transaction
-- [x] Real-time updates - WebSocket push, Observer pattern, no polling
+- [x] Real-time updates - WebSocket push through the Observer pattern, avoiding client-side polling on active auction views
 - [x] Clean Client–Server architecture (Javalin ↔ JavaFX)
-- [x] MVC on client side (FXML + ui/controller) and server side (Controller → Service → DAO)
-- [x] Gradle build tool, Google Java Style, Conventional Commits
+- [x] Client-side MVC (FXML + `ui/controller`) and server-side layered architecture (`Controller → Service → DAO`)
+- [x] Gradle Kotlin DSL build, Google Java Style formatting checks, Checkstyle, Spotless, SpotBugs, and JaCoCo
 - [x] Unit Tests - JUnit 5 + Mockito, integration tests against real PostgreSQL
-- [x] CI/CD - GitHub Actions: `spotlessCheck` → `clean test check jacocoTestReport`
+- [x] CI - GitHub Actions verification: `spotlessCheck` → `clean test check jacocoTestReport`
 
 ### Advanced
 
 - [x] **Auto-Bidding** - configurable `maxBid` + `increment`, `PriorityQueue` ordered by `registeredAt` (FIFO)
 - [x] **Anti-sniping** - bid in final 30s → extend by 60s → broadcast `TIME_EXTENDED`
-- [x] **Live Bid History Chart** - JavaFX `AreaChart` updated in real time from WebSocket events, no manual refresh needed
-
+- [x] **Live Bid History Chart** - JavaFX `AreaChart` updated from WebSocket events without manual refresh
 
 ## 🧬 Class Diagrams
+
+> The diagrams below model the current source structure and persisted foreign-key relationships. Boilerplate getters/setters are omitted where they do not change the design meaning. Relationship arrows marked with FK labels represent database-level references stored as scalar IDs, not in-memory object ownership fields.
 
 ### 1. Domain Model
 
@@ -223,18 +239,19 @@ classDiagram
     AutoBidConfig --> AutoBidStatus : status
     AutoBidConfig --> AutoBidFailureReason : failureReason
 
-    Seller "1" o-- "0..*" Item : sellerId (FK)
-    Seller "1" o-- "0..*" Auction : sellerId (FK)
-    Auction "*" --> "1" Item : itemId (FK)
-    Auction "*" --> "0..1" Bidder : leadingBidderId (FK)
-    Auction "1" *-- "0..*" BidTransaction : history
-    Auction "1" *-- "0..*" AutoBidConfig : auto-bids
-    Bidder "1" o-- "0..*" BidTransaction : bidderId (FK)
-    Bidder "1" o-- "0..*" AutoBidConfig : bidderId (FK)
-    User "1" o-- "0..*" DepositRecord : userId (FK)
-    User "1" o-- "0..*" PasswordResetRecord : userId (FK)
+    Seller "1" --> "0..*" Item : sellerId FK
+    Seller "1" --> "0..*" Auction : sellerId FK
+    Auction "*" --> "1" Item : itemId FK
+    Auction "*" --> "0..1" Bidder : leadingBidderId FK
+    Auction "1" --> "0..*" BidTransaction : persisted history
+    Auction "1" --> "0..*" AutoBidConfig : persisted auto-bids
+    Bidder "1" --> "0..*" BidTransaction : bidderId FK
+    Bidder "1" --> "0..*" AutoBidConfig : bidderId FK
+    User "1" --> "0..*" DepositRecord : userId FK
+    User "1" --> "0..*" PasswordResetRecord : userId FK
 
     note for DepositRecord "Workflow records — standalone (not in Entity tree).\nLifecycle: PENDING → APPROVED / REJECTED"
+    note for Auction "FK relationships are persisted as scalar IDs; Auction does not own in-memory child collections."
 ```
 
 ---
@@ -647,7 +664,7 @@ graph TB
 5. Post-commit dispatch (all events queued during the transaction are now run)
    └─► AuctionEventManager.notifyTimeExtended()  (if anti-snipe triggered)
    └─► AuctionEventManager.notifyBidUpdate()     (one per bid placed in the chain)
-   └─► WebSocketObserver → broadcast BidUpdateMessage (JSON) → all connected clients
+   └─► WebSocketObserver → broadcast BidUpdateMessage (JSON) → subscribed clients for that auction
 
 6. All AuctionDetailControllers (each connected client)
    └─► Platform.runLater():
@@ -675,7 +692,7 @@ WebSocketObserver (Concrete Observer)
   └─► BidUpdateMessage JSON → broadcast over WebSocket
 ```
 
-**Trigger:** `BidService.placeBid()` succeeds → `eventManager.notify()` → all open `AuctionDetailController` instances update immediately.
+**Trigger:** `BidService.placeBid()` succeeds → `eventManager.notify()` → subscribed auction-detail clients update immediately.
 
 ### 2. Factory Method - State/User Creation
 
@@ -727,7 +744,7 @@ Transitions are driven by `AuctionScheduler`. Calling `placeBid()` on `FinishedS
 
 ### 5. DAO - Database Isolation
 
-Each table has exactly one dedicated DAO class using JDBI 3. Several DAOs expose `findByIdForUpdate()` (`AuctionDao`, `ItemDao`, `UserDao`, `DepositRequestDao`, `PasswordResetRequestDao`), all using `SELECT ... FOR UPDATE` for row-level locking. `AuctionDao.findByIdForUpdate()` is the lock that guarantees correctness for concurrent bids inside `BidService`.
+Each table has one dedicated DAO class using JDBI 3. Several DAOs expose `findByIdForUpdate()` (`AuctionDao`, `ItemDao`, `UserDao`, `DepositRequestDao`, `PasswordResetRequestDao`), all using `SELECT ... FOR UPDATE` for row-level locking. `AuctionDao.findByIdForUpdate()` is the lock used to serialize the core concurrent bid path inside `BidService`.
 
 ---
 
@@ -751,7 +768,7 @@ Entity (abstract)           ← id: Long, createdAt: LocalDateTime
 └── AutoBidConfig           ← maxBid, increment, status, failureReason, registeredAt
 ```
 
-`BigDecimal` is used consistently for all monetary values - no `double` or `float` anywhere.
+`BigDecimal` is used for domain, API, and persistence-layer monetary values. The JavaFX charting layer may convert values to `double` only for UI rendering.
 
 ---
 
@@ -769,7 +786,7 @@ Entity (abstract)           ← id: Long, createdAt: LocalDateTime
 | `PUT` | `/api/users/me/password` | Required | Any | Change password |
 | `GET` | `/api/users/me/deposit-requests` | Required | Any | Current user's deposit request history (intended for BIDDER) |
 | `POST` | `/api/users/me/deposit` | Required | Any | Submit deposit request — returns `202 Accepted` (intended for BIDDER) |
-| `GET` | `/api/items` | Optional | Any | List/search items |
+| `GET` | `/api/items` | Optional | Any | List items; optional `?sellerId=` filter |
 | `GET` | `/api/items/{id}` | Optional | Any | Item detail |
 | `POST` | `/api/items` | Required | SELLER | Create item |
 | `PUT` | `/api/items/{id}` | Required | SELLER owner | Edit item |
@@ -836,7 +853,7 @@ All errors return `ErrorResponse { error: String, message: String, timestamp: Lo
 }
 ```
 
-**Response `201 Created`**
+**Response `201 Created`** *(abbreviated to core fields; the persisted entity also includes generated metadata such as `id` and `createdAt`)*
 ```json
 {
   "auctionId": 3,
@@ -850,7 +867,7 @@ All errors return `ErrorResponse { error: String, message: String, timestamp: Lo
 ```json
 {
   "error": "INVALID_BID",
-  "message": "Bid amount must be higher than current price 450000",
+  "message": "<localized validation message>",
   "timestamp": "2026-05-17T10:15:30"
 }
 ```
@@ -867,7 +884,7 @@ All errors return `ErrorResponse { error: String, message: String, timestamp: Lo
 }
 ```
 
-**Response `201 Created`**
+**Response `201 Created`** *(abbreviated to core fields; the persisted config also includes generated metadata and status fields)*
 ```json
 {
   "auctionId": 3,
@@ -889,6 +906,7 @@ User channel:    /ws/user/{userId}?token=<JWT>
 ```
 
 All payloads share the envelope `{ type, auctionId, timestamp, ... }`. Below lists the per-type fields that actually get populated.
+For user-channel messages, the current DTO reuses the `auctionId` field to carry the target `userId`; clients distinguish this by `type` and channel.
 
 | Channel | Direction | `type` | Populated fields |
 |---|---|---|---|
@@ -913,13 +931,13 @@ All payloads share the envelope `{ type, auctionId, timestamp, ... }`. Below lis
 
 ## 🤔 Technical Decisions
 
-**Javalin over Spring Boot** — Spring Boot adds annotation-based DI and layers of abstraction that make the execution flow harder to trace under concurrency. Javalin keeps routing explicit (`app.post("/path", handler)`), starts in well under a second, and lets the bidding code path be read top-to-bottom without auto-configuration magic.
+**Javalin over Spring Boot** — Javalin was chosen to keep routing explicit and lightweight for a course-scale client/server application. Routes are registered directly (`app.post("/path", handler)`), making the bidding path easy to trace from HTTP handler to service and DAO.
 
-**Embedded PostgreSQL over H2** - H2 does not support `SELECT FOR UPDATE` the same way PostgreSQL does. Since concurrent bidding is a core requirement, integration tests need to run against the real engine to be meaningful.
+**Embedded PostgreSQL over H2** - Concurrent bidding depends on PostgreSQL row-level locking semantics. Embedded PostgreSQL keeps local setup simple while allowing tests and development runs to exercise the same database behavior used by the application.
 
-**JDBI 3 over Hibernate/JPA** - ORM hides the SQL, making concurrency bugs harder to debug. With JDBI every query is explicit - you can see exactly the order of locks, updates, and inserts within a transaction.
+**JDBI 3 over Hibernate/JPA** - JDBI keeps the DAO layer SQL-first and explicit, which makes the order of locks, updates, and inserts in the bidding transaction easier to audit.
 
-**`SELECT FOR UPDATE` instead of `synchronized`** - `synchronized` only protects within a single JVM instance. `SELECT FOR UPDATE` operates at the database level - the entire validate → update → insert sequence runs inside a single `jdbi.inTransaction()` call, guaranteeing true atomicity.
+**`SELECT FOR UPDATE` instead of `synchronized`** - `synchronized` only protects within a single JVM instance. `SELECT FOR UPDATE` operates at the database level; the core validate → update → insert path runs inside a single `jdbi.inTransaction()` call, so concurrent bid requests are serialized around the locked auction row.
 
 **Admin-reviewed password reset** - SMTP setup requires external credentials and environment configuration that complicates the evaluator experience. Admin-reviewed reset lets a trusted Admin approve the request and generate a random 6-character temporary password without any external email dependency.
 
@@ -990,10 +1008,10 @@ openssl rand -base64 32
 
 #### 1.1 — Download both JARs into the same folder
 
-| File | Size | Download |
-|---|---|---|
-| Server | ~123 MB | [**auction-server-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
-| Client | ~126 MB | [**auction-client-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
+| File | Download |
+|---|---|
+| Server | [**auction-server-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
+| Client | [**auction-client-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
 
 Place both files in a writable working directory (e.g. `D:\auction-demo\`). The server will create `data/` and may write `logs/` next to the JARs, so avoid read-only locations such as `Program Files`.
 
@@ -1005,7 +1023,7 @@ $env:JWT_SECRET = "replace-with-a-random-secret-of-at-least-32-bytes"
 java -jar auction-server-1.0.0.jar
 ```
 
-The server is ready once Javalin logs `Javalin started in <N>ms` and binds to `http://localhost:8080`. The first launch also downloads the PostgreSQL binary into the OS cache (~10–30 seconds); subsequent starts complete in about 5 seconds. Verify readiness from any terminal:
+The server is ready once Javalin logs `Javalin started in <N>ms` and binds to `http://localhost:8080`. The first launch may download and initialize the embedded PostgreSQL binary cache; later starts are typically faster. Verify readiness from any terminal:
 
 ```bash
 curl http://localhost:8080/api/health
@@ -1051,7 +1069,7 @@ Set `JWT_SECRET` as shown in [Configure `JWT_SECRET`](#configure-jwt_secret-shar
 ./gradlew runClient
 ```
 
-`Ctrl+C` in each terminal stops the corresponding process. Gradle keeps its build cache between runs, so the second invocation typically takes ~5 seconds.
+`Ctrl+C` in each terminal stops the corresponding process. Gradle keeps its build cache between runs, so later invocations are typically faster.
 
 **2.2 · B — Build redistributable fat JARs**
 
@@ -1062,10 +1080,10 @@ gradlew.bat clean buildJars      # Windows
 
 The task produces two self-contained JARs in `build/libs/`:
 
-- `auction-server-1.0.0.jar` (~123 MB) — entry `com.auction.App`
-- `auction-client-1.0.0.jar` (~126 MB) — entry `com.auction.Launcher`
+- `auction-server-1.0.0.jar` — entry `com.auction.App`
+- `auction-client-1.0.0.jar` — entry `com.auction.Launcher`
 
-These JARs are identical in shape to the ones released on GitHub and can be copied to any machine with Java 21+. Run them exactly as in Option 1.
+These JARs use the same server/client packaging shape as the GitHub release assets and can be copied to any machine with Java 21+. Run them exactly as in Option 1.
 
 #### 2.3 — Gradle commands
 
@@ -1101,7 +1119,7 @@ When the server is launched through `server-start.bat`, stdout and stderr are re
 
 ### Default accounts
 
-The first run seeds a single admin account via `V2__seed_admin.sql`:
+The first run seeds a single admin account at application startup via `App.seedAdminIfNeeded()`; `V2__seed_admin.sql` documents the default account:
 
 | Role | Username | Password |
 |---|---|---|
@@ -1111,8 +1129,8 @@ Additional Seller and Bidder accounts are created from the **Register** screen i
 
 ### Five-minute demo flow
 
-1. Log in as `admin / 123456` and open the **Users** tab.
-2. Register one `seller1` (SELLER) and two bidders (`bidder1`, `bidder2`).
+1. Log in as `admin / 123456` once to confirm the seeded admin account works, then log out or open another client window.
+2. Use the **Register** screen to create one `seller1` account (SELLER) and two bidder accounts (`bidder1`, `bidder2`).
 3. As each bidder, open **Profile → Deposit** and request 10 000 000 VND.
 4. As `admin`, approve both deposit requests. Each bidder receives a real-time `BALANCE_UPDATED` push on `/ws/user/{id}`.
 5. As `seller1`, create an item and an auction (`startTime` = now + 1 min, `endTime` = now + 5 min, `startingPrice` = 100 000).
@@ -1128,11 +1146,11 @@ Additional Seller and Bidder accounts are created from the **Register** screen i
 | Audience | Evaluators, quick demo | Developers, reviewers |
 | Requires Git? | No | Yes |
 | Requires Gradle? | No (wrapper not used) | Wrapper auto-downloads Gradle 8.12.1 |
-| First-run time to a healthy server | ~2 minutes (JAR download dominates) | ~3–5 minutes (clone + Gradle dependency resolution) |
-| Subsequent startup | ~5 seconds | ~5 seconds (`gradlew run` warm cache) |
+| First-run time to a healthy server | Depends on JAR download + embedded PostgreSQL bootstrap | Depends on clone + Gradle dependency resolution |
+| Subsequent startup | Typically faster after the embedded database has been initialized | Typically faster after Gradle cache warm-up |
 | Can modify the code? | No | Yes |
 | Can run tests, coverage, SpotBugs? | No | Yes |
-| Disk footprint | ~250 MB (two JARs + `data/`) | ~600 MB+ (sources + `build/` + `.gradle/` + `data/`) |
+| Disk footprint | Depends on downloaded JARs, `data/`, and logs | Depends on source checkout, Gradle cache, `build/`, and `data/` |
 
 ### Troubleshooting
 
@@ -1179,7 +1197,7 @@ rm -rf data logs build        # macOS / Linux
 | **Nguyen Dinh Viet Duc** | [@Black1206-coder](https://github.com/Black1206-coder) | Business Logic | Service-layer classes · 4 design pattern packages (14 files) · `AuctionException` hierarchy (5 custom subclasses) · JWT authentication · BCrypt password hashing |
 | **Bui Quang Huy** | [@stillqhuy](https://github.com/stillqhuy) | DevOps & QA | GitHub Actions CI pipeline · JUnit 5 regression suite · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
 
-All members jointly own `model/` (14 domain classes), `dto/` (14 transfer objects), and project documentation.
+Shared areas such as `model/`, `dto/`, and documentation were reviewed collaboratively across the team.
 
 ---
 
@@ -1193,18 +1211,18 @@ All members jointly own `model/` (14 domain classes), `dto/` (14 transfer object
 | Language | Java | 21 (LTS) | Modern LTS toolchain and JavaFX/Javalin compatibility |
 | GUI | JavaFX + FXML | 21 | Native desktop UI; FXML separates View from Controller |
 | HTTP + WebSocket | Javalin | 6.4.0 | Explicit routing, no DI overhead; embeds Jetty for both HTTP and WebSocket |
-| Database | PostgreSQL | `io.zonky.test:embedded-postgres:2.0.7` locally; `postgres:16` in CI | True `SELECT FOR UPDATE` support; H2 does not handle it correctly |
-| Connection Pool | HikariCP | 6.2.1 | Lowest-latency JDBC pool |
-| SQL Mapper | JDBI 3 | 3.45.4 | SQL-first - every query is explicit and easy to debug under concurrency |
+| Database | PostgreSQL | `io.zonky.test:embedded-postgres:2.0.7` locally; `postgres:16` in CI | Row-level locking semantics used by the concurrent bid path |
+| Connection Pool | HikariCP | 6.2.1 | Mature JDBC connection pool for managing database connections |
+| SQL Mapper | JDBI 3 | 3.45.4 | SQL-first DAO layer with explicit queries for transaction-sensitive paths |
 | JSON | Jackson + JSR310 | 2.18.2 | De-facto standard; JSR310 handles `LocalDateTime` natively |
 | Auth | JWT (Auth0) | 4.4.0 | HMAC JWT with per-user tokenVersion check after password changes |
 | Password | BCrypt | 0.10.2 | One-way hash with salt, cost factor 12 |
 | Testing | JUnit 5 + Mockito | 5.11.4 | Parameterized tests + mock injection |
 | Coverage | JaCoCo | - | GitHub Actions artifact + 20% minimum instruction coverage gate in `check` |
 | Build | Gradle (Kotlin DSL) | 8.12.1 | Type-safe build scripts |
-| Code Style | Checkstyle + Spotless | - | Google Java Style, enforced in CI + pre-commit hook |
-| Static Analysis | SpotBugs | 6.0.9 | MAX effort - null dereferences, race conditions |
-| CI/CD | GitHub Actions | - | `spotlessCheck` + Gradle verification pipeline |
+| Code Style | Checkstyle + Spotless | - | Google Java Style checks in CI; optional Git hook can run Spotless before commits |
+| Static Analysis | SpotBugs | 6.0.9 | Static bug-pattern analysis at MAX effort with HIGH confidence threshold |
+| CI | GitHub Actions | - | `spotlessCheck` + Gradle verification pipeline |
 
 </details>
 
@@ -1217,8 +1235,8 @@ All members jointly own `model/` (14 domain classes), `dto/` (14 transfer object
 oop-course-project-uet/
 │
 ├── .githooks/
-│   └── pre-commit                              ← Runs spotlessApply automatically before every commit
-│                                                  Enforces Google Java Style without manual formatting
+│   └── pre-commit                              ← Hook configured by `./gradlew installGitHooks` or `./gradlew build`
+│                                                  Runs `spotlessApply` on staged Java files before commit
 │
 ├── .github/
 │   └── workflows/
@@ -1260,7 +1278,7 @@ oop-course-project-uet/
 │   │   │   │
 │   │   │   ├── config/
 │   │   │   │   ├── DatabaseConfig.java         ← HikariCP connection pool + JDBI instance setup
-│   │   │   │   │                                  Reads DB credentials from environment/config
+│   │   │   │   │                                  Uses DB_URL/DB_USER/DB_PASSWORD for external DB, otherwise embedded PostgreSQL
 │   │   │   │   └── JwtUtil.java                ← JWT generation & verification (com.auth0:java-jwt)
 │   │   │   │                                      Token payload: { userId, username, role, tokenVersion, expiry }
 │   │   │   │
@@ -1300,11 +1318,11 @@ oop-course-project-uet/
 │   │   │   │   ├── AuctionResponse.java        ← Enriched auction view (includes item info + leading bidder username)
 │   │   │   │   ├── AutoBidRequest.java         ← { maxBid, increment } for auto-bid registration
 │   │   │   │   ├── BidRequest.java             ← { amount } for manual bid placement
-│   │   │   │   ├── BidUpdateMessage.java       ← Shared WebSocket envelope for both channels — `type` discriminates
+│   │   │   │   ├── BidUpdateMessage.java       ← Shared WebSocket envelope; `type` discriminates auction-channel and user-channel events
 │   │   │   │   │                                  BID_UPDATE / TIME_EXTENDED / AUCTION_ENDED / BALANCE_UPDATED / USER_NOTIFICATION
-│   │   │   │   ├── ChangePasswordRequest.java  ← { oldPassword, newPassword }
+│   │   │   │   ├── ChangePasswordRequest.java  ← { currentPassword, newPassword }
 │   │   │   │   ├── CreateAuctionRequest.java   ← { itemId, startingPrice, startTime, endTime }
-│   │   │   │   ├── CreateItemRequest.java      ← { name, description, category, brand/artist/year }
+│   │   │   │   ├── CreateItemRequest.java      ← { name, description, category, categoryDetail }
 │   │   │   │   ├── DepositRequest.java         ← { amount } - creates a PENDING DepositRecord
 │   │   │   │   ├── ErrorResponse.java          ← Standardized error envelope: { error, message, timestamp }
 │   │   │   │   ├── PageRequest.java            ← Pagination helper DTO
@@ -1354,7 +1372,7 @@ oop-course-project-uet/
 │   │   │   │   │   ├── AuctionEventManager.java   ← Subject (server-side): maintains listener registry per auction
 │   │   │   │   │   │                                 BidService calls notify(BID_UPDATE) after successful placeBid()
 │   │   │   │   │   └── WebSocketObserver.java     ← Concrete Observer: serializes BidUpdateMessage → JSON,
-│   │   │   │   │                                     pushes to all connected WebSocket clients for that auction
+│   │   │   │   │                                     pushes to subscribed WebSocket clients for that auction
 │   │   │   │   │
 │   │   │   │   ├── state/
 │   │   │   │   │   ├── AuctionState.java       ← State interface: placeBid() · close() · edit() · extend()
@@ -1424,7 +1442,7 @@ oop-course-project-uet/
 │   │       ├── db/
 │   │       │   └── migration/                  ← Versioned SQL migrations (Flyway-style, applied in order)
 │   │       │       ├── V1__initial_schema.sql  ← Creates core tables: users, items, auctions, bid_transactions, auto_bid_configs
-│   │       │       ├── V2__seed_admin.sql      ← Seeds default admin account
+│   │       │       ├── V2__seed_admin.sql      ← Documents default admin seeding; App.seedAdminIfNeeded() creates the account
 │   │       │       ├── V3__add_balance.sql                       ← Adds users.balance for wallet accounting
 │   │       │       ├── V4__deposit_requests.sql                  ← Admin-reviewed deposit workflow table
 │   │       │       ├── V5__password_reset_requests.sql           ← Admin-reviewed password reset workflow table
@@ -1473,52 +1491,50 @@ oop-course-project-uet/
 │   │               ├── register.fxml           ← Bound to RegisterController
 │   │               └── welcome.fxml            ← Bound to WelcomeController (app entry screen)
 │
-└── test/
-    └── java/com/auction/                       ← 28 test classes; mix of unit (Mockito) and integration (real PostgreSQL)
-        ├── SetupTest.java                              ← Bootstraps embedded PostgreSQL + JDBI for integration tests
-        ├── HttpAuthorizationIntegrationTest.java       ← End-to-end JWT + role checks across REST routes
-        ├── NotificationApiPersistenceTest.java         ← Notification REST endpoints against real DB
-        ├── NotificationPersistenceTest.java            ← Notification DAO + service persistence
-        │
-        ├── config/
-        │   ├── DatabaseConfigTest.java                 ← HikariCP pool + JDBI handle smoke test
-        │   └── JwtUtilTest.java                        ← Token generation, verification, expiry, tampering
-        │
-        ├── controller/
-        │   ├── AuctionWebSocketHandlerTest.java        ← Auction + user WebSocket subscribe/broadcast paths
-        │   └── BidControllerTest.java                  ← BIDDER-only guard + happy path for POST /bid
-        │
-        ├── middleware/
-        │   └── JwtMiddlewareTest.java                  ← Public/semi-public/protected route classification
-        │
-        ├── dao/
-        │   ├── AuctionDaoTest.java                     ← CRUD + SELECT FOR UPDATE locking
-        │   ├── AutoBidConfigDaoTest.java               ← Config persistence + registeredAt ordering
-        │   ├── BidTransactionDaoTest.java              ← Bid insertion / history retrieval
-        │   ├── ItemDaoTest.java                        ← Category-specific field persistence (brand/artist/year)
-        │   └── UserDaoTest.java                        ← Registration, BCrypt hash storage, balance updates
-        │
-        ├── exception/
-        │   ├── AuctionClosedExceptionTest.java         ← Verifies message + HTTP mapping
-        │   ├── DuplicateExceptionTest.java             ← 409 mapping
-        │   ├── InvalidBidExceptionTest.java            ← 400 mapping
-        │   ├── NotFoundExceptionTest.java              ← 404 mapping
-        │   └── UnauthorizedExceptionTest.java          ← 401 mapping
-        │
-        ├── model/
-        │   └── ModelTest.java                          ← Entity → User/Item subclass dispatch (getRole, getCategory)
-        │
-        ├── service/
-        │   ├── AuctionServiceTest.java                 ← Create/edit/delete + State pattern guards
-        │   ├── AuctionServiceCreateIntegrationTest.java← End-to-end auction creation against PostgreSQL
-        │   ├── AuctionSchedulerSettlementTest.java     ← OPEN → RUNNING → SETTLING → FINISHED/PAID transitions
-        │   ├── AuctionCancellationNotificationIntegrationTest.java ← Cancel auction → observer broadcast
-        │   ├── BidServiceTest.java                     ← ★ Bid logic, anti-sniping (30s), auto-bid chain
-        │   ├── BidServiceConcurrencyTest.java          ← Parallel bid threads + SELECT FOR UPDATE correctness
-        │   ├── WalletLedgerIntegrationTest.java        ← wallet_transactions ledger movements (deposit, freeze, release)
-        │   └── UserServiceTest.java                    ← Registration, BCrypt verify, balance mutation
-        │
-        └── util/                                       ← Empty directory; reserved for future client-side helpers
+│   └── test/
+│       └── java/com/auction/                   ← 28 test classes; mix of unit (Mockito) and integration (real PostgreSQL)
+│           ├── SetupTest.java                  ← Bootstraps embedded PostgreSQL + JDBI for integration tests
+│           ├── HttpAuthorizationIntegrationTest.java ← End-to-end JWT + role checks across REST routes
+│           ├── NotificationApiPersistenceTest.java   ← Notification REST endpoints against real DB
+│           ├── NotificationPersistenceTest.java      ← Notification DAO + service persistence
+│           │
+│           ├── config/
+│           │   ├── DatabaseConfigTest.java     ← HikariCP pool + JDBI handle smoke test
+│           │   └── JwtUtilTest.java            ← Token generation, verification, expiry, tampering
+│           │
+│           ├── controller/
+│           │   ├── AuctionWebSocketHandlerTest.java ← Auction + user WebSocket subscribe/broadcast paths
+│           │   └── BidControllerTest.java      ← BIDDER-only guard + happy path for POST /bid
+│           │
+│           ├── middleware/
+│           │   └── JwtMiddlewareTest.java      ← Public/semi-public/protected route classification
+│           │
+│           ├── dao/
+│           │   ├── AuctionDaoTest.java         ← CRUD + SELECT FOR UPDATE locking
+│           │   ├── AutoBidConfigDaoTest.java   ← Config persistence + registeredAt ordering
+│           │   ├── BidTransactionDaoTest.java  ← Bid insertion / history retrieval
+│           │   ├── ItemDaoTest.java            ← Category-specific field persistence (brand/artist/year)
+│           │   └── UserDaoTest.java            ← Registration, BCrypt hash storage, balance updates
+│           │
+│           ├── exception/
+│           │   ├── AuctionClosedExceptionTest.java ← Verifies message + HTTP mapping
+│           │   ├── DuplicateExceptionTest.java ← 409 mapping
+│           │   ├── InvalidBidExceptionTest.java ← 400 mapping
+│           │   ├── NotFoundExceptionTest.java  ← 404 mapping
+│           │   └── UnauthorizedExceptionTest.java ← 401 mapping
+│           │
+│           ├── model/
+│           │   └── ModelTest.java              ← Entity → User/Item subclass dispatch (getRole, getCategory)
+│           │
+│           └── service/
+│               ├── AuctionServiceTest.java     ← Create/edit/delete + State pattern guards
+│               ├── AuctionServiceCreateIntegrationTest.java ← End-to-end auction creation against PostgreSQL
+│               ├── AuctionSchedulerSettlementTest.java ← OPEN → RUNNING → SETTLING → FINISHED/PAID transitions
+│               ├── AuctionCancellationNotificationIntegrationTest.java ← Cancel auction → observer broadcast
+│               ├── BidServiceTest.java         ← Bid logic, anti-sniping (30s), auto-bid chain
+│               ├── BidServiceConcurrencyTest.java ← Parallel bid threads + SELECT FOR UPDATE correctness
+│               ├── WalletLedgerIntegrationTest.java ← wallet_transactions ledger movements (deposit, freeze, release)
+│               └── UserServiceTest.java        ← Registration, BCrypt verify, balance mutation
 ```
 
 </details>
@@ -1541,10 +1557,10 @@ oop-course-project-uet/
 | Concurrent bidding | 1.0 | `BidService` → `jdbi.inTransaction()` → `AuctionDao.findByIdForUpdate()` (`SELECT FOR UPDATE`) |
 | Real-time updates | 0.5 | `AuctionEventManager` · `WebSocketObserver` · `AuctionWebSocketHandler` |
 | Client-Server | 0.5 | `App.java` (Javalin) ↔ `ClientApp.java` (JavaFX) via HTTP + WebSocket |
-| MVC | 0.5 | `ui/fxml/` (View) + `ui/controller/` (Controller) + `model/` + `dto/` (Model) |
+| MVC / layering | 0.5 | Client: `ui/fxml/` (View) + `ui/controller/` (Controller); server: Controller → Service → DAO layering |
 | Build + conventions | 0.5 | `build.gradle.kts` · `checkstyle.xml` · `.editorconfig` · Spotless |
 | Unit Tests | 0.5 | `test/` - JUnit 5 + Mockito, integration tests against real PostgreSQL |
-| CI/CD | 0.5 | `.github/workflows/ci.yml` - `spotlessCheck` + Gradle verification pipeline |
+| CI | 0.5 | `.github/workflows/ci.yml` - `spotlessCheck` + Gradle verification pipeline |
 | Auto-bidding | 0.5 | `AutoBidStrategy` · `AutoBidConfig` · `AutoBidConfigDao` |
 | Anti-sniping | 0.5 | `BidService.placeBid()` - `ANTI_SNIPE_THRESHOLD_MS = 30_000` · `EXTENSION = 60s` |
 | Bid History Chart | 0.5 | `AuctionDetailController` + `auction-detail.fxml` (JavaFX `AreaChart`) |

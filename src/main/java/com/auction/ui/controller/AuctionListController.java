@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
@@ -368,18 +369,19 @@ public class AuctionListController implements Navigable {
   private VBox buildNotificationPanel() {
     final double panelWidth = 320.0;
     final double cornerRadius = 12.0;
-    // Sizing contract:
-    //  • Empty state: panel cố định panelEmptyHeight (110px) — kích thước mặc định, không phụ
-    //    thuộc font/render khác máy. Trong khoảng yêu cầu 96–130.
-    //  • Có notification: ScrollPane prefHeight follow content (rows wrap khác nhau — balance row
-    //    2 dòng, generic row 1 dòng — nên không hardcode prefViewportHeight). ScrollPane cap bằng
-    //    setMaxHeight(panelMaxHeight − panelChromeHeight) = 280, panel cap 360 làm safety net.
-    //    → 1 row: panel ~110–130 tự nhiên; ≥ 6 rows: 360 + scrollbar hiện trong ScrollPane.
-    final double panelMaxHeight = 360.0;
     final double panelEmptyHeight = 110.0;
-    // padding (14+14) + header (~22) + separator (~6) + 2 VBox gaps (8+8) ≈ 70–80px. Overestimate
-    // nhẹ để panel total = chrome + viewport luôn ≤ panelMaxHeight kể cả khi font scale khác.
-    final double panelChromeHeight = 80.0;
+    // Chrome = padding (14+14) + header (~22) + separator (~6) + 2 VBox gaps (8+8) ≈ 72px.
+    final double panelChromeHeight = 72.0;
+    // Sizing contract (theo yêu cầu UX):
+    //  1. Empty state           → panel cố định panelEmptyHeight (110px).
+    //  2. Có thông báo, content nhỏ → panel cao đúng bằng (chrome + content), KHÔNG còn khoảng
+    //                                  trống thừa bên dưới — "hộp nhỏ trong hộp to" biến mất.
+    //  3. Content vượt ½ scene  → panel cap ở ½ scene và bật scrollbar.
+    // Lấy chiều cao scene tại thời điểm dựng panel (sceneManager init = 700px, người dùng có thể
+    // maximize lên cao hơn). Floor 240 để vẫn có vài dòng hiển thị trên màn hình thấp.
+    double sceneH = bellButton.getScene() != null ? bellButton.getScene().getHeight() : 700.0;
+    final double panelMaxHeight = Math.max(240.0, sceneH * 0.5);
+    final double maxViewportHeight = panelMaxHeight - panelChromeHeight;
 
     VBox panel = new VBox(8);
     panel.setMinWidth(panelWidth);
@@ -429,14 +431,20 @@ public class AuctionListController implements Navigable {
         items.getChildren().add(buildNotificationRow(notifications.get(i).getMessage()));
       }
 
-      final double maxViewportHeight = panelMaxHeight - panelChromeHeight;
       ScrollPane scroll = new ScrollPane(items);
       scroll.setFitToWidth(true);
       scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
       scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-      // Không setPrefViewportHeight — để ScrollPane.pref follow content thực tế; setMaxHeight cap
-      // tại đúng phần còn lại trong panelMaxHeight. Khi content < cap: panel scale tự nhiên theo
-      // số row. Khi content > cap: ScrollPane đứng yên ở cap, scrollbar AS_NEEDED tự hiện.
+      // Mặc định ScrollPane.prefHeight là một con số nhỏ cố định (~100px) khi không set
+      // prefViewportHeight, kể cả khi content chỉ vài chục pixel — đây chính là nguyên nhân
+      // tạo cảm giác "khung nhỏ kẹt trong khung to". Bind viewport ≡ chiều cao thật của content,
+      // clamp ở maxViewportHeight để khi danh sách dài thì scrollbar tự hiện và panel dừng ở
+      // ½ scene height.
+      scroll
+          .prefViewportHeightProperty()
+          .bind(
+              Bindings.createDoubleBinding(
+                  () -> Math.min(items.getHeight(), maxViewportHeight), items.heightProperty()));
       scroll.setMaxHeight(maxViewportHeight);
       scroll.setStyle(
           "-fx-background-color: transparent;"
@@ -846,13 +854,55 @@ public class AuctionListController implements Navigable {
    * nút "Xem" — không còn nút Hủy phiên cho Seller).
    */
   private void setupColumns() {
+    // Per-column alignment. The item name is the only long-form text; everything else (category,
+    // price, time, status, action) is a compact field that reads cleaner centred under a centred
+    // header. Setting alignment on both the column (header) and inside each TableCell keeps the
+    // header label aligned with the cell content below it.
+    itemCol.setStyle("-fx-alignment: CENTER_LEFT;");
+    categoryCol.setStyle("-fx-alignment: CENTER;");
+    priceCol.setStyle("-fx-alignment: CENTER_RIGHT;");
+    timeCol.setStyle("-fx-alignment: CENTER;");
+    statusCol.setStyle("-fx-alignment: CENTER;");
+    actionCol.setStyle("-fx-alignment: CENTER;");
+
     itemCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
+    itemCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              {
+                setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+              }
+
+              @Override
+              protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(empty ? null : value);
+              }
+            });
+
     categoryCol.setCellValueFactory(new PropertyValueFactory<>("itemCategory"));
+    categoryCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              {
+                setAlignment(javafx.geometry.Pos.CENTER);
+              }
+
+              @Override
+              protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(empty ? null : value);
+              }
+            });
 
     priceCol.setCellValueFactory(new PropertyValueFactory<>("currentPrice"));
     priceCol.setCellFactory(
         col ->
             new TableCell<>() {
+              {
+                setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+              }
+
               @Override
               protected void updateItem(BigDecimal price, boolean empty) {
                 super.updateItem(price, empty);
@@ -870,7 +920,9 @@ public class AuctionListController implements Navigable {
               private final ChangeListener<Number> tickListener = (obs, oldV, newV) -> redraw();
 
               {
-                setWrapText(true);
+                // Single-line, centred countdown. The status badge in the next column already
+                // distinguishes OPEN vs RUNNING, so a tooltip is enough to clarify the meaning
+                // of the number; this keeps every row at the same fixed height.
                 setAlignment(javafx.geometry.Pos.CENTER);
                 timerTick.addListener(new WeakChangeListener<>(tickListener));
               }
@@ -905,8 +957,9 @@ public class AuctionListController implements Navigable {
                 setStyle("");
                 LocalDateTime now = LocalDateTime.now();
                 if ("OPEN".equals(st)) {
-                  // Phien chua bat dau: hien thi thoi gian den khi bat dau, format hai dong de
-                  // dong bo voi card "BAT DAU SAU / HH:MM:SS" ben man hinh chi tiet.
+                  // Phiên chưa bắt đầu — đếm ngược đến startTime. Hiển thị duy nhất "HH:MM:SS"
+                  // (cùng định dạng với RUNNING) và đặt tooltip giải thích để mọi dòng đồng đều
+                  // chiều cao.
                   LocalDateTime startTime = a.getStartTime();
                   if (startTime == null) {
                     setText("—");
@@ -921,7 +974,7 @@ public class AuctionListController implements Navigable {
                     long m = (totalSec % 3600) / 60;
                     long s = totalSec % 60;
                     String timeStr = String.format("%02d:%02d:%02d", h, m, s);
-                    setText("Bắt đầu sau:\n" + timeStr);
+                    setText(timeStr);
                     setTooltip(new javafx.scene.control.Tooltip("Bắt đầu sau: " + timeStr));
                   }
                 } else {
@@ -953,6 +1006,7 @@ public class AuctionListController implements Navigable {
               private final ChangeListener<Number> tickListener = (obs, oldV, newV) -> redraw();
 
               {
+                setAlignment(javafx.geometry.Pos.CENTER);
                 timerTick.addListener(new WeakChangeListener<>(tickListener));
               }
 
@@ -968,7 +1022,9 @@ public class AuctionListController implements Navigable {
                   setStyle("");
                   return;
                 }
-                // Tinh status tu thoi gian phia client de hien thi luc tuc
+                // Tinh status tu thoi gian phia client de hien thi luc tuc.
+                // Keep bold + colour for emphasis, but anchor alignment in CSS so the cell
+                // centres consistently with the centred header above it.
                 String effective = computeClientStatus(getTableRow().getItem());
                 setText(effective);
                 String color =
@@ -979,7 +1035,7 @@ public class AuctionListController implements Navigable {
                       case "CANCELED" -> "-fx-text-fill: #DC2626;";
                       default -> "";
                     };
-                setStyle(color);
+                setStyle(color + " -fx-alignment: CENTER;");
               }
             });
     actionCol.setMinWidth(80);

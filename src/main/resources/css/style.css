@@ -1144,10 +1144,13 @@
     -fx-background-color: #FFFFFF;
     -fx-border-color: transparent transparent #F1F5F9 transparent;
     -fx-border-width: 0 0 1 0;
-    /* 62px gives two lines of 13px text (≈ 31px) + vertical padding room. Required for the
-       OPEN-status "Bắt đầu sau:\nHH:MM:SS" cell which wraps over two lines. */
-    -fx-pref-height: 62;
-    -fx-min-height: 62;
+    /* Single-line cells: every column renders one line of 13px text plus the 32px action chip,
+       so 52 px is enough for comfortable vertical centering. min/pref/max are all pinned to
+       prevent rows from drifting taller when content briefly wraps during reflow. */
+    -fx-cell-size: 52;
+    -fx-pref-height: 52;
+    -fx-min-height: 52;
+    -fx-max-height: 52;
 }
 
 .auction-table .table-row-cell:odd {
@@ -1168,8 +1171,9 @@
 
 .auction-table .table-cell {
     -fx-font-size: 13px;
-    -fx-padding: 8 12 8 12;
+    -fx-padding: 0 12 0 12;
     -fx-text-fill: #1E293B;
+    -fx-alignment: CENTER_LEFT;
 }
 
 .auction-table .placeholder .label {

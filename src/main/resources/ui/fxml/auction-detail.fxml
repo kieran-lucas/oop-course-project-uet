@@ -75,6 +75,8 @@
                       visible="false" managed="false" />
                <Label fx:id="itemYearLabel" styleClass="detail-subtitle" text=""
                       visible="false" managed="false" />
+               <Label fx:id="startingPriceLabel" styleClass="detail-subtitle" text=""
+                      visible="false" managed="false" />
                <Label fx:id="itemDescriptionLabel" styleClass="detail-text" text=""
                       wrapText="true" />
             </VBox>
