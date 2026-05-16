@@ -854,7 +854,7 @@ public class AuctionListController implements Navigable {
    * nút "Xem" — không còn nút Hủy phiên cho Seller).
    */
   private void setupColumns() {
-    // Per-column alignment. The item name is the only long-form text; every other column
+    // Per-column cell alignment. The item name is the only long-form text; every other column
     // (category, price, time, status, action) is centred — both the header label and the cell
     // content sit on the same vertical axis below it.
     itemCol.setStyle("-fx-alignment: CENTER_LEFT;");
@@ -863,6 +863,28 @@ public class AuctionListController implements Navigable {
     timeCol.setStyle("-fx-alignment: CENTER;");
     statusCol.setStyle("-fx-alignment: CENTER;");
     actionCol.setStyle("-fx-alignment: CENTER;");
+
+    // Disable sort on every column. The list auto-refreshes every 10 s so click-to-sort would
+    // just fight the refresh, and disabling it also stops JavaFX from reserving space for the
+    // sort arrow on the right of each header — that hidden reserve was what made centred
+    // headers (and the time cell below them) look pushed a few pixels to the left.
+    itemCol.setSortable(false);
+    categoryCol.setSortable(false);
+    priceCol.setSortable(false);
+    timeCol.setSortable(false);
+    statusCol.setSortable(false);
+    actionCol.setSortable(false);
+
+    // Header alignment + font size. The .auction-table .column-header .label CSS rule forces
+    // every header to CENTER_LEFT, overriding any -fx-alignment we set on the column itself.
+    // Replace each header's default text with a Label graphic — alignment + size live on that
+    // Label, so the CSS cascade no longer interferes.
+    styleHeader(itemCol, Pos.CENTER_LEFT);
+    styleHeader(categoryCol, Pos.CENTER);
+    styleHeader(priceCol, Pos.CENTER);
+    styleHeader(timeCol, Pos.CENTER);
+    styleHeader(statusCol, Pos.CENTER);
+    styleHeader(actionCol, Pos.CENTER);
 
     itemCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
     itemCol.setCellFactory(
@@ -1060,6 +1082,31 @@ public class AuctionListController implements Navigable {
                 setAlignment(javafx.geometry.Pos.CENTER);
               }
             });
+  }
+
+  /**
+   * Replace a column's default header text with a {@link Label} graphic that owns its alignment and
+   * font size. The default {@code .column-header .label} CSS pins every header to {@code
+   * CENTER_LEFT} and 13 px, so we route around it: the {@code Label} we attach as the column's
+   * graphic uses an inline style that beats the CSS file, and its alignment is set as a direct
+   * property — not as a style rule — so no later cascade can override it.
+   *
+   * <p>{@code maxWidth = ∞} lets the label stretch over the full header cell so the alignment
+   * argument actually matters. Horizontal padding (12 px) matches the 12 px horizontal padding on
+   * data cells, keeping headers and cell content on the same left/right baseline.
+   */
+  private <T> void styleHeader(TableColumn<AuctionResponse, T> col, Pos alignment) {
+    Label header = new Label(col.getText());
+    header.setMaxWidth(Double.MAX_VALUE);
+    header.setMaxHeight(Double.MAX_VALUE);
+    header.setAlignment(alignment);
+    header.setPadding(new Insets(0, 12, 0, 12));
+    header.setStyle(
+        "-fx-text-fill: rgba(255,255,255,0.95);"
+            + " -fx-font-size: 14px;"
+            + " -fx-font-weight: bold;");
+    col.setText(null);
+    col.setGraphic(header);
   }
 
   /** Khởi tạo danh sách tùy chọn cho bộ lọc trạng thái phiên đấu giá. */

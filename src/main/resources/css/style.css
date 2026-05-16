@@ -1138,6 +1138,21 @@
     -fx-alignment: CENTER_LEFT;
 }
 
+/* Collapse the sort-arrow Region in every column header. Even with column.setSortable(false),
+   JavaFX may still allocate a few pixels on the right of the header for the arrow shape. The
+   reserve made centred header labels — and the time cells below them — drift left of true
+   column centre by ~6–10 px. Zeroing every dimension makes the reserve disappear entirely. */
+.auction-table .column-header .arrow {
+    -fx-padding: 0;
+    -fx-shape: "";
+    -fx-pref-width: 0;
+    -fx-min-width: 0;
+    -fx-max-width: 0;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+}
+
 .auction-table .table-row-cell {
     -fx-font-size: 14px;
     -fx-text-fill: #1E293B;
