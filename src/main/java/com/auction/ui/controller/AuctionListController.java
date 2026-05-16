@@ -27,7 +27,9 @@ import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -39,13 +41,13 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
-import javafx.stage.Popup;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,6 +123,14 @@ public class AuctionListController implements Navigable {
   private BigDecimal lastKnownBalance;
 
   /**
+   * Reference tới overlay đang mở (nếu có). Overlay được render như node trong scene root ({@link
+   * SceneManager#addOverlay}) thay vì {@link javafx.stage.Popup} native window — đó là cách duy
+   * nhất đảm bảo 4 góc bo tròn ổn định trên Windows/Prism vì lớp ngoài cùng không còn là một
+   * OS-level window. {@code null} khi không có overlay nào đang hiển thị.
+   */
+  private StackPane notificationOverlay;
+
+  /**
    * Ticked once per second by {@link #tableCountdownTimeline}. The time + status cells listen to
    * this property and redraw only themselves on each tick, instead of relying on {@code
    * auctionTable.refresh()} which rebuilt every cell and made hovered rows flash.
@@ -192,6 +202,7 @@ public class AuctionListController implements Navigable {
       NotificationStore.getInstance().unreadCountProperty().removeListener(notificationListener);
       notificationListener = null;
     }
+    closeNotificationOverlay();
   }
 
   // ========== FXML ACTIONS ==========
@@ -287,8 +298,14 @@ public class AuctionListController implements Navigable {
   }
 
   /**
-   * Xử lý click chuông thông báo: đánh dấu tất cả thông báo đã đọc, cập nhật badge về 0, rồi mở
-   * Popup hiển thị tối đa 50 thông báo gần nhất. Popup tự đóng khi click ra ngoài.
+   * Xử lý click chuông thông báo: đánh dấu tất cả thông báo đã đọc, rồi toggle overlay danh sách
+   * thông báo. Overlay được render như một node trong scene (qua {@link SceneManager#addOverlay})
+   * thay vì {@link javafx.stage.Popup} — Popup tạo native window riêng nên 4 góc trên Windows/Prism
+   * không bo được kể cả khi child là rounded Rectangle.
+   *
+   * <p>Click ra ngoài panel: overlay phủ toàn scene catch click rồi gọi {@link
+   * #closeNotificationOverlay()}. Click lần nữa vào chuông cũng đi qua overlay → tự đóng (không bao
+   * giờ tạo overlay chồng nhau).
    */
   @FXML
   public void handleBellClick() {
@@ -297,92 +314,138 @@ public class AuctionListController implements Navigable {
     // Badge update is driven by the unreadCountProperty listener registered in onNavigatedTo().
     store.markAllRead();
 
-    Popup popup = new Popup();
-    popup.setAutoHide(true);
-    popup.setAutoFix(true);
-    popup.setHideOnEscape(true);
+    if (notificationOverlay != null) {
+      closeNotificationOverlay();
+      return;
+    }
+    showNotificationOverlay();
+  }
 
-    final double popupWidth = 320.0;
-    final double cornerRadius = 10.0;
+  /**
+   * Build the rounded notification panel, dựng overlay phủ toàn scene và add vào rootContainer của
+   * {@link SceneManager}. Panel position được tính tương đối với {@code bellButton} trong scene
+   * coordinates (đây là cùng coordinate space với overlay vì overlay nằm trực tiếp trong scene root
+   * StackPane).
+   */
+  private void showNotificationOverlay() {
+    VBox panel = buildNotificationPanel();
+    // Consume mouse events bên trong panel để chúng không bubble lên overlay → click trên panel
+    // không đóng overlay. Cả pressed lẫn clicked vì overlay đóng theo MOUSE_CLICKED.
+    panel.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
+    panel.addEventFilter(MouseEvent.MOUSE_PRESSED, MouseEvent::consume);
 
-    ObservableList<NotificationItem> notifications = store.getNotifications();
-    int limit = Math.min(notifications.size(), 50);
-    boolean emptyState = notifications.isEmpty();
+    StackPane overlay = new StackPane(panel);
+    overlay.setPickOnBounds(true); // catch click ở vùng transparent (ngoài panel)
+    overlay.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+    overlay.setStyle("-fx-background-color: transparent;");
+    overlay.setOnMouseClicked(e -> closeNotificationOverlay());
+    StackPane.setAlignment(panel, Pos.TOP_LEFT);
 
-    // Use explicit height instead of prefHeight() here. JavaFX can under-measure text/Separator
-    // before a Popup is attached to a Scene, which was clipping the header. The bottom corners were
-    // already correct in the previous version; this keeps that rounded-card approach but gives the
-    // content enough vertical room.
-    double listHeight = emptyState ? 0.0 : Math.min(300.0, Math.max(72.0, limit * 58.0));
-    final double popupHeight = emptyState ? 96.0 : 66.0 + listHeight;
+    positionNotificationPanel(panel);
 
-    javafx.scene.shape.Rectangle background =
-        new javafx.scene.shape.Rectangle(popupWidth, popupHeight);
-    background.setArcWidth(cornerRadius * 2.0);
-    background.setArcHeight(cornerRadius * 2.0);
-    background.setFill(javafx.scene.paint.Color.web("#1e2d40"));
-    background.setStroke(javafx.scene.paint.Color.rgb(33, 150, 243, 0.45));
-    background.setStrokeWidth(1.0);
+    notificationOverlay = overlay;
+    SceneManager.getInstance().addOverlay(overlay);
+  }
 
-    VBox content = new VBox(8);
-    content.setPadding(new Insets(14, 16, 14, 16));
-    content.setMinSize(popupWidth, popupHeight);
-    content.setPrefSize(popupWidth, popupHeight);
-    content.setMaxSize(popupWidth, popupHeight);
-    content.setStyle("-fx-background-color: transparent; -fx-background-insets: 0;");
+  /**
+   * Tháo overlay khỏi scene và clear reference. Idempotent — gọi nhiều lần an toàn. Được gọi cả
+   * trong toggle ({@link #handleBellClick()}), click outside, và {@link #onNavigatedFrom()} để dọn
+   * sạch khi rời màn hình.
+   */
+  private void closeNotificationOverlay() {
+    if (notificationOverlay != null) {
+      SceneManager.getInstance().removeOverlay(notificationOverlay);
+      notificationOverlay = null;
+    }
+  }
+
+  /**
+   * Dựng panel "Thông báo" — VBox với background bo góc, header, separator, rồi empty state hoặc
+   * ScrollPane danh sách. Vì panel là Node trong scene (không phải Popup native window), {@code
+   * -fx-background-radius} + {@code -fx-border-radius} + rounded {@link Rectangle} clip phối hợp
+   * cho 4 góc bo thật trên mọi nền.
+   */
+  private VBox buildNotificationPanel() {
+    final double panelWidth = 320.0;
+    final double cornerRadius = 12.0;
+
+    VBox panel = new VBox(8);
+    panel.setMinWidth(panelWidth);
+    panel.setPrefWidth(panelWidth);
+    panel.setMaxWidth(panelWidth);
+    panel.setPadding(new Insets(14, 16, 14, 16));
+    panel.setStyle(
+        "-fx-background-color: #1e2d40;"
+            + " -fx-background-radius: "
+            + cornerRadius
+            + ";"
+            + " -fx-border-color: rgba(33,150,243,0.45);"
+            + " -fx-border-width: 1;"
+            + " -fx-border-radius: "
+            + cornerRadius
+            + ";");
+
+    // Rounded-rect clip — safety net để scrollbar/row không vẽ tràn ra khỏi 4 góc bo của panel
+    // (background-radius chỉ bo nền của panel, không tự clip children).
+    Rectangle clip = new Rectangle();
+    clip.setArcWidth(cornerRadius * 2.0);
+    clip.setArcHeight(cornerRadius * 2.0);
+    clip.widthProperty().bind(panel.widthProperty());
+    clip.heightProperty().bind(panel.heightProperty());
+    panel.setClip(clip);
 
     Label header = new Label("Thông báo");
     header.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
-
     Separator sep = new Separator();
     sep.setStyle("-fx-background-color: rgba(255,255,255,0.15);");
-    content.getChildren().addAll(header, sep);
+    panel.getChildren().addAll(header, sep);
 
-    ScrollPane scrollPane = null;
-    if (emptyState) {
+    ObservableList<NotificationItem> notifications =
+        NotificationStore.getInstance().getNotifications();
+    if (notifications.isEmpty()) {
       Label empty = new Label("Chưa có thông báo nào.");
       empty.setStyle("-fx-text-fill: #94A3B8; -fx-font-size: 13px; -fx-padding: 4 0 4 0;");
-      content.getChildren().add(empty);
+      panel.getChildren().add(empty);
     } else {
+      int limit = Math.min(notifications.size(), 50);
       VBox items = new VBox(4);
       // NotificationStore: index 0 = moi nhat, hien thi moi nhat o tren cung.
       for (int i = 0; i < limit; i++) {
         items.getChildren().add(buildNotificationRow(notifications.get(i).getMessage()));
       }
 
-      scrollPane = new ScrollPane(items);
-      scrollPane.setPrefViewportHeight(listHeight);
-      scrollPane.setMinHeight(listHeight);
-      scrollPane.setMaxHeight(listHeight);
-      scrollPane.setFitToWidth(true);
-      scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-      scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-      scrollPane.setStyle(
-          "-fx-background-color: transparent; "
-              + "-fx-background: transparent; "
-              + "-fx-control-inner-background: transparent; "
-              + "-fx-background-insets: 0; "
-              + "-fx-padding: 0;");
-      content.getChildren().add(scrollPane);
+      double listHeight = Math.min(300.0, Math.max(72.0, limit * 58.0));
+      ScrollPane scroll = new ScrollPane(items);
+      scroll.setPrefViewportHeight(listHeight);
+      scroll.setMinHeight(Math.min(72.0, listHeight));
+      scroll.setMaxHeight(listHeight);
+      scroll.setFitToWidth(true);
+      scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+      scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+      scroll.setStyle(
+          "-fx-background-color: transparent;"
+              + " -fx-background: transparent;"
+              + " -fx-control-inner-background: transparent;"
+              + " -fx-background-insets: 0;"
+              + " -fx-padding: 0;");
+      panel.getChildren().add(scroll);
+      Platform.runLater(() -> scroll.setVvalue(0.0));
     }
+    return panel;
+  }
 
-    StackPane card = new StackPane(background, content);
-    card.setMinSize(popupWidth, popupHeight);
-    card.setPrefSize(popupWidth, popupHeight);
-    card.setMaxSize(popupWidth, popupHeight);
-    card.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
-    StackPane.setAlignment(background, javafx.geometry.Pos.TOP_LEFT);
-    StackPane.setAlignment(content, javafx.geometry.Pos.TOP_LEFT);
-
-    popup.getContent().setAll(card);
-    Stage stage = (Stage) bellButton.getScene().getWindow();
-    javafx.geometry.Bounds bounds = bellButton.localToScreen(bellButton.getBoundsInLocal());
-    popup.show(stage, bounds.getMinX() - popupWidth + bounds.getWidth(), bounds.getMaxY() + 8);
-
-    ScrollPane shownScrollPane = scrollPane;
-    if (shownScrollPane != null) {
-      Platform.runLater(() -> shownScrollPane.setVvalue(0.0));
-    }
+  /**
+   * Đặt panel sao cho mép phải align với mép phải chuông và cách chuông 6px theo chiều dọc, tính
+   * trong scene coords. Vì overlay là child của scene root {@link StackPane}, scene coords trùng
+   * với overlay local coords → translate trực tiếp được. Clamp x ≥ 8 để panel không tràn mép trái.
+   */
+  private void positionNotificationPanel(VBox panel) {
+    final double panelWidth = 320.0;
+    Bounds bellInScene = bellButton.localToScene(bellButton.getBoundsInLocal());
+    double x = bellInScene.getMaxX() - panelWidth;
+    double y = bellInScene.getMaxY() + 6.0;
+    panel.setTranslateX(Math.max(8.0, x));
+    panel.setTranslateY(y);
   }
 
   // ========== PRIVATE HELPERS ==========

@@ -10,6 +10,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -297,6 +298,31 @@ public class SceneManager {
     } else {
       globalBadgeLabel.setVisible(false);
       globalBadgeLabel.setManaged(false);
+    }
+  }
+
+  // ========== OVERLAY API ==========
+
+  /**
+   * Add a transient overlay node on top of the current view inside {@link #rootContainer}.
+   *
+   * <p>Dùng để hiển thị các dropdown / popup được render <em>như một node trong scene</em> thay vì
+   * {@link javafx.stage.Popup} (native window không bo góc đáng tin cậy trên Windows). Overlay sẽ
+   * tự bị xoá khi {@link #performNavigate} swap màn hình ({@code setAll(view)}), nhưng caller vẫn
+   * nên gọi {@link #removeOverlay(Node)} trong {@code onNavigatedFrom()} để dọn reference.
+   *
+   * <p>No-op nếu {@code overlay} đã nằm trong rootContainer (tránh add trùng).
+   */
+  public void addOverlay(Node overlay) {
+    if (overlay != null && !rootContainer.getChildren().contains(overlay)) {
+      rootContainer.getChildren().add(overlay);
+    }
+  }
+
+  /** Remove an overlay previously added via {@link #addOverlay(Node)}. No-op nếu không tồn tại. */
+  public void removeOverlay(Node overlay) {
+    if (overlay != null) {
+      rootContainer.getChildren().remove(overlay);
     }
   }
 
