@@ -1,46 +1,21 @@
 <div align="center">
-<img
-  src="assets/app-screenshot.png"
-  alt="Online Auction System - live bid chart + countdown timer"
-  width="900"
-/>
+
+<img src="assets/app-screenshot.png" alt="Online Auction System - live bid chart + countdown timer" width="900"/>
 
 # Online Auction System
-<p>
-  <em>A real-time desktop auction platform — JavaFX client • Javalin server • PostgreSQL • WebSocket</em>
-</p>
-<p>
-  <a href="https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml">
-    <img height="36" src="https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white" alt="CI" />
-  </a>
-  <a href="https://adoptium.net/">
-    <img height="36" src="https://img.shields.io/badge/JAVA-21-orange?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 21" />
-  </a>
-  <a href="https://github.com/kieran-labs/oop-course-project-uet/actions">
-    <img height="36" src="https://img.shields.io/badge/COVERAGE-JaCoCo-brightgreen?style=for-the-badge" alt="Coverage" />
-  </a>
-  <a href="https://github.com/kieran-labs/oop-course-project-uet/actions">
-    <img height="36" src="https://img.shields.io/badge/SPOTBUGS-passing-yellow?style=for-the-badge" alt="SpotBugs" />
-  </a>
-</p>
-<p>
-  <a href="https://javalin.io">
-    <img height="36" src="https://img.shields.io/badge/JAVALIN-6.4.0-black?style=for-the-badge" alt="Javalin 6.4.0" />
-  </a>
-  <a href="https://www.postgresql.org/">
-    <img height="36" src="https://img.shields.io/badge/POSTGRESQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL 16" />
-  </a>
-  <a href="LICENSE">
-    <img height="36" src="https://img.shields.io/badge/LICENSE-MIT-blue?style=for-the-badge" alt="License MIT" />
-  </a>
-</p>
-<p>
-  <strong><a href="#">📹 Demo Video</a></strong>
-  &nbsp;•&nbsp;
-  <strong><a href="#">📄 PDF Report</a></strong>
-  &nbsp;•&nbsp;
-  <strong><a href="https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0">⬇️ Download JARs</a></strong>
-</p>
+
+*A real-time desktop auction platform - JavaFX client • Javalin server • PostgreSQL • WebSocket*
+
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml)
+[![Java](https://img.shields.io/badge/JAVA-21-orange?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net/)
+[![Coverage](https://img.shields.io/badge/COVERAGE-JaCoCo-brightgreen?style=for-the-badge)](https://github.com/kieran-labs/oop-course-project-uet/actions)
+[![SpotBugs](https://img.shields.io/badge/SPOTBUGS-passing-yellow?style=for-the-badge)](https://github.com/kieran-labs/oop-course-project-uet/actions)
+[![Javalin](https://img.shields.io/badge/JAVALIN-6.4.0-black?style=for-the-badge)](https://javalin.io)
+[![PostgreSQL](https://img.shields.io/badge/POSTGRESQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![License](https://img.shields.io/badge/LICENSE-MIT-blue?style=for-the-badge)](LICENSE)
+
+**[📹 Demo Video](#)** • **[📄 PDF Report](#)** • **[⬇️ Download JARs](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)**
+
 </div>
 
 ---
