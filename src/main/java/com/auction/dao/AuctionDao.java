@@ -608,23 +608,30 @@ public class AuctionDao {
    * carries WIN_CONSUME / SELLER_PAYOUT rows).
    */
   public void hardDelete(Long id) {
-    jdbi.useTransaction(
-        handle -> {
-          handle
-              .createUpdate("DELETE FROM wallet_transactions WHERE auction_id = :id")
-              .bind("id", id)
-              .execute();
-          handle
-              .createUpdate("DELETE FROM auto_bid_configs WHERE auction_id = :id")
-              .bind("id", id)
-              .execute();
-          handle
-              .createUpdate("DELETE FROM bid_transactions WHERE auction_id = :id")
-              .bind("id", id)
-              .execute();
-          handle.createUpdate("DELETE FROM auctions WHERE id = :id").bind("id", id).execute();
-        });
+    jdbi.useTransaction(handle -> hardDeleteInTransaction(handle, id));
     LOGGER.info("Hard-deleted auction: id={}", id);
+  }
+
+  /**
+   * Cascade-delete variant that uses an externally supplied handle so the caller can wrap the
+   * delete in a wider transaction (e.g. AuctionService inserts notification rows for the seller and
+   * all bidders in the same tx — the bid_transactions table is read for the recipient list, so the
+   * read must happen on the same handle before the cascade purges those rows).
+   */
+  public void hardDeleteInTransaction(org.jdbi.v3.core.Handle handle, Long id) {
+    handle
+        .createUpdate("DELETE FROM wallet_transactions WHERE auction_id = :id")
+        .bind("id", id)
+        .execute();
+    handle
+        .createUpdate("DELETE FROM auto_bid_configs WHERE auction_id = :id")
+        .bind("id", id)
+        .execute();
+    handle
+        .createUpdate("DELETE FROM bid_transactions WHERE auction_id = :id")
+        .bind("id", id)
+        .execute();
+    handle.createUpdate("DELETE FROM auctions WHERE id = :id").bind("id", id).execute();
   }
 
   // ============================================================

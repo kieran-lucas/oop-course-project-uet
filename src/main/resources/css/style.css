@@ -45,11 +45,20 @@
 
 /* Lexend SemiBold registered as its own family — JavaFX's @font-face matcher only
    distinguishes normal vs. bold within a family, so an intermediate weight has to live
-   under a separate family name. Used by the top-bar logout button to land between the
-   navy header's regular labels and the heavier "bold" weight. */
+   under a separate family name. Used by admin confirm dialog headers. */
 @font-face {
     font-family: 'LexendSemiBold';
     src: url('../fonts/Lexend-SemiBold.ttf');
+}
+
+/* Lexend Bold registered as its own family — gives an explicit name we can plug into
+   inline FXML styles. Using a single-weight family avoids the JavaFX @font-face matcher
+   silently falling back to Lexend-Regular when the bold variant within the canonical
+   "Lexend" family isn't picked up (which happens when font-family is overridden via the
+   .button cascade — see the .logout-button comment below). */
+@font-face {
+    font-family: 'LexendBold';
+    src: url('../fonts/Lexend-Bold.ttf');
 }
 
 /* ----------------------------------------------------------------
@@ -667,13 +676,16 @@
     -fx-border-color: #991B1B;
 }
 
-/* Top-bar logout — square 8px radius matching .back-button so destructive / navigation
-   chips share one geometry vocabulary. SemiBold weight (Lexend SemiBold registered as its
-   own family above) is one notch lighter than Bold for a less heavy "Đăng xuất" label —
-   the visual weight increase from 13→15px would otherwise read too thick. */
+/* Top-bar logout — uses the SAME font family + weight + size as every other action
+   button in the app (.secondary-button, .approve-button, .reject-button) so the typeface
+   is visually consistent. The standalone `LexendBold` family was previously used as a
+   workaround for a cascade issue, but every other button in the app uses `Lexend` family
+   with `-fx-font-weight: bold` and that selects the same Lexend-Bold.ttf via the
+   @font-face weight matcher — so logout now matches the rest exactly. */
 .logout-button {
-    -fx-font-family: 'LexendSemiBold';
-    -fx-font-size: 16px;
+    -fx-font-family: 'Lexend';
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
     -fx-text-fill: rgba(255,255,255,0.94);
     -fx-background-color: rgba(255,255,255,0.16);
     -fx-border-color: rgba(255,255,255,0.32);
@@ -700,11 +712,12 @@
     -fx-effect: none;
 }
 
-/* Material Symbols "logout" — arrow-right-from-bracket style: clean rightward
-   arrow exiting through the right edge, reads instantly as "exit / sign out".
-   Slightly larger (20px) to balance the heavier 16px LexendSemiBold label. */
+/* Material Design "logout" — door + arrow: a closed door panel on the left with a
+   right-pointing arrow exiting it. Reads more clearly as "sign out" than the previous
+   bracket-arrow because the door silhouette anchors the metaphor. 20px keeps the icon
+   in proportion to the 17px label. */
 .logout-icon {
-    -fx-shape: "M5 3h7v2H5v14h7v2H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2zm10.293 3.293l1.414 1.414L13.414 11H22v2h-8.586l3.293 3.293-1.414 1.414L9.586 12l5.707-5.707z";
+    -fx-shape: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z";
     -fx-background-color: white;
     -fx-min-width: 20;
     -fx-min-height: 20;
@@ -839,8 +852,15 @@
    14px under grayscale AA (the project-wide default), so we override smoothing back to
    LCD here — the password card sits on a solid white surface where LCD AA does not
    produce visible colour fringes, and the subpixel rendering removes the "răng cưa"
-   jaggies on the bullets without changing the typeface. */
-.password-field {
+   jaggies on the bullets without changing the typeface.
+   The `.password-field .text` selector is REQUIRED in addition to `.password-field` on
+   its own: JavaFX renders the actual glyphs (including bullets) on an inner Text node,
+   and the global `* { -fx-font-smoothing-type: gray; }` rule at the bottom of this file
+   sets gray AA on EVERY node — including that inner Text — with higher specificity than
+   inheritance from the parent PasswordField. Without the descendant selector, the parent
+   gets LCD but the child Text keeps gray, and the bullet jaggies stay. */
+.password-field,
+.password-field .text {
     -fx-font-size: 14px;
     -fx-font-smoothing-type: lcd;
 }

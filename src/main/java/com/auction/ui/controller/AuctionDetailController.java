@@ -917,10 +917,19 @@ public class AuctionDetailController implements Navigable {
                     if (isMyBid) {
                       foundMyBid = true;
                     }
-                    String bidderLabel =
-                        isMyBid
-                            ? "Bạn"
-                            : ("Bidder #" + (bid.getBidderId() != null ? bid.getBidderId() : "?"));
+                    String bidderLabel;
+                    if (isMyBid) {
+                      bidderLabel = "Bạn";
+                    } else if (bid.getBidderUsername() != null
+                        && !bid.getBidderUsername().isBlank()) {
+                      bidderLabel = bid.getBidderUsername();
+                    } else {
+                      // Final fallback when the server couldn't resolve the username (e.g. user
+                      // since deleted). Better than crashing — surface the raw id so admins can
+                      // still trace the row.
+                      bidderLabel =
+                          "Bidder #" + (bid.getBidderId() != null ? bid.getBidderId() : "?");
+                    }
                     newItems.add(
                         0,
                         String.format(

@@ -98,7 +98,7 @@ class AuctionCancellationNotificationIntegrationTest {
   }
 
   @Test
-  @DisplayName("Canceling an already canceled auction does not duplicate notification")
+  @DisplayName("Canceling an already canceled auction is rejected — no duplicate notification")
   void alreadyCanceledAuctionDoesNotDuplicateNotification() {
     long sellerId = insertUser("duplicate_seller", "SELLER", "duplicate-seller@test.com", "0", "0");
     long bidderId =
@@ -107,7 +107,13 @@ class AuctionCancellationNotificationIntegrationTest {
     long auctionId =
         insertAuction(itemId, sellerId, bidderId, "250", AuctionStatus.CANCELED.name());
 
-    auctionService.delete(auctionId, 999L, "ADMIN");
+    // delete() now refuses to re-cancel an already-CANCELED auction (the ADMIN branch
+    // only accepts OPEN / RUNNING and directs the admin to hardDelete for any other
+    // status). The important invariant the test enforces is that no duplicate
+    // AUCTION_CANCELED notification rows are inserted — that's true precisely because
+    // the call throws before reaching the notification insert.
+    assertThrows(
+        IllegalStateException.class, () -> auctionService.delete(auctionId, 999L, "ADMIN"));
 
     assertEquals(AuctionStatus.CANCELED.name(), auctionStatus(auctionId));
     assertEquals(0L, cancellationNotificationCount(bidderId, auctionId));

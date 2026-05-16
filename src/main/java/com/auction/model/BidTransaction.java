@@ -23,6 +23,12 @@ public class BidTransaction extends Entity {
   private BigDecimal amount;
   private boolean autoBid;
 
+  /**
+   * Tên hiển thị của bidder — populate ở service layer khi build response. Không lưu trong DB; có
+   * mặt chỉ để gửi qua REST cho client render "alice — 1.000.000 VND" thay vì "Bidder #2".
+   */
+  private String bidderUsername;
+
   public BidTransaction() {}
 
   /** Constructor tạo bid mới — createdAt = now (thời điểm bid). */
@@ -81,6 +87,14 @@ public class BidTransaction extends Entity {
 
   public void setAutoBid(boolean autoBid) {
     this.autoBid = autoBid;
+  }
+
+  public String getBidderUsername() {
+    return bidderUsername;
+  }
+
+  public void setBidderUsername(String bidderUsername) {
+    this.bidderUsername = bidderUsername;
   }
 
   @Override

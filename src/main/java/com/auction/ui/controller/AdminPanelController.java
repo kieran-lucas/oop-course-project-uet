@@ -246,11 +246,9 @@ public class AdminPanelController implements Navigable {
                         auctionTable.setItems(FXCollections.observableArrayList(allAuctions));
                         loadAuctions();
                       } else {
-                        setStatus(
-                            "Xóa thất bại ("
-                                + response.statusCode()
-                                + "): "
-                                + extractServerMessage(response.body()));
+                        String serverMsg = extractServerMessage(response.body());
+                        setStatus("Xóa thất bại (" + response.statusCode() + "): " + serverMsg);
+                        showErrorDialog("Không thể xóa phiên #" + id, serverMsg);
                       }
                     });
               } catch (Exception e) {
@@ -276,11 +274,10 @@ public class AdminPanelController implements Navigable {
                         setStatus("Đã hủy phiên #" + id + ".");
                         loadAuctions();
                       } else {
+                        String serverMsg = extractServerMessage(response.body());
                         setStatus(
-                            "Hủy phiên thất bại ("
-                                + response.statusCode()
-                                + "): "
-                                + extractServerMessage(response.body()));
+                            "Hủy phiên thất bại (" + response.statusCode() + "): " + serverMsg);
+                        showErrorDialog("Không thể hủy phiên #" + id, serverMsg);
                       }
                     });
               } catch (Exception e) {
@@ -336,7 +333,8 @@ public class AdminPanelController implements Navigable {
 
   /**
    * Xóa tài khoản người dùng qua {@code DELETE /api/admin/users/{id}}. Tải lại bảng user sau khi
-   * thành công. Hiển thị lỗi rõ ràng nếu server từ chối (ví dụ: user có lịch sử đấu giá).
+   * thành công. Hiển thị lỗi rõ ràng trong dialog modal (cùng style với confirm dialog) nếu server
+   * từ chối — statusLabel ở section auction quá xa table user nên admin dễ bỏ sót.
    */
   private void deleteUser(Long id) {
     Thread.ofVirtual()
@@ -352,11 +350,17 @@ public class AdminPanelController implements Navigable {
                       } else {
                         String serverMsg = extractServerMessage(response.body());
                         setStatus("Không thể xóa tài khoản #" + id + ": " + serverMsg);
+                        showErrorDialog("Không thể xóa tài khoản #" + id, serverMsg);
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi xóa user {}", id, e);
-                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+                Platform.runLater(
+                    () -> {
+                      setStatus("Không thể kết nối đến server.");
+                      showErrorDialog(
+                          "Lỗi kết nối", "Không thể kết nối đến server. Vui lòng thử lại.");
+                    });
               }
             });
   }
@@ -457,6 +461,38 @@ public class AdminPanelController implements Navigable {
             });
   }
 
+  // ========== ROW ACTION SAFETY HELPER ==========
+
+  /**
+   * Safely dispatch a per-row action from a table cell button. Returns silently if the cell's
+   * TableRow or its item is null — cell recycling can leave a stale graphic for a frame, and {@code
+   * getTableView().getItems().get(getIndex())} would have thrown {@code IndexOutOfBoundsException}
+   * (which JavaFX SWALLOWS silently from action handlers, making the click appear to "do nothing").
+   * Any uncaught exception during the action is logged + surfaced on the status bar so a failure
+   * never goes silent again.
+   *
+   * <p>Replaces the prior {@code AuctionResponse a = getTableView().getItems().get(getIndex());}
+   * pattern in every action cell of this screen.
+   */
+  private <T> void runRowAction(
+      javafx.scene.control.TableRow<T> row, java.util.function.Consumer<T> action, String label) {
+    if (row == null) {
+      LOGGER.warn("{}: TableRow is null — không có dữ liệu hàng", label);
+      return;
+    }
+    T item = row.getItem();
+    if (item == null) {
+      LOGGER.warn("{}: TableRow.getItem() is null — bỏ qua", label);
+      return;
+    }
+    try {
+      action.accept(item);
+    } catch (Exception ex) {
+      LOGGER.error("Lỗi xử lý hành động '{}'", label, ex);
+      setStatus("Lỗi mở '" + label + "': " + ex.getMessage());
+    }
+  }
+
   // ========== UI SETUP ==========
 
   /**
@@ -514,20 +550,25 @@ public class AdminPanelController implements Navigable {
                 cancelBtn.getStyleClass().add("table-action-cancel");
                 deleteBtn.getStyleClass().add("table-action-delete");
                 viewBtn.setOnAction(
-                    e -> {
-                      AuctionResponse a = getTableView().getItems().get(getIndex());
-                      SceneManager.getInstance().navigateTo("auction-detail.fxml", a.getId());
-                    });
+                    e ->
+                        runRowAction(
+                            getTableRow(),
+                            a ->
+                                SceneManager.getInstance()
+                                    .navigateTo("auction-detail.fxml", a.getId()),
+                            "Xem phiên"));
                 cancelBtn.setOnAction(
-                    e -> {
-                      AuctionResponse a = getTableView().getItems().get(getIndex());
-                      confirmCancelAuction(a);
-                    });
+                    e ->
+                        runRowAction(
+                            getTableRow(),
+                            AdminPanelController.this::confirmCancelAuction,
+                            "Hủy phiên"));
                 deleteBtn.setOnAction(
-                    e -> {
-                      AuctionResponse a = getTableView().getItems().get(getIndex());
-                      confirmHardDeleteAuction(a);
-                    });
+                    e ->
+                        runRowAction(
+                            getTableRow(),
+                            AdminPanelController.this::confirmHardDeleteAuction,
+                            "Xóa phiên"));
               }
 
               @Override
@@ -609,8 +650,26 @@ public class AdminPanelController implements Navigable {
    */
   private void showConfirmDialog(
       String title, String header, String body, boolean danger, Runnable onConfirm) {
+    try {
+      showConfirmDialogImpl(title, header, body, danger, onConfirm);
+    } catch (Exception ex) {
+      // Without this catch, any failure in dialog construction (font loading, scene wiring,
+      // owner-window cast on a corner-case JavaFX runtime) would be swallowed by JavaFX's
+      // action-handler boundary and the user would see "nothing happens" on click — which
+      // is exactly the symptom that was reported.
+      LOGGER.error("Không thể mở confirm dialog '{}': {}", title, ex.getMessage(), ex);
+      setStatus("Lỗi mở dialog: " + ex.getMessage());
+    }
+  }
+
+  private void showConfirmDialogImpl(
+      String title, String header, String body, boolean danger, Runnable onConfirm) {
     javafx.stage.Stage dialog = new javafx.stage.Stage();
-    dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+    // WINDOW_MODAL (not APPLICATION_MODAL) — APPLICATION_MODAL + StageStyle.TRANSPARENT has
+    // a known Z-order bug on Windows where the transparent modal stage spawns BEHIND the
+    // owner window and is therefore invisible to the user. WINDOW_MODAL with a proper
+    // owner + setOnShown→toFront below puts it reliably on top.
+    dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
     dialog.initStyle(javafx.stage.StageStyle.TRANSPARENT);
     dialog.setTitle(title);
 
@@ -737,8 +796,11 @@ public class AdminPanelController implements Navigable {
     overlay.getChildren().add(card);
 
     // ── Scene & stage ──────────────────────────────────────────────────────
+    // Pass explicit width/height to the Scene constructor so the stage always has a sane
+    // size even before show() — otherwise the scene defaults to root.prefSize, which can
+    // be 0 for an initially empty StackPane on some platforms (dialog invisible).
     javafx.scene.Scene scene =
-        new javafx.scene.Scene(overlay, javafx.scene.paint.Color.TRANSPARENT);
+        new javafx.scene.Scene(overlay, 480, 280, javafx.scene.paint.Color.TRANSPARENT);
     // Inherit the app stylesheet so Lexend fonts resolve correctly
     try {
       java.net.URL cssUrl = getClass().getResource("/css/style.css");
@@ -753,11 +815,15 @@ public class AdminPanelController implements Navigable {
     dialog.setWidth(480);
     dialog.setHeight(280);
 
-    // Center over owner window
-    javafx.stage.Stage owner = (javafx.stage.Stage) auctionTable.getScene().getWindow();
-    dialog.initOwner(owner);
-    dialog.setX(owner.getX() + (owner.getWidth() - dialog.getWidth()) / 2);
-    dialog.setY(owner.getY() + (owner.getHeight() - dialog.getHeight()) / 2);
+    // Center over owner window. Defensive: skip owner wiring if the scene chain isn't
+    // ready — without this guard, a null owner.getScene() NPEs and the click silently
+    // does nothing.
+    javafx.stage.Stage owner = resolveOwnerStage();
+    if (owner != null) {
+      dialog.initOwner(owner);
+      dialog.setX(owner.getX() + (owner.getWidth() - dialog.getWidth()) / 2);
+      dialog.setY(owner.getY() + (owner.getHeight() - dialog.getHeight()) / 2);
+    }
 
     // ── Entrance animation: fade-in + scale-up ─────────────────────────────
     overlay.setOpacity(0);
@@ -775,13 +841,190 @@ public class AdminPanelController implements Navigable {
     scaleIn.setFromY(0.88);
     scaleIn.setToX(1.0);
     scaleIn.setToY(1.0);
-    scaleIn.setInterpolator(javafx.animation.Interpolator.SPLINE(0.34, 1.56, 0.64, 1));
+    // EASE_OUT (not the prior SPLINE(0.34, 1.56, 0.64, 1) with overshoot y=1.56) — the
+    // custom spline could throw IllegalArgumentException at play() on some JavaFX runtimes,
+    // leaving overlay stuck at opacity=0 → dialog invisible → user reported "nothing
+    // happens" on click.
+    scaleIn.setInterpolator(javafx.animation.Interpolator.EASE_OUT);
 
     javafx.animation.ParallelTransition openAnim =
         new javafx.animation.ParallelTransition(fadeIn, scaleIn);
 
+    // Guarantee the transparent modal stage is on top + focused after show(). Without
+    // toFront(), a StageStyle.TRANSPARENT modal occasionally spawns under the owner on
+    // Windows and the user sees nothing happen.
+    dialog.setOnShown(
+        e -> {
+          dialog.toFront();
+          dialog.requestFocus();
+          if (resolveOwnerStage() == null) {
+            dialog.centerOnScreen();
+          }
+        });
+
     dialog.show();
     openAnim.play();
+  }
+
+  /**
+   * Resolve the current main-window stage as the dialog owner. Tries every admin table — whichever
+   * is wired to the active scene — so we never NPE just because one of them isn't visible yet.
+   */
+  private javafx.stage.Stage resolveOwnerStage() {
+    javafx.scene.control.TableView<?>[] candidates = {
+      auctionTable, userTable, depositTable, passwordResetTable
+    };
+    for (var t : candidates) {
+      if (t != null
+          && t.getScene() != null
+          && t.getScene().getWindow() instanceof javafx.stage.Stage s) {
+        return s;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Hiện custom error dialog có animation fade+scale, font Lexend, màu đỏ — dùng khi thao tác thất
+   * bại (server reject xóa user, lỗi kết nối, ...). Single-button dialog "Đã hiểu" để admin xác
+   * nhận đã đọc thông báo. Tái dụng helper với {@link #showConfirmDialog}: bố cục giống nhau, chỉ
+   * khác ở nút (1 nút "Đã hiểu" thay vì 2 nút Hủy/Xác nhận).
+   */
+  private void showErrorDialog(String header, String body) {
+    try {
+      showErrorDialogImpl(header, body);
+    } catch (Exception ex) {
+      LOGGER.error("Không thể mở error dialog '{}': {}", header, ex.getMessage(), ex);
+      setStatus("Lỗi mở dialog: " + ex.getMessage());
+    }
+  }
+
+  private void showErrorDialogImpl(String header, String body) {
+    javafx.stage.Stage dialog = new javafx.stage.Stage();
+    // WINDOW_MODAL + setOnShown→toFront — same Windows TRANSPARENT-stage Z-order fix as
+    // showConfirmDialog above (otherwise APPLICATION_MODAL + TRANSPARENT renders behind).
+    dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
+    dialog.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+    dialog.setTitle(header);
+
+    javafx.scene.layout.StackPane overlay = new javafx.scene.layout.StackPane();
+    overlay.setStyle("-fx-background-color: rgba(0,0,0,0.45);");
+
+    javafx.scene.layout.VBox card = new javafx.scene.layout.VBox(0);
+    card.setMaxWidth(440);
+    card.setStyle(
+        "-fx-background-color: #FFFFFF;"
+            + "-fx-background-radius: 16;"
+            + "-fx-border-color: #E8F0FE;"
+            + "-fx-border-width: 1;"
+            + "-fx-border-radius: 16;"
+            + "-fx-effect: dropshadow(gaussian, rgba(13,71,161,0.22), 32, 0.05, 0, 8);");
+
+    javafx.scene.layout.VBox headerStrip = new javafx.scene.layout.VBox(4);
+    headerStrip.setPadding(new javafx.geometry.Insets(20, 24, 16, 24));
+    headerStrip.setStyle("-fx-background-color: #FEF2F2; -fx-background-radius: 15 15 0 0;");
+
+    javafx.scene.control.Label headerLabel = new javafx.scene.control.Label(header);
+    headerLabel.setWrapText(true);
+    headerLabel.setStyle(
+        "-fx-font-family: 'LexendSemiBold';"
+            + "-fx-font-size: 16px;"
+            + "-fx-text-fill: #DC2626;"
+            + "-fx-font-smoothing-type: gray;");
+    headerStrip.getChildren().add(headerLabel);
+
+    javafx.scene.layout.VBox bodyBox = new javafx.scene.layout.VBox(0);
+    bodyBox.setPadding(new javafx.geometry.Insets(16, 24, 20, 24));
+    javafx.scene.control.Label bodyLabel = new javafx.scene.control.Label(body);
+    bodyLabel.setWrapText(true);
+    bodyLabel.setStyle(
+        "-fx-font-family: 'Lexend';"
+            + "-fx-font-size: 13px;"
+            + "-fx-text-fill: #475569;"
+            + "-fx-line-spacing: 2;"
+            + "-fx-font-smoothing-type: gray;");
+    bodyBox.getChildren().add(bodyLabel);
+
+    javafx.scene.control.Separator divider = new javafx.scene.control.Separator();
+    divider.setStyle("-fx-background-color: #E8F0FE;");
+
+    javafx.scene.layout.HBox btnRow = new javafx.scene.layout.HBox(10);
+    btnRow.setPadding(new javafx.geometry.Insets(14, 24, 18, 24));
+    btnRow.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+
+    String confirmBg = "linear-gradient(to bottom, #EF4444 0%, #DC2626 100%)";
+    String confirmBgHover = "linear-gradient(to bottom, #DC2626 0%, #B91C1C 100%)";
+    javafx.scene.control.Button okBtn = new javafx.scene.control.Button("Đã hiểu");
+    okBtn.setStyle(
+        "-fx-font-family: 'LexendSemiBold';"
+            + "-fx-font-size: 13px;"
+            + "-fx-text-fill: #FFFFFF;"
+            + "-fx-background-color: "
+            + confirmBg
+            + ";"
+            + "-fx-border-color: transparent;"
+            + "-fx-background-radius: 8;"
+            + "-fx-border-radius: 8;"
+            + "-fx-padding: 0 26 0 26;"
+            + "-fx-pref-height: 36;"
+            + "-fx-cursor: hand;"
+            + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 6, 0, 0, 2);"
+            + "-fx-font-smoothing-type: gray;");
+    okBtn.setOnMouseEntered(
+        e -> okBtn.setStyle(okBtn.getStyle().replace(confirmBg, confirmBgHover)));
+    okBtn.setOnMouseExited(
+        e -> okBtn.setStyle(okBtn.getStyle().replace(confirmBgHover, confirmBg)));
+    okBtn.setOnAction(e -> closeDialogWithAnimation(dialog, overlay));
+
+    btnRow.getChildren().add(okBtn);
+    card.getChildren().addAll(headerStrip, bodyBox, divider, btnRow);
+    overlay.getChildren().add(card);
+
+    javafx.scene.Scene scene =
+        new javafx.scene.Scene(overlay, 500, 260, javafx.scene.paint.Color.TRANSPARENT);
+    try {
+      java.net.URL cssUrl = getClass().getResource("/css/style.css");
+      if (cssUrl != null) {
+        scene.getStylesheets().add(cssUrl.toExternalForm());
+      }
+    } catch (Exception ignored) {
+    }
+    dialog.setScene(scene);
+    dialog.setWidth(500);
+    dialog.setHeight(260);
+
+    javafx.stage.Stage owner = resolveOwnerStage();
+    if (owner != null) {
+      dialog.initOwner(owner);
+      dialog.setX(owner.getX() + (owner.getWidth() - dialog.getWidth()) / 2);
+      dialog.setY(owner.getY() + (owner.getHeight() - dialog.getHeight()) / 2);
+    }
+
+    overlay.setOpacity(0);
+    card.setScaleX(0.88);
+    card.setScaleY(0.88);
+    javafx.animation.FadeTransition fadeIn =
+        new javafx.animation.FadeTransition(javafx.util.Duration.millis(180), overlay);
+    fadeIn.setFromValue(0);
+    fadeIn.setToValue(1);
+    javafx.animation.ScaleTransition scaleIn =
+        new javafx.animation.ScaleTransition(javafx.util.Duration.millis(200), card);
+    scaleIn.setFromX(0.88);
+    scaleIn.setFromY(0.88);
+    scaleIn.setToX(1.0);
+    scaleIn.setToY(1.0);
+    // EASE_OUT — same fix as showConfirmDialog (SPLINE overshoot could throw on play()).
+    scaleIn.setInterpolator(javafx.animation.Interpolator.EASE_OUT);
+    dialog.setOnShown(
+        e -> {
+          dialog.toFront();
+          dialog.requestFocus();
+          if (resolveOwnerStage() == null) {
+            dialog.centerOnScreen();
+          }
+        });
+    dialog.show();
+    new javafx.animation.ParallelTransition(fadeIn, scaleIn).play();
   }
 
   /** Animation thoát dialog: fade-out + scale-down, rồi đóng Stage. */
@@ -834,10 +1077,11 @@ public class AdminPanelController implements Navigable {
               {
                 deleteBtn.getStyleClass().add("table-action-delete");
                 deleteBtn.setOnAction(
-                    e -> {
-                      UserResponse u = getTableView().getItems().get(getIndex());
-                      confirmDeleteUser(u);
-                    });
+                    e ->
+                        runRowAction(
+                            getTableRow(),
+                            AdminPanelController.this::confirmDeleteUser,
+                            "Xóa tài khoản"));
               }
 
               @Override
@@ -961,15 +1205,13 @@ public class AdminPanelController implements Navigable {
                 approveBtn.getStyleClass().add("approve-button");
                 rejectBtn.getStyleClass().add("reject-button");
                 approveBtn.setOnAction(
-                    e -> {
-                      DepositRecord r = getTableView().getItems().get(getIndex());
-                      approveDeposit(r.getId());
-                    });
+                    e ->
+                        runRowAction(
+                            getTableRow(), r -> approveDeposit(r.getId()), "Duyệt nạp tiền"));
                 rejectBtn.setOnAction(
-                    e -> {
-                      DepositRecord r = getTableView().getItems().get(getIndex());
-                      rejectDeposit(r.getId());
-                    });
+                    e ->
+                        runRowAction(
+                            getTableRow(), r -> rejectDeposit(r.getId()), "Từ chối nạp tiền"));
               }
 
               @Override
@@ -1015,15 +1257,17 @@ public class AdminPanelController implements Navigable {
                 approveBtn.getStyleClass().add("approve-button");
                 rejectBtn.getStyleClass().add("reject-button");
                 approveBtn.setOnAction(
-                    e -> {
-                      PasswordResetRecord r = getTableView().getItems().get(getIndex());
-                      approvePasswordReset(r.getId());
-                    });
+                    e ->
+                        runRowAction(
+                            getTableRow(),
+                            r -> approvePasswordReset(r.getId()),
+                            "Duyệt đặt lại mật khẩu"));
                 rejectBtn.setOnAction(
-                    e -> {
-                      PasswordResetRecord r = getTableView().getItems().get(getIndex());
-                      rejectPasswordReset(r.getId());
-                    });
+                    e ->
+                        runRowAction(
+                            getTableRow(),
+                            r -> rejectPasswordReset(r.getId()),
+                            "Từ chối đặt lại mật khẩu"));
               }
 
               @Override

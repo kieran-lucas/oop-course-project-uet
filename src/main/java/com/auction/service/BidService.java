@@ -256,7 +256,22 @@ public class BidService {
     if (!auctionDao.existsById(auctionId)) {
       throw new NotFoundException("Không tìm thấy phiên đấu giá với id: " + auctionId);
     }
-    return bidTransactionDao.findByAuctionId(auctionId);
+    List<BidTransaction> bids = bidTransactionDao.findByAuctionId(auctionId);
+    // Resolve usernames once per distinct bidder so the client can render real names in the
+    // bid-history list. Cache lookups inside this call so a phiên with N bids by K distinct
+    // bidders does K queries (not N) — the same bidder typically appears many times in a row.
+    java.util.Map<Long, String> usernameCache = new java.util.HashMap<>();
+    for (BidTransaction bid : bids) {
+      Long bidderId = bid.getBidderId();
+      if (bidderId == null) {
+        continue;
+      }
+      String username =
+          usernameCache.computeIfAbsent(
+              bidderId, id -> userDao.findById(id).map(u -> u.getUsername()).orElse(null));
+      bid.setBidderUsername(username);
+    }
+    return bids;
   }
 
   /**

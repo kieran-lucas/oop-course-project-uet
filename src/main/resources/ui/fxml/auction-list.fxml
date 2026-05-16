@@ -40,7 +40,8 @@
                    translateX="5.0" translateY="9.0"
                    visible="false" managed="false" />
          </StackPane>
-         <Button styleClass="logout-button" text="Đăng xuất" onAction="#handleLogout">
+         <Button styleClass="logout-button" text="Đăng xuất" onAction="#handleLogout"
+                 style="-fx-font-family: 'Lexend'; -fx-font-weight: bold; -fx-font-size: 14px;">
             <graphic><Region styleClass="logout-icon" /></graphic>
          </Button>
       </HBox>

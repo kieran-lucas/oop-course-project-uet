@@ -134,7 +134,8 @@ public class App {
     var itemService = new ItemService(itemDao);
     var notificationService = new NotificationService(notificationDao);
     var auctionService =
-        new AuctionService(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao);
+        new AuctionService(
+            auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao, wsHandler);
     var autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
     var bidService =
         new BidService(

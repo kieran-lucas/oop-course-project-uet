@@ -1,5 +1,6 @@
 package com.auction.service;
 
+import com.auction.controller.AuctionWebSocketHandler;
 import com.auction.dao.AuctionDao;
 import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
@@ -36,7 +37,13 @@ public class AuctionService {
   private final AuctionEventManager eventManager;
   private final Jdbi jdbi;
   private final BidTransactionDao bidTransactionDao;
+  private final AuctionWebSocketHandler wsHandler;
 
+  /**
+   * Backward-compatible 6-arg constructor used by existing tests. Live per-user pushes for cancel /
+   * hardDelete are disabled when wsHandler is null — DB notifications are still persisted, the bell
+   * panel just won't toast in real time. App.java should always use the 7-arg constructor below.
+   */
   public AuctionService(
       AuctionDao auctionDao,
       ItemDao itemDao,
@@ -44,17 +51,29 @@ public class AuctionService {
       AuctionEventManager eventManager,
       Jdbi jdbi,
       BidTransactionDao bidTransactionDao) {
+    this(auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao, null);
+  }
+
+  public AuctionService(
+      AuctionDao auctionDao,
+      ItemDao itemDao,
+      UserDao userDao,
+      AuctionEventManager eventManager,
+      Jdbi jdbi,
+      BidTransactionDao bidTransactionDao,
+      AuctionWebSocketHandler wsHandler) {
     this.auctionDao = auctionDao;
     this.itemDao = itemDao;
     this.userDao = userDao;
     this.eventManager = eventManager;
     this.jdbi = jdbi;
     this.bidTransactionDao = bidTransactionDao;
+    this.wsHandler = wsHandler;
   }
 
   /** For unit tests that don't need notification. */
   AuctionService(AuctionDao auctionDao, ItemDao itemDao, UserDao userDao) {
-    this(auctionDao, itemDao, userDao, null, null, null);
+    this(auctionDao, itemDao, userDao, null, null, null, null);
   }
 
   /**
@@ -403,8 +422,64 @@ public class AuctionService {
       }
     }
 
-    auctionDao.hardDelete(auctionId);
+    java.util.List<Long> recipients = new java.util.ArrayList<>();
+    String message = "Phiên đấu giá #" + auctionId + " đã bị Admin xóa";
+
+    if (jdbi != null) {
+      jdbi.useTransaction(
+          handle -> {
+            insertHardDeleteNotificationsInTransaction(handle, auction, message, recipients);
+            auctionDao.hardDeleteInTransaction(handle, auctionId);
+          });
+    } else {
+      auctionDao.hardDelete(auctionId);
+    }
+
+    // Post-commit live push so the seller and every historical bidder gets a real-time
+    // toast in their bell panel — the AUCTION_ENDED broadcast above only reaches users
+    // who still have an open auction-detail page for this id.
+    pushLiveNotifications(recipients, message);
     LOGGER.info("Admin hard-deleted auction #{}", auctionId);
+  }
+
+  /**
+   * Insert "auction deleted" notifications for the seller and every bidder that ever participated
+   * in the auction, using the same handle that will run the cascade delete. The query against
+   * {@code bid_transactions} must happen on this handle BEFORE the cascade purges the table,
+   * otherwise the recipient list will silently be empty.
+   */
+  private void insertHardDeleteNotificationsInTransaction(
+      org.jdbi.v3.core.Handle handle,
+      Auction auction,
+      String message,
+      java.util.List<Long> recipientsOut) {
+    java.util.Set<Long> recipients = new java.util.LinkedHashSet<>();
+
+    java.util.List<Long> allBidders =
+        handle
+            .createQuery(
+                "SELECT DISTINCT bidder_id FROM bid_transactions WHERE auction_id = :auctionId")
+            .bind("auctionId", auction.getId())
+            .mapTo(Long.class)
+            .list();
+    recipients.addAll(allBidders);
+
+    if (auction.getSellerId() != null) {
+      recipients.add(auction.getSellerId());
+    }
+    if (auction.getLeadingBidderId() != null) {
+      recipients.add(auction.getLeadingBidderId());
+    }
+
+    for (Long recipientId : recipients) {
+      handle.execute(
+          "INSERT INTO notifications (user_id, message, notification_type) "
+              + "VALUES (?, ?, 'AUCTION_DELETED')",
+          recipientId,
+          message);
+    }
+
+    recipientsOut.addAll(recipients);
   }
 
   /**
@@ -452,6 +527,12 @@ public class AuctionService {
       return;
     }
 
+    // Captured inside the transaction lambda so we can push live notifications AFTER the
+    // commit succeeds — pushing inside the transaction is unsafe (a rollback would leave
+    // users toasted about a cancellation that never happened).
+    java.util.List<Long> recipients = new java.util.ArrayList<>();
+    String[] msgHolder = new String[1];
+
     jdbi.useTransaction(
         handle -> {
           if (previousStatus == AuctionStatus.RUNNING && auction.getLeadingBidderId() != null) {
@@ -467,17 +548,24 @@ public class AuctionService {
                 "auction_cancel:" + auction.getId());
           }
           auctionDao.updateInTransaction(handle, auction);
-          insertCancellationNotificationInTransaction(handle, auction, previousStatus, actorRole);
+          msgHolder[0] =
+              insertCancellationNotificationInTransaction(
+                  handle, auction, previousStatus, actorRole, recipients);
         });
+
+    // Post-commit per-user push so the bell panel toasts in real time for every online
+    // recipient (seller, leading bidder, every distinct historical bidder).
+    pushLiveNotifications(recipients, msgHolder[0]);
   }
 
-  private void insertCancellationNotificationInTransaction(
+  private String insertCancellationNotificationInTransaction(
       org.jdbi.v3.core.Handle handle,
       Auction auction,
       AuctionStatus previousStatus,
-      String actorRole) {
+      String actorRole,
+      java.util.List<Long> recipientsOut) {
     if (previousStatus == AuctionStatus.CANCELED) {
-      return;
+      return null;
     }
     String byWho = "ADMIN".equals(actorRole) ? "Admin" : "người bán";
     String message = "Phiên đấu giá #" + auction.getId() + " đã bị hủy bởi " + byWho;
@@ -511,6 +599,26 @@ public class AuctionService {
               + "VALUES (?, ?, 'AUCTION_CANCELED')",
           recipientId,
           message);
+    }
+
+    recipientsOut.addAll(recipients);
+    return message;
+  }
+
+  /**
+   * Push live USER_NOTIFICATION via WS to every recipient that's currently online. Best-effort —
+   * failures are logged but never rethrown so a flaky socket can't undo a successful DB commit.
+   */
+  private void pushLiveNotifications(java.util.List<Long> recipients, String message) {
+    if (wsHandler == null || message == null || recipients == null || recipients.isEmpty()) {
+      return;
+    }
+    for (Long uid : recipients) {
+      try {
+        wsHandler.pushUserNotification(uid, message);
+      } catch (Exception e) {
+        LOGGER.warn("Không thể push USER_NOTIFICATION cho user #{}: {}", uid, e.getMessage());
+      }
     }
   }
 

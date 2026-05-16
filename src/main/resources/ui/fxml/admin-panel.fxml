@@ -30,7 +30,8 @@
                 onMouseClicked="#handleProfile">
             <graphic><Region styleClass="user-icon" /></graphic>
          </Label>
-         <Button text="Đăng xuất" styleClass="logout-button" onAction="#handleLogout">
+         <Button text="Đăng xuất" styleClass="logout-button" onAction="#handleLogout"
+                 style="-fx-font-family: 'Lexend'; -fx-font-weight: bold; -fx-font-size: 14px;">
             <graphic><Region styleClass="logout-icon" /></graphic>
          </Button>
       </HBox>
