@@ -329,8 +329,7 @@ public class AuctionListController implements Navigable {
       int limit = Math.min(notifications.size(), 50);
       // NotificationStore: index 0 = moi nhat, hien thi moi nhat o tren cung.
       for (int i = 0; i < limit; i++) {
-        NotificationRow row = buildNotificationRow(notifications.get(i).getMessage(), null);
-        items.getChildren().add(row.node());
+        items.getChildren().add(buildNotificationRow(notifications.get(i).getMessage()));
       }
       scrollPane = new ScrollPane(items);
       // Always reserve a tall viewport so the popup doesn't collapse to a single-row height
@@ -381,48 +380,41 @@ public class AuctionListController implements Navigable {
     }
   }
 
-  private NotificationRow buildNotificationRow(String notification, BigDecimal previousBalance) {
-    BalanceDisplay balance = toBalanceDisplay(notification, previousBalance);
+  // Notification palette ─ chosen against the bell popup's dark navy background
+  //  USER_COLOR  → light sky-blue, clearly reads as "blue"
+  //  AUCTION_COLOR → warm tan/brown, clearly reads as "nâu"
+  //  PRICE_COLOR → existing yellow highlight for amounts
+  //  DEFAULT_COLOR → near-white body text
+  private static final String USER_COLOR = "#60A5FA";
+  private static final String AUCTION_COLOR = "#E0A458";
+  private static final String PRICE_COLOR = "#ffd600";
+  private static final String DEFAULT_COLOR = "#e0e0e0";
+
+  private Node buildNotificationRow(String notification) {
+    BalanceDisplay balance = toBalanceDisplay(notification);
     if (balance != null) {
-      return new NotificationRow(createBalanceNotificationNode(balance), balance.newBalance());
+      return createBalanceNotificationNode(balance);
     }
-
     String text = replaceAuctionIdWithName(notification);
-    PriceSplit priceSplit = splitCurrentPrice(text);
-    if (priceSplit != null) {
-      return new NotificationRow(createPriceNotificationNode(priceSplit), null);
-    }
-    return new NotificationRow(createNotificationLabel(text, "#e0e0e0"), null);
+    return createGenericFlowNode(text);
   }
 
-  private Label createNotificationLabel(String text, String color) {
-    Label item = new Label(text);
-    item.setWrapText(true);
-    item.setMaxWidth(Double.MAX_VALUE);
-    item.setPadding(new Insets(7, 10, 7, 10));
-    item.setStyle(
-        "-fx-text-fill: "
-            + color
-            + "; -fx-font-size: 12px; "
-            + "-fx-background-color: rgba(255,255,255,0.06); "
-            + "-fx-background-radius: 6;");
-    return item;
-  }
-
-  private Node createPriceNotificationNode(PriceSplit split) {
+  /**
+   * General-purpose notification renderer. Splits the message into colored segments:
+   *
+   * <ul>
+   *   <li>{@code «name»} → blue (username)
+   *   <li>{@code [item]} → brown (auction display name)
+   *   <li>price amounts → yellow bold
+   *   <li>remainder → default near-white
+   * </ul>
+   */
+  private Node createGenericFlowNode(String text) {
     TextFlow flow = new TextFlow();
     flow.setMaxWidth(Double.MAX_VALUE);
     flow.setPadding(new Insets(7, 10, 7, 10));
     flow.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-background-radius: 6;");
-    if (!split.before().isBlank()) {
-      flow.getChildren().add(createNotificationText(split.before(), "#e0e0e0", false));
-    }
-    String priceText = withLeadingSpaceIfNeeded(split.before(), split.price());
-    priceText = withTrailingSpaceIfNeeded(priceText, split.after());
-    flow.getChildren().add(createNotificationText(priceText, "#ffd600", true));
-    if (!split.after().isBlank()) {
-      flow.getChildren().add(createNotificationText(split.after(), "#e0e0e0", false));
-    }
+    appendColoredSegments(flow, text, DEFAULT_COLOR);
     return flow;
   }
 
@@ -437,12 +429,11 @@ public class AuctionListController implements Navigable {
     box.setPadding(new Insets(7, 10, 7, 10));
     box.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-background-radius: 6;");
     if (parts.length == 2 && !parts[0].isBlank()) {
-      // Dong 1: mo ta (VD: "Yeu cau nap tien da duoc duyet.") - trang
-      Label descLabel = new Label(parts[0]);
-      descLabel.setWrapText(true);
-      descLabel.setMaxWidth(Double.MAX_VALUE);
-      descLabel.setStyle("-fx-text-fill: #e0e0e0; -fx-font-size: 12px;");
-      box.getChildren().add(descLabel);
+      // Dong 1: prefix mo ta — TextFlow co mau de phan ten user/phien noi bat.
+      TextFlow descFlow = new TextFlow();
+      descFlow.setMaxWidth(Double.MAX_VALUE);
+      appendColoredSegments(descFlow, parts[0], DEFAULT_COLOR);
+      box.getChildren().add(descFlow);
       // Dong 2: "So du bien dong: " trang + "+ 50.000.000 VND" co mau
       // Tach tai dau "+" hoac "-" de lay phan label va phan so
       int signIdx = -1;
@@ -460,7 +451,7 @@ public class AuctionListController implements Navigable {
             new Label(
                 withTrailingSpaceIfNeeded(
                     parts[1].substring(0, signIdx), parts[1].substring(signIdx)));
-        labelPart.setStyle("-fx-text-fill: #e0e0e0; -fx-font-size: 12px;");
+        labelPart.setStyle("-fx-text-fill: " + DEFAULT_COLOR + "; -fx-font-size: 12px;");
         Label amountPart = new Label(parts[1].substring(signIdx));
         amountPart.setWrapText(false);
         amountPart.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
@@ -488,12 +479,77 @@ public class AuctionListController implements Navigable {
     return box;
   }
 
-  private Label createInlineNotificationLabel(String text, String color) {
-    Label label = new Label(text);
-    label.setWrapText(false);
-    label.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
-    label.setStyle("-fx-text-fill: " + color + "; -fx-font-size: 12px;");
-    return label;
+  /**
+   * Scan {@code text} for {@code «name»} / {@code [item]} / price markers and append
+   * correspondingly coloured {@link Text} nodes to {@code flow}. Unrecognised stretches use {@code
+   * defaultColor}.
+   *
+   * <p>Markers are stripped from the visible output — only the inner content is rendered (e.g.
+   * {@code «alice»} → "alice" in blue). That keeps the notification readable while still letting
+   * the server tag entities for colour-coding.
+   */
+  private void appendColoredSegments(TextFlow flow, String text, String defaultColor) {
+    if (text == null || text.isEmpty()) {
+      return;
+    }
+    int i = 0;
+    int n = text.length();
+    StringBuilder buf = new StringBuilder();
+    while (i < n) {
+      char c = text.charAt(i);
+      if (c == '«') {
+        int end = text.indexOf('»', i + 1);
+        if (end > i) {
+          flushDefault(flow, buf, defaultColor);
+          flow.getChildren()
+              .add(createNotificationText(text.substring(i + 1, end), USER_COLOR, true));
+          i = end + 1;
+          continue;
+        }
+      } else if (c == '[') {
+        int end = text.indexOf(']', i + 1);
+        if (end > i) {
+          flushDefault(flow, buf, defaultColor);
+          flow.getChildren()
+              .add(createNotificationText(text.substring(i + 1, end), AUCTION_COLOR, true));
+          i = end + 1;
+          continue;
+        }
+      }
+      buf.append(c);
+      i++;
+    }
+    flushDefault(flow, buf, defaultColor);
+  }
+
+  /**
+   * Drain {@code buf} into {@code flow}. The drained text is further split so any VND price inside
+   * it gets yellow highlighting — the rest stays at {@code defaultColor}.
+   */
+  private void flushDefault(TextFlow flow, StringBuilder buf, String defaultColor) {
+    if (buf.length() == 0) {
+      return;
+    }
+    String segment = buf.toString();
+    buf.setLength(0);
+    Matcher priceMatcher = VND_AMOUNT_PATTERN.matcher(segment);
+    int last = 0;
+    while (priceMatcher.find()) {
+      if (priceMatcher.start() > last) {
+        flow.getChildren()
+            .add(
+                createNotificationText(
+                    segment.substring(last, priceMatcher.start()), defaultColor, false));
+      }
+      String priceText =
+          priceMatcher.group(1).replaceAll("(?i)\\s*(?:VN\\s*Đ|VNĐ|VND|₫|đ)\\s*$", "").trim()
+              + " VND";
+      flow.getChildren().add(createNotificationText(priceText, PRICE_COLOR, true));
+      last = priceMatcher.end();
+    }
+    if (last < segment.length()) {
+      flow.getChildren().add(createNotificationText(segment.substring(last), defaultColor, false));
+    }
   }
 
   private Text createNotificationText(String text, String color, boolean bold) {
@@ -501,13 +557,6 @@ public class AuctionListController implements Navigable {
     node.setStyle(
         "-fx-fill: " + color + "; -fx-font-size: 12px;" + (bold ? " -fx-font-weight: bold;" : ""));
     return node;
-  }
-
-  private String withLeadingSpaceIfNeeded(String before, String text) {
-    if (before == null || before.isBlank() || text == null || text.isBlank()) {
-      return text;
-    }
-    return Character.isWhitespace(before.charAt(before.length() - 1)) ? text : " " + text;
   }
 
   private String withTrailingSpaceIfNeeded(String text, String after) {
@@ -539,24 +588,7 @@ public class AuctionListController implements Navigable {
         .orElse(null);
   }
 
-  private PriceSplit splitCurrentPrice(String text) {
-    String lower = text.toLowerCase(Locale.ROOT);
-    if (!lower.contains("giá") && !lower.contains("bid") && !lower.contains("price")) {
-      return null;
-    }
-    Matcher matcher = VND_AMOUNT_PATTERN.matcher(text);
-    if (!matcher.find()) {
-      return null;
-    }
-    // Strip every currency suffix (VND, VNĐ, VN Đ, ₫, đ) and re-add canonical " VND"
-    // so legacy notifications stored with "VNĐ" don't render as "VN VND".
-    String priceText =
-        matcher.group(1).replaceAll("(?i)\\s*(?:VN\\s*Đ|VNĐ|VND|₫|đ)\\s*$", "").trim() + " VND";
-    return new PriceSplit(
-        text.substring(0, matcher.start()), priceText, text.substring(matcher.end()));
-  }
-
-  private BalanceDisplay toBalanceDisplay(String notification, BigDecimal previousBalance) {
+  private BalanceDisplay toBalanceDisplay(String notification) {
     String lower = notification.toLowerCase(Locale.ROOT);
     boolean isBalanceNotification =
         lower.contains("số dư biến động")
@@ -582,7 +614,7 @@ public class AuctionListController implements Navigable {
       }
       String deltaLine = "S\u1ed1 d\u01b0 bi\u1ebfn \u0111\u1ed9ng: " + formatDelta(delta);
       String deltaText = prefix.isEmpty() ? deltaLine : prefix + "\n" + deltaLine;
-      return new BalanceDisplay(deltaText, delta.signum() >= 0 ? "#22C55E" : "#EF4444", null);
+      return new BalanceDisplay(deltaText, delta.signum() >= 0 ? "#22C55E" : "#EF4444");
     }
 
     Matcher newBalanceMatcher = NEW_BALANCE_PATTERN.matcher(notification);
@@ -597,43 +629,10 @@ public class AuctionListController implements Navigable {
       Matcher fallbackDeltaMatcher = BALANCE_DELTA_PATTERN.matcher(notification);
       if (fallbackDeltaMatcher.find()) {
         BigDecimal delta = parseAmount(fallbackDeltaMatcher.group(1));
-        return new BalanceDisplay(
-            formatDelta(delta), delta.signum() >= 0 ? "#22C55E" : "#EF4444", null);
+        return new BalanceDisplay(formatDelta(delta), delta.signum() >= 0 ? "#22C55E" : "#EF4444");
       }
     }
     return null;
-  }
-
-  private BigDecimal findPreviousBalanceBefore(
-      ObservableList<NotificationItem> notifications, int displayedLimit) {
-    for (int i = notifications.size() - 1; i >= displayedLimit; i--) {
-      BigDecimal balance = parseNewBalance(notifications.get(i).getMessage());
-      if (balance != null) {
-        return balance;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Tim newBalance cua thong bao ngay sau (cu hon) tai vi tri fromIndex tro di trong list. Dung de
-   * tinh delta = newBalance_hien_tai - newBalance_truoc_do.
-   */
-  private BigDecimal findPreviousBalanceAt(
-      ObservableList<NotificationItem> notifications, int fromIndex, int limit) {
-    // Tim trong cac thong bao cu hon (index >= fromIndex)
-    for (int i = fromIndex; i < notifications.size(); i++) {
-      BigDecimal balance = parseNewBalance(notifications.get(i).getMessage());
-      if (balance != null) {
-        return balance;
-      }
-    }
-    return null;
-  }
-
-  private BigDecimal parseNewBalance(String notification) {
-    Matcher matcher = NEW_BALANCE_PATTERN.matcher(notification);
-    return matcher.find() ? parseAmount(matcher.group(1)) : null;
   }
 
   private BigDecimal parseAmount(String text) {
@@ -649,11 +648,7 @@ public class AuctionListController implements Navigable {
     return sign + VND_AMOUNT.format(delta.abs()) + " VND";
   }
 
-  private record NotificationRow(Node node, BigDecimal newBalance) {}
-
-  private record BalanceDisplay(String text, String color, BigDecimal newBalance) {}
-
-  private record PriceSplit(String before, String price, String after) {}
+  private record BalanceDisplay(String text, String color) {}
 
   /**
    * Cập nhật danh sách tùy chọn của bộ lọc danh mục dựa trên dữ liệu phiên hiện tại. Luôn giữ các

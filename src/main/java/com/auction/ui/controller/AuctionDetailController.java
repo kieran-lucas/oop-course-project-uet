@@ -1031,19 +1031,13 @@ public class AuctionDetailController implements Navigable {
         bidBox.setManaged(false);
         endedBox.setVisible(true);
         endedBox.setManaged(true);
-        String winner =
-            msg.getLeadingBidderUsername() != null
-                ? msg.getLeadingBidderUsername()
-                : "Không có người thắng";
+        boolean hasWinner = msg.getLeadingBidderUsername() != null;
+        String winner = hasWinner ? msg.getLeadingBidderUsername() : "Không có người thắng";
         String price = msg.getCurrentPrice() != null ? vnd(msg.getCurrentPrice()) : "—";
         winnerLabel.setText("Người thắng: " + winner + " — Giá cuối: " + price);
-
-        String label = currentItemName != null ? "[" + currentItemName + "] " : "";
-        if (userHasBid) {
-          // Seller nhận thông báo AUCTION_RESULT qua /ws/user/{sellerId} — không add ở đây.
-          NotificationStore.getInstance()
-              .add(label + "Phiên đã kết thúc — " + winner + " thắng với " + price);
-        }
+        // The server-driven AUCTION_RESULT notification (broadcast to every distinct bidder +
+        // seller) already lands in the bell via /ws/user/{id}. Skip the client-side fallback so
+        // bidders don't see two near-identical entries.
       }
       default -> LOGGER.debug("WS message không xử lý: type={}", msg.getType());
     }
@@ -1069,32 +1063,44 @@ public class AuctionDetailController implements Navigable {
     String bidder =
         msg.getLeadingBidderUsername() != null ? msg.getLeadingBidderUsername() : "Ẩn danh";
     String price = msg.getCurrentPrice() != null ? vnd(msg.getCurrentPrice()) : "—";
-    String itemLabel = currentItemName != null ? "[" + currentItemName + "] " : "";
+    String itemPlain = currentItemName != null ? "[" + currentItemName + "] " : "";
+    // Marker-wrapped variant for the bell: server-side messages use the same convention so the
+    // popup's segment renderer can colour usernames blue and the auction name brown.
+    String itemMarker =
+        currentItemName != null
+            ? com.auction.util.NotificationFormat.auctionName(auctionId, currentItemName) + " "
+            : "";
+    String bidderMarker = com.auction.util.NotificationFormat.user(bidder);
 
-    String text;
+    String toastText;
+    String storeText;
     String color;
 
     if (isSeller) {
-      text = itemLabel + "Có bid mới: " + price + " từ " + bidder;
+      toastText = itemPlain + "Có bid mới: " + price + " từ " + bidder;
+      storeText = itemMarker + "Có bid mới: " + price + " từ " + bidderMarker;
       color = "#1565C0";
       // Bell entry được đẩy qua kênh /ws/user/{sellerId} (SELLER_BID_RECEIVED) — tránh nhân đôi.
     } else if (isOwnBid && msg.isAutoBid()) {
-      text = itemLabel + "Auto-bid đặt " + price + " cho bạn";
+      toastText = itemPlain + "Auto-bid đặt " + price + " cho bạn";
+      storeText = itemMarker + "Auto-bid đặt " + price + " cho bạn";
       color = "#16A34A";
-      NotificationStore.getInstance().add(text);
+      NotificationStore.getInstance().add(storeText);
     } else if (isOwnBid) {
-      text = itemLabel + "Bạn đặt giá: " + price;
+      toastText = itemPlain + "Bạn đặt giá: " + price;
+      storeText = itemMarker + "Bạn đặt giá: " + price;
       color = "#16A34A";
-      NotificationStore.getInstance().add(text);
+      NotificationStore.getInstance().add(storeText);
     } else {
-      text = itemLabel + bidder + " vừa bid " + price;
+      toastText = itemPlain + bidder + " vừa bid " + price;
+      storeText = itemMarker + bidderMarker + " vừa bid " + price;
       color = "#1565C0";
       if (userHasBid) {
-        NotificationStore.getInstance().add(text);
+        NotificationStore.getInstance().add(storeText);
       }
     }
 
-    displayToast(text, color, 3);
+    displayToast(toastText, color, 3);
   }
 
   /**

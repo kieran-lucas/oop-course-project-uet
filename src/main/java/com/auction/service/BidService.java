@@ -19,6 +19,7 @@ import com.auction.model.User;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.pattern.strategy.AutoBidStrategy;
 import com.auction.util.MoneyValidator;
+import com.auction.util.NotificationFormat;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -187,14 +188,13 @@ public class BidService {
 
                 Long sellerId = auction.getSellerId();
                 if (sellerId != null && !sellerId.equals(bidderId)) {
-                  String bidderName =
-                      bidder.getUsername() != null ? bidder.getUsername() : "Người dùng";
+                  String bidderLabel = NotificationFormat.user(bidder.getUsername());
                   String sellerMsg =
                       String.format(
                           Locale.of("vi", "VN"),
                           "Phiên #%d của bạn vừa nhận bid mới từ %s. Giá hiện tại: %,d VND",
                           auctionId,
-                          bidderName,
+                          bidderLabel,
                           toIntegerVnd(amount, "Bid amount"));
                   handle.execute(
                       "INSERT INTO notifications (user_id, message, notification_type)"
@@ -406,14 +406,13 @@ public class BidService {
 
                 Long sellerId = auction.getSellerId();
                 if (sellerId != null && !sellerId.equals(bidderId)) {
-                  String bidderName =
-                      bidder.getUsername() != null ? bidder.getUsername() : "Người dùng";
+                  String bidderLabel = NotificationFormat.user(bidder.getUsername());
                   String sellerMsg =
                       String.format(
                           Locale.of("vi", "VN"),
                           "Phiên #%d của bạn vừa nhận auto-bid mới từ %s. Giá hiện tại: %,d VND",
                           auctionId,
-                          bidderName,
+                          bidderLabel,
                           toIntegerVnd(initialBid, "Initial bid"));
                   handle.execute(
                       "INSERT INTO notifications (user_id, message, notification_type)"
@@ -533,13 +532,14 @@ public class BidService {
               .bind("id", bidderId)
               .mapTo(String.class)
               .findOne()
-              .orElse("Người dùng");
+              .orElse(null);
+      String bidderLabel = NotificationFormat.user(bidderName);
       String sellerMsg =
           String.format(
               Locale.of("vi", "VN"),
               "Phiên #%d của bạn vừa nhận auto-bid mới từ %s. Giá hiện tại: %,d VND",
               auctionId,
-              bidderName,
+              bidderLabel,
               toIntegerVnd(amount, "Bid amount"));
       handle.execute(
           "INSERT INTO notifications (user_id, message, notification_type)"

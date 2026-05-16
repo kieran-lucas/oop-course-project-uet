@@ -115,8 +115,6 @@ public class BackgroundBidWatcher {
     WebSocketClient client = new WebSocketClient();
     watchers.put(auctionId, client);
 
-    String name = itemName != null ? itemName : "Phiên #" + auctionId;
-
     client.connect(
         auctionId,
         token,
@@ -128,6 +126,7 @@ public class BackgroundBidWatcher {
               return;
             }
 
+            String auctionLabel = NotificationFormat.auctionName(auctionId, itemName);
             switch (type) {
               case BidUpdateMessage.TYPE_BID_UPDATE -> {
                 Long leaderId = msg.getLeadingBidderId();
@@ -145,29 +144,24 @@ public class BackgroundBidWatcher {
                     break;
                   }
                   notification =
-                      "Auto-bid của bạn vừa đặt giá tại phiên ["
-                          + name
-                          + "]. Giá hiện tại: "
+                      "Auto-bid của bạn vừa đặt giá tại phiên "
+                          + auctionLabel
+                          + ". Giá hiện tại: "
                           + priceStr;
                 } else {
                   notification =
-                      "Bạn đã bị vượt giá tại phiên [" + name + "]. Giá hiện tại: " + priceStr;
+                      "Bạn đã bị vượt giá tại phiên "
+                          + auctionLabel
+                          + ". Giá hiện tại: "
+                          + priceStr;
                 }
                 final String finalNotification = notification;
                 Platform.runLater(() -> NotificationStore.getInstance().add(finalNotification));
               }
               case BidUpdateMessage.TYPE_AUCTION_ENDED -> {
-                String winner = msg.getLeadingBidderUsername();
-                String notification =
-                    "🏁 Phiên kết thúc: ["
-                        + name
-                        + "]"
-                        + (winner != null ? " — Người thắng: " + winner : "");
-                Platform.runLater(
-                    () -> {
-                      NotificationStore.getInstance().add(notification);
-                      stopWatching(auctionId);
-                    });
+                // The server already persisted an AUCTION_RESULT notification for every bidder
+                // and the seller. Only stop the watcher here — don't add a duplicate entry.
+                Platform.runLater(() -> stopWatching(auctionId));
               }
               default -> {
                 // TYPE_TIME_EXTENDED và các type khác: bỏ qua

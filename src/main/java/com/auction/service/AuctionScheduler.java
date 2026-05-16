@@ -10,6 +10,7 @@ import com.auction.model.Auction;
 import com.auction.model.AuctionStatus;
 import com.auction.model.User;
 import com.auction.pattern.observer.AuctionEventManager;
+import com.auction.util.NotificationFormat;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -264,6 +265,16 @@ public class AuctionScheduler {
   /**
    * Thanh toán và đóng phiên: - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status →
    * PAID. - Nếu không ai bid: status → FINISHED.
+   *
+   * <p>Notifications produced per settlement:
+   *
+   * <ul>
+   *   <li>One AUCTION_RESULT "common" message broadcast to every distinct bidder of the auction AND
+   *       the seller, describing the auction outcome (winner + price, or no winner).
+   *   <li>For the PAID case: a private AUCTION_WON balance notification to the winner (with "Thanh
+   *       toán thành công" wording) and a private SELLER_PAYOUT balance notification to the seller
+   *       (with the winner's username embedded).
+   * </ul>
    */
   private SettlementResult settleAndClose(Long auctionId, LocalDateTime now) {
     MDC.put("auctionId", String.valueOf(auctionId));
@@ -304,6 +315,28 @@ public class AuctionScheduler {
             Long winnerId = auction.getLeadingBidderId();
             Long sellerId = auction.getSellerId();
 
+            // Resolve display name once — used in every settlement notification. Plain SELECT
+            // (no FOR UPDATE) because we only read the name and don't want to widen the locked
+            // row set inside the settlement transaction.
+            String itemName =
+                handle
+                    .createQuery("SELECT name FROM items WHERE id = :id")
+                    .bind("id", auction.getItemId())
+                    .mapTo(String.class)
+                    .findOne()
+                    .orElse(null);
+            String auctionLabel = NotificationFormat.auctionName(auction.getId(), itemName);
+
+            // Distinct bidders of this auction — receive the "common" end-of-auction broadcast.
+            // The seller is added separately below so we don't double-insert if seller bid too.
+            List<Long> bidderAudience =
+                handle
+                    .createQuery(
+                        "SELECT DISTINCT bidder_id FROM bid_transactions WHERE auction_id = :id")
+                    .bind("id", auction.getId())
+                    .mapTo(Long.class)
+                    .list();
+
             if (winnerId != null) {
               BigDecimal price = auction.getCurrentPrice();
 
@@ -311,6 +344,7 @@ public class AuctionScheduler {
               User winner = userDao.findByIdForUpdate(handle, winnerId);
               BigDecimal balance =
                   winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
+              String winnerLabel = NotificationFormat.user(winner.getUsername());
 
               if (balance.compareTo(price) >= 0) {
                 BigDecimal balanceBefore = balance;
@@ -357,9 +391,10 @@ public class AuctionScheduler {
                 String winMsg =
                     String.format(
                         Locale.of("vi", "VN"),
-                        "Bạn đã thắng phiên đấu giá #%d với giá %,d VND."
+                        "Bạn đã thắng phiên %s với giá %,d VND."
+                            + " Thanh toán thành công."
                             + " Số dư biến động: - %,d VND",
-                        auction.getId(),
+                        auctionLabel,
                         price.longValue(),
                         price.longValue());
                 balanceChanges.add(
@@ -394,31 +429,29 @@ public class AuctionScheduler {
                       sellerId,
                       sellerBalanceBefore,
                       sellerNewBalance);
-                  String sellerMsg =
+                  String sellerPayoutMsg =
                       String.format(
                           Locale.of("vi", "VN"),
-                          "Phiên đấu giá #%d đã thanh toán." + " Số dư biến động: + %,d VND",
-                          auction.getId(),
+                          "Bạn đã được %s thanh toán thành công cho phiên %s."
+                              + " Số dư biến động: + %,d VND",
+                          winnerLabel,
+                          auctionLabel,
                           price.longValue());
-                  String winnerName =
-                      winner != null && winner.getUsername() != null
-                          ? winner.getUsername()
-                          : "Người dùng #" + winnerId;
-                  String sellerResultMsg =
-                      String.format(
-                          Locale.of("vi", "VN"),
-                          "Phiên #%d đấu giá thành công! Người thắng: %s với giá %,d VND.",
-                          auction.getId(),
-                          winnerName,
-                          price.longValue());
-                  handle.execute(
-                      "INSERT INTO notifications (user_id, message, notification_type)"
-                          + " VALUES (?, ?, 'AUCTION_RESULT')",
-                      sellerId,
-                      sellerResultMsg);
-                  userNotifications.add(
-                      new UserNotification(sellerId, sellerResultMsg, "AUCTION_RESULT"));
+                  balanceChanges.add(
+                      new BalanceChange(
+                          sellerId, sellerNewBalance, price, sellerPayoutMsg, "SELLER_PAYOUT"));
                 }
+
+                // ── Common end-of-auction broadcast (PAID) ─────────────────
+                String commonMsg =
+                    String.format(
+                        Locale.of("vi", "VN"),
+                        "Phiên %s đã kết thúc. Người thắng: %s với giá %,d VND.",
+                        auctionLabel,
+                        winnerLabel,
+                        price.longValue());
+                broadcastAuctionResult(
+                    handle, userNotifications, bidderAudience, sellerId, commonMsg);
 
                 auction.setStatus(AuctionStatus.PAID);
               } else {
@@ -438,44 +471,28 @@ public class AuctionScheduler {
                     price,
                     "settlement_insufficient_balance:" + auction.getId());
 
-                if (sellerId != null) {
-                  String winnerName =
-                      winner != null && winner.getUsername() != null
-                          ? winner.getUsername()
-                          : "Người dùng #" + winnerId;
-                  String sellerFailMsg =
-                      String.format(
-                          Locale.of("vi", "VN"),
-                          "Phiên #%d kết thúc thất bại: người thắng (%s) không đủ tiền thanh toán %,d VND.",
-                          auction.getId(),
-                          winnerName,
-                          price.longValue());
-                  handle.execute(
-                      "INSERT INTO notifications (user_id, message, notification_type)"
-                          + " VALUES (?, ?, 'AUCTION_RESULT')",
-                      sellerId,
-                      sellerFailMsg);
-                  userNotifications.add(
-                      new UserNotification(sellerId, sellerFailMsg, "AUCTION_RESULT"));
-                }
+                // ── Common end-of-auction broadcast (winner couldn't pay) ──
+                String commonMsg =
+                    String.format(
+                        Locale.of("vi", "VN"),
+                        "Phiên %s đã kết thúc nhưng thất bại: người thắng %s không đủ tiền thanh toán %,d VND.",
+                        auctionLabel,
+                        winnerLabel,
+                        price.longValue());
+                broadcastAuctionResult(
+                    handle, userNotifications, bidderAudience, sellerId, commonMsg);
 
                 auction.setStatus(AuctionStatus.FINISHED);
               }
             } else {
-              if (sellerId != null) {
-                String sellerFailMsg =
-                    String.format(
-                        Locale.of("vi", "VN"),
-                        "Phiên #%d kết thúc — không có ai đặt giá. Phiên đấu giá thất bại.",
-                        auction.getId());
-                handle.execute(
-                    "INSERT INTO notifications (user_id, message, notification_type)"
-                        + " VALUES (?, ?, 'AUCTION_RESULT')",
-                    sellerId,
-                    sellerFailMsg);
-                userNotifications.add(
-                    new UserNotification(sellerId, sellerFailMsg, "AUCTION_RESULT"));
-              }
+              // ── Common end-of-auction broadcast (no bidder) ──
+              String commonMsg =
+                  String.format(
+                      Locale.of("vi", "VN"),
+                      "Phiên %s đã kết thúc — không có ai đặt giá. Phiên đấu giá thất bại.",
+                      auctionLabel);
+              broadcastAuctionResult(
+                  handle, userNotifications, bidderAudience, sellerId, commonMsg);
               auction.setStatus(AuctionStatus.FINISHED);
             }
 
@@ -496,6 +513,37 @@ public class AuctionScheduler {
       return new SettlementResult(settledAuction[0], userNotifications, balanceChanges);
     } finally {
       MDC.remove("auctionId");
+    }
+  }
+
+  /**
+   * Persist + queue an AUCTION_RESULT notification for every distinct bidder of the auction plus
+   * the seller. Deduplicates so a seller who also bid only receives it once.
+   *
+   * <p>Called inside the settlement transaction so notifications are atomic with status change.
+   * Post-commit pushes happen via {@link #runningToFinished} which drains {@code userNotifications}
+   * and sends a WS toast to each currently-online recipient.
+   */
+  private void broadcastAuctionResult(
+      org.jdbi.v3.core.Handle handle,
+      List<UserNotification> userNotifications,
+      List<Long> bidderAudience,
+      Long sellerId,
+      String message) {
+    java.util.Set<Long> seen = new java.util.LinkedHashSet<>();
+    if (bidderAudience != null) {
+      seen.addAll(bidderAudience);
+    }
+    if (sellerId != null) {
+      seen.add(sellerId);
+    }
+    for (Long recipientId : seen) {
+      handle.execute(
+          "INSERT INTO notifications (user_id, message, notification_type)"
+              + " VALUES (?, ?, 'AUCTION_RESULT')",
+          recipientId,
+          message);
+      userNotifications.add(new UserNotification(recipientId, message, "AUCTION_RESULT"));
     }
   }
 
