@@ -30,7 +30,7 @@ A full-stack **desktop auction platform** built with Java 21. A **JavaFX client*
 - **Anti-sniping protection**: bids in the final 30 seconds automatically extend the deadline by 60 seconds
 - **Auto-bidding engine** using a `PriorityQueue` with FIFO tie-breaking, capable of chaining multiple auto-bids in a single transaction
 - A complete **6-state auction lifecycle** enforced by the State pattern - illegal operations throw typed exceptions, not silent failures
-- **12 JavaFX screens** with a clean blue theme (`#1565C0` primary, `#EFF6FF` background), fade transitions, and a live `LineChart` fed directly from WebSocket events
+- **12 JavaFX screens** with a clean blue theme (`#1565C0` primary, `#EFF6FF` background) and a live `LineChart` fed directly from WebSocket events
 
 The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle) stored in a flattened `Item` model, and a complete lifecycle from item creation through payment and password management - **~99 Java files**, 20+ test classes, 17 database migrations.
 
@@ -569,12 +569,16 @@ graph TB
 1. AuctionDetailController (JavaFX)
    └─► POST /api/auctions/{id}/bid  { amount: 500000 }  + Authorization: Bearer <JWT>
 
-2. JwtMiddleware
-   └─► verifyToken() → extract { userId, username, role }
-   └─► reject if role is not BIDDER for manual bids
-   └─► BidController.placeBid(ctx)
+2. JwtMiddleware (before-handler on /api/*)
+   └─► JwtUtil.verifyToken() → extract { userId, username, role, tokenVersion }
+   └─► tokenVersion compared against UserDao to invalidate stale tokens
+   └─► inject { userId, username, role } into Javalin context
 
-3. BidService.placeBid()
+3. BidController.handleManualBid(ctx)
+   └─► role check: reject with UnauthorizedException if role ≠ "BIDDER"
+   └─► bidService.placeBid(auctionId, bidderId, amount, isAutoBid=false)
+
+4. BidService.placeBid()
    └─► validate: integer VND amount > currentPrice, sufficient available balance
    └─► jdbi.inTransaction(handle -> {
          auctionDao.findByIdForUpdate(handle, id)  ← SELECT FOR UPDATE (row lock)
@@ -584,18 +588,18 @@ graph TB
          bidTransactionDao.insert(handle, tx)      ← INSERT bid record
        })
 
-4. AuctionEventManager
+5. AuctionEventManager (post-commit)
    └─► notifyTimeExtended()  (if anti-snipe triggered)
    └─► notifyBidUpdate()
    └─► WebSocketObserver → broadcast BidUpdateMessage (JSON) → all connected clients
 
-5. All AuctionDetailControllers
+6. All AuctionDetailControllers
    └─► Platform.runLater():
          update currentPrice label
          append point to LineChart
          reset countdown timer
 
-6. BidService (inside same transaction, before commit)
+7. BidService (inside same transaction, before commit)
    └─► autoBidStrategy.executeAllInTransaction() → auto-bid chain (atomic with manual bid)
 ```
 
@@ -610,9 +614,9 @@ AuctionEventManager (Subject)
   └─► Map<auctionId, List<AuctionEventListener>>
 
 AuctionEventListener (Observer interface)
-  ├── onBidUpdate(auctionId, price, bidder)
-  ├── onTimeExtended(auctionId, newEndTime)
-  └── onAuctionEnd(auctionId, winner, finalPrice)
+  ├── onBidUpdate(BidUpdateMessage)      ← currentPrice, leadingBidderId, leadingBidderUsername, autoBid
+  ├── onTimeExtended(BidUpdateMessage)   ← endTime (new deadline)
+  └── onAuctionEnd(BidUpdateMessage)     ← currentPrice (final), leadingBidderId, leadingBidderUsername
 
 WebSocketObserver (Concrete Observer)
   └─► BidUpdateMessage JSON → broadcast over WebSocket
@@ -666,11 +670,11 @@ PaidState     → throws on all operations (terminal)
 CanceledState → throws on all operations (terminal)
 ```
 
-Transitions are driven by `AuctionScheduler`. Calling `placeBid()` on `FinishedState` or `SettlingState` throws `AuctionClosedException` → HTTP 409.
+Transitions are driven by `AuctionScheduler`. Calling `placeBid()` on `FinishedState` or `SettlingState` throws `AuctionClosedException` → HTTP 400 (`AUCTION_CLOSED`). Trying to soft-cancel an already-CANCELED auction throws `IllegalStateException` → HTTP 409 (`INVALID_STATE`).
 
 ### 5. DAO - Database Isolation
 
-Each table has exactly one dedicated DAO class using JDBI 3. `AuctionDao` is the only class that exposes `findByIdForUpdate()` - SQL uses `SELECT ... FOR UPDATE` to guarantee row-level locking for concurrent bids.
+Each table has exactly one dedicated DAO class using JDBI 3. Several DAOs expose `findByIdForUpdate()` (`AuctionDao`, `ItemDao`, `UserDao`, `DepositRequestDao`, `PasswordResetRequestDao`), all using `SELECT ... FOR UPDATE` for row-level locking. `AuctionDao.findByIdForUpdate()` is the lock that guarantees correctness for concurrent bids inside `BidService`.
 
 ---
 
@@ -740,7 +744,7 @@ Entity (abstract)           ← id: Long, createdAt: LocalDateTime
 | `POST` | `/api/admin/password-reset-requests/{id}/reject` | Required | ADMIN | Reject reset request |
 | `DELETE` | `/api/admin/auctions/{id}` | Required | ADMIN | Hard-delete auction |
 
-All errors return `ErrorResponse { status: int, message: String }` with the corresponding HTTP status (400 / 401 / 404 / 409).
+All errors return `ErrorResponse { error: String, message: String, timestamp: LocalDateTime }` with the corresponding HTTP status. Error codes: `INVALID_BID` / `AUCTION_CLOSED` / `BAD_REQUEST` → 400, `UNAUTHORIZED` → 401, `NOT_FOUND` → 404, `DUPLICATE` / `INVALID_STATE` → 409, `INTERNAL_ERROR` → 500.
 
 <details>
 <summary><b>Key Request / Response Examples</b></summary>
@@ -762,8 +766,9 @@ All errors return `ErrorResponse { status: int, message: String }` with the corr
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "role": "ADMIN",
   "username": "admin",
-  "role": "ADMIN"
+  "userId": 1
 }
 ```
 </details>
@@ -791,8 +796,9 @@ All errors return `ErrorResponse { status: int, message: String }` with the corr
 **Error `400 Bad Request`** *(bid too low or invalid amount)*
 ```json
 {
-  "error": "BID_TOO_LOW",
-  "message": "Bid amount must be higher than current price 450000"
+  "error": "INVALID_BID",
+  "message": "Bid amount must be higher than current price 450000",
+  "timestamp": "2026-05-17T10:15:30"
 }
 ```
 </details>
@@ -829,14 +835,15 @@ Auction channel: /ws/auction/{auctionId}?token=<JWT>
 User channel:    /ws/user/{userId}?token=<JWT>
 ```
 
-| Channel | Direction | `type` | Payload |
+All payloads share the envelope `{ type, auctionId, timestamp, ... }`. Below lists the per-type fields that actually get populated.
+
+| Channel | Direction | `type` | Populated fields |
 |---|---|---|---|
-| Auction | Server → Client | `BID_UPDATE` | `{ currentPrice, leadingBidderUsername, timestamp }` |
-| Auction | Server → Client | `TIME_EXTENDED` | `{ newEndTime }` |
-| Auction | Server → Client | `AUCTION_ENDED` | `{ winnerId, winningPrice, winnerUsername }` |
-| Auction | Server → Client | `AUTO_BID_TRIGGERED` | `{ bidderId, amount }` |
-| User | Server → Client | `BALANCE_UPDATED` | `{ newBalance, deltaAmount, approved, message }` |
-| User | Server → Client | `USER_NOTIFICATION` | `{ message, notificationType, timestamp }` |
+| Auction | Server → Client | `BID_UPDATE` | `currentPrice`, `leadingBidderId`, `leadingBidderUsername`, `autoBid` |
+| Auction | Server → Client | `TIME_EXTENDED` | `endTime` (new deadline after anti-snipe extension) |
+| Auction | Server → Client | `AUCTION_ENDED` | `currentPrice` (final price), `leadingBidderId` (winner), `leadingBidderUsername` (winner name; `null` if no bids) |
+| User | Server → Client | `BALANCE_UPDATED` | `newBalance`, `balanceDelta`, `approved` (true=approved deposit, false=rejected), `message` (pre-formatted; may be `null`) |
+| User | Server → Client | `USER_NOTIFICATION` | `message` (raw notification text) |
 
 ---
 
@@ -1013,11 +1020,11 @@ Ensure a display server is running. On headless servers, use `export DISPLAY=:0`
 | Member | GitHub | Role | Technical Contributions |
 |---|---|---|---|
 | **Bui Ngoc Phu Hung** | [@HumaNormal](https://github.com/HumaNormal) | Backend Lead | Javalin server setup · REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · JDBI DAOs · Flyway migrations · HikariCP connection pool config |
-| **Tran Anh Duc** | [@kieran-lucas](https://github.com/kieran-lucas) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · fade transition system · blue CSS theme (`#1565C0`) · Lexend font integration |
+| **Tran Anh Duc** | [@kieran-lucas](https://github.com/kieran-lucas) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · scene-overlay notification dropdown · blue CSS theme (`#1565C0`) · Lexend font integration |
 | **Nguyen Dinh Viet Duc** | [@Black1206-coder](https://github.com/Black1206-coder) | Business Logic | Service-layer classes · 4 design pattern packages (13 files) · `AuctionException` hierarchy (5 custom types) · JWT authentication · BCrypt password hashing |
 | **Bui Quang Huy** | [@stillqhuy](https://github.com/stillqhuy) | DevOps & QA | GitHub Actions CI pipeline · JUnit 5 regression suite · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
 
-All members jointly own `model/` (14 domain classes), `dto/` (13 transfer objects), and project documentation.
+All members jointly own `model/` (14 domain classes), `dto/` (14 transfer objects), and project documentation.
 
 ---
 
@@ -1100,42 +1107,51 @@ auction-system/
 │   │   │   │   ├── DatabaseConfig.java         ← HikariCP connection pool + JDBI instance setup
 │   │   │   │   │                                  Reads DB credentials from environment/config
 │   │   │   │   └── JwtUtil.java                ← JWT generation & verification (com.auth0:java-jwt)
-│   │   │   │                                      Token payload: { userId, username, role, expiry }
+│   │   │   │                                      Token payload: { userId, username, role, tokenVersion, expiry }
 │   │   │   │
-│   │   │   ├── controller/
+│   │   │   ├── controller/                     ← 5 REST controllers + 1 WebSocket handler
 │   │   │   │   ├── AuctionController.java      ← REST: GET /api/auctions, GET /api/auctions/{id},
 │   │   │   │   │                                  POST /api/auctions, PUT /api/auctions/{id},
 │   │   │   │   │                                  DELETE /api/auctions/{id}
-│   │   │   │   ├── AuctionWebSocketHandler.java← WebSocket endpoint: /ws/auction/{id}?token=<JWT>
+│   │   │   │   ├── AuctionWebSocketHandler.java← WebSocket endpoints: /ws/auction/{id}?token=<JWT>
+│   │   │   │   │                                  and /ws/user/{id}?token=<JWT>
 │   │   │   │   │                                  Registers WebSocketObserver into AuctionEventManager
-│   │   │   │   │                                  Pushes: BID_UPDATE · TIME_EXTENDED · AUCTION_ENDED · AUTO_BID_TRIGGERED
+│   │   │   │   │                                  Auction-channel pushes: BID_UPDATE · TIME_EXTENDED · AUCTION_ENDED
+│   │   │   │   │                                  Per-user pushes: BALANCE_UPDATED · USER_NOTIFICATION
 │   │   │   │   ├── AuthController.java         ← REST: POST /api/auth/register · /login (public, no JWT)
 │   │   │   │   │                                  POST /api/auth/forgot-password (public password reset request)
 │   │   │   │   ├── BidController.java          ← REST: POST /api/auctions/{id}/bid (manual, role: BIDDER)
-│   │   │   │   │                                  POST /api/auctions/{id}/auto-bid (register auto-bid config)
-│   │   │   │   └── ItemController.java         ← REST: GET /api/items · POST /api/items (role: SELLER)
+│   │   │   │   │                                  GET  /api/auctions/{id}/bids (bid history)
+│   │   │   │   ├── ItemController.java         ← REST: GET /api/items, GET /api/items/{id},
+│   │   │   │   │                                  POST /api/items, PUT /api/items/{id},
+│   │   │   │   │                                  DELETE /api/items/{id} (SELLER for write ops)
+│   │   │   │   └── NotificationController.java ← REST: GET /api/notifications · PATCH /:id/read
+│   │   │   │                                      PATCH /api/notifications/mark-all-read
 │   │   │   │
-│   │   │   ├── dao/                            ← DAO pattern: one class per table, all use JDBI
+│   │   │   ├── dao/                            ← DAO pattern: one class per table, all use JDBI (9 DAOs total)
 │   │   │   │   ├── AuctionDao.java             ← ★ Includes SELECT ... FOR UPDATE for DB-level concurrency lock
-│   │   │   │   │                                  Maps to: auctions table (status: OPEN/RUNNING/FINISHED/PAID/CANCELED)
+│   │   │   │   │                                  Maps to: auctions table (status: OPEN/RUNNING/SETTLING/FINISHED/PAID/CANCELED)
 │   │   │   │   ├── AutoBidConfigDao.java       ← Maps to: auto_bid_configs (maxBid, increment, registeredAt)
 │   │   │   │   │                                  registeredAt used as PriorityQueue sort key
 │   │   │   │   ├── BidTransactionDao.java      ← Maps to: bid_transactions (amount, autoBid flag, timestamp)
 │   │   │   │   ├── DepositRequestDao.java      ← Maps to: deposit_requests (status: PENDING/APPROVED/REJECTED)
 │   │   │   │   ├── ItemDao.java                ← Maps to: items (category-aware: ELECTRONICS/ART/VEHICLE)
+│   │   │   │   ├── NotificationDao.java        ← Maps to: notifications (per-user feed, is_read flag, notification_type)
 │   │   │   │   ├── PasswordResetRequestDao.java← Maps to: password_reset_requests (Admin-reviewed workflow)
-│   │   │   │   └── UserDao.java                ← Maps to: users (passwordHash via BCrypt, balance as BigDecimal)
+│   │   │   │   ├── UserDao.java                ← Maps to: users (passwordHash via BCrypt, balance as BigDecimal)
+│   │   │   │   └── WalletTransactionDao.java   ← Maps to: wallet_transactions (deposit, freeze/release, cancel release, payout)
 │   │   │   │
-│   │   │   ├── dto/                            ← 13 request/response objects - decouples API contract from domain model
+│   │   │   ├── dto/                            ← 14 request/response objects - decouples API contract from domain model
 │   │   │   │   ├── AuctionResponse.java        ← Enriched auction view (includes item info + leading bidder username)
 │   │   │   │   ├── AutoBidRequest.java         ← { maxBid, increment } for auto-bid registration
 │   │   │   │   ├── BidRequest.java             ← { amount } for manual bid placement
-│   │   │   │   ├── BidUpdateMessage.java       ← WebSocket push payload: { currentPrice, leadingBidderUsername, timestamp }
+│   │   │   │   ├── BidUpdateMessage.java       ← Shared WebSocket envelope for both channels — `type` discriminates
+│   │   │   │   │                                  BID_UPDATE / TIME_EXTENDED / AUCTION_ENDED / BALANCE_UPDATED / USER_NOTIFICATION
 │   │   │   │   ├── ChangePasswordRequest.java  ← { oldPassword, newPassword }
 │   │   │   │   ├── CreateAuctionRequest.java   ← { itemId, startingPrice, startTime, endTime }
 │   │   │   │   ├── CreateItemRequest.java      ← { name, description, category, brand/artist/year }
 │   │   │   │   ├── DepositRequest.java         ← { amount } - creates a PENDING DepositRecord
-│   │   │   │   ├── ErrorResponse.java          ← Standardized error envelope: { status, message }
+│   │   │   │   ├── ErrorResponse.java          ← Standardized error envelope: { error, message, timestamp }
 │   │   │   │   ├── PageRequest.java            ← Pagination helper DTO
 │   │   │   │   ├── ForgotPasswordRequest.java  ← Triggers Admin-reviewed PasswordResetRecord (PENDING)
 │   │   │   │   ├── LoginRequest.java           ← { username, password } → returns JWT token on success
@@ -1150,17 +1166,17 @@ auction-system/
 │   │   │   │   ├── InvalidBidException.java    ← 400 Bad Request (bid amount ≤ current price)
 │   │   │   │   ├── NotFoundException.java      ← 404 Not Found (auction/item/user missing from DB)
 │   │   │   │   ├── package-info.java           ← Package-level Javadoc descriptor
-│   │   │   │   └── UnauthorizedException.java  ← 401/403 (JWT invalid or insufficient role)
+│   │   │   │   └── UnauthorizedException.java  ← 401 Unauthorized (JWT invalid or insufficient role)
 │   │   │   │
 │   │   │   ├── middleware/
 │   │   │   │   └── JwtMiddleware.java          ← Javalin before-handler applied to all /api/* routes
 │   │   │   │                                      Extracts + verifies JWT from Authorization: Bearer <token>
 │   │   │   │                                      Injects { userId, username, role } into request context
 │   │   │   │
-│   │   │   ├── model/                          ← 15 domain classes - pure data, no framework coupling
+│   │   │   ├── model/                          ← 14 domain classes - pure data, no framework coupling
 │   │   │   │   ├── Admin.java                  ← User subclass · getRole() = "ADMIN"
 │   │   │   │   ├── Auction.java                ← Core aggregate: price (BigDecimal), status, startTime/endTime
-│   │   │   │   ├── AutoBidConfig.java          ← { maxBid, incrementAmount, registeredAt } - PriorityQueue sort key
+│   │   │   │   ├── AutoBidConfig.java          ← { maxBid, increment, registeredAt } - PriorityQueue sort key
 │   │   │   │   ├── Bidder.java                 ← User subclass · getRole() = "BIDDER" · holds balance
 │   │   │   │   ├── BidTransaction.java         ← Immutable record: { auctionId, bidderId, amount, autoBid }
 │   │   │   │   ├── DepositRecord.java          ← { userId, amount, status, reviewedAt }
@@ -1198,16 +1214,17 @@ auction-system/
 │   │   │   │       └── AutoBidStrategy.java    ← Iterates PriorityQueue of AutoBidConfigs (sorted by registeredAt)
 │   │   │   │                                      Chains auto-bids until all participants' maxBids are exceeded
 │   │   │   │
-│   │   │   ├── service/
+│   │   │   ├── service/                        ← 7 service classes
 │   │   │   │   ├── AuctionScheduler.java       ← ScheduledExecutorService: polls DB to auto-transition states
 │   │   │   │   │                                  OPEN → RUNNING at startTime · RUNNING → SETTLING → FINISHED/PAID at endTime
 │   │   │   │   ├── AuctionService.java         ← CRUD orchestration for auctions (create, edit, delete, list, get)
-│   │   │   │   ├── BidService.java             ← ★ Core bidding engine - two-layer concurrency protection:
-│   │   │   │   │                                  Layer 1 (app):  synchronized(auction) { validate → update → save → notify }
-│   │   │   │   │                                  Layer 2 (DB):   jdbi.inTransaction() + SELECT ... FOR UPDATE
-│   │   │   │   │                                  Anti-sniping:   if remaining < 30s → extend endTime +60s + notifyTimeExtended
-│   │   │   │   │                                  Post-bid:       triggers AutoBidStrategy chain via AuctionEventManager
+│   │   │   │   ├── BidService.java             ← ★ Core bidding engine — concurrency via DB-level locking:
+│   │   │   │   │                                  jdbi.inTransaction() + AuctionDao.findByIdForUpdate() (SELECT FOR UPDATE)
+│   │   │   │   │                                  validates state via RunningState.placeBid (State pattern)
+│   │   │   │   │                                  Anti-sniping: if remaining < 30s → extend endTime +60s + notifyTimeExtended
+│   │   │   │   │                                  Post-bid: chains AutoBidStrategy.executeAllInTransaction inside same tx
 │   │   │   │   ├── ItemService.java            ← Creates flattened Item objects; maps category detail into brand/artist/year
+│   │   │   │   ├── NotificationService.java    ← Wraps NotificationDao: list recent, mark one read, mark all read
 │   │   │   │   ├── PasswordResetService.java   ← Creates PasswordResetRecord(PENDING)
 │   │   │   │   │                                  Admin approves → generates random 6-character temporary password
 │   │   │   │   └── UserService.java            ← Registration (BCrypt hash), login (BCrypt verify), balance management
@@ -1251,10 +1268,21 @@ auction-system/
 │   │       │
 │   │       ├── db/
 │   │       │   └── migration/                  ← Versioned SQL migrations (Flyway-style, applied in order)
-│   │       │       ├── V1__initial_schema.sql  ← Creates core tables: users, items, auctions, bids, auto-bid configs
+│   │       │       ├── V1__initial_schema.sql  ← Creates core tables: users, items, auctions, bid_transactions, auto_bid_configs
 │   │       │       ├── V2__seed_admin.sql      ← Seeds default admin account
-│   │       │       ├── V3..V16                 ← Balance, deposits, notifications, SETTLING status, item/auction status, token version
-│   │       │       └── V17__wallet_transactions.sql ← Wallet ledger for balance/reserved-balance movements
+│   │       │       ├── V3__add_balance.sql                       ← Adds users.balance for wallet accounting
+│   │       │       ├── V4__deposit_requests.sql                  ← Admin-reviewed deposit workflow table
+│   │       │       ├── V5__password_reset_requests.sql           ← Admin-reviewed password reset workflow table
+│   │       │       ├── V6__notifications.sql                     ← Per-user notification feed table
+│   │       │       ├── V7..V11                                   ← Repair/relax auto_bid_configs columns (increment_amount, registered_at)
+│   │       │       ├── V8__add_seller_id_to_auctions.sql         ← Denormalize seller_id onto auctions for cheap auth checks
+│   │       │       ├── V9__add_settling_status.sql               ← Allows SETTLING as an intermediate status
+│   │       │       ├── V12__add_reserved_balance.sql             ← Tracks money held by leading bids (users.reserved_balance)
+│   │       │       ├── V13__unique_pending_password_reset.sql    ← One pending reset per user (DB-level invariant)
+│   │       │       ├── V14__add_item_status.sql                  ← Item lifecycle: AVAILABLE/IN_AUCTION/SOLD/REMOVED
+│   │       │       ├── V15__add_auto_bid_status.sql              ← Adds AutoBidStatus + failure_reason columns
+│   │       │       ├── V16__add_user_token_version.sql           ← users.token_version for invalidating JWTs after password change
+│   │       │       └── V17__wallet_transactions.sql              ← Wallet ledger for balance/reserved-balance movements
 │   │       │
 │   │       ├── fonts/                          ← Lexend typeface bundled at 9 weights (Black → Thin)
 │   │       │   ├── Lexend-Black.ttf
@@ -1310,7 +1338,7 @@ auction-system/
         │   ├── DuplicateExceptionTest.java     ← Verifies 409 mapping
         │   ├── InvalidBidExceptionTest.java    ← Verifies 400 mapping
         │   ├── NotFoundExceptionTest.java      ← Verifies 404 mapping
-        │   └── UnauthorizedExceptionTest.java  ← Verifies 401/403 mapping
+        │   └── UnauthorizedExceptionTest.java  ← Verifies 401 mapping
         │
         ├── model/
         │   └── ModelTest.java                  ← Tests inheritance chain: Entity → User/Item + subclasses
@@ -1318,8 +1346,8 @@ auction-system/
         │
         ├── service/
         │   ├── AuctionServiceTest.java         ← Tests create/edit/delete + State pattern transition guards
-        │   ├── BidServiceTest.java             ← ★ Tests concurrent bidding, anti-sniping trigger (30s threshold),
-        │   │                                      auto-bid chain execution, synchronized + FOR UPDATE interaction
+        │   ├── BidServiceTest.java             ← ★ Tests bid logic, anti-sniping trigger (30s threshold),
+        │   │                                      auto-bid chain execution, Observer notification dispatch
         │   └── UserServiceTest.java            ← Tests registration, BCrypt verification, balance mutation
         │
         └── util/                               ← (empty - reserved for future client-side utility tests)
@@ -1372,7 +1400,7 @@ auction-system/
 
 ## 📜 License
 
-No standalone `LICENSE` file is present in the current repository snapshot. Add one before claiming a specific open-source license.
+Released under the [MIT License](LICENSE) — see the `LICENSE` file at the repository root for the full text.
 
 ---
 
