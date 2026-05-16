@@ -864,6 +864,11 @@ public class AuctionListController implements Navigable {
     statusCol.setStyle("-fx-alignment: CENTER;");
     actionCol.setStyle("-fx-alignment: CENTER;");
 
+    // Keep the constrained-resize proportions balanced: the product column is a touch narrower
+    // so the action column has enough space for the button without wrapping.
+    itemCol.setPrefWidth(185);
+    actionCol.setPrefWidth(135);
+
     // Disable sort on every column. The list auto-refreshes every 10 s so click-to-sort would
     // just fight the refresh, and disabling it also stops JavaFX from reserving space for the
     // sort arrow on the right of each header — that hidden reserve was what made centred
@@ -898,6 +903,12 @@ public class AuctionListController implements Navigable {
               protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 setText(empty ? null : value);
+                setStyle(
+                    empty
+                        ? "-fx-alignment: CENTER_LEFT;"
+                        : "-fx-alignment: CENTER_LEFT;"
+                            + " -fx-text-fill: #8B5E34;"
+                            + " -fx-font-weight: bold;");
               }
             });
 
@@ -913,6 +924,7 @@ public class AuctionListController implements Navigable {
               protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 setText(empty ? null : value);
+                setStyle("-fx-alignment: CENTER;");
               }
             });
 
@@ -928,6 +940,12 @@ public class AuctionListController implements Navigable {
               protected void updateItem(BigDecimal price, boolean empty) {
                 super.updateItem(price, empty);
                 setText(empty || price == null ? null : VND_AMOUNT.format(price) + " VND");
+                setStyle(
+                    empty
+                        ? "-fx-alignment: CENTER;"
+                        : "-fx-alignment: CENTER;"
+                            + " -fx-text-fill: #B45309;"
+                            + " -fx-font-weight: bold;");
               }
             });
 
@@ -960,22 +978,22 @@ public class AuctionListController implements Navigable {
                 setTooltip(null);
                 if (isEmpty() || getTableRow() == null) {
                   setText(null);
-                  setStyle("");
+                  setStyle("-fx-alignment: CENTER;");
                   return;
                 }
                 AuctionResponse a = getTableRow().getItem();
                 if (a == null) {
                   setText(null);
-                  setStyle("");
+                  setStyle("-fx-alignment: CENTER;");
                   return;
                 }
                 String st = computeClientStatus(a);
                 if ("FINISHED".equals(st) || "CANCELED".equals(st) || "PAID".equals(st)) {
                   setText("Đã kết thúc");
-                  setStyle("");
+                  setStyle("-fx-alignment: CENTER;");
                   return;
                 }
-                setStyle("");
+                setStyle("-fx-alignment: CENTER;");
                 LocalDateTime now = LocalDateTime.now();
                 if ("OPEN".equals(st)) {
                   // Phiên chưa bắt đầu — đếm ngược đến startTime. Hiển thị duy nhất "HH:MM:SS"
@@ -1008,7 +1026,7 @@ public class AuctionListController implements Navigable {
                   long ms = java.time.Duration.between(now, endTime).toMillis();
                   if (ms <= 0) {
                     setText("Đã kết thúc");
-                    setStyle("");
+                    setStyle("-fx-alignment: CENTER;");
                   } else {
                     long totalSec = ms / 1000;
                     long h = totalSec / 3600;
@@ -1059,7 +1077,8 @@ public class AuctionListController implements Navigable {
                 setStyle(color + " -fx-alignment: CENTER;");
               }
             });
-    actionCol.setMinWidth(80);
+    actionCol.setMinWidth(110);
+    actionCol.setPrefWidth(135);
     actionCol.setCellFactory(
         col ->
             new TableCell<>() {

@@ -218,6 +218,15 @@ public class AuctionDetailController implements Navigable {
   /** AuctionId that is currently fully painted onto the screen (after updateAuctionUI). */
   private Long renderedAuctionId;
 
+  /**
+   * Apply only the two agreed accent colours; description and status keep their existing styles.
+   */
+  @FXML
+  private void initialize() {
+    itemNameLabel.getStyleClass().add("auction-detail-product-name");
+    startingPriceLabel.getStyleClass().add("auction-detail-starting-price");
+  }
+
   // ========== NAVIGABLE LIFECYCLE ==========
 
   /**

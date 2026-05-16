@@ -79,12 +79,12 @@
                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
             </columnResizePolicy>
             <columns>
-               <TableColumn fx:id="itemCol"     text="Sản phẩm"      prefWidth="200.0" />
+               <TableColumn fx:id="itemCol"     text="Sản phẩm"      prefWidth="185.0" />
                <TableColumn fx:id="categoryCol" text="Danh mục"      prefWidth="110.0" />
                <TableColumn fx:id="priceCol"    text="Giá hiện tại"  prefWidth="150.0" />
                <TableColumn fx:id="timeCol"     text="Thời gian còn" prefWidth="140.0" style="-fx-alignment: CENTER;" />
                <TableColumn fx:id="statusCol"   text="Trạng thái"    prefWidth="110.0" />
-               <TableColumn fx:id="actionCol"   text="Hành động"     prefWidth="120.0" style="-fx-alignment: CENTER;" />
+               <TableColumn fx:id="actionCol"   text="Hành động"     prefWidth="135.0" style="-fx-alignment: CENTER;" />
             </columns>
             <placeholder>
                <Label text="Không có phiên đấu giá nào." />

@@ -263,6 +263,16 @@
     -fx-wrap-text: true;
 }
 
+.auction-detail-product-name {
+    -fx-text-fill: #8B5E34;
+    -fx-font-weight: bold;
+}
+
+.auction-detail-starting-price {
+    -fx-text-fill: #B45309;
+    -fx-font-weight: bold;
+}
+
 .section-title {
     -fx-font-size: 14px;
     -fx-font-weight: bold;
@@ -1165,8 +1175,10 @@
     -fx-text-fill: rgba(255,255,255,0.90);
     -fx-font-size: 13px;
     -fx-font-weight: bold;
-    -fx-padding: 12 10 12 12;
-    -fx-alignment: CENTER_LEFT;
+    /* Header graphics already carry their own 12px padding in the controller.
+       Keep this wrapper neutral so header text and body cells share the same axis. */
+    -fx-padding: 0;
+    -fx-alignment: CENTER;
 }
 
 /* Collapse the sort-arrow Region in every column header. Even with column.setSortable(false),
