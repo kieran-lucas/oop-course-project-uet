@@ -77,18 +77,23 @@ The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories
 - [x] **Live Bid History Chart** - JavaFX `LineChart` updated in real time from WebSocket events, no manual refresh needed
 
 
-# Class Diagram — Final
+## 🧬 Class Diagrams
 
-## 1. Domain Model
+### 1. Domain Model
 
 ```mermaid
 classDiagram
-    direction LR
+    direction TB
 
     class Entity {
         <<abstract>>
         -Long id
         -LocalDateTime createdAt
+        #Entity()
+        #Entity(Long, LocalDateTime)
+        +getId() Long
+        +equals(Object) boolean
+        +hashCode() int
     }
 
     class User {
@@ -99,7 +104,7 @@ classDiagram
         -BigDecimal balance
         -BigDecimal reservedBalance
         -int tokenVersion
-        +getRole() String
+        +getRole()* String
         +getAvailableBalance() BigDecimal
     }
     class Bidder {
@@ -159,6 +164,7 @@ classDiagram
     }
 
     class DepositRecord {
+        <<workflow-record>>
         -Long id
         -Long userId
         -String username
@@ -169,6 +175,7 @@ classDiagram
     }
 
     class PasswordResetRecord {
+        <<workflow-record>>
         -Long id
         -Long userId
         -String username
@@ -213,64 +220,85 @@ classDiagram
     User <|-- Seller
     User <|-- Admin
 
-    Auction ..> AuctionStatus : status
-    AutoBidConfig ..> AutoBidStatus : status
-    AutoBidConfig ..> AutoBidFailureReason : failureReason
+    Auction --> AuctionStatus : status
+    AutoBidConfig --> AutoBidStatus : status
+    AutoBidConfig --> AutoBidFailureReason : failureReason
 
-    Seller "1" --> "0..*" Item : owns
-    Seller "1" --> "0..*" Auction : creates
-    Auction "1" --> "1" Item : itemId
-    Auction "1" --> "0..*" BidTransaction : bid history
-    Auction "1" --> "0..*" AutoBidConfig : auto-bids
-    Bidder "1" --> "0..*" BidTransaction : places
-    Bidder "1" --> "0..*" AutoBidConfig : configures
-    User "1" --> "0..*" DepositRecord : deposit requests
-    User "1" --> "0..*" PasswordResetRecord : reset requests
+    Seller "1" o-- "0..*" Item : sellerId (FK)
+    Seller "1" o-- "0..*" Auction : sellerId (FK)
+    Auction "*" --> "1" Item : itemId (FK)
+    Auction "*" --> "0..1" Bidder : leadingBidderId (FK)
+    Auction "1" *-- "0..*" BidTransaction : history
+    Auction "1" *-- "0..*" AutoBidConfig : auto-bids
+    Bidder "1" o-- "0..*" BidTransaction : bidderId (FK)
+    Bidder "1" o-- "0..*" AutoBidConfig : bidderId (FK)
+    User "1" o-- "0..*" DepositRecord : userId (FK)
+    User "1" o-- "0..*" PasswordResetRecord : userId (FK)
+
+    note for DepositRecord "Workflow records — standalone (not in Entity tree).\nLifecycle: PENDING → APPROVED / REJECTED"
 ```
 
 ---
 
-## 2. Exception Hierarchy
+### 2. Exception Hierarchy
 
 ```mermaid
 classDiagram
-    direction LR
+    direction TB
 
-    class RuntimeException
+    class RuntimeException {
+        <<JDK>>
+    }
 
     class AuctionException {
         <<abstract>>
-        +AuctionException(String message)
-        +AuctionException(String message, Throwable cause)
+        #AuctionException(String message)
+        #AuctionException(String message, Throwable cause)
+        +toString() String
     }
 
-    class NotFoundException {
-        +NotFoundException(String message)
+    class InvalidBidException {
+        +InvalidBidException(String)
+        +InvalidBidException(String, Throwable)
     }
     class AuctionClosedException {
-        +AuctionClosedException(String message)
-    }
-    class InvalidBidException {
-        +InvalidBidException(String message)
-    }
-    class DuplicateException {
-        +DuplicateException(String message)
+        +AuctionClosedException(String)
+        +AuctionClosedException(String, Throwable)
     }
     class UnauthorizedException {
-        +UnauthorizedException(String message)
+        +UnauthorizedException(String)
+        +UnauthorizedException(String, Throwable)
+    }
+    class NotFoundException {
+        +NotFoundException(String)
+        +NotFoundException(String, Throwable)
+    }
+    class DuplicateException {
+        +DuplicateException(String)
+        +DuplicateException(String, Throwable)
     }
 
     RuntimeException <|-- AuctionException
-    AuctionException <|-- NotFoundException
-    AuctionException <|-- AuctionClosedException
     AuctionException <|-- InvalidBidException
-    AuctionException <|-- DuplicateException
+    AuctionException <|-- AuctionClosedException
     AuctionException <|-- UnauthorizedException
+    AuctionException <|-- NotFoundException
+    AuctionException <|-- DuplicateException
+
+    note for AuctionException "Each concrete subclass has a dedicated handler\nregistered in App.registerExceptionHandlers().\nResponse body: ErrorResponse { error, message, timestamp }"
+
+    note for InvalidBidException "HTTP 400 — error: INVALID_BID"
+    note for AuctionClosedException "HTTP 400 — error: AUCTION_CLOSED"
+    note for UnauthorizedException "HTTP 401 — error: UNAUTHORIZED"
+    note for NotFoundException "HTTP 404 — error: NOT_FOUND"
+    note for DuplicateException "HTTP 409 — error: DUPLICATE"
 ```
 
 ---
 
-## 3. Design Patterns
+### 3. Design Patterns
+
+#### 3a. State + Factory — Auction lifecycle resolution
 
 ```mermaid
 classDiagram
@@ -283,29 +311,32 @@ classDiagram
         +edit(Auction) void
         +extend(Auction, long) void
     }
+
     class OpenState
     class RunningState
     class SettlingState
     class FinishedState
     class PaidState
     class CanceledState
+
     class AuctionStates {
         <<singleton holder>>
-        +OPEN AuctionState
-        +RUNNING AuctionState
-        +SETTLING AuctionState
-        +FINISHED AuctionState
-        +PAID AuctionState
-        +CANCELED AuctionState
+        +OPEN AuctionState$
+        +RUNNING AuctionState$
+        +SETTLING AuctionState$
+        +FINISHED AuctionState$
+        +PAID AuctionState$
+        +CANCELED AuctionState$
     }
+
     class AuctionStateFactory {
-        +create(String status) AuctionState
+        <<utility>>
+        +create(String status)$ AuctionState
     }
+
     class UserFactory {
-        +create(String role) User
-    }
-    class Auction {
-        -AuctionStatus status
+        <<utility>>
+        +create(String role)$ User
     }
 
     AuctionState <|.. OpenState
@@ -314,26 +345,50 @@ classDiagram
     AuctionState <|.. FinishedState
     AuctionState <|.. PaidState
     AuctionState <|.. CanceledState
-    AuctionStateFactory ..> AuctionStates : returns state singleton
-    AuctionStateFactory ..> AuctionState : creates by status
-    UserFactory ..> User : creates role subclass
-    Auction ..> AuctionStateFactory : resolved by service logic
+
+    AuctionStates *-- OpenState : OPEN
+    AuctionStates *-- RunningState : RUNNING
+    AuctionStates *-- SettlingState : SETTLING
+    AuctionStates *-- FinishedState : FINISHED
+    AuctionStates *-- PaidState : PAID
+    AuctionStates *-- CanceledState : CANCELED
+
+    AuctionStateFactory ..> AuctionStates : returns singleton
+    UserFactory ..> User : new Bidder/Seller/Admin
+
+    note for AuctionStates "Eagerly-initialized stateless singletons.\nFactory never allocates — switches on status string."
+```
+
+#### 3b. Strategy + Observer — Bid execution & real-time publish
+
+```mermaid
+classDiagram
+    direction LR
+
+    class BidService {
+        <<orchestrator>>
+        +placeBid(Long, Long, BigDecimal, boolean) BidTransaction
+        +createAutoBid(Long, Long, BigDecimal, BigDecimal) AutoBidConfig
+        +getBidHistory(Long) List
+    }
 
     class AutoBidStrategy {
-        -AutoBidConfigDao autoBidConfigDao
-        -UserDao userDao
+        <<strategy>>
+        +MAX_AUTO_BIDS_PER_TRIGGER int$
+        -autoBidConfigDao AutoBidConfigDao
+        -userDao UserDao
         +executeAll(Long, BigDecimal, Long, AutoBidExecutor) void
         +executeAllInTransaction(Handle, Long, BigDecimal, Long, InTransactionBidExecutor) void
     }
-    class BidService {
-        -AutoBidStrategy autoBidStrategy
-        -AuctionEventManager eventManager
-        +placeBid(Long, Long, BigDecimal, boolean) BidTransaction
-        +createAutoBid(Long, Long, BigDecimal, BigDecimal) AutoBidConfig
-    }
 
-    BidService --> AutoBidStrategy : triggers auto-bid chain
-    BidService --> AuctionEventManager : publishes bid events
+    class AutoBidExecutor {
+        <<functional interface>>
+        +execute(...) BidTransaction
+    }
+    class InTransactionBidExecutor {
+        <<functional interface>>
+        +execute(Handle, ...) BidTransaction
+    }
 
     class AuctionEventListener {
         <<interface>>
@@ -341,84 +396,115 @@ classDiagram
         +onTimeExtended(BidUpdateMessage) void
         +onAuctionEnd(BidUpdateMessage) void
     }
+
     class AuctionEventManager {
-        -Map~Long, List~AuctionEventListener~~ listeners
+        <<subject>>
+        -listeners ConcurrentHashMap
         +subscribe(Long, AuctionEventListener) void
         +unsubscribe(Long, AuctionEventListener) void
         +notifyBidUpdate(Long, BidUpdateMessage) void
         +notifyTimeExtended(Long, BidUpdateMessage) void
         +notifyAuctionEnd(Long, BidUpdateMessage) void
     }
+
     class WebSocketObserver {
-        -AuctionWebSocketHandler handler
-        -Long auctionId
+        <<concrete observer>>
+        -handler AuctionWebSocketHandler
+        -auctionId Long
         +onBidUpdate(BidUpdateMessage) void
         +onTimeExtended(BidUpdateMessage) void
         +onAuctionEnd(BidUpdateMessage) void
-        +getAuctionId() Long
+    }
+
+    class AuctionWebSocketHandler {
+        +broadcast(Long, BidUpdateMessage) void
     }
 
     AuctionEventListener <|.. WebSocketObserver
-    AuctionEventManager o-- AuctionEventListener : stores per auctionId
-    WebSocketObserver --> AuctionWebSocketHandler : broadcasts through
+    AuctionEventManager o-- "0..*" AuctionEventListener : per auctionId
+
+    BidService --> AutoBidStrategy : chains auto-bids
+    BidService --> AuctionEventManager : publishes events
+    AutoBidStrategy ..> InTransactionBidExecutor : callback
+    AutoBidStrategy ..> AutoBidExecutor : callback
+    WebSocketObserver --> AuctionWebSocketHandler : delegates broadcast
+
+    note for AuctionEventManager "ConcurrentHashMap-backed subscriber registry.\nBidService.placeBid() → notifyBidUpdate() →\neach observer pushes JSON over WebSocket."
+    note for AutoBidStrategy "FIFO PriorityQueue sorted by registeredAt.\nChain cap: 100 auto-bids per manual trigger.\nFunctional-interface callback breaks the circular\ndependency with BidService."
 ```
 
 ---
 
-## 4. UI Layer
+### 4. UI Layer
 
 ```mermaid
 classDiagram
-    direction LR
+    direction TB
 
-    class Application
+    %% ===== Application boundary =====
+    class Application {
+        <<javafx>>
+    }
     class ClientApp {
+        <<entry-point>>
         +start(Stage) void
-        +main(String[]) void
+        +main(String[])$ void
     }
     Application <|-- ClientApp
 
+    %% ===== Navigation core =====
     class Navigable {
         <<interface>>
         +onNavigatedTo() void
         +onDataReceived(Object) void
         +onNavigatedFrom() void
     }
+
     class SceneManager {
         <<singleton>>
         -Stage primaryStage
         -Scene scene
         -StackPane rootContainer
+        -Map viewCache
+        -Map controllerCache
+        -Deque backStack
         -String jwtToken
         -String currentUsername
         -String currentRole
         -Long currentUserId
-        +getInstance() SceneManager
+        +init(Stage, double, double)$ SceneManager
+        +getInstance()$ SceneManager
         +navigateTo(String) void
         +navigateTo(String, Object) void
-        +replaceCurrentWith(String) void
         +navigateBack(String) void
+        +replaceCurrentWith(String) void
         +logout() void
+        +addOverlay(Node) void
+        +removeOverlay(Node) void
     }
 
+    ClientApp ..> SceneManager : init()
+
+    %% ===== Network layer =====
     class RestClient {
         <<utility>>
-        -String BASE_URL
-        +get(String) HttpResponse~String~
-        +post(String, Object) HttpResponse~String~
-        +put(String, Object) HttpResponse~String~
-        +patch(String, Object) HttpResponse~String~
-        +delete(String) HttpResponse~String~
-        +parse(String, Class) Object
-        +parseList(String, Class) List
+        -String BASE_URL$
+        -HttpClient HTTP_CLIENT$
+        +get(String)$ HttpResponse
+        +post(String, Object)$ HttpResponse
+        +put(String, Object)$ HttpResponse
+        +patch(String, Object)$ HttpResponse
+        +delete(String)$ HttpResponse
+        +parse(String, Class)$ Object
+        +parseList(String, Class)$ List
     }
 
     class WebSocketClient {
         -WebSocket auctionSocket
         -WebSocket userSocket
         -String currentToken
-        +connect(Long, String, Consumer~String~) void
-        +connectUser(Long, String, Consumer~String~) void
+        +connect(Long, String, Consumer) void
+        +connectUser(Long, String, Consumer) void
         +disconnectAuction() void
         +disconnectUser() void
         +disconnectAll() void
@@ -426,96 +512,61 @@ classDiagram
         +isUserConnected() boolean
     }
 
-    class WelcomeController
-    class LoginController {
-        +onDataReceived(Object) void
-        +onNavigatedTo() void
-        +onNavigatedFrom() void
-        +handleLogin() void
+    RestClient ..> SceneManager : reads JWT
+
+    %% ===== Controllers (FXML-bound) =====
+    class WelcomeController {
+        <<entry-screen>>
+        +goToLoginAsAdmin() void
+        +goToLoginAsBidder() void
+        +goToLoginAsSeller() void
     }
-    class RegisterController {
-        +onNavigatedTo() void
-        +handleRegister() void
-    }
-    class AuctionListController {
-        +onNavigatedTo() void
-        +onNavigatedFrom() void
-        +loadAuctions() void
-        +handleSearch() void
-        +handleBellClick() void
-    }
+    class LoginController
+    class RegisterController
+    class ForgotPasswordController
+    class AuctionListController
     class AuctionDetailController {
         -WebSocketClient wsClient
-        +onDataReceived(Object) void
-        +onNavigatedTo() void
-        +onNavigatedFrom() void
         +handleBid() void
         +handleAutoBid() void
         +handleCancelAutoBid() void
     }
-    class CreateAuctionController {
-        +onNavigatedTo() void
-        +handleCreate() void
-    }
-    class CreateItemController {
-        +onNavigatedTo() void
-        +handleCategoryChange() void
-        +handleCreate() void
-    }
-    class AdminPanelController {
-        +onNavigatedTo() void
-        +onNavigatedFrom() void
-        +handleSearch() void
-        +handleRefresh() void
-        +handleRefreshDeposits() void
-        +handleRefreshPasswordResets() void
-    }
-    class ProfileController {
-        +onNavigatedTo() void
-        +onNavigatedFrom() void
-        +handleLogout() void
-    }
-    class DepositController {
-        +onNavigatedTo() void
-        +onNavigatedFrom() void
-        +handleDeposit() void
-    }
-    class ChangePasswordController {
-        +onNavigatedTo() void
-        +handleChangePassword() void
-    }
-    class ForgotPasswordController {
-        +onNavigatedTo() void
-        +handleSubmit() void
-    }
+    class CreateAuctionController
+    class CreateItemController
+    class ProfileController
+    class DepositController
+    class ChangePasswordController
+    class AdminPanelController
 
     Navigable <|.. LoginController
     Navigable <|.. RegisterController
+    Navigable <|.. ForgotPasswordController
     Navigable <|.. AuctionListController
     Navigable <|.. AuctionDetailController
     Navigable <|.. CreateAuctionController
     Navigable <|.. CreateItemController
-    Navigable <|.. AdminPanelController
     Navigable <|.. ProfileController
     Navigable <|.. DepositController
     Navigable <|.. ChangePasswordController
-    Navigable <|.. ForgotPasswordController
+    Navigable <|.. AdminPanelController
 
-    SceneManager --> Navigable : invokes lifecycle callbacks
-    AuctionDetailController --> WebSocketClient : auction realtime channel
-    RestClient ..> SceneManager : reads JWT token
+    SceneManager ..> Navigable : invokes lifecycle callbacks
+    AuctionDetailController --> WebSocketClient : auction realtime
+    AuctionListController ..> RestClient
+    AuctionDetailController ..> RestClient
+    AdminPanelController ..> RestClient
+    LoginController ..> RestClient
+    RegisterController ..> RestClient
+    ForgotPasswordController ..> RestClient
+    CreateAuctionController ..> RestClient
+    CreateItemController ..> RestClient
+    ProfileController ..> RestClient
+    DepositController ..> RestClient
+    ChangePasswordController ..> RestClient
 
-    LoginController ..> RestClient : calls static methods
-    RegisterController ..> RestClient : calls static methods
-    AuctionListController ..> RestClient : calls static methods
-    AuctionDetailController ..> RestClient : calls static methods
-    CreateAuctionController ..> RestClient : calls static methods
-    CreateItemController ..> RestClient : calls static methods
-    AdminPanelController ..> RestClient : calls static methods
-    ProfileController ..> RestClient : calls static methods
-    DepositController ..> RestClient : calls static methods
-    ChangePasswordController ..> RestClient : calls static methods
-    ForgotPasswordController ..> RestClient : calls static methods
+    note for Navigable "All 11 listed controllers implement Navigable;\nWelcomeController is the only entry screen that\ndoes not (no incoming lifecycle data)."
+
+    note for SceneManager "Single Scene + StackPane swap pattern.\nViews + controllers are cached on first load;\noverlays (e.g. notification dropdown) are added/\nremoved on top of rootContainer."
 ```
 
 
