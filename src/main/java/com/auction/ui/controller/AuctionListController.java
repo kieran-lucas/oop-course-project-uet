@@ -368,6 +368,18 @@ public class AuctionListController implements Navigable {
   private VBox buildNotificationPanel() {
     final double panelWidth = 320.0;
     final double cornerRadius = 12.0;
+    // Sizing contract:
+    //  • Empty state: panel cố định panelEmptyHeight (110px) — kích thước mặc định, không phụ
+    //    thuộc font/render khác máy. Trong khoảng yêu cầu 96–130.
+    //  • Có notification: ScrollPane prefHeight follow content (rows wrap khác nhau — balance row
+    //    2 dòng, generic row 1 dòng — nên không hardcode prefViewportHeight). ScrollPane cap bằng
+    //    setMaxHeight(panelMaxHeight − panelChromeHeight) = 280, panel cap 360 làm safety net.
+    //    → 1 row: panel ~110–130 tự nhiên; ≥ 6 rows: 360 + scrollbar hiện trong ScrollPane.
+    final double panelMaxHeight = 360.0;
+    final double panelEmptyHeight = 110.0;
+    // padding (14+14) + header (~22) + separator (~6) + 2 VBox gaps (8+8) ≈ 70–80px. Overestimate
+    // nhẹ để panel total = chrome + viewport luôn ≤ panelMaxHeight kể cả khi font scale khác.
+    final double panelChromeHeight = 80.0;
 
     VBox panel = new VBox(8);
     panel.setMinWidth(panelWidth);
@@ -406,6 +418,9 @@ public class AuctionListController implements Navigable {
       Label empty = new Label("Chưa có thông báo nào.");
       empty.setStyle("-fx-text-fill: #94A3B8; -fx-font-size: 13px; -fx-padding: 4 0 4 0;");
       panel.getChildren().add(empty);
+      panel.setMinHeight(panelEmptyHeight);
+      panel.setPrefHeight(panelEmptyHeight);
+      panel.setMaxHeight(panelEmptyHeight);
     } else {
       int limit = Math.min(notifications.size(), 50);
       VBox items = new VBox(4);
@@ -414,14 +429,15 @@ public class AuctionListController implements Navigable {
         items.getChildren().add(buildNotificationRow(notifications.get(i).getMessage()));
       }
 
-      double listHeight = Math.min(300.0, Math.max(72.0, limit * 58.0));
+      final double maxViewportHeight = panelMaxHeight - panelChromeHeight;
       ScrollPane scroll = new ScrollPane(items);
-      scroll.setPrefViewportHeight(listHeight);
-      scroll.setMinHeight(Math.min(72.0, listHeight));
-      scroll.setMaxHeight(listHeight);
       scroll.setFitToWidth(true);
       scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
       scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+      // Không setPrefViewportHeight — để ScrollPane.pref follow content thực tế; setMaxHeight cap
+      // tại đúng phần còn lại trong panelMaxHeight. Khi content < cap: panel scale tự nhiên theo
+      // số row. Khi content > cap: ScrollPane đứng yên ở cap, scrollbar AS_NEEDED tự hiện.
+      scroll.setMaxHeight(maxViewportHeight);
       scroll.setStyle(
           "-fx-background-color: transparent;"
               + " -fx-background: transparent;"
@@ -430,6 +446,8 @@ public class AuctionListController implements Navigable {
               + " -fx-padding: 0;");
       panel.getChildren().add(scroll);
       Platform.runLater(() -> scroll.setVvalue(0.0));
+
+      panel.setMaxHeight(panelMaxHeight);
     }
     return panel;
   }
