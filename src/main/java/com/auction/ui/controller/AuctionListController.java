@@ -854,13 +854,12 @@ public class AuctionListController implements Navigable {
    * nút "Xem" — không còn nút Hủy phiên cho Seller).
    */
   private void setupColumns() {
-    // Per-column alignment. The item name is the only long-form text; everything else (category,
-    // price, time, status, action) is a compact field that reads cleaner centred under a centred
-    // header. Setting alignment on both the column (header) and inside each TableCell keeps the
-    // header label aligned with the cell content below it.
+    // Per-column alignment. The item name is the only long-form text; every other column
+    // (category, price, time, status, action) is centred — both the header label and the cell
+    // content sit on the same vertical axis below it.
     itemCol.setStyle("-fx-alignment: CENTER_LEFT;");
     categoryCol.setStyle("-fx-alignment: CENTER;");
-    priceCol.setStyle("-fx-alignment: CENTER_RIGHT;");
+    priceCol.setStyle("-fx-alignment: CENTER;");
     timeCol.setStyle("-fx-alignment: CENTER;");
     statusCol.setStyle("-fx-alignment: CENTER;");
     actionCol.setStyle("-fx-alignment: CENTER;");
@@ -900,7 +899,7 @@ public class AuctionListController implements Navigable {
         col ->
             new TableCell<>() {
               {
-                setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+                setAlignment(javafx.geometry.Pos.CENTER);
               }
 
               @Override
