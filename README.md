@@ -943,128 +943,230 @@ All payloads share the envelope `{ type, auctionId, timestamp, ... }`. Below lis
 
 ## 🚀 Getting Started
 
-### Prerequisites
+There are two supported ways to run this project. **Option 1** is the fastest path for evaluators — download two JARs and go. **Option 2** is for reviewers who want to read, modify, or test the source.
+
+### Prerequisites *(shared by both options)*
 
 | Requirement | Version | Notes |
 |---|---|---|
-| Java (JDK) | 21+ | [Download Adoptium](https://adoptium.net/) |
-| OS | Windows 10+ / macOS 12+ / Ubuntu 20.04+ | JavaFX requires a display environment |
-| RAM | 512 MB minimum | Embedded PostgreSQL + JavaFX |
+| Java (JDK) | **21+** | [Download Adoptium](https://adoptium.net/); verify with `java -version` |
+| OS | Windows 10+ / macOS 12+ / Ubuntu 20.04+ | JavaFX requires a desktop display |
+| RAM | 512 MB free | Embedded PostgreSQL + JavaFX |
 | Display | 1280×720 minimum | Required for JavaFX rendering |
+| Port `8080` | Free on `localhost` | Used by the Javalin server |
 
-PostgreSQL is **embedded** for local runs - no installation needed. The server starts an embedded PostgreSQL instance in `data/postgres` and applies all Flyway migrations automatically. CI can also use an external PostgreSQL service through `DB_URL`, `DB_USER`, and `DB_PASSWORD`, then run the same Flyway migration path.
+PostgreSQL itself is **not** required — the server starts an embedded PostgreSQL instance in `data/postgres/` on first run and applies all Flyway migrations (V1–V17) automatically. CI uses an external `postgres:16` service through `DB_URL`, `DB_USER`, and `DB_PASSWORD`, then runs the same migration path.
 
-```bash
-java -version
-# Expected: openjdk version "21.x.x"
-```
+### Configure `JWT_SECRET` *(shared by both options)*
 
-### ⬇️ Download Prebuilt JARs *(recommended for evaluators)*
-
-| File | Size | Download |
-|---|---|---|
-| Server | ~101 MB | [**auction-server-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
-| Client | ~101 MB | [**auction-client-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
-
-### ▶️ Running the Application
-
-#### Configuration
-
-`JWT_SECRET` is required before starting the server. It must be unique per environment
-and at least 32 bytes when encoded as UTF-8. The server fails fast if it is missing,
-blank, or too short.
-
-```bash
-export JWT_SECRET="replace-with-a-random-secret-of-at-least-32-bytes"
-```
+The server **fails fast** at startup if `JWT_SECRET` is missing, blank, or shorter than 32 bytes when encoded as UTF-8. Set it in every new terminal before launching the server:
 
 ```powershell
+# Windows PowerShell
 $env:JWT_SECRET = "replace-with-a-random-secret-of-at-least-32-bytes"
 ```
 
-**Step 1 - Start the server** (wait for `Javalin started in X ms` before proceeding)
-
 ```bash
+# macOS / Linux / Git Bash
+export JWT_SECRET="replace-with-a-random-secret-of-at-least-32-bytes"
+```
+
+Generate a strong value on the fly:
+
+```powershell
+# PowerShell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Min 0 -Max 256 }))
+```
+```bash
+# Bash
+openssl rand -base64 32
+```
+
+> The `.env` file at the repo root is **not** auto-loaded by the application — it exists only for IDE / external tooling. The real environment variable above is required.
+
+---
+
+### Option 1 · Run the prebuilt JARs *(evaluators — no Git, no Gradle)*
+
+#### 1.1 — Download both JARs into the same folder
+
+| File | Size | Download |
+|---|---|---|
+| Server | ~123 MB | [**auction-server-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
+| Client | ~126 MB | [**auction-client-1.0.0.jar**](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
+
+Place both files in a writable working directory (e.g. `D:\auction-demo\`). The server will create `data/` and may write `logs/` next to the JARs, so avoid read-only locations such as `Program Files`.
+
+#### 1.2 — Start the server *(Terminal 1)*
+
+```powershell
+cd D:\auction-demo
+$env:JWT_SECRET = "replace-with-a-random-secret-of-at-least-32-bytes"
 java -jar auction-server-1.0.0.jar
 ```
 
-From source, the equivalent Gradle command is:
+The server is ready once Javalin logs `Javalin started in <N>ms` and binds to `http://localhost:8080`. The first launch also downloads the PostgreSQL binary into the OS cache (~10–30 seconds); subsequent starts complete in about 5 seconds. Verify readiness from any terminal:
 
 ```bash
-./gradlew run          # macOS / Linux
-gradlew.bat run        # Windows
+curl http://localhost:8080/api/health
+# → {"status":"ok","pid":...,"port":8080}
 ```
 
-On Windows, `server-start.bat`, `server-stop.bat`, and `server-status.bat` wrap the same server workflow.
+Stop the server with **Ctrl+C** in Terminal 1 — this triggers a graceful shutdown that releases the embedded PostgreSQL data files cleanly.
 
-**Step 2 - Start one or more clients** (each terminal = independent client)
+#### 1.3 — Launch one or more clients *(Terminal 2, 3, …)*
 
 ```bash
 java -jar auction-client-1.0.0.jar
 ```
 
-From source:
+Each terminal that runs this command opens an independent JavaFX window. Open three or four of them to simulate concurrent bidding. Clients do **not** need `JWT_SECRET` — only the server does.
+
+---
+
+### Option 2 · Build from source *(developers and reviewers)*
+
+#### 2.1 — Clone the repository
 
 ```bash
-./gradlew runClient          # macOS / Linux
-gradlew.bat runClient        # Windows
+git clone https://github.com/kieran-labs/oop-course-project-uet.git
+cd oop-course-project-uet
 ```
 
-To simulate concurrent bidding, open multiple terminals and run the client command in each.
+Gradle Wrapper (`gradlew.bat` / `gradlew`) is committed at the repo root, so no separate Gradle installation is required — the wrapper downloads Gradle 8.12.1 on first invocation.
 
-### 🔑 Default Accounts
+#### 2.2 — Pick a sub-path
 
-The following accounts are seeded automatically on first run via `V2__seed_admin.sql`:
+Set `JWT_SECRET` as shown in [Configure `JWT_SECRET`](#configure-jwt_secret-shared-by-both-options), then choose:
+
+**2.2 · A — Run directly from source** *(fastest iteration loop for developers)*
+
+```powershell
+# Terminal 1 — server
+.\gradlew.bat run            # Windows
+./gradlew run                # macOS / Linux
+
+# Terminal 2..N — clients
+.\gradlew.bat runClient
+./gradlew runClient
+```
+
+`Ctrl+C` in each terminal stops the corresponding process. Gradle keeps its build cache between runs, so the second invocation typically takes ~5 seconds.
+
+**2.2 · B — Build redistributable fat JARs**
+
+```bash
+./gradlew clean buildJars        # macOS / Linux
+gradlew.bat clean buildJars      # Windows
+```
+
+The task produces two self-contained JARs in `build/libs/`:
+
+- `auction-server-1.0.0.jar` (~123 MB) — entry `com.auction.App`
+- `auction-client-1.0.0.jar` (~126 MB) — entry `com.auction.Launcher`
+
+These JARs are identical in shape to the ones released on GitHub and can be copied to any machine with Java 21+. Run them exactly as in Option 1.
+
+#### 2.3 — Gradle commands
+
+| Command | Description |
+|---|---|
+| `./gradlew run` | Start the Javalin server from source |
+| `./gradlew runClient` | Start the JavaFX client from source |
+| `./gradlew buildJars` | Produce both fat JARs in `build/libs/` |
+| `./gradlew test` | Run the JUnit 5 + Mockito suite (uses embedded PostgreSQL for integration tests) |
+| `./gradlew check` | Full quality gate: tests + Checkstyle + SpotBugs + JaCoCo 20 % instruction-coverage verification |
+| `./gradlew jacocoTestReport` | HTML coverage report at `build/reports/jacoco/test/html/index.html` |
+| `./gradlew spotlessCheck` | Verify Google Java Style (CI gate) |
+| `./gradlew spotlessApply` | Auto-format all Java sources |
+| `./gradlew spotbugsMain` | Static analysis report at `build/reports/spotbugs/spotbugsMain.html` |
+| `./gradlew installGitHooks` | Wire `.githooks/pre-commit` to auto-run `spotlessApply` before each commit |
+| `./gradlew clean` | Remove `build/` |
+
+CI executes `./gradlew spotlessCheck`, then `./gradlew clean test check jacocoTestReport --info --stacktrace`.
+
+#### 2.4 — Windows convenience scripts
+
+Three `.bat` files at the repo root wrap the server lifecycle for Windows users who prefer not to keep a terminal open:
+
+```powershell
+.\server-start.bat       # builds the JAR if missing, starts the server hidden, waits for /api/health
+.\server-status.bat      # prints PID and port reported by /api/health
+.\server-stop.bat        # graceful shutdown via POST /internal/shutdown
+```
+
+When the server is launched through `server-start.bat`, stdout and stderr are redirected to `logs/server.out.log` and `logs/server.err.log` respectively.
+
+---
+
+### Default accounts
+
+The first run seeds a single admin account via `V2__seed_admin.sql`:
 
 | Role | Username | Password |
 |---|---|---|
 | Admin | `admin` | `123456` |
 
-Additional Seller and Bidder accounts can be registered from the login screen.
+Additional Seller and Bidder accounts are created from the **Register** screen in the client.
 
-### Build from Source
+### Five-minute demo flow
 
-```bash
-git clone https://github.com/kieran-labs/oop-course-project-uet.git
-cd oop-course-project-uet
+1. Log in as `admin / 123456` and open the **Users** tab.
+2. Register one `seller1` (SELLER) and two bidders (`bidder1`, `bidder2`).
+3. As each bidder, open **Profile → Deposit** and request 10 000 000 VND.
+4. As `admin`, approve both deposit requests. Each bidder receives a real-time `BALANCE_UPDATED` push on `/ws/user/{id}`.
+5. As `seller1`, create an item and an auction (`startTime` = now + 1 min, `endTime` = now + 5 min, `startingPrice` = 100 000).
+6. After one minute, `AuctionScheduler` transitions the auction `OPEN → RUNNING` automatically.
+7. Both bidders open the auction detail screen and place alternating bids. The `AreaChart` updates live over `/ws/auction/{id}`; the countdown resets whenever anti-snipe triggers (a bid in the last 30 s extends the deadline by 60 s).
+8. One bidder registers auto-bid (`maxBid` 5 000 000, `increment` 50 000). The next manual bid kicks off the auto-bid chain inside the same transaction.
+9. When `endTime` passes, the scheduler advances `RUNNING → SETTLING → PAID` (or `FINISHED` if the leader's balance is insufficient at settlement).
 
-./gradlew buildJars          # macOS / Linux
-gradlew.bat buildJars        # Windows
-```
+### Comparing the two options
 
-Output JARs will be placed in `build/libs/`.
-
-### Gradle Commands
-
-| Command | Description |
-|---|---|
-| `./gradlew buildJars` | Build server + client fat JARs |
-| `./gradlew run` | Start the Javalin server from source |
-| `./gradlew runClient` | Start the JavaFX client from source |
-| `./gradlew spotlessCheck` | Check Google Java Style formatting, as CI does before tests |
-| `./gradlew test` | Run the JUnit test suite |
-| `./gradlew check` | Run quality gates, including JaCoCo instruction coverage verification at 20% minimum |
-| `./gradlew jacocoTestReport` | Coverage report → `build/reports/jacoco/` |
-| `./gradlew spotlessApply` | Auto-format all Java code |
-| `./gradlew spotbugsMain` | Static analysis |
-| `./gradlew clean` | Clean build artifacts |
-
-CI runs `./gradlew spotlessCheck` first, then `./gradlew clean test check jacocoTestReport --info --stacktrace`.
+| Concern | Option 1 (prebuilt JARs) | Option 2 (from source) |
+|---|---|---|
+| Audience | Evaluators, quick demo | Developers, reviewers |
+| Requires Git? | No | Yes |
+| Requires Gradle? | No (wrapper not used) | Wrapper auto-downloads Gradle 8.12.1 |
+| First-run time to a healthy server | ~2 minutes (JAR download dominates) | ~3–5 minutes (clone + Gradle dependency resolution) |
+| Subsequent startup | ~5 seconds | ~5 seconds (`gradlew run` warm cache) |
+| Can modify the code? | No | Yes |
+| Can run tests, coverage, SpotBugs? | No | Yes |
+| Disk footprint | ~250 MB (two JARs + `data/`) | ~600 MB+ (sources + `build/` + `.gradle/` + `data/`) |
 
 ### Troubleshooting
 
-**`initdb: directory "data/postgres" exists but is not empty`**
+**`JWT_SECRET is required and must be at least 32 bytes long when encoded as UTF-8.`**
+The environment variable is missing or too short in the current shell. Set it as shown in [Configure `JWT_SECRET`](#configure-jwt_secret-shared-by-both-options) and rerun.
 
-```bash
-rm -rf data/postgres          # Linux / macOS
+**`initdb: directory "data/postgres" exists but is not empty`**
+The previous server process was killed before it could release the embedded data directory.
+
+```powershell
 rmdir /s /q data\postgres     # Windows
 ```
+```bash
+rm -rf data/postgres          # macOS / Linux
+```
 
-This occurs when the server is killed uncleanly. Delete the directory and restart.
+**`Server is already running at http://localhost:8080`**
+Another instance is bound to port 8080. Inspect it with `.\server-status.bat`, then stop it with `.\server-stop.bat` (Windows) or `Ctrl+C` in the terminal that owns the process.
+
+**Client cannot reach the server**
+Confirm the server is up with `curl http://localhost:8080/api/health`. If it returns `{"status":"ok",...}` the issue is local firewall or VPN, not the application.
 
 **JavaFX window does not appear on Linux**
+Ensure a display server is running. On headless hosts, set `export DISPLAY=:0` or launch through a desktop session — JavaFX cannot render without one.
 
-Ensure a display server is running. On headless servers, use `export DISPLAY=:0` or run via a desktop session.
+**Reset all local state**
+Stop the server, then delete the generated directories. The next start re-seeds the admin account and re-applies every migration.
+
+```powershell
+rmdir /s /q data logs build   # Windows
+```
+```bash
+rm -rf data logs build        # macOS / Linux
+```
 
 ---
 
