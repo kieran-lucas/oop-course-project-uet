@@ -484,9 +484,9 @@ public class AuctionListController implements Navigable {
    * correspondingly coloured {@link Text} nodes to {@code flow}. Unrecognised stretches use {@code
    * defaultColor}.
    *
-   * <p>Markers are stripped from the visible output — only the inner content is rendered (e.g.
-   * {@code «alice»} → "alice" in blue). That keeps the notification readable while still letting
-   * the server tag entities for colour-coding.
+   * <p>Username guillemets {@code « »} are stripped — only "alice" renders, in blue. Auction square
+   * brackets {@code [...]} are <b>kept</b> visible so the auction name reads as a tag like "[Iphone
+   * 15]" in brown.
    */
   private void appendColoredSegments(TextFlow flow, String text, String defaultColor) {
     if (text == null || text.isEmpty()) {
@@ -510,8 +510,10 @@ public class AuctionListController implements Navigable {
         int end = text.indexOf(']', i + 1);
         if (end > i) {
           flushDefault(flow, buf, defaultColor);
+          // Include the surrounding [ ] in the rendered chip — user wants the brackets to
+          // stay visible like a tag (e.g. "[Iphone 15]").
           flow.getChildren()
-              .add(createNotificationText(text.substring(i + 1, end), AUCTION_COLOR, true));
+              .add(createNotificationText(text.substring(i, end + 1), AUCTION_COLOR, true));
           i = end + 1;
           continue;
         }
@@ -525,6 +527,12 @@ public class AuctionListController implements Navigable {
   /**
    * Drain {@code buf} into {@code flow}. The drained text is further split so any VND price inside
    * it gets yellow highlighting — the rest stays at {@code defaultColor}.
+   *
+   * <p><b>Whitespace fix:</b> the price regex eagerly consumes leading whitespace (the {@code \\s*}
+   * alternative before the sign/digits). Without compensation the rendered output collapses "đặt 62
+   * VND" into "đặt62 VND" because the space ends up inside the yellow segment, which is a separate
+   * {@link Text} node with no implicit gap. Skip the leading whitespace of the match back into the
+   * preceding default segment so the space stays visible.
    */
   private void flushDefault(TextFlow flow, StringBuilder buf, String defaultColor) {
     if (buf.length() == 0) {
@@ -535,17 +543,22 @@ public class AuctionListController implements Navigable {
     Matcher priceMatcher = VND_AMOUNT_PATTERN.matcher(segment);
     int last = 0;
     while (priceMatcher.find()) {
-      if (priceMatcher.start() > last) {
-        flow.getChildren()
-            .add(
-                createNotificationText(
-                    segment.substring(last, priceMatcher.start()), defaultColor, false));
+      int priceStart = priceMatcher.start();
+      int priceEnd = priceMatcher.end();
+      // Push leading whitespace eaten by the regex back into the default-coloured run so the
+      // visible space between word and amount survives the split into separate Text nodes.
+      while (priceStart < priceEnd && Character.isWhitespace(segment.charAt(priceStart))) {
+        priceStart++;
       }
+      if (priceStart > last) {
+        flow.getChildren()
+            .add(createNotificationText(segment.substring(last, priceStart), defaultColor, false));
+      }
+      String rawPrice = segment.substring(priceStart, priceEnd);
       String priceText =
-          priceMatcher.group(1).replaceAll("(?i)\\s*(?:VN\\s*Đ|VNĐ|VND|₫|đ)\\s*$", "").trim()
-              + " VND";
+          rawPrice.replaceAll("(?i)\\s*(?:VN\\s*Đ|VNĐ|VND|₫|đ)\\s*$", "").trim() + " VND";
       flow.getChildren().add(createNotificationText(priceText, PRICE_COLOR, true));
-      last = priceMatcher.end();
+      last = priceEnd;
     }
     if (last < segment.length()) {
       flow.getChildren().add(createNotificationText(segment.substring(last), defaultColor, false));
@@ -563,20 +576,42 @@ public class AuctionListController implements Navigable {
     if (text == null || text.isBlank() || after == null || after.isBlank()) {
       return text;
     }
+    // If text already ends with whitespace there's nothing to do — adding another would render
+    // as a visible double space (e.g. "Số dư biến động:  + 100 VND").
+    if (Character.isWhitespace(text.charAt(text.length() - 1))) {
+      return text;
+    }
     return Character.isWhitespace(after.charAt(0)) ? text : text + " ";
   }
 
+  /**
+   * Swap "#5" with "[Item Name]" when the auction is in the loaded list. The surrounding text (e.g.
+   * "Phiên đấu giá #5 đã bị hủy", "Bạn đã bị vượt giá tại phiên #5") is preserved verbatim so we
+   * don't end up with awkward double phrasing like "Phiên đấu giá tại phiên [...]".
+   *
+   * <p>If the name cannot be resolved (auction not loaded), the raw "#5" stays and renders in
+   * default colour — better than a stub "[#5]" placeholder.
+   */
   private String replaceAuctionIdWithName(String notification) {
     Matcher matcher = AUCTION_ID_PATTERN.matcher(notification);
-    if (!matcher.find()) {
+    StringBuilder out = new StringBuilder();
+    int last = 0;
+    while (matcher.find()) {
+      Long auctionId = Long.valueOf(matcher.group(1));
+      String displayName = resolveAuctionDisplayName(auctionId);
+      out.append(notification, last, matcher.start());
+      if (displayName != null) {
+        out.append('[').append(displayName).append(']');
+      } else {
+        out.append('#').append(auctionId);
+      }
+      last = matcher.end();
+    }
+    if (last == 0) {
       return notification;
     }
-    Long auctionId = Long.valueOf(matcher.group(1));
-    String displayName = resolveAuctionDisplayName(auctionId);
-    String replacement =
-        "tại phiên [" + (displayName != null ? displayName : "#" + auctionId) + "]";
-    return notification.replaceFirst(
-        "(?:tại\\s+)?(?:phiên\\s+)?#" + auctionId, Matcher.quoteReplacement(replacement));
+    out.append(notification, last, notification.length());
+    return out.toString();
   }
 
   private String resolveAuctionDisplayName(Long auctionId) {

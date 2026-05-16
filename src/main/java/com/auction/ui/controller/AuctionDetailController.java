@@ -1082,8 +1082,8 @@ public class AuctionDetailController implements Navigable {
       color = "#1565C0";
       // Bell entry được đẩy qua kênh /ws/user/{sellerId} (SELLER_BID_RECEIVED) — tránh nhân đôi.
     } else if (isOwnBid && msg.isAutoBid()) {
-      toastText = itemPlain + "Auto-bid đặt " + price + " cho bạn";
-      storeText = itemMarker + "Auto-bid đặt " + price + " cho bạn";
+      toastText = itemPlain + "Auto-bid đã đặt " + price + " cho bạn";
+      storeText = itemMarker + "Auto-bid đã đặt " + price + " cho bạn";
       color = "#16A34A";
       NotificationStore.getInstance().add(storeText);
     } else if (isOwnBid) {

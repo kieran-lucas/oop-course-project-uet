@@ -658,17 +658,17 @@
     -fx-border-color: #991B1B;
 }
 
-/* Top-bar logout — slightly tinted red so the destructive action reads
-   as "logout" without shouting on the navy header. Pairs visually with
-   .username-label (same 34px height + radius), but its warm tint sets
-   it apart so the two chips don't blur into one. */
+/* Top-bar logout — mirrors .username-label exactly (same translucent white
+   pill, same 34px height, same rounded radius) so the two top-bar chips
+   read as a balanced pair. Font is one step larger (15px vs username's
+   13px) so the "Đăng xuất" label has visual weight. */
 .logout-button {
-    -fx-font-size: 13px;
+    -fx-font-size: 15px;
     -fx-font-weight: bold;
-    -fx-text-fill: #FFFFFF;
-    -fx-background-color: linear-gradient(to bottom, rgba(248,113,113,0.22) 0%, rgba(220,38,38,0.28) 100%);
-    -fx-border-color: rgba(254,202,202,0.55);
-    -fx-border-width: 1.3;
+    -fx-text-fill: rgba(255,255,255,0.94);
+    -fx-background-color: rgba(255,255,255,0.16);
+    -fx-border-color: rgba(255,255,255,0.32);
+    -fx-border-width: 1.2;
     -fx-background-radius: 20;
     -fx-border-radius: 20;
     -fx-padding: 0 18 0 14;
@@ -676,25 +676,26 @@
     -fx-min-height: 34;
     -fx-graphic-text-gap: 9;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 5, 0, 0, 1);
 }
 
 .logout-button:hover {
-    -fx-background-color: linear-gradient(to bottom, rgba(248,113,113,0.45) 0%, rgba(220,38,38,0.55) 100%);
-    -fx-border-color: rgba(255,255,255,0.85);
-    -fx-effect: dropshadow(gaussian, rgba(220,38,38,0.45), 10, 0, 0, 2);
+    -fx-background-color: rgba(255,255,255,0.30);
+    -fx-text-fill: white;
+    -fx-border-color: rgba(255,255,255,0.65);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 8, 0, 0, 2);
 }
 
 .logout-button:pressed {
-    -fx-background-color: linear-gradient(to bottom, rgba(220,38,38,0.55) 0%, rgba(153,27,27,0.65) 100%);
-    -fx-border-color: rgba(255,255,255,0.55);
+    -fx-background-color: rgba(255,255,255,0.10);
+    -fx-border-color: rgba(255,255,255,0.30);
     -fx-effect: none;
 }
 
-/* Phosphor "sign-out" — thicker stroke + rounded door frame for a bolder,
-   more decisive logout glyph than the thin Material outline. */
+/* Material Symbols "logout" Filled — chunky doorway + thick rightward arrow.
+   Centered horizontally so the glyph balances the "Đăng xuất" label next to
+   it instead of feeling drawn from the top corner. */
 .logout-icon {
-    -fx-shape: "M13.5 3.5h-7A1.5 1.5 0 0 0 5 5v3.5a1 1 0 0 0 2 0V5.5h6V18.5h-6V15a1 1 0 0 0-2 0v3.5A1.5 1.5 0 0 0 6.5 20h7a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 13.5 3.5zM21.21 11.29l-3-3a1 1 0 0 0-1.42 1.42L18.59 11H10a1 1 0 0 0 0 2h8.59l-1.8 1.79a1 1 0 1 0 1.42 1.42l3-3a1 1 0 0 0 0-1.42z";
+    -fx-shape: "M9 21h-4c-1.1 0-2-.9-2-2v-14c0-1.1.9-2 2-2h4v2h-4v14h4v2zm6.293-5.293l1.414 1.414 5.121-5.121-5.121-5.121-1.414 1.414 2.707 2.707h-8.586v2h8.586l-2.707 2.707z";
     -fx-background-color: white;
     -fx-min-width: 18;
     -fx-min-height: 18;
@@ -703,7 +704,6 @@
     -fx-max-width: 18;
     -fx-max-height: 18;
     -fx-scale-shape: true;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.30), 2, 0, 0, 1);
 }
 
 .back-button {
@@ -825,14 +825,12 @@
     -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.16), 6, 0, 0, 0);
 }
 
-/* PasswordField uses the field's font glyph for its bullets. Lexend's "•"
-   renders chunky and aliased so we switch to a system font that ships with
-   well-hinted bullet glyphs. Size is a balance: too small reads as faint
-   commas, too big looks aliased. 15px gives a visibly round bullet that
-   still stays crisp on Windows with Segoe UI. */
+/* PasswordField inherits .text-field geometry + Lexend font so the bullets
+   match the username field. No font override here — keeping the same font
+   stack everywhere prevents the password row from looking like a different
+   typeface than the rest of the form. */
 .password-field {
-    -fx-font-family: 'Segoe UI', 'Helvetica Neue', 'Arial', 'Lexend';
-    -fx-font-size: 15px;
+    -fx-font-size: 14px;
 }
 
 .text-area {
@@ -1096,8 +1094,10 @@
     -fx-background-color: #FFFFFF;
     -fx-border-color: transparent transparent #F1F5F9 transparent;
     -fx-border-width: 0 0 1 0;
-    -fx-pref-height: 54;
-    -fx-min-height: 54;
+    /* 62px gives two lines of 13px text (≈ 31px) + vertical padding room. Required for the
+       OPEN-status "Bắt đầu sau:\nHH:MM:SS" cell which wraps over two lines. */
+    -fx-pref-height: 62;
+    -fx-min-height: 62;
 }
 
 .auction-table .table-row-cell:odd {
@@ -1118,7 +1118,7 @@
 
 .auction-table .table-cell {
     -fx-font-size: 13px;
-    -fx-padding: 11 12 11 12;
+    -fx-padding: 8 12 8 12;
     -fx-text-fill: #1E293B;
 }
 
