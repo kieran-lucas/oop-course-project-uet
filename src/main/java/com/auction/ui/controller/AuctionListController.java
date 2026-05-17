@@ -503,7 +503,11 @@ public class AuctionListController implements Navigable {
   //  DEFAULT_COLOR → near-white body text
   private static final String USER_COLOR = "#60A5FA";
   private static final String AUCTION_COLOR = "#E0A458";
-  private static final String PRICE_COLOR = "#ffd600";
+  private static final String PRICE_COLOR = "#F59E0B";
+  private static final String TIME_COLOR = "#7C3AED";
+  private static final String CATEGORY_ELECTRONICS_COLOR = "#1D4ED8";
+  private static final String CATEGORY_VEHICLE_COLOR = "#374151";
+  private static final String CATEGORY_ART_COLOR = "#EA580C";
   private static final String ADMIN_COLOR = "#CBD5E1";
   private static final String DEFAULT_COLOR = "#e0e0e0";
 
@@ -867,6 +871,8 @@ public class AuctionListController implements Navigable {
     // Keep the constrained-resize proportions balanced: the product column is a touch narrower
     // so the action column has enough space for the button without wrapping.
     itemCol.setPrefWidth(185);
+    categoryCol.setPrefWidth(125);
+    timeCol.setPrefWidth(125);
     actionCol.setPrefWidth(135);
 
     // Disable sort on every column. The list auto-refreshes every 10 s so click-to-sort would
@@ -907,7 +913,7 @@ public class AuctionListController implements Navigable {
                     empty
                         ? "-fx-alignment: CENTER_LEFT;"
                         : "-fx-alignment: CENTER_LEFT;"
-                            + " -fx-text-fill: #8B5E34;"
+                            + " -fx-text-fill: #7C5430;"
                             + " -fx-font-weight: bold;");
               }
             });
@@ -923,8 +929,18 @@ public class AuctionListController implements Navigable {
               @Override
               protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
-                setText(empty ? null : value);
-                setStyle("-fx-alignment: CENTER;");
+                if (empty || value == null || value.isBlank()) {
+                  setText(null);
+                  setStyle("-fx-alignment: CENTER;");
+                  return;
+                }
+                setText(value);
+                setStyle(
+                    "-fx-alignment: CENTER;"
+                        + " -fx-text-fill: "
+                        + categoryColor(value)
+                        + ";"
+                        + " -fx-font-weight: bold;");
               }
             });
 
@@ -939,13 +955,22 @@ public class AuctionListController implements Navigable {
               @Override
               protected void updateItem(BigDecimal price, boolean empty) {
                 super.updateItem(price, empty);
-                setText(empty || price == null ? null : VND_AMOUNT.format(price) + " VND");
+                if (empty || price == null) {
+                  setText(null);
+                  setTextFill(null);
+                  setStyle("-fx-alignment: CENTER;");
+                  return;
+                }
+                setText(VND_AMOUNT.format(price) + " VND");
+                // Use an inline style, not setTextFill(): the table stylesheet also defines
+                // .table-cell text colour, and inline -fx-text-fill wins that cascade reliably.
+                setTextFill(null);
                 setStyle(
-                    empty
-                        ? "-fx-alignment: CENTER;"
-                        : "-fx-alignment: CENTER;"
-                            + " -fx-text-fill: #B45309;"
-                            + " -fx-font-weight: bold;");
+                    "-fx-alignment: CENTER;"
+                        + " -fx-font-weight: bold;"
+                        + " -fx-text-fill: "
+                        + PRICE_COLOR
+                        + ";");
               }
             });
 
@@ -978,22 +1003,31 @@ public class AuctionListController implements Navigable {
                 setTooltip(null);
                 if (isEmpty() || getTableRow() == null) {
                   setText(null);
+                  setTextFill(null);
                   setStyle("-fx-alignment: CENTER;");
                   return;
                 }
                 AuctionResponse a = getTableRow().getItem();
                 if (a == null) {
                   setText(null);
+                  setTextFill(null);
                   setStyle("-fx-alignment: CENTER;");
                   return;
                 }
                 String st = computeClientStatus(a);
                 if ("FINISHED".equals(st) || "CANCELED".equals(st) || "PAID".equals(st)) {
                   setText("Đã kết thúc");
-                  setStyle("-fx-alignment: CENTER;");
+                  setTextFill(null);
+                  setStyle("-fx-alignment: CENTER; -fx-text-fill: #64748B;");
                   return;
                 }
-                setStyle("-fx-alignment: CENTER;");
+                setTextFill(null);
+                setStyle(
+                    "-fx-alignment: CENTER;"
+                        + " -fx-font-weight: bold;"
+                        + " -fx-text-fill: "
+                        + TIME_COLOR
+                        + ";");
                 LocalDateTime now = LocalDateTime.now();
                 if ("OPEN".equals(st)) {
                   // Phiên chưa bắt đầu — đếm ngược đến startTime. Hiển thị duy nhất "HH:MM:SS"
@@ -1026,7 +1060,7 @@ public class AuctionListController implements Navigable {
                   long ms = java.time.Duration.between(now, endTime).toMillis();
                   if (ms <= 0) {
                     setText("Đã kết thúc");
-                    setStyle("-fx-alignment: CENTER;");
+                    setStyle("-fx-alignment: CENTER; -fx-text-fill: #64748B;");
                   } else {
                     long totalSec = ms / 1000;
                     long h = totalSec / 3600;
@@ -1101,6 +1135,15 @@ public class AuctionListController implements Navigable {
                 setAlignment(javafx.geometry.Pos.CENTER);
               }
             });
+  }
+
+  private String categoryColor(String category) {
+    return switch (category) {
+      case "ELECTRONICS" -> CATEGORY_ELECTRONICS_COLOR;
+      case "VEHICLE" -> CATEGORY_VEHICLE_COLOR;
+      case "ART" -> CATEGORY_ART_COLOR;
+      default -> "#1E293B";
+    };
   }
 
   /**

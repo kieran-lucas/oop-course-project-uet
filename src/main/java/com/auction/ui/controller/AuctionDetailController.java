@@ -29,12 +29,15 @@ import javafx.scene.chart.AreaChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import org.slf4j.Logger;
@@ -78,6 +81,13 @@ public class AuctionDetailController implements Navigable {
   private static final ObjectMapper MAPPER =
       new ObjectMapper().registerModule(new JavaTimeModule());
   private static final NumberFormat VND_FMT = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
+
+  private static final String MONEY_COLOR = "#F59E0B";
+  private static final String META_LABEL_COLOR = "#6B7280";
+  private static final String BRAND_VALUE_COLOR = "#334155";
+  private static final String ARTIST_VALUE_COLOR = "#92400E";
+  private static final String YEAR_VALUE_COLOR = "#4B5563";
+  private static final String LEADING_BIDDER_COLOR = "#2563EB";
 
   private static String vnd(java.math.BigDecimal v) {
     return v == null ? "?" : VND_FMT.format(v) + " VND";
@@ -218,13 +228,44 @@ public class AuctionDetailController implements Navigable {
   /** AuctionId that is currently fully painted onto the screen (after updateAuctionUI). */
   private Long renderedAuctionId;
 
-  /**
-   * Apply only the two agreed accent colours; description and status keep their existing styles.
-   */
+  /** Apply agreed accents while keeping prefixes/labels in neutral gray. */
   @FXML
   private void initialize() {
     itemNameLabel.getStyleClass().add("auction-detail-product-name");
-    startingPriceLabel.getStyleClass().add("auction-detail-starting-price");
+    currentPriceLabel.getStyleClass().add("auction-money-value");
+    countdownLabel.getStyleClass().add("auction-time-remaining");
+  }
+
+  private void setPrefixedValue(Label target, String prefix, String value, String valueColor) {
+    Text labelText = new Text(prefix);
+    labelText.setStyle(
+        "-fx-fill: "
+            + META_LABEL_COLOR
+            + "; -fx-font-family: 'Lexend'; -fx-font-size: 13px; -fx-font-weight: bold;");
+
+    Text valueText = new Text(value);
+    valueText.setStyle(
+        "-fx-fill: "
+            + valueColor
+            + "; -fx-font-family: 'Lexend'; -fx-font-size: 13px; -fx-font-weight: bold;");
+
+    TextFlow flow = new TextFlow(labelText, valueText);
+    target.setText("");
+    target.setGraphic(flow);
+    target.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+  }
+
+  private void clearPrefixedValue(Label target) {
+    target.setGraphic(null);
+    target.setContentDisplay(ContentDisplay.LEFT);
+    target.setText("");
+  }
+
+  private void setLeadingBidderText(String username) {
+    boolean hasLeader = username != null && !username.isBlank();
+    leadingBidderLabel.setText(hasLeader ? username : "Chưa có");
+    leadingBidderLabel.setStyle(
+        hasLeader ? "-fx-text-fill: " + LEADING_BIDDER_COLOR + "; -fx-font-weight: bold;" : "");
   }
 
   // ========== NAVIGABLE LIFECYCLE ==========
@@ -297,16 +338,20 @@ public class AuctionDetailController implements Navigable {
       endTimeMs = null;
       currentPriceLabel.setText("—");
       leadingBidderLabel.setText("—");
+      leadingBidderLabel.setStyle("");
       itemNameLabel.setText("Đang tải...");
       itemCategoryLabel.setText("");
       itemDescriptionLabel.setText("");
+      clearPrefixedValue(itemBrandLabel);
       itemBrandLabel.setVisible(false);
       itemBrandLabel.setManaged(false);
+      clearPrefixedValue(itemArtistLabel);
       itemArtistLabel.setVisible(false);
       itemArtistLabel.setManaged(false);
+      clearPrefixedValue(itemYearLabel);
       itemYearLabel.setVisible(false);
       itemYearLabel.setManaged(false);
-      startingPriceLabel.setText("");
+      clearPrefixedValue(startingPriceLabel);
       startingPriceLabel.setVisible(false);
       startingPriceLabel.setManaged(false);
       auctionStatusLabel.setText("");
@@ -1035,7 +1080,7 @@ public class AuctionDetailController implements Navigable {
                       bidSeries.getData().size() + 1, msg.getCurrentPrice().doubleValue()));
         }
         if (msg.getLeadingBidderUsername() != null) {
-          leadingBidderLabel.setText(msg.getLeadingBidderUsername());
+          setLeadingBidderText(msg.getLeadingBidderUsername());
         }
         if (msg.getEndTime() != null) {
           endTimeMs =
@@ -1274,11 +1319,12 @@ public class AuctionDetailController implements Navigable {
     // Giá khởi điểm — luôn cho người xem biết giá xuất phát của phiên,
     // nằm cùng khối mô tả sản phẩm để dễ so sánh với giá hiện tại ở stat strip.
     if (auction.getStartingPrice() != null) {
-      startingPriceLabel.setText("Giá khởi điểm: " + vnd(auction.getStartingPrice()));
+      setPrefixedValue(
+          startingPriceLabel, "Giá khởi điểm: ", vnd(auction.getStartingPrice()), MONEY_COLOR);
       startingPriceLabel.setVisible(true);
       startingPriceLabel.setManaged(true);
     } else {
-      startingPriceLabel.setText("");
+      clearPrefixedValue(startingPriceLabel);
       startingPriceLabel.setVisible(false);
       startingPriceLabel.setManaged(false);
     }
@@ -1291,10 +1337,7 @@ public class AuctionDetailController implements Navigable {
       currentPriceValue = auction.getCurrentPrice();
       currentPriceLabel.setText(vnd(auction.getCurrentPrice()));
     }
-    leadingBidderLabel.setText(
-        auction.getLeadingBidderUsername() != null
-            ? auction.getLeadingBidderUsername()
-            : "Chưa có");
+    setLeadingBidderText(auction.getLeadingBidderUsername());
 
     String st = auction.getStatus();
     if ("CANCELED".equals(st) || "FINISHED".equals(st) || "PAID".equals(st)) {
@@ -1369,10 +1412,13 @@ public class AuctionDetailController implements Navigable {
    */
   private void updateCategoryMetadata(AuctionResponse auction) {
     // Ẩn tất cả trước — chỉ 1 label sẽ được bật tùy category
+    clearPrefixedValue(itemBrandLabel);
     itemBrandLabel.setVisible(false);
     itemBrandLabel.setManaged(false);
+    clearPrefixedValue(itemArtistLabel);
     itemArtistLabel.setVisible(false);
     itemArtistLabel.setManaged(false);
+    clearPrefixedValue(itemYearLabel);
     itemYearLabel.setVisible(false);
     itemYearLabel.setManaged(false);
 
@@ -1385,7 +1431,7 @@ public class AuctionDetailController implements Navigable {
       case "ELECTRONICS" -> {
         String brand = auction.getItemBrand();
         if (brand != null && !brand.isBlank()) {
-          itemBrandLabel.setText("Hãng: " + brand);
+          setPrefixedValue(itemBrandLabel, "Hãng: ", brand, BRAND_VALUE_COLOR);
           itemBrandLabel.setVisible(true);
           itemBrandLabel.setManaged(true);
         }
@@ -1393,7 +1439,7 @@ public class AuctionDetailController implements Navigable {
       case "ART" -> {
         String artist = auction.getItemArtist();
         if (artist != null && !artist.isBlank()) {
-          itemArtistLabel.setText("Nghệ sĩ: " + artist);
+          setPrefixedValue(itemArtistLabel, "Nghệ sĩ: ", artist, ARTIST_VALUE_COLOR);
           itemArtistLabel.setVisible(true);
           itemArtistLabel.setManaged(true);
         }
@@ -1401,7 +1447,7 @@ public class AuctionDetailController implements Navigable {
       case "VEHICLE" -> {
         Integer year = auction.getItemYear();
         if (year != null && year > 0) {
-          itemYearLabel.setText("Năm sản xuất: " + year);
+          setPrefixedValue(itemYearLabel, "Năm sản xuất: ", String.valueOf(year), YEAR_VALUE_COLOR);
           itemYearLabel.setVisible(true);
           itemYearLabel.setManaged(true);
         }
