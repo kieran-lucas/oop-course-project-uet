@@ -1407,12 +1407,17 @@ public class AuctionDetailController implements Navigable {
       if ("FINISHED".equals(status) || "CANCELED".equals(status) || "PAID".equals(status)) {
         endedBox.setVisible(true);
         endedBox.setManaged(true);
-        String winner =
-            auction.getLeadingBidderUsername() != null
-                ? auction.getLeadingBidderUsername()
-                : "Không có người thắng";
-        String prefix = "PAID".equals(status) ? "Đã thanh toán — " : "Người thắng: ";
-        winnerLabel.setText(prefix + winner);
+
+        if ("CANCELED".equals(status)) {
+          winnerLabel.setText("Phiên đã bị hủy — không có người thắng");
+        } else {
+          String winner =
+              auction.getLeadingBidderUsername() != null
+                  ? auction.getLeadingBidderUsername()
+                  : "Không có người thắng";
+          String prefix = "PAID".equals(status) ? "Đã thanh toán — " : "Người thắng: ";
+          winnerLabel.setText(prefix + winner);
+        }
       }
     }
 

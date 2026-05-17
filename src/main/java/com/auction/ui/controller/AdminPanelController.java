@@ -18,6 +18,7 @@ import java.util.Locale;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -70,7 +71,9 @@ public class AdminPanelController implements Navigable {
   private static final NumberFormat VND = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final String ADMIN_SILVER = "#CBD5E1";
-  private static final String AUCTION_NAME_BROWN = "#8B5E34";
+  private static final String AUCTION_NAME_BROWN = "#7C5430";
+  private static final String MONEY_COLOR = "#F59E0B";
+  private static final String ENDED_STATUS_COLOR = "#64748B";
 
   @FXML private Label usernameLabel;
   @FXML private TableView<AuctionResponse> auctionTable;
@@ -119,6 +122,7 @@ public class AdminPanelController implements Navigable {
     setupUserColumns();
     setupDepositColumns();
     setupPasswordResetColumns();
+    applyAdminColumnWidths();
   }
 
   // ========== NAVIGABLE LIFECYCLE ==========
@@ -498,6 +502,102 @@ public class AdminPanelController implements Navigable {
     }
   }
 
+  /**
+   * Keep admin tables inside the available app width while giving money/email columns more room.
+   *
+   * <p>Do NOT hard-code a large total width: that pushes columns past the viewport and creates
+   * horizontal overflow. Instead, each table listens to its actual rendered width and redistributes
+   * that width by ratios. Money/email columns get a larger share; action columns stay just large
+   * enough for their buttons.
+   */
+  private void applyAdminColumnWidths() {
+    setAdminColumnMinWidths();
+
+    applyResponsiveColumnWidths(
+        auctionTable,
+        new double[] {0.06, 0.25, 0.13, 0.24, 0.32},
+        idCol,
+        itemCol,
+        statusCol,
+        priceCol,
+        actionCol);
+
+    applyResponsiveColumnWidths(
+        userTable,
+        new double[] {0.05, 0.15, 0.31, 0.10, 0.27, 0.12},
+        userIdCol,
+        usernameCol,
+        emailCol,
+        roleCol,
+        balanceCol,
+        userActionCol);
+
+    applyResponsiveColumnWidths(
+        depositTable,
+        new double[] {0.06, 0.19, 0.27, 0.23, 0.25},
+        depositIdCol,
+        depositUserCol,
+        depositAmountCol,
+        depositTimeCol,
+        depositActionCol);
+
+    applyResponsiveColumnWidths(
+        passwordResetTable,
+        new double[] {0.06, 0.17, 0.34, 0.22, 0.21},
+        prIdCol,
+        prUsernameCol,
+        prEmailCol,
+        prTimeCol,
+        prActionCol);
+  }
+
+  private void setAdminColumnMinWidths() {
+    idCol.setMinWidth(48);
+    itemCol.setMinWidth(150);
+    statusCol.setMinWidth(100);
+    priceCol.setMinWidth(180);
+    actionCol.setMinWidth(260);
+
+    userIdCol.setMinWidth(48);
+    usernameCol.setMinWidth(120);
+    emailCol.setMinWidth(230);
+    roleCol.setMinWidth(80);
+    balanceCol.setMinWidth(190);
+    userActionCol.setMinWidth(95);
+
+    depositIdCol.setMinWidth(48);
+    depositUserCol.setMinWidth(120);
+    depositAmountCol.setMinWidth(190);
+    depositTimeCol.setMinWidth(150);
+    depositActionCol.setMinWidth(190);
+
+    prIdCol.setMinWidth(48);
+    prUsernameCol.setMinWidth(120);
+    prEmailCol.setMinWidth(230);
+    prTimeCol.setMinWidth(150);
+    prActionCol.setMinWidth(190);
+  }
+
+  @SafeVarargs
+  private final void applyResponsiveColumnWidths(
+      TableView<?> table, double[] ratios, TableColumn<?, ?>... columns) {
+    ChangeListener<Number> widthListener =
+        (obs, oldWidth, newWidth) -> resizeColumns(table, ratios, columns);
+    table.widthProperty().addListener(widthListener);
+    Platform.runLater(() -> resizeColumns(table, ratios, columns));
+  }
+
+  private void resizeColumns(TableView<?> table, double[] ratios, TableColumn<?, ?>... columns) {
+    if (table == null || table.getWidth() <= 0) {
+      return;
+    }
+    // Leave a small reserve for borders / scrollbar so the last column does not spill horizontally.
+    double usableWidth = Math.max(0, table.getWidth() - 18);
+    for (int i = 0; i < columns.length && i < ratios.length; i++) {
+      columns[i].setPrefWidth(usableWidth * ratios[i]);
+    }
+  }
+
   // ========== UI SETUP ==========
 
   /**
@@ -507,6 +607,19 @@ public class AdminPanelController implements Navigable {
   private void setupColumns() {
     idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
     itemCol.setCellValueFactory(new PropertyValueFactory<>("itemName"));
+    itemCol.setCellFactory(
+        col ->
+            new TableCell<>() {
+              @Override
+              protected void updateItem(String itemName, boolean empty) {
+                super.updateItem(itemName, empty);
+                setText(empty ? null : itemName);
+                setStyle(
+                    empty || itemName == null
+                        ? ""
+                        : "-fx-text-fill: " + AUCTION_NAME_BROWN + "; -fx-font-weight: bold;");
+              }
+            });
 
     statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
     statusCol.setCellFactory(
@@ -522,9 +635,9 @@ public class AdminPanelController implements Navigable {
                         : switch (status) {
                           case "RUNNING" -> "-fx-text-fill: #16A34A; -fx-font-weight: bold;";
                           case "OPEN" -> "-fx-text-fill: #1565C0; -fx-font-weight: bold;";
-                          case "FINISHED" -> "-fx-text-fill: #64748B;";
-                          case "CANCELED" -> "-fx-text-fill: #DC2626;";
-                          case "PAID" -> "-fx-text-fill: #9333EA;";
+                          case "FINISHED", "PAID" ->
+                              "-fx-text-fill: " + ENDED_STATUS_COLOR + "; -fx-font-weight: bold;";
+                          case "CANCELED" -> "-fx-text-fill: #DC2626; -fx-font-weight: bold;";
                           default -> "";
                         });
               }
@@ -538,6 +651,10 @@ public class AdminPanelController implements Navigable {
               protected void updateItem(BigDecimal price, boolean empty) {
                 super.updateItem(price, empty);
                 setText(empty || price == null ? null : VND.format(price) + " VND");
+                setStyle(
+                    empty || price == null
+                        ? ""
+                        : "-fx-text-fill: " + MONEY_COLOR + "; -fx-font-weight: bold;");
               }
             });
 
@@ -1273,6 +1390,10 @@ public class AdminPanelController implements Navigable {
               protected void updateItem(BigDecimal balance, boolean empty) {
                 super.updateItem(balance, empty);
                 setText(empty || balance == null ? null : VND.format(balance) + " VND");
+                setStyle(
+                    empty || balance == null
+                        ? ""
+                        : "-fx-text-fill: " + MONEY_COLOR + "; -fx-font-weight: bold;");
               }
             });
 
@@ -1384,6 +1505,10 @@ public class AdminPanelController implements Navigable {
               protected void updateItem(BigDecimal amount, boolean empty) {
                 super.updateItem(amount, empty);
                 setText(empty || amount == null ? null : VND.format(amount) + " VND");
+                setStyle(
+                    empty || amount == null
+                        ? ""
+                        : "-fx-text-fill: " + MONEY_COLOR + "; -fx-font-weight: bold;");
               }
             });
 

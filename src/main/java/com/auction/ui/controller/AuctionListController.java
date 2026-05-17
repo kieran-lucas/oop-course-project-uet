@@ -89,7 +89,7 @@ public class AuctionListController implements Navigable {
   private static final NumberFormat VND_AMOUNT =
       NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
   private static final Pattern AUCTION_ID_PATTERN =
-      Pattern.compile("#(\\d+)(?:\\s*(?:VND|VNĐ|₫|đ))?", Pattern.CASE_INSENSITIVE);
+      Pattern.compile("#(\\d+)(?:\\s*(?:VND|VNĐ|₫))?", Pattern.CASE_INSENSITIVE);
   private static final Pattern VND_AMOUNT_PATTERN =
       Pattern.compile("([+-]?\\s*[\\d.,]+\\s*(?:VND|VNĐ|₫|đ))", Pattern.CASE_INSENSITIVE);
   private static final Pattern NEW_BALANCE_PATTERN =
@@ -1018,7 +1018,7 @@ public class AuctionListController implements Navigable {
                 if ("FINISHED".equals(st) || "CANCELED".equals(st) || "PAID".equals(st)) {
                   setText("Đã kết thúc");
                   setTextFill(null);
-                  setStyle("-fx-alignment: CENTER; -fx-text-fill: #64748B;");
+                  setStyle("-fx-alignment: CENTER; -fx-text-fill: #64748B; -fx-font-weight: bold;");
                   return;
                 }
                 setTextFill(null);
@@ -1060,7 +1060,8 @@ public class AuctionListController implements Navigable {
                   long ms = java.time.Duration.between(now, endTime).toMillis();
                   if (ms <= 0) {
                     setText("Đã kết thúc");
-                    setStyle("-fx-alignment: CENTER; -fx-text-fill: #64748B;");
+                    setStyle(
+                        "-fx-alignment: CENTER; -fx-text-fill: #64748B; -fx-font-weight: bold;");
                   } else {
                     long totalSec = ms / 1000;
                     long h = totalSec / 3600;
@@ -1104,8 +1105,8 @@ public class AuctionListController implements Navigable {
                     switch (effective) {
                       case "RUNNING" -> "-fx-text-fill: #16A34A; -fx-font-weight: bold;";
                       case "OPEN" -> "-fx-text-fill: #1565C0; -fx-font-weight: bold;";
-                      case "FINISHED", "PAID" -> "-fx-text-fill: #64748B;";
-                      case "CANCELED" -> "-fx-text-fill: #DC2626;";
+                      case "FINISHED", "PAID" -> "-fx-text-fill: #64748B; -fx-font-weight: bold;";
+                      case "CANCELED" -> "-fx-text-fill: #DC2626; -fx-font-weight: bold;";
                       default -> "";
                     };
                 setStyle(color + " -fx-alignment: CENTER;");

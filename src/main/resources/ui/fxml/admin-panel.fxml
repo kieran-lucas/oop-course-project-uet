@@ -61,10 +61,10 @@
             <TableView fx:id="auctionTable" prefHeight="240.0" styleClass="auction-table">
                <columns>
                   <TableColumn fx:id="idCol" text="ID" prefWidth="60.0" />
-                  <TableColumn fx:id="itemCol" text="Sản phẩm" prefWidth="220.0" />
-                  <TableColumn fx:id="statusCol" text="Trạng thái" prefWidth="120.0" />
-                  <TableColumn fx:id="priceCol" text="Giá hiện tại" prefWidth="150.0" />
-                  <TableColumn fx:id="actionCol" text="Hành động" prefWidth="250.0" minWidth="240.0" />
+                  <TableColumn fx:id="itemCol" text="Sản phẩm" prefWidth="245.0" />
+                  <TableColumn fx:id="statusCol" text="Trạng thái" prefWidth="130.0" />
+                  <TableColumn fx:id="priceCol" text="Giá hiện tại" prefWidth="220.0" />
+                  <TableColumn fx:id="actionCol" text="Hành động" prefWidth="270.0" minWidth="240.0" />
                </columns>
                <placeholder>
                   <Label text="Không có phiên nào." />
@@ -87,9 +87,9 @@
                <columns>
                   <TableColumn fx:id="depositIdCol" text="ID" prefWidth="60.0" />
                   <TableColumn fx:id="depositUserCol" text="Người dùng" prefWidth="160.0" />
-                  <TableColumn fx:id="depositAmountCol" text="Số tiền" prefWidth="170.0" />
-                  <TableColumn fx:id="depositTimeCol" text="Thời gian" prefWidth="170.0" />
-                  <TableColumn fx:id="depositActionCol" text="Hành động" prefWidth="210.0" minWidth="200.0" />
+                  <TableColumn fx:id="depositAmountCol" text="Số tiền" prefWidth="230.0" />
+                  <TableColumn fx:id="depositTimeCol" text="Thời gian" prefWidth="180.0" />
+                  <TableColumn fx:id="depositActionCol" text="Hành động" prefWidth="220.0" minWidth="190.0" />
                </columns>
                <placeholder>
                   <Label text="Không có yêu cầu nạp tiền nào đang chờ." />
@@ -108,10 +108,10 @@
             <TableView fx:id="passwordResetTable" prefHeight="180.0" styleClass="auction-table">
                <columns>
                   <TableColumn fx:id="prIdCol" text="ID" prefWidth="60.0" />
-                  <TableColumn fx:id="prUsernameCol" text="Tên đăng nhập" prefWidth="160.0" />
-                  <TableColumn fx:id="prEmailCol" text="Email" prefWidth="210.0" />
-                  <TableColumn fx:id="prTimeCol" text="Thời gian yêu cầu" prefWidth="170.0" />
-                  <TableColumn fx:id="prActionCol" text="Hành động" prefWidth="210.0" minWidth="200.0" />
+                  <TableColumn fx:id="prUsernameCol" text="Tên đăng nhập" prefWidth="150.0" />
+                  <TableColumn fx:id="prEmailCol" text="Email" prefWidth="300.0" />
+                  <TableColumn fx:id="prTimeCol" text="Thời gian yêu cầu" prefWidth="180.0" />
+                  <TableColumn fx:id="prActionCol" text="Hành động" prefWidth="220.0" minWidth="190.0" />
                </columns>
                <placeholder>
                   <Label text="Không có yêu cầu đặt lại mật khẩu nào đang chờ." />
@@ -129,11 +129,11 @@
             <TableView fx:id="userTable" prefHeight="240.0" styleClass="auction-table">
                <columns>
                   <TableColumn fx:id="userIdCol" text="ID" prefWidth="60.0" />
-                  <TableColumn fx:id="usernameCol" text="Tên đăng nhập" prefWidth="160.0" />
-                  <TableColumn fx:id="emailCol" text="Email" prefWidth="210.0" />
+                  <TableColumn fx:id="usernameCol" text="Tên đăng nhập" prefWidth="150.0" />
+                  <TableColumn fx:id="emailCol" text="Email" prefWidth="300.0" />
                   <TableColumn fx:id="roleCol" text="Vai trò" prefWidth="100.0" />
-                  <TableColumn fx:id="balanceCol" text="Số dư" prefWidth="150.0" />
-                  <TableColumn fx:id="userActionCol" text="Hành động" prefWidth="120.0" minWidth="110.0" />
+                  <TableColumn fx:id="balanceCol" text="Số dư" prefWidth="230.0" />
+                  <TableColumn fx:id="userActionCol" text="Hành động" prefWidth="120.0" minWidth="100.0" />
                </columns>
                <placeholder>
                   <Label text="Không có người dùng nào." />
