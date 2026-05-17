@@ -496,13 +496,13 @@ public class AuctionListController implements Navigable {
   }
 
   // Notification palette ─ chosen against the bell popup's dark navy background
-  //  USER_COLOR  → light sky-blue, clearly reads as "blue"
-  //  AUCTION_COLOR → warm tan/brown, clearly reads as "nâu"
+  //  USER_COLOR  → same blue as leading bidder names
+  //  AUCTION_COLOR → same brown as auction/product names
   //  PRICE_COLOR → existing yellow highlight for amounts
   //  ADMIN_COLOR → silver-gray role marker for "Admin"
   //  DEFAULT_COLOR → near-white body text
-  private static final String USER_COLOR = "#60A5FA";
-  private static final String AUCTION_COLOR = "#E0A458";
+  private static final String USER_COLOR = "#2563EB";
+  private static final String AUCTION_COLOR = "#7C5430";
   private static final String PRICE_COLOR = "#F59E0B";
   private static final String TIME_COLOR = "#7C3AED";
   private static final String CATEGORY_ELECTRONICS_COLOR = "#1D4ED8";

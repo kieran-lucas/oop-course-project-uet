@@ -88,6 +88,9 @@ public class AuctionDetailController implements Navigable {
   private static final String ARTIST_VALUE_COLOR = "#92400E";
   private static final String YEAR_VALUE_COLOR = "#4B5563";
   private static final String LEADING_BIDDER_COLOR = "#2563EB";
+  private static final String CATEGORY_ELECTRONICS_COLOR = "#1D4ED8";
+  private static final String CATEGORY_VEHICLE_COLOR = "#374151";
+  private static final String CATEGORY_ART_COLOR = "#EA580C";
 
   private static String vnd(java.math.BigDecimal v) {
     return v == null ? "?" : VND_FMT.format(v) + " VND";
@@ -268,6 +271,24 @@ public class AuctionDetailController implements Navigable {
         hasLeader ? "-fx-text-fill: " + LEADING_BIDDER_COLOR + "; -fx-font-weight: bold;" : "");
   }
 
+  private String categoryColor(String category) {
+    return switch (category) {
+      case "ELECTRONICS" -> CATEGORY_ELECTRONICS_COLOR;
+      case "VEHICLE" -> CATEGORY_VEHICLE_COLOR;
+      case "ART" -> CATEGORY_ART_COLOR;
+      default -> "#1E293B";
+    };
+  }
+
+  private void applyCategoryStyle(String category) {
+    if (category == null || category.isBlank()) {
+      itemCategoryLabel.setStyle("");
+      return;
+    }
+    itemCategoryLabel.setStyle(
+        "-fx-text-fill: " + categoryColor(category) + "; -fx-font-weight: bold;");
+  }
+
   // ========== NAVIGABLE LIFECYCLE ==========
 
   /**
@@ -341,6 +362,7 @@ public class AuctionDetailController implements Navigable {
       leadingBidderLabel.setStyle("");
       itemNameLabel.setText("Đang tải...");
       itemCategoryLabel.setText("");
+      itemCategoryLabel.setStyle("");
       itemDescriptionLabel.setText("");
       clearPrefixedValue(itemBrandLabel);
       itemBrandLabel.setVisible(false);
@@ -1309,7 +1331,9 @@ public class AuctionDetailController implements Navigable {
     currentItemName = auction.getItemName();
     itemNameLabel.setText(
         currentItemName != null ? currentItemName : "Sản phẩm #" + auction.getItemId());
-    itemCategoryLabel.setText(auction.getItemCategory() != null ? auction.getItemCategory() : "");
+    String category = auction.getItemCategory();
+    itemCategoryLabel.setText(category != null ? category : "");
+    applyCategoryStyle(category);
     itemDescriptionLabel.setText(
         auction.getItemDescription() != null ? auction.getItemDescription() : "");
 
