@@ -97,8 +97,7 @@ class BidTransactionDaoTest {
     testSeller = userDao.insert(new Seller("bid_seller", "hash", "seller@test.com"));
     testBidder = userDao.insert(new Bidder("bid_bidder", "hash", "bidder@test.com"));
 
-    testItem = new Item("Bid Item", "Test", testSeller.getId(), "ELECTRONICS");
-    testItem.setBrand("Brand");
+    testItem = new Electronics("Bid Item", "Test", testSeller.getId(), "Brand");
     itemDao.insert(testItem);
 
     testAuction =

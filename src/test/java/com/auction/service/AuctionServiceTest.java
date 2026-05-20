@@ -17,6 +17,7 @@ import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.model.Auction;
 import com.auction.model.AuctionStatus;
+import com.auction.model.Electronics;
 import com.auction.model.Item;
 import com.auction.pattern.state.AuctionState;
 import com.auction.pattern.state.SettlingState;
@@ -90,9 +91,8 @@ class AuctionServiceTest {
 
   /** Tạo Item mẫu thuộc SELLER_ID */
   private Item buildItem() {
-    Item e = new Item("Laptop Dell", "...", SELLER_ID, "ELECTRONICS");
+    Item e = new Electronics("Laptop Dell", "...", SELLER_ID, "Dell");
     e.setId(ITEM_ID);
-    e.setBrand("Dell");
     return e;
   }
 

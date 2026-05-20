@@ -1,60 +1,59 @@
 package com.auction.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.time.LocalDateTime;
 
 /**
- * Lớp đại diện cho một sản phẩm có thể tham gia đấu giá.
+ * Base class for an auction item.
  *
- * <p>Đã được làm phẳng (flattened) từ cấu trúc kế thừa cũ để đơn giản hóa việc quản lý và lưu trữ.
- * Thay vì có các lớp con Electronics, Art, Vehicle, tất cả thông tin giờ đây nằm trong class Item.
+ * <p>Only fields shared by every item type live here. Category-specific details belong in
+ * subclasses such as {@link Electronics}, {@link Art}, and {@link Vehicle}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Item extends Entity {
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "category", visible = true)
+@JsonSubTypes({
+  @JsonSubTypes.Type(value = Electronics.class, name = "ELECTRONICS"),
+  @JsonSubTypes.Type(value = Art.class, name = "ART"),
+  @JsonSubTypes.Type(value = Vehicle.class, name = "VEHICLE")
+})
+public abstract class Item extends Entity {
 
   private String name;
   private String description;
-  private Long sellerId; // khóa ngoại tham chiếu đến bảng users
-  private String category; // "ELECTRONICS", "ART", "VEHICLE"
+  private Long sellerId;
   private String status = "AVAILABLE"; // AVAILABLE, IN_AUCTION, SOLD, REMOVED
 
-  // Các trường đặc thù (có thể null tùy vào category)
-  private String brand; // dùng cho ELECTRONICS
-  private String artist; // dùng cho ART
-  private Integer year; // dùng cho VEHICLE
-
-  /** Constructor mặc định — phục vụ framework/JDBI khi tạo object */
-  public Item() {
+  /** Constructor for frameworks/Jackson. */
+  protected Item() {
     super();
   }
 
-  /** Khởi tạo một sản phẩm mới chưa được lưu vào DB */
-  public Item(String name, String description, Long sellerId, String category) {
+  /** Creates a new item before persistence assigns an id. */
+  protected Item(String name, String description, Long sellerId) {
     super();
     this.name = name;
     this.description = description;
     this.sellerId = sellerId;
-    this.category = category;
   }
 
-  /** Khởi tạo một sản phẩm từ bản ghi đã tồn tại trong DB */
-  public Item(
+  /** Rehydrates an item from an existing database row. */
+  protected Item(
       Long id,
       String name,
       String description,
       Long sellerId,
-      String category,
       String status,
       LocalDateTime createdAt) {
     super(id, createdAt);
     this.name = name;
     this.description = description;
     this.sellerId = sellerId;
-    this.category = category;
-    this.status = status;
+    this.status = status == null ? "AVAILABLE" : status;
   }
 
-  // === Getters & Setters ===
+  public abstract String getCategory();
 
   public String getName() {
     return name;
@@ -80,14 +79,6 @@ public class Item extends Entity {
     this.sellerId = sellerId;
   }
 
-  public String getCategory() {
-    return category;
-  }
-
-  public void setCategory(String category) {
-    this.category = category;
-  }
-
   public String getStatus() {
     return status;
   }
@@ -96,36 +87,11 @@ public class Item extends Entity {
     this.status = status;
   }
 
-  public String getBrand() {
-    return brand;
-  }
-
-  public void setBrand(String brand) {
-    this.brand = brand;
-  }
-
-  public String getArtist() {
-    return artist;
-  }
-
-  public void setArtist(String artist) {
-    this.artist = artist;
-  }
-
-  public Integer getYear() {
-    return year;
-  }
-
-  public void setYear(Integer year) {
-    this.year = year;
-  }
-
   @Override
   public String toString() {
-    return "Item{name='"
+    return getCategory()
+        + "{name='"
         + name
-        + "', category='"
-        + category
         + "', status='"
         + status
         + "', seller="

@@ -50,36 +50,36 @@ class ItemDaoTest {
   @Test
   @DisplayName("Insert Item should work")
   void testInsertItem() {
-    Item item = new Item("iPhone 15", "New phone", testSeller.getId(), "ELECTRONICS");
-    item.setBrand("Apple");
+    Item item = new Electronics("iPhone 15", "New phone", testSeller.getId(), "Apple");
 
     Item saved = itemDao.insert(item);
 
     assertNotNull(saved.getId());
     assertEquals("ELECTRONICS", saved.getCategory());
-    assertEquals("Apple", saved.getBrand());
+    assertTrue(saved instanceof Electronics);
+    assertEquals("Apple", ((Electronics) saved).getBrand());
     assertEquals("AVAILABLE", saved.getStatus());
   }
 
   @Test
   @DisplayName("FindById should return correct item")
   void testFindById() {
-    Item item = new Item("Test Laptop", "Gaming laptop", testSeller.getId(), "ELECTRONICS");
-    item.setBrand("Dell");
+    Item item = new Electronics("Test Laptop", "Gaming laptop", testSeller.getId(), "Dell");
     Item saved = itemDao.insert(item);
 
     Optional<Item> found = itemDao.findById(saved.getId());
 
     assertTrue(found.isPresent());
     assertEquals("Test Laptop", found.get().getName());
-    assertEquals("Dell", found.get().getBrand());
+    assertTrue(found.get() instanceof Electronics);
+    assertEquals("Dell", ((Electronics) found.get()).getBrand());
     assertEquals("AVAILABLE", found.get().getStatus());
   }
 
   @Test
   @DisplayName("Item status should round-trip through DAO")
   void testItemStatusRoundTrip() {
-    Item item = new Item("Painting", "Art", testSeller.getId(), "ART");
+    Item item = new Art("Painting", "Art", testSeller.getId(), "Unknown");
     item.setStatus("IN_AUCTION");
 
     Item saved = itemDao.insert(item);
@@ -92,8 +92,8 @@ class ItemDaoTest {
   @Test
   @DisplayName("FindBySellerId should return all items of a seller")
   void testFindBySellerId() {
-    itemDao.insert(new Item("Laptop", "Dell", testSeller.getId(), "ELECTRONICS"));
-    itemDao.insert(new Item("Painting", "Art", testSeller.getId(), "ART"));
+    itemDao.insert(new Electronics("Laptop", "Dell", testSeller.getId(), "Dell"));
+    itemDao.insert(new Art("Painting", "Art", testSeller.getId(), "Artist"));
 
     List<Item> items = itemDao.findBySellerId(testSeller.getId());
 
@@ -103,8 +103,8 @@ class ItemDaoTest {
   @Test
   @DisplayName("FindByCategory should filter by category")
   void testFindByCategory() {
-    itemDao.insert(new Item("Phone", "Smartphone", testSeller.getId(), "ELECTRONICS"));
-    itemDao.insert(new Item("Sculpture", "Art", testSeller.getId(), "ART"));
+    itemDao.insert(new Electronics("Phone", "Smartphone", testSeller.getId(), "Apple"));
+    itemDao.insert(new Art("Sculpture", "Art", testSeller.getId(), "Artist"));
 
     List<Item> electronics = itemDao.findByCategory("ELECTRONICS");
     List<Item> arts = itemDao.findByCategory("ART");
@@ -116,12 +116,11 @@ class ItemDaoTest {
   @Test
   @DisplayName("Update should modify item details")
   void testUpdate() {
-    Item item = new Item("Old Name", "Old desc", testSeller.getId(), "ELECTRONICS");
-    item.setBrand("Old Brand");
+    Item item = new Electronics("Old Name", "Old desc", testSeller.getId(), "Old Brand");
     Item saved = itemDao.insert(item);
 
     saved.setName("New Name");
-    saved.setBrand("New Brand");
+    ((Electronics) saved).setBrand("New Brand");
     saved.setStatus("SOLD");
 
     boolean updated = itemDao.update(saved);
@@ -131,14 +130,15 @@ class ItemDaoTest {
     Optional<Item> found = itemDao.findById(saved.getId());
     assertTrue(found.isPresent());
     assertEquals("New Name", found.get().getName());
-    assertEquals("New Brand", found.get().getBrand());
+    assertTrue(found.get() instanceof Electronics);
+    assertEquals("New Brand", ((Electronics) found.get()).getBrand());
     assertEquals("SOLD", found.get().getStatus());
   }
 
   @Test
   @DisplayName("Delete should mark item as REMOVED")
   void testDeleteMarksItemRemoved() {
-    Item item = new Item("To Delete", "Temp", testSeller.getId(), "ELECTRONICS");
+    Item item = new Electronics("To Delete", "Temp", testSeller.getId(), "Brand");
     Item saved = itemDao.insert(item);
 
     boolean deleted = itemDao.delete(saved.getId());

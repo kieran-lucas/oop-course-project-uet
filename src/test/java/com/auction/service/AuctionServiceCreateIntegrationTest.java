@@ -13,6 +13,7 @@ import com.auction.dto.CreateAuctionRequest;
 import com.auction.exception.DuplicateException;
 import com.auction.model.Auction;
 import com.auction.model.AuctionStatus;
+import com.auction.model.Electronics;
 import com.auction.model.Item;
 import com.auction.model.Seller;
 import com.auction.model.User;
@@ -73,7 +74,7 @@ class AuctionServiceCreateIntegrationTest {
         });
 
     testSeller = userDao.insert(new Seller("seller", "hash", "seller@test.com"));
-    testItem = new Item("Single item", "Only one unit", testSeller.getId(), "ELECTRONICS");
+    testItem = new Electronics("Single item", "Only one unit", testSeller.getId(), "Brand");
     testItem = itemDao.insert(testItem);
   }
 

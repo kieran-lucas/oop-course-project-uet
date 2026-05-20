@@ -102,8 +102,7 @@ class AuctionDaoTest {
     // Item=1).
     testSeller = userDao.insert(new Seller("auction_seller", "hash", "seller@test.com"));
     testBidder = userDao.insert(new Bidder("auction_bidder", "hash", "bidder@test.com"));
-    testItem = new Item("Auction Item", "For auction", testSeller.getId(), "ELECTRONICS");
-    testItem.setBrand("Brand");
+    testItem = new Electronics("Auction Item", "For auction", testSeller.getId(), "Brand");
     itemDao.insert(testItem);
 
     System.out.println(

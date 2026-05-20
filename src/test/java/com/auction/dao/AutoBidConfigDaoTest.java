@@ -103,8 +103,7 @@ class AutoBidConfigDaoTest {
     testBidder1 = userDao.insert(new Bidder("auto_bidder1", "hash", "bidder1@test.com"));
     testBidder2 = userDao.insert(new Bidder("auto_bidder2", "hash", "bidder2@test.com"));
 
-    testItem = new Item("Auto Item", "Test", testSeller.getId(), "ELECTRONICS");
-    testItem.setBrand("Brand");
+    testItem = new Electronics("Auto Item", "Test", testSeller.getId(), "Brand");
     itemDao.insert(testItem);
 
     testAuction =

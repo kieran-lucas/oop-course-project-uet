@@ -10,6 +10,7 @@ import com.auction.dao.BidTransactionDao;
 import com.auction.dao.DepositRequestDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
+import com.auction.model.Art;
 import com.auction.model.Auction;
 import com.auction.model.AuctionStatus;
 import com.auction.model.Bidder;
@@ -163,7 +164,7 @@ class WalletLedgerIntegrationTest {
   }
 
   private Auction createRunningAuction(String itemName) {
-    Item item = itemDao.insert(new Item(itemName, "ledger test item", seller.getId(), "ART"));
+    Item item = itemDao.insert(new Art(itemName, "ledger test item", seller.getId(), "Artist"));
     Auction auction =
         new Auction(
             item.getId(),

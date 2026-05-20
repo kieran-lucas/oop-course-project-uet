@@ -13,9 +13,12 @@ import com.auction.dto.PageRequest;
 import com.auction.exception.DuplicateException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
+import com.auction.model.Art;
 import com.auction.model.Auction;
 import com.auction.model.AuctionStatus;
+import com.auction.model.Electronics;
 import com.auction.model.Item;
+import com.auction.model.Vehicle;
 import com.auction.pattern.observer.AuctionEventManager;
 import com.auction.pattern.state.AuctionState;
 import com.auction.pattern.state.AuctionStates;
@@ -692,9 +695,13 @@ public class AuctionService {
               response.setItemDescription(item.getDescription());
 
               // Bổ sung field đặc thù theo loại sản phẩm (từ flat model)
-              response.setItemBrand(item.getBrand());
-              response.setItemArtist(item.getArtist());
-              response.setItemYear(item.getYear());
+              if (item instanceof Electronics electronics) {
+                response.setItemBrand(electronics.getBrand());
+              } else if (item instanceof Art art) {
+                response.setItemArtist(art.getArtist());
+              } else if (item instanceof Vehicle vehicle) {
+                response.setItemYear(vehicle.getYear());
+              }
             });
 
     // Bổ sung leadingBidderUsername

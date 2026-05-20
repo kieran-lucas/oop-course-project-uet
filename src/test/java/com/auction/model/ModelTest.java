@@ -72,6 +72,18 @@ class ModelTest {
         assertNotNull(user.getCreatedAt());
       }
     }
+
+    @Test
+    @DisplayName("Each Item subclass returns different category")
+    void itemCategories() {
+      Item electronics = new Electronics("iPhone", "Phone", 1L, "Apple");
+      Item art = new Art("Mona Lisa", "Painting", 1L, "Da Vinci");
+      Item vehicle = new Vehicle("Camry", "Car", 1L, 2022);
+
+      assertEquals("ELECTRONICS", electronics.getCategory());
+      assertEquals("ART", art.getCategory());
+      assertEquals("VEHICLE", vehicle.getCategory());
+    }
   }
 
   @Nested
@@ -143,7 +155,7 @@ class ModelTest {
     @Test
     @DisplayName("New item has status AVAILABLE")
     void newItemDefaultsToAvailable() {
-      Item item = new Item("Phone", "New phone", 1L, "ELECTRONICS");
+      Item item = new Electronics("Phone", "New phone", 1L, "Apple");
 
       assertEquals("AVAILABLE", item.getStatus());
     }

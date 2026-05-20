@@ -1,6 +1,9 @@
 package com.auction.dao;
 
+import com.auction.model.Art;
+import com.auction.model.Electronics;
 import com.auction.model.Item;
+import com.auction.model.Vehicle;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -10,18 +13,9 @@ import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/**
- * DAO (Data Access Object) cho bảng items.
- *
- * <p>Quản lý các thao tác CRUD cho sản phẩm. Đã được đơn giản hóa để sử dụng model Item phẳng,
- * không còn xử lý polymorphism tại tầng DAO.
- */
+/** DAO for the items table. Maps each row back to the concrete Item subtype by category. */
 public class ItemDao {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(ItemDao.class);
 
   private static final String SELECT_COLUMNS =
       "id, name, description, seller_id, category, status, brand, artist, year, created_at,"
@@ -33,25 +27,34 @@ public class ItemDao {
     this.jdbi = jdbi;
   }
 
-  /** RowMapper chuyển ResultSet thành Item object. */
   private static class ItemMapper implements RowMapper<Item> {
     @Override
     public Item map(ResultSet rs, StatementContext ctx) throws SQLException {
-      Item item = new Item();
-      item.setId(rs.getLong("id"));
-      item.setName(rs.getString("name"));
-      item.setDescription(rs.getString("description"));
-      item.setSellerId(rs.getLong("seller_id"));
-      item.setCategory(rs.getString("category"));
-      item.setStatus(rs.getString("status"));
-      item.setBrand(rs.getString("brand"));
-      item.setArtist(rs.getString("artist"));
+      Long id = rs.getLong("id");
+      String name = rs.getString("name");
+      String description = rs.getString("description");
+      Long sellerId = rs.getLong("seller_id");
+      String category = rs.getString("category");
+      String status = rs.getString("status");
+      LocalDateTime createdAt = rs.getTimestamp("created_at").toLocalDateTime();
+
+      return switch (category) {
+        case "ELECTRONICS" ->
+            new Electronics(
+                id, name, description, sellerId, status, rs.getString("brand"), createdAt);
+        case "ART" ->
+            new Art(id, name, description, sellerId, status, rs.getString("artist"), createdAt);
+        case "VEHICLE" ->
+            new Vehicle(id, name, description, sellerId, status, nullableYear(rs), createdAt);
+        default ->
+            throw new IllegalStateException(
+                "Invalid item category in database: " + category + " for item #" + id);
+      };
+    }
+
+    private Integer nullableYear(ResultSet rs) throws SQLException {
       int year = rs.getInt("year");
-      if (!rs.wasNull()) {
-        item.setYear(year);
-      }
-      item.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
-      return item;
+      return rs.wasNull() ? null : year;
     }
   }
 
@@ -75,9 +78,9 @@ public class ItemDao {
                   .bind("sellerId", item.getSellerId())
                   .bind("category", item.getCategory())
                   .bind("status", item.getStatus())
-                  .bind("brand", item.getBrand())
-                  .bind("artist", item.getArtist())
-                  .bind("year", item.getYear())
+                  .bind("brand", getBrand(item))
+                  .bind("artist", getArtist(item))
+                  .bind("year", getYear(item))
                   .bind("createdAt", item.getCreatedAt())
                   .bind("updatedAt", item.getCreatedAt())
                   .mapTo(Long.class)
@@ -159,9 +162,9 @@ public class ItemDao {
                     .bind("name", item.getName())
                     .bind("description", item.getDescription())
                     .bind("status", item.getStatus())
-                    .bind("brand", item.getBrand())
-                    .bind("artist", item.getArtist())
-                    .bind("year", item.getYear())
+                    .bind("brand", getBrand(item))
+                    .bind("artist", getArtist(item))
+                    .bind("year", getYear(item))
                     .bind("updatedAt", LocalDateTime.now())
                     .bind("id", item.getId())
                     .execute());
@@ -207,5 +210,26 @@ public class ItemDao {
                     .mapTo(Long.class)
                     .one());
     return count > 0;
+  }
+
+  private String getBrand(Item item) {
+    if (item instanceof Electronics electronics) {
+      return electronics.getBrand();
+    }
+    return null;
+  }
+
+  private String getArtist(Item item) {
+    if (item instanceof Art art) {
+      return art.getArtist();
+    }
+    return null;
+  }
+
+  private Integer getYear(Item item) {
+    if (item instanceof Vehicle vehicle) {
+      return vehicle.getYear();
+    }
+    return null;
   }
 }

@@ -32,7 +32,7 @@ A full-stack **desktop auction platform** built with Java 21. A **JavaFX client*
 - A **6-state auction lifecycle** enforced by the State pattern - illegal state operations throw typed exceptions instead of failing silently
 - **12 JavaFX screens** with a clean blue theme (`#1565C0` primary, `#EFF6FF` background) and a live `AreaChart` fed directly from WebSocket events
 
-The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle) stored in a flattened `Item` model, and the main auction workflow from item creation to settlement, with supporting deposit and password-reset flows — **99 production Java files**, **28 test classes**, and **17 Flyway migrations**.
+The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle) modeled as `Item` subclasses, and the main auction workflow from item creation to settlement, with supporting deposit and password-reset flows — **103 production Java files**, **29 test classes**, and **17 Flyway migrations**.
 
 **Environment:** Java 21+ • Windows / macOS / Linux • Default local run uses embedded PostgreSQL; no separately installed local database is required
 
@@ -133,14 +133,24 @@ classDiagram
     }
 
     class Item {
+        <<abstract>>
         -String name
         -String description
         -Long sellerId
-        -String category
         -String status
+        +getCategory()* String
+    }
+    class Electronics {
         -String brand
+        +getCategory() String
+    }
+    class Art {
         -String artist
+        +getCategory() String
+    }
+    class Vehicle {
         -Integer year
+        +getCategory() String
     }
 
     class Auction {
@@ -234,6 +244,9 @@ classDiagram
     User <|-- Bidder
     User <|-- Seller
     User <|-- Admin
+    Item <|-- Electronics
+    Item <|-- Art
+    Item <|-- Vehicle
 
     Auction --> AuctionStatus : status
     AutoBidConfig --> AutoBidStatus : status
@@ -355,6 +368,11 @@ classDiagram
         +create(String role)$ User
     }
 
+    class ItemFactory {
+        <<utility>>
+        +create(CreateItemRequest, Long)$ Item
+    }
+
     AuctionState <|.. OpenState
     AuctionState <|.. RunningState
     AuctionState <|.. SettlingState
@@ -371,6 +389,7 @@ classDiagram
 
     AuctionStateFactory ..> AuctionStates : returns singleton
     UserFactory ..> User : new Bidder/Seller/Admin
+    ItemFactory ..> Item : new Electronics/Art/Vehicle
 
     note for AuctionStates "Eagerly-initialized stateless singletons.\nFactory never allocates — switches on status string."
 ```
@@ -694,7 +713,7 @@ WebSocketObserver (Concrete Observer)
 
 **Trigger:** `BidService.placeBid()` succeeds → `eventManager.notify()` → subscribed auction-detail clients update immediately.
 
-### 2. Factory Method - State/User Creation
+### 2. Factory Method - State/User/Item Creation
 
 ```
 AuctionStateFactory.create(status)
@@ -709,9 +728,14 @@ UserFactory.create(role)
   ├── "BIDDER" → new Bidder()
   ├── "SELLER" → new Seller()
   └── "ADMIN"  → new Admin()
+
+ItemFactory.create(category)
+  ├── "ELECTRONICS" → new Electronics()
+  ├── "ART"         → new Art()
+  └── "VEHICLE"     → new Vehicle()
 ```
 
-`Item` is now a flattened model with category-specific fields (`brand`, `artist`, `year`) instead of separate item subclasses.
+The database still uses one `items` table with nullable type-specific columns, but the Java domain model remains polymorphic.
 
 ### 3. Strategy - Auto-Bid Chain Execution
 
@@ -758,8 +782,10 @@ Entity (abstract)           ← id: Long, createdAt: LocalDateTime
 │   ├── Seller              ← getRole() = "SELLER"
 │   └── Admin               ← getRole() = "ADMIN"
 │
-├── Item                    ← flattened item model: name, description, sellerId, category, status
-│                              category-specific nullable fields: brand / artist / year
+├── Item (abstract)         ← common fields: name, description, sellerId, status, getCategory()
+│   ├── Electronics         ← brand
+│   ├── Art                 ← artist
+│   └── Vehicle             ← year
 │
 ├── Auction                 ← startingPrice / currentPrice: BigDecimal (not double)
 │                              status: OPEN / RUNNING / SETTLING / FINISHED / PAID / CANCELED
@@ -1354,7 +1380,10 @@ oop-course-project-uet/
 │   │   │   │   ├── BidTransaction.java         ← Immutable record: { auctionId, bidderId, amount, autoBid }
 │   │   │   │   ├── DepositRecord.java          ← { userId, amount, status, reviewedAt }
 │   │   │   │   ├── Entity.java                 ← Abstract root: { id: Long, createdAt: LocalDateTime }
-│   │   │   │   ├── Item.java                   ← Flattened model: name, description, sellerId, category, status, brand/artist/year
+│   │   │   │   ├── Item.java                   ← Abstract base: name, description, sellerId, status, getCategory()
+│   │   │   │   ├── Electronics.java            ← Item subclass: brand
+│   │   │   │   ├── Art.java                    ← Item subclass: artist
+│   │   │   │   ├── Vehicle.java                ← Item subclass: year
 │   │   │   │   ├── PasswordResetRecord.java    ← { userId, status, reviewedAt } - Admin-reviewed reset flow
 │   │   │   │   ├── Seller.java                 ← User subclass · getRole() = "SELLER"
 │   │   │   │   ├── User.java                   ← Abstract: { username, passwordHash, email, balance: BigDecimal }
@@ -1365,6 +1394,7 @@ oop-course-project-uet/
 │   │   │   ├── pattern/
 │   │   │   │   ├── factory/
 │   │   │   │   │   ├── AuctionStateFactory.java← Factory for state singletons by auction status
+│   │   │   │   │   ├── ItemFactory.java        ← Factory for Item subclasses by category string
 │   │   │   │   │   └── UserFactory.java        ← Factory for User subclasses by role string
 │   │   │   │   │
 │   │   │   │   ├── observer/
@@ -1396,7 +1426,7 @@ oop-course-project-uet/
 │   │   │   │   │                                  validates state via RunningState.placeBid (State pattern)
 │   │   │   │   │                                  Anti-sniping: if remaining < 30s → extend endTime +60s + notifyTimeExtended
 │   │   │   │   │                                  Post-bid: chains AutoBidStrategy.executeAllInTransaction inside same tx
-│   │   │   │   ├── ItemService.java            ← Creates flattened Item objects; maps category detail into brand/artist/year
+│   │   │   │   ├── ItemService.java            ← Creates concrete Item subclasses through ItemFactory
 │   │   │   │   ├── NotificationService.java    ← Wraps NotificationDao: list recent, mark one read, mark all read
 │   │   │   │   ├── PasswordResetService.java   ← Creates PasswordResetRecord(PENDING)
 │   │   │   │   │                                  Admin approves → generates random 6-character temporary password
@@ -1548,9 +1578,9 @@ oop-course-project-uet/
 
 | Rubric item | Points | File / Folder |
 |---|---|---|
-| Class design, inheritance hierarchy | 0.5 | `model/Entity` → `User` → `Bidder/Seller/Admin` · flattened `Item` with category-specific fields |
-| OOP principles | 1.0 | Encapsulation (private + getter/setter) · Inheritance · Polymorphism (`getRole()`) · Abstraction (abstract `User`) · Encapsulated flattened `Item` category fields |
-| Design patterns | 1.0 | `pattern/observer/` · `pattern/factory/` (`AuctionStateFactory`, `UserFactory`) · `pattern/strategy/` · `pattern/state/` · `dao/` |
+| Class design, inheritance hierarchy | 0.5 | `model/Entity` → `User` → `Bidder/Seller/Admin` · `Item` → `Electronics/Art/Vehicle` |
+| OOP principles | 1.0 | Encapsulation (private + getter/setter) · Inheritance · Polymorphism (`getRole()`, `getCategory()`) · Abstraction (abstract `User`, abstract `Item`) |
+| Design patterns | 1.0 | `pattern/observer/` · `pattern/factory/` (`AuctionStateFactory`, `ItemFactory`, `UserFactory`) · `pattern/strategy/` · `pattern/state/` · `dao/` |
 | User & item management | 1.0 | `AuthController` · `ItemController` · `AuctionController` + 12 JavaFX screens |
 | Auction functionality | 1.0 | `BidService.placeBid()` · `BidController` · `RunningState` · `AutoBidStrategy` |
 | Error handling & exceptions | 1.0 | `exception/AuctionException` (abstract) + 5 custom + handlers in `App.java` |

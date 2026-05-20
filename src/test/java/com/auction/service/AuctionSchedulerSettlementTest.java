@@ -8,6 +8,7 @@ import com.auction.dao.AutoBidConfigDao;
 import com.auction.dao.BidTransactionDao;
 import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
+import com.auction.model.Art;
 import com.auction.model.Auction;
 import com.auction.model.AuctionStatus;
 import com.auction.model.Bidder;
@@ -177,7 +178,7 @@ class AuctionSchedulerSettlementTest {
 
   private Auction createRunningAuction(
       String itemName, Long leaderId, BigDecimal currentPrice, LocalDateTime endTime) {
-    Item item = itemDao.insert(new Item(itemName, "Settlement test item", seller.getId(), "ART"));
+    Item item = itemDao.insert(new Art(itemName, "Settlement test item", seller.getId(), "Artist"));
     Auction auction =
         new Auction(item.getId(), currentPrice, LocalDateTime.now().minusHours(2), endTime);
     auction.setSellerId(seller.getId());
