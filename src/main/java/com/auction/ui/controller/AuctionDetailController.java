@@ -299,6 +299,9 @@ public class AuctionDetailController implements Navigable {
   public void onDataReceived(Object data) {
     if (data instanceof Long id) {
       this.auctionId = id;
+    } else if (data instanceof AuctionResponse auction && auction.getId() != null) {
+      this.auctionId = auction.getId();
+      detailCache.put(auction.getId(), auction);
     }
   }
 
@@ -1105,9 +1108,7 @@ public class AuctionDetailController implements Navigable {
           setLeadingBidderText(msg.getLeadingBidderUsername());
         }
         if (msg.getEndTime() != null) {
-          endTimeMs =
-              java.time.Duration.between(java.time.LocalDateTime.now(), msg.getEndTime())
-                  .toMillis();
+          applyEndTimeUpdate(msg.getEndTime());
         }
         showBidNotification(msg);
         loadBidHistory();
@@ -1118,9 +1119,7 @@ public class AuctionDetailController implements Navigable {
       }
       case BidUpdateMessage.TYPE_TIME_EXTENDED -> {
         if (msg.getEndTime() != null) {
-          endTimeMs =
-              java.time.Duration.between(java.time.LocalDateTime.now(), msg.getEndTime())
-                  .toMillis();
+          applyEndTimeUpdate(msg.getEndTime());
           LOGGER.info("Anti-sniping: thời gian gia hạn đến {}", msg.getEndTime());
         }
       }
@@ -1493,17 +1492,17 @@ public class AuctionDetailController implements Navigable {
    */
   private void startCountdown() {
     stopCountdown();
+    renderCountdown();
+    if (endTimeMs == null || endTimeMs <= 0) {
+      return;
+    }
     countdownTimeline =
         new Timeline(
             new KeyFrame(
                 Duration.seconds(1),
                 e -> {
                   if (endTimeMs != null && endTimeMs > 0) {
-                    endTimeMs -= 1000;
-                    long h = endTimeMs / 3_600_000;
-                    long m = (endTimeMs % 3_600_000) / 60_000;
-                    long s = (endTimeMs % 60_000) / 1000;
-                    countdownLabel.setText(String.format("%02d:%02d:%02d", h, m, s));
+                    endTimeMs = Math.max(0, endTimeMs - 1000);
                   } else if (countdownToStart && pendingRunningEndTime != null) {
                     // OPEN → RUNNING: chuyển sang đếm ngược đến endTime
                     countdownToStart = false;
@@ -1521,9 +1520,51 @@ public class AuctionDetailController implements Navigable {
                     markCountdownEnded();
                     stopCountdown();
                   }
+                  renderCountdown();
                 }));
     countdownTimeline.setCycleCount(Timeline.INDEFINITE);
     countdownTimeline.play();
+  }
+
+  /** Áp dụng endTime mới từ WebSocket và vẽ lại countdown ngay lập tức. */
+  private void applyEndTimeUpdate(java.time.LocalDateTime endTime) {
+    if (endTime == null) {
+      return;
+    }
+    if (countdownToStart) {
+      pendingRunningEndTime = endTime;
+      return;
+    }
+    endTimeMs = java.time.Duration.between(java.time.LocalDateTime.now(), endTime).toMillis();
+    markCountdownActive();
+    setTimerHeader(false);
+    renderCountdown();
+  }
+
+  private void renderCountdown() {
+    if (endTimeMs != null && endTimeMs > 0) {
+      long h = endTimeMs / 3_600_000;
+      long m = (endTimeMs % 3_600_000) / 60_000;
+      long s = (endTimeMs % 60_000) / 1000;
+      countdownLabel.setText(String.format("%02d:%02d:%02d", h, m, s));
+      return;
+    }
+
+    if (countdownToStart && pendingRunningEndTime != null) {
+      countdownToStart = false;
+      endTimeMs =
+          java.time.Duration.between(java.time.LocalDateTime.now(), pendingRunningEndTime)
+              .toMillis();
+      pendingRunningEndTime = null;
+      setTimerHeader(false);
+      if (endTimeMs != null && endTimeMs > 0) {
+        renderCountdown();
+        return;
+      }
+    }
+
+    markCountdownEnded();
+    stopCountdown();
   }
 
   /** Cập nhật header "THỜI GIAN CÒN" / "BẮT ĐẦU SAU" theo trạng thái phiên. */

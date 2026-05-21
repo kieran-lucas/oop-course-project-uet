@@ -1055,6 +1055,156 @@
     -fx-pref-height: 60;
 }
 
+.window-title-bar {
+    -fx-background-color: linear-gradient(to bottom, #FFFFFF, #F9FBFE 58%, #F4F8FD);
+    -fx-border-color: transparent transparent #D7E2EF transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.085), 8, 0, 0, 1);
+}
+
+.window-title-content {
+    -fx-padding: 0 0 0 11;
+}
+
+.window-app-mark {
+    -fx-background-color: linear-gradient(to bottom right, #0D47A1, #1976D2 54%, #F59E0B);
+    -fx-background-radius: 4;
+    -fx-pref-width: 12;
+    -fx-pref-height: 12;
+    -fx-min-width: 12;
+    -fx-min-height: 12;
+    -fx-max-width: 12;
+    -fx-max-height: 12;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.22), 5, 0, 0, 1);
+}
+
+.window-title {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 13.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1565C0;
+    -fx-font-smoothing-type: lcd;
+    -fx-padding: 0 0 0 8;
+}
+
+.window-title-sheen {
+    -fx-background-color: linear-gradient(to right, rgba(255,255,255,0.00), rgba(66,165,245,0.22), rgba(255,255,255,0.42), rgba(245,158,11,0.18), rgba(255,255,255,0.00));
+    -fx-background-radius: 16;
+}
+
+.window-title-led-base {
+    -fx-background-color: linear-gradient(to right, rgba(21,101,192,0.80), rgba(66,165,245,0.90), rgba(245,158,11,0.72), rgba(21,101,192,0.80));
+    -fx-background-radius: 99;
+    -fx-effect: dropshadow(gaussian, rgba(66,165,245,0.38), 5, 0.12, 0, 0);
+}
+
+.window-title-led-pulse {
+    -fx-background-color: linear-gradient(to right, rgba(21,101,192,0.00), rgba(66,165,245,0.18), rgba(125,211,252,0.86), rgba(255,255,255,0.95), rgba(245,158,11,0.72), rgba(21,101,192,0.00));
+    -fx-background-radius: 99;
+    -fx-effect: dropshadow(gaussian, rgba(66,165,245,0.84), 10, 0.26, 0, 0);
+}
+
+.window-controls {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+.window-button {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-padding: 0;
+    -fx-pref-width: 46;
+    -fx-pref-height: 32;
+    -fx-min-width: 46;
+    -fx-min-height: 32;
+    -fx-max-width: 46;
+    -fx-max-height: 32;
+    -fx-cursor: hand;
+}
+
+.window-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #F4F8FD, #EAF2FB);
+    -fx-effect: none;
+}
+
+.window-button:pressed {
+    -fx-background-color: #DDE8F4;
+    -fx-effect: none;
+}
+
+.window-close-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #EF4444, #DC2626);
+    -fx-effect: none;
+}
+
+.window-close-button:pressed {
+    -fx-background-color: #B91C1C;
+    -fx-effect: none;
+}
+
+.window-minimize-icon {
+    -fx-shape: "M0 0H12V1.5H0Z";
+    -fx-background-color: #475569;
+    -fx-pref-width: 10;
+    -fx-pref-height: 1.35;
+    -fx-min-width: 10;
+    -fx-min-height: 1.35;
+    -fx-max-width: 10;
+    -fx-max-height: 1.35;
+    -fx-scale-shape: true;
+}
+
+.window-maximize-icon {
+    -fx-shape: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z";
+    -fx-background-color: #475569;
+    -fx-pref-width: 9.6;
+    -fx-pref-height: 9.6;
+    -fx-min-width: 9.6;
+    -fx-min-height: 9.6;
+    -fx-max-width: 9.6;
+    -fx-max-height: 9.6;
+    -fx-scale-shape: true;
+}
+
+.window-restore-icon {
+    -fx-shape: "M19 3H7c-1.1 0-2 .9-2 2v12h2V5h12V3zm3 4H11c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm0 14H11V9h11v12z";
+    -fx-background-color: #475569;
+    -fx-pref-width: 10.2;
+    -fx-pref-height: 10.2;
+    -fx-min-width: 10.2;
+    -fx-min-height: 10.2;
+    -fx-max-width: 10.2;
+    -fx-max-height: 10.2;
+    -fx-scale-shape: true;
+}
+
+.window-close-icon {
+    -fx-shape: "M18.3 5.71 12 12l6.3 6.29-1.41 1.41-6.3-6.29-6.3 6.29-1.41-1.41L9.17 12 2.88 5.71 4.29 4.3l6.3 6.29 6.3-6.29z";
+    -fx-background-color: #475569;
+    -fx-pref-width: 9.8;
+    -fx-pref-height: 9.8;
+    -fx-min-width: 9.8;
+    -fx-min-height: 9.8;
+    -fx-max-width: 9.8;
+    -fx-max-height: 9.8;
+    -fx-scale-shape: true;
+}
+
+.window-button:hover .window-minimize-icon,
+.window-button:hover .window-maximize-icon,
+.window-button:hover .window-restore-icon {
+    -fx-background-color: #0F172A;
+}
+
+.window-close-button:hover .window-close-icon,
+.window-close-button:pressed .window-close-icon {
+    -fx-background-color: #FFFFFF;
+}
+
 /* Transparent scroll pane for admin panel overflow */
 .page-scroll {
     -fx-background-color: transparent;

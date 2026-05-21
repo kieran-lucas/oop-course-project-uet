@@ -4,6 +4,7 @@ import com.auction.ui.util.SceneManager;
 import javafx.application.Application;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,14 +68,17 @@ public class ClientApp extends Application {
   public void start(Stage primaryStage) {
     try {
       loadFonts();
+      primaryStage.initStyle(StageStyle.UNDECORATED);
+
+      double windowHeight = MIN_HEIGHT + SceneManager.TITLE_BAR_HEIGHT;
 
       // Khởi tạo SceneManager singleton
-      SceneManager sceneManager = SceneManager.init(primaryStage, MIN_WIDTH, MIN_HEIGHT);
+      SceneManager sceneManager = SceneManager.init(primaryStage, MIN_WIDTH, windowHeight);
 
       // Cấu hình Stage
       primaryStage.setTitle("Online Auction System");
       primaryStage.setMinWidth(MIN_WIDTH);
-      primaryStage.setMinHeight(MIN_HEIGHT);
+      primaryStage.setMinHeight(windowHeight);
 
       // Load màn hình chào mừng đầu tiên
       sceneManager.navigateTo("welcome.fxml");

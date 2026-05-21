@@ -675,9 +675,7 @@ public class AdminPanelController implements Navigable {
                     e ->
                         runRowAction(
                             getTableRow(),
-                            a ->
-                                SceneManager.getInstance()
-                                    .navigateTo("auction-detail.fxml", a.getId()),
+                            a -> SceneManager.getInstance().navigateTo("auction-detail.fxml", a),
                             "Xem phiên"));
                 cancelBtn.setOnAction(
                     e ->

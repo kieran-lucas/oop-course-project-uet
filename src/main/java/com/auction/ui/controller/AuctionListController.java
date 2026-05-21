@@ -1125,7 +1125,7 @@ public class AuctionListController implements Navigable {
                 btnEnter.setOnAction(
                     e -> {
                       AuctionResponse auction = getTableView().getItems().get(getIndex());
-                      SceneManager.getInstance().navigateTo("auction-detail.fxml", auction.getId());
+                      SceneManager.getInstance().navigateTo("auction-detail.fxml", auction);
                     });
               }
 

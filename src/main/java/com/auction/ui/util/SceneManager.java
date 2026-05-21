@@ -6,16 +6,36 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.ParallelTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.TranslateTransition;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
+import javafx.event.EventTarget;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBase;
+import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputControl;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +89,12 @@ import org.slf4j.LoggerFactory;
 public class SceneManager {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SceneManager.class);
+
+  public static final double TITLE_BAR_HEIGHT = 32;
+  private static final double WINDOW_DRAG_HEIGHT = TITLE_BAR_HEIGHT;
+  private static final double WINDOW_RESIZE_MARGIN = 7;
+  private static final double WINDOW_BUTTON_WIDTH = 46;
+  private static final double WINDOW_BUTTON_HEIGHT = TITLE_BAR_HEIGHT;
 
   // ========== SINGLETON ==========
 
@@ -152,12 +178,18 @@ public class SceneManager {
   private final Scene scene;
 
   /**
-   * Container gốc — toàn bộ màn hình đều được render bên trong StackPane này.
+   * Container gốc — giữ app content, overlay tạm thời và titlebar custom cùng một scene.
    *
-   * <p>Chuyển màn hình = gọi {@code rootContainer.getChildren().setAll(newView)}. Global
-   * notification badge cũng được đặt trực tiếp trên StackPane này để nổi trên mọi màn hình.
+   * <p>Root này giữ chrome toàn cục (window controls, badge) ổn định qua mọi navigation; FXML hiện
+   * tại được swap bên trong {@link #viewHost}.
    */
   private final StackPane rootContainer;
+
+  /** Frame chính chừa titlebar ở trên và đặt FXML hiện tại ở vùng center. */
+  private final BorderPane appFrame;
+
+  /** Layer chứa FXML hiện tại; titlebar nằm ngoài layer này để độc lập với UI. */
+  private final StackPane viewHost;
 
   /**
    * Tên FXML của màn hình đang hiển thị.
@@ -179,6 +211,28 @@ public class SceneManager {
    * đã có nút bell riêng, nên badge toàn cục sẽ tự động ẩn khi điều hướng tới đó.
    */
   private Label globalBadgeLabel;
+
+  /** Titlebar custom độc lập với UI của từng FXML. */
+  private StackPane titleBar;
+
+  /** Custom window controls rendered inside the titlebar for the undecorated stage. */
+  private HBox windowControls;
+
+  private Button maximizeButton;
+  private ParallelTransition titleBarIntroTransition;
+  private ParallelTransition titleSheenTransition;
+  private TranslateTransition titleLedSweepTransition;
+
+  private boolean movingWindow;
+  private ResizeDirection activeResizeDirection = ResizeDirection.NONE;
+  private double dragOffsetX;
+  private double dragOffsetY;
+  private double resizeStartScreenX;
+  private double resizeStartScreenY;
+  private double resizeStartStageX;
+  private double resizeStartStageY;
+  private double resizeStartWidth;
+  private double resizeStartHeight;
 
   /**
    * Stack lịch sử điều hướng — hỗ trợ tính năng quay lại ({@link #navigateBack}).
@@ -229,7 +283,12 @@ public class SceneManager {
   private SceneManager(Stage primaryStage, double width, double height) {
     this.primaryStage = primaryStage;
     this.rootContainer = new StackPane();
+    this.appFrame = new BorderPane();
+    this.viewHost = new StackPane();
     this.scene = new Scene(rootContainer, width, height);
+    appFrame.setTop(createTitleBarSpacer());
+    appFrame.setCenter(viewHost);
+    rootContainer.getChildren().add(appFrame);
 
     // Load CSS theme 1 lần duy nhất — áp dụng cho tất cả FXML
     URL cssUrl = getClass().getResource("/css/style.css");
@@ -242,6 +301,16 @@ public class SceneManager {
 
     primaryStage.setScene(scene);
     setupGlobalNotificationBadge();
+    setupWindowTitleBar();
+    installWindowChromeHandlers();
+  }
+
+  private Region createTitleBarSpacer() {
+    Region spacer = new Region();
+    spacer.setMinHeight(TITLE_BAR_HEIGHT);
+    spacer.setPrefHeight(TITLE_BAR_HEIGHT);
+    spacer.setMaxHeight(TITLE_BAR_HEIGHT);
+    return spacer;
   }
 
   // ========== GLOBAL NOTIFICATION BADGE ==========
@@ -263,7 +332,7 @@ public class SceneManager {
     globalBadgeLabel = new Label();
     globalBadgeLabel.getStyleClass().add("notification-badge");
     StackPane.setAlignment(globalBadgeLabel, Pos.TOP_RIGHT);
-    StackPane.setMargin(globalBadgeLabel, new Insets(10, 10, 0, 0));
+    StackPane.setMargin(globalBadgeLabel, new Insets(TITLE_BAR_HEIGHT + 12, 12, 0, 0));
     globalBadgeLabel.setVisible(false);
     globalBadgeLabel.setManaged(false);
     rootContainer.getChildren().add(globalBadgeLabel);
@@ -301,6 +370,577 @@ public class SceneManager {
     }
   }
 
+  // ========== CUSTOM WINDOW CHROME ==========
+
+  private void setupWindowTitleBar() {
+    titleBar = new StackPane();
+    titleBar.setMinHeight(TITLE_BAR_HEIGHT);
+    titleBar.setPrefHeight(TITLE_BAR_HEIGHT);
+    titleBar.setMaxHeight(TITLE_BAR_HEIGHT);
+    titleBar.setMaxWidth(Double.MAX_VALUE);
+    titleBar.setPickOnBounds(true);
+    titleBar.getStyleClass().add("window-title-bar");
+    StackPane.setAlignment(titleBar, Pos.TOP_LEFT);
+
+    HBox titleContent = new HBox(0);
+    titleContent.setAlignment(Pos.CENTER_LEFT);
+    titleContent.setMaxWidth(Double.MAX_VALUE);
+    titleContent.getStyleClass().add("window-title-content");
+
+    Label titleLabel = new Label("Online Auction System");
+    titleLabel.getStyleClass().add("window-title");
+    titleLabel.setStyle(
+        "-fx-font-family: 'Lexend';"
+            + " -fx-font-size: 13.5px;"
+            + " -fx-font-weight: bold;"
+            + " -fx-text-fill: #1565C0;");
+
+    Region appMark = new Region();
+    appMark.getStyleClass().add("window-app-mark");
+
+    Region spacer = new Region();
+    HBox.setHgrow(spacer, Priority.ALWAYS);
+
+    windowControls = new HBox(0);
+    windowControls.setAlignment(Pos.CENTER);
+    windowControls.setPickOnBounds(false);
+    windowControls.setMinSize(WINDOW_BUTTON_WIDTH * 3, WINDOW_BUTTON_HEIGHT);
+    windowControls.setPrefSize(WINDOW_BUTTON_WIDTH * 3, WINDOW_BUTTON_HEIGHT);
+    windowControls.setMaxSize(WINDOW_BUTTON_WIDTH * 3, WINDOW_BUTTON_HEIGHT);
+    windowControls.getStyleClass().add("window-controls");
+
+    Button minimizeButton =
+        createWindowControlButton("window-minimize-button", "window-minimize-icon", "Thu nhỏ");
+    minimizeButton.setOnAction(event -> minimizeWindow());
+
+    maximizeButton =
+        createWindowControlButton("window-maximize-button", "window-maximize-icon", "Phóng to");
+    maximizeButton.setOnAction(event -> toggleMaximizeWindow());
+    primaryStage
+        .maximizedProperty()
+        .addListener((obs, wasMaximized, isMaximized) -> updateMaximizeButtonState(isMaximized));
+
+    Button closeButton =
+        createWindowControlButton("window-close-button", "window-close-icon", "Đóng");
+    closeButton.setOnAction(event -> closeWindow());
+
+    windowControls.getChildren().addAll(minimizeButton, maximizeButton, closeButton);
+    titleContent.getChildren().addAll(appMark, titleLabel, spacer, windowControls);
+
+    Region titleLedBase = new Region();
+    titleLedBase.getStyleClass().add("window-title-led-base");
+    titleLedBase.setMouseTransparent(true);
+    titleLedBase.setMinHeight(1.0);
+    titleLedBase.setPrefHeight(1.15);
+    titleLedBase.setMaxSize(Double.MAX_VALUE, 1.15);
+    StackPane.setAlignment(titleLedBase, Pos.BOTTOM_LEFT);
+
+    Region titleLedPulse = createTitleLedPulse();
+    StackPane.setAlignment(titleLedPulse, Pos.BOTTOM_LEFT);
+
+    Region titleSheen = new Region();
+    titleSheen.getStyleClass().add("window-title-sheen");
+    titleSheen.setMouseTransparent(true);
+    titleSheen.setMaxSize(180, TITLE_BAR_HEIGHT);
+    StackPane.setAlignment(titleSheen, Pos.TOP_LEFT);
+
+    titleBar.getChildren().addAll(titleContent, titleSheen, titleLedBase, titleLedPulse);
+    rootContainer.getChildren().add(titleBar);
+    installTitleBarAnimations(titleContent, appMark, titleSheen, titleLedBase, titleLedPulse);
+  }
+
+  private void installTitleBarAnimations(
+      HBox titleContent,
+      Region appMark,
+      Region titleSheen,
+      Region titleLedBase,
+      Node titleLedPulse) {
+    titleBar.setOpacity(0);
+    titleBar.setTranslateY(-4);
+    titleContent.setOpacity(0);
+    titleContent.setTranslateX(-7);
+    appMark.setScaleX(0.82);
+    appMark.setScaleY(0.82);
+    titleSheen.setOpacity(0);
+    titleSheen.setTranslateX(-190);
+    titleLedBase.setOpacity(0);
+    titleLedPulse.setOpacity(0);
+    titleLedPulse.setTranslateX(-260);
+
+    FadeTransition fadeIn = new FadeTransition(Duration.millis(150), titleBar);
+    fadeIn.setToValue(1);
+    fadeIn.setInterpolator(Interpolator.EASE_OUT);
+
+    TranslateTransition slideIn = new TranslateTransition(Duration.millis(185), titleBar);
+    slideIn.setToY(0);
+    slideIn.setInterpolator(Interpolator.EASE_OUT);
+
+    FadeTransition contentFade = new FadeTransition(Duration.millis(220), titleContent);
+    contentFade.setToValue(1);
+    contentFade.setInterpolator(Interpolator.EASE_OUT);
+
+    TranslateTransition contentSlide = new TranslateTransition(Duration.millis(245), titleContent);
+    contentSlide.setToX(0);
+    contentSlide.setInterpolator(Interpolator.EASE_OUT);
+
+    ScaleTransition markPop = new ScaleTransition(Duration.millis(240), appMark);
+    markPop.setToX(1);
+    markPop.setToY(1);
+    markPop.setInterpolator(Interpolator.EASE_OUT);
+
+    FadeTransition ledBaseFade = new FadeTransition(Duration.millis(260), titleLedBase);
+    ledBaseFade.setToValue(0.82);
+    ledBaseFade.setInterpolator(Interpolator.EASE_OUT);
+
+    titleBarIntroTransition =
+        new ParallelTransition(fadeIn, slideIn, contentFade, contentSlide, markPop, ledBaseFade);
+    titleBarIntroTransition.setOnFinished(
+        event -> {
+          playTitleSheen(titleSheen, 285, 460);
+          startTitleLedSweep(titleLedPulse);
+        });
+    titleBarIntroTransition.play();
+
+    titleBar.setOnMouseEntered(
+        event -> {
+          animateTitleLedBase(titleLedBase, 0.95, 150);
+          animateTitleLed(titleLedPulse, 1.0, 1.05, 150);
+          playTitleSheen(titleSheen, 300, 360);
+        });
+    titleBar.setOnMouseExited(
+        event -> {
+          animateTitleLedBase(titleLedBase, 0.82, 190);
+          animateTitleLed(titleLedPulse, 0.84, 1.0, 190);
+        });
+  }
+
+  private Region createTitleLedPulse() {
+    Region led = new Region();
+    led.getStyleClass().add("window-title-led-pulse");
+    led.setMouseTransparent(true);
+    led.setMinSize(240, 2.2);
+    led.setPrefSize(240, 2.2);
+    led.setMaxSize(240, 2.2);
+    return led;
+  }
+
+  private void startTitleLedSweep(Node titleLed) {
+    restartTitleLedSweep(titleLed, titleBar.getWidth());
+    titleBar
+        .widthProperty()
+        .addListener(
+            (obs, oldWidth, newWidth) -> restartTitleLedSweep(titleLed, newWidth.doubleValue()));
+  }
+
+  private void restartTitleLedSweep(Node titleLed, double width) {
+    if (width <= 0) {
+      return;
+    }
+    if (titleLedSweepTransition != null) {
+      titleLedSweepTransition.stop();
+    }
+
+    titleLed.setOpacity(0.84);
+    titleLedSweepTransition = new TranslateTransition(Duration.seconds(4.15), titleLed);
+    titleLedSweepTransition.setFromX(-260);
+    titleLedSweepTransition.setToX(width + 120);
+    titleLedSweepTransition.setCycleCount(javafx.animation.Animation.INDEFINITE);
+    titleLedSweepTransition.setInterpolator(Interpolator.LINEAR);
+    titleLedSweepTransition.play();
+  }
+
+  private void playTitleSheen(Region titleSheen, double travelX, int durationMillis) {
+    if (titleSheenTransition != null) {
+      titleSheenTransition.stop();
+    }
+    titleSheen.setTranslateX(-190);
+    titleSheen.setOpacity(0);
+
+    TranslateTransition sweep =
+        new TranslateTransition(Duration.millis(durationMillis), titleSheen);
+    sweep.setToX(travelX);
+    sweep.setInterpolator(Interpolator.EASE_OUT);
+
+    FadeTransition glow = new FadeTransition(Duration.millis(durationMillis), titleSheen);
+    glow.setFromValue(0);
+    glow.setToValue(0.82);
+    glow.setAutoReverse(true);
+    glow.setCycleCount(2);
+    glow.setInterpolator(Interpolator.EASE_BOTH);
+
+    titleSheenTransition = new ParallelTransition(sweep, glow);
+    titleSheenTransition.setOnFinished(event -> titleSheen.setOpacity(0));
+    titleSheenTransition.play();
+  }
+
+  private void animateTitleLedBase(Region titleLedBase, double opacity, int durationMillis) {
+    FadeTransition fade = new FadeTransition(Duration.millis(durationMillis), titleLedBase);
+    fade.setToValue(opacity);
+    fade.setInterpolator(Interpolator.EASE_BOTH);
+    fade.play();
+  }
+
+  private void animateTitleLed(Node titleLed, double opacity, double scaleX, int durationMillis) {
+    FadeTransition fade = new FadeTransition(Duration.millis(durationMillis), titleLed);
+    fade.setToValue(opacity);
+    fade.setInterpolator(Interpolator.EASE_BOTH);
+
+    ScaleTransition scale = new ScaleTransition(Duration.millis(durationMillis), titleLed);
+    scale.setToX(scaleX);
+    scale.setInterpolator(Interpolator.EASE_BOTH);
+
+    new ParallelTransition(fade, scale).play();
+  }
+
+  private Button createWindowControlButton(
+      String buttonStyleClass, String iconStyleClass, String tooltipText) {
+    Button button = new Button();
+    button.setMnemonicParsing(false);
+    button.setFocusTraversable(false);
+    button.setMinSize(WINDOW_BUTTON_WIDTH, WINDOW_BUTTON_HEIGHT);
+    button.setPrefSize(WINDOW_BUTTON_WIDTH, WINDOW_BUTTON_HEIGHT);
+    button.setMaxSize(WINDOW_BUTTON_WIDTH, WINDOW_BUTTON_HEIGHT);
+    button.getStyleClass().addAll("window-button", buttonStyleClass);
+
+    Region icon = new Region();
+    icon.getStyleClass().add(iconStyleClass);
+    button.setGraphic(icon);
+    button.setTooltip(new Tooltip(tooltipText));
+    installWindowButtonAnimation(button);
+
+    return button;
+  }
+
+  private void installWindowButtonAnimation(Button button) {
+    button.setOnMouseEntered(event -> animateWindowButtonIcon(button, 1.32, 135));
+    button.setOnMouseExited(event -> animateWindowButtonIcon(button, 1.0, 145));
+    button.setOnMousePressed(event -> animateWindowButtonIcon(button, 0.82, 75));
+    button.setOnMouseReleased(
+        event -> animateWindowButtonIcon(button, button.isHover() ? 1.32 : 1.0, 115));
+  }
+
+  private void animateWindowButtonIcon(Button button, double scale, int durationMillis) {
+    Node graphic = button.getGraphic();
+    if (graphic == null) {
+      return;
+    }
+    ScaleTransition transition = new ScaleTransition(Duration.millis(durationMillis), graphic);
+    transition.setToX(scale);
+    transition.setToY(scale);
+    transition.setInterpolator(Interpolator.EASE_BOTH);
+    transition.play();
+  }
+
+  private void installWindowChromeHandlers() {
+    scene.addEventFilter(MouseEvent.MOUSE_MOVED, this::handleWindowMouseMoved);
+    scene.addEventFilter(MouseEvent.MOUSE_EXITED, this::handleWindowMouseExited);
+    scene.addEventFilter(MouseEvent.MOUSE_PRESSED, this::handleWindowMousePressed);
+    scene.addEventFilter(MouseEvent.MOUSE_DRAGGED, this::handleWindowMouseDragged);
+    scene.addEventFilter(MouseEvent.MOUSE_RELEASED, this::handleWindowMouseReleased);
+  }
+
+  private void handleWindowMouseMoved(MouseEvent event) {
+    if (movingWindow || activeResizeDirection != ResizeDirection.NONE) {
+      return;
+    }
+    scene.setCursor(resolveResizeDirection(event).cursor);
+  }
+
+  private void handleWindowMouseExited(MouseEvent event) {
+    if (!movingWindow && activeResizeDirection == ResizeDirection.NONE) {
+      scene.setCursor(Cursor.DEFAULT);
+    }
+  }
+
+  private void handleWindowMousePressed(MouseEvent event) {
+    if (event.getButton() != MouseButton.PRIMARY) {
+      return;
+    }
+
+    if (event.getClickCount() == 2 && isWindowDragEvent(event)) {
+      toggleMaximizeWindow();
+      event.consume();
+      return;
+    }
+
+    if (primaryStage.isMaximized()) {
+      return;
+    }
+
+    ResizeDirection resizeDirection = resolveResizeDirection(event);
+    if (resizeDirection != ResizeDirection.NONE) {
+      beginWindowResize(event, resizeDirection);
+      event.consume();
+      return;
+    }
+
+    if (isWindowDragEvent(event)) {
+      movingWindow = true;
+      dragOffsetX = event.getScreenX() - primaryStage.getX();
+      dragOffsetY = event.getScreenY() - primaryStage.getY();
+      event.consume();
+    }
+  }
+
+  private void handleWindowMouseDragged(MouseEvent event) {
+    if (activeResizeDirection != ResizeDirection.NONE) {
+      resizeWindow(event);
+      event.consume();
+      return;
+    }
+
+    if (movingWindow) {
+      primaryStage.setX(event.getScreenX() - dragOffsetX);
+      primaryStage.setY(event.getScreenY() - dragOffsetY);
+      event.consume();
+    }
+  }
+
+  private void handleWindowMouseReleased(MouseEvent event) {
+    movingWindow = false;
+    activeResizeDirection = ResizeDirection.NONE;
+    scene.setCursor(resolveResizeDirection(event).cursor);
+  }
+
+  private void beginWindowResize(MouseEvent event, ResizeDirection resizeDirection) {
+    activeResizeDirection = resizeDirection;
+    resizeStartScreenX = event.getScreenX();
+    resizeStartScreenY = event.getScreenY();
+    resizeStartStageX = primaryStage.getX();
+    resizeStartStageY = primaryStage.getY();
+    resizeStartWidth = primaryStage.getWidth();
+    resizeStartHeight = primaryStage.getHeight();
+  }
+
+  private void resizeWindow(MouseEvent event) {
+    double deltaX = event.getScreenX() - resizeStartScreenX;
+    double deltaY = event.getScreenY() - resizeStartScreenY;
+
+    if (activeResizeDirection.resizesEast()) {
+      primaryStage.setWidth(Math.max(primaryStage.getMinWidth(), resizeStartWidth + deltaX));
+    } else if (activeResizeDirection.resizesWest()) {
+      resizeFromWest(deltaX);
+    }
+
+    if (activeResizeDirection.resizesSouth()) {
+      primaryStage.setHeight(Math.max(primaryStage.getMinHeight(), resizeStartHeight + deltaY));
+    } else if (activeResizeDirection.resizesNorth()) {
+      resizeFromNorth(deltaY);
+    }
+  }
+
+  private void resizeFromWest(double deltaX) {
+    double minWidth = primaryStage.getMinWidth();
+    double requestedWidth = resizeStartWidth - deltaX;
+    if (requestedWidth <= minWidth) {
+      primaryStage.setX(resizeStartStageX + resizeStartWidth - minWidth);
+      primaryStage.setWidth(minWidth);
+      return;
+    }
+
+    primaryStage.setX(resizeStartStageX + deltaX);
+    primaryStage.setWidth(requestedWidth);
+  }
+
+  private void resizeFromNorth(double deltaY) {
+    double minHeight = primaryStage.getMinHeight();
+    double requestedHeight = resizeStartHeight - deltaY;
+    if (requestedHeight <= minHeight) {
+      primaryStage.setY(resizeStartStageY + resizeStartHeight - minHeight);
+      primaryStage.setHeight(minHeight);
+      return;
+    }
+
+    primaryStage.setY(resizeStartStageY + deltaY);
+    primaryStage.setHeight(requestedHeight);
+  }
+
+  private ResizeDirection resolveResizeDirection(MouseEvent event) {
+    if (!primaryStage.isResizable()
+        || primaryStage.isMaximized()
+        || isInteractiveWindowTarget(event.getTarget())) {
+      return ResizeDirection.NONE;
+    }
+
+    double sceneX = event.getSceneX();
+    double sceneY = event.getSceneY();
+    double width = scene.getWidth();
+    double height = scene.getHeight();
+
+    boolean west = sceneX <= WINDOW_RESIZE_MARGIN;
+    boolean east = sceneX >= width - WINDOW_RESIZE_MARGIN;
+    boolean north = sceneY <= WINDOW_RESIZE_MARGIN;
+    boolean south = sceneY >= height - WINDOW_RESIZE_MARGIN;
+
+    if (north && west) {
+      return ResizeDirection.NORTH_WEST;
+    }
+    if (north && east) {
+      return ResizeDirection.NORTH_EAST;
+    }
+    if (south && west) {
+      return ResizeDirection.SOUTH_WEST;
+    }
+    if (south && east) {
+      return ResizeDirection.SOUTH_EAST;
+    }
+    if (north) {
+      return ResizeDirection.NORTH;
+    }
+    if (south) {
+      return ResizeDirection.SOUTH;
+    }
+    if (west) {
+      return ResizeDirection.WEST;
+    }
+    if (east) {
+      return ResizeDirection.EAST;
+    }
+    return ResizeDirection.NONE;
+  }
+
+  private boolean isWindowDragEvent(MouseEvent event) {
+    return event.getSceneY() <= WINDOW_DRAG_HEIGHT && !isInteractiveWindowTarget(event.getTarget());
+  }
+
+  private boolean isInteractiveWindowTarget(EventTarget target) {
+    Node node = target instanceof Node targetNode ? targetNode : null;
+    while (node != null) {
+      if (node == windowControls
+          || node instanceof ButtonBase
+          || node instanceof TextInputControl
+          || node instanceof ComboBoxBase
+          || node.getStyleClass().contains("username-label")) {
+        return true;
+      }
+      node = node.getParent();
+    }
+    return false;
+  }
+
+  private void minimizeWindow() {
+    ParallelTransition transition = createRootTransition(0.985, 0.9, 95);
+    transition.setOnFinished(
+        event -> {
+          resetRootTransitionState();
+          primaryStage.setIconified(true);
+        });
+    transition.play();
+  }
+
+  private void toggleMaximizeWindow() {
+    boolean maximize = !primaryStage.isMaximized();
+    ParallelTransition transition = createRootTransition(0.992, 0.96, 70);
+    transition.setOnFinished(
+        event -> {
+          primaryStage.setMaximized(maximize);
+          resetRootTransitionState();
+          updateMaximizeButtonState(maximize);
+        });
+    transition.play();
+  }
+
+  private void updateMaximizeButtonState(boolean maximized) {
+    if (maximizeButton == null || !(maximizeButton.getGraphic() instanceof Region icon)) {
+      return;
+    }
+
+    icon.getStyleClass().setAll(maximized ? "window-restore-icon" : "window-maximize-icon");
+    maximizeButton.setTooltip(new Tooltip(maximized ? "Khôi phục" : "Phóng to"));
+  }
+
+  private void closeWindow() {
+    ParallelTransition transition = createRootTransition(0.965, 0.0, 130);
+    transition.setOnFinished(event -> Platform.exit());
+    transition.play();
+  }
+
+  private ParallelTransition createRootTransition(
+      double scale, double opacity, int durationMillis) {
+    FadeTransition fade = new FadeTransition(Duration.millis(durationMillis), rootContainer);
+    fade.setToValue(opacity);
+    fade.setInterpolator(Interpolator.EASE_BOTH);
+
+    ScaleTransition scaleTransition =
+        new ScaleTransition(Duration.millis(durationMillis), rootContainer);
+    scaleTransition.setToX(scale);
+    scaleTransition.setToY(scale);
+    scaleTransition.setInterpolator(Interpolator.EASE_BOTH);
+
+    return new ParallelTransition(fade, scaleTransition);
+  }
+
+  private void resetRootTransitionState() {
+    rootContainer.setOpacity(1);
+    rootContainer.setScaleX(1);
+    rootContainer.setScaleY(1);
+  }
+
+  private void setMainView(Node view) {
+    removeTransientOverlays();
+    viewHost.getChildren().setAll(view);
+    restoreChromeLayers();
+  }
+
+  private void removeTransientOverlays() {
+    rootContainer
+        .getChildren()
+        .removeIf(node -> node != appFrame && node != globalBadgeLabel && node != titleBar);
+  }
+
+  private void restoreChromeLayers() {
+    if (!rootContainer.getChildren().contains(appFrame)) {
+      rootContainer.getChildren().add(0, appFrame);
+    }
+    if (globalBadgeLabel != null && !rootContainer.getChildren().contains(globalBadgeLabel)) {
+      rootContainer.getChildren().add(globalBadgeLabel);
+    }
+    if (titleBar != null && !rootContainer.getChildren().contains(titleBar)) {
+      rootContainer.getChildren().add(titleBar);
+    }
+
+    if (globalBadgeLabel != null) {
+      globalBadgeLabel.toFront();
+    }
+    if (titleBar != null) {
+      titleBar.toFront();
+    }
+  }
+
+  private enum ResizeDirection {
+    NONE(Cursor.DEFAULT),
+    NORTH(Cursor.N_RESIZE),
+    SOUTH(Cursor.S_RESIZE),
+    WEST(Cursor.W_RESIZE),
+    EAST(Cursor.E_RESIZE),
+    NORTH_WEST(Cursor.NW_RESIZE),
+    NORTH_EAST(Cursor.NE_RESIZE),
+    SOUTH_WEST(Cursor.SW_RESIZE),
+    SOUTH_EAST(Cursor.SE_RESIZE);
+
+    private final Cursor cursor;
+
+    ResizeDirection(Cursor cursor) {
+      this.cursor = cursor;
+    }
+
+    private boolean resizesNorth() {
+      return this == NORTH || this == NORTH_WEST || this == NORTH_EAST;
+    }
+
+    private boolean resizesSouth() {
+      return this == SOUTH || this == SOUTH_WEST || this == SOUTH_EAST;
+    }
+
+    private boolean resizesWest() {
+      return this == WEST || this == NORTH_WEST || this == SOUTH_WEST;
+    }
+
+    private boolean resizesEast() {
+      return this == EAST || this == NORTH_EAST || this == SOUTH_EAST;
+    }
+  }
+
   // ========== OVERLAY API ==========
 
   /**
@@ -316,6 +956,7 @@ public class SceneManager {
   public void addOverlay(Node overlay) {
     if (overlay != null && !rootContainer.getChildren().contains(overlay)) {
       rootContainer.getChildren().add(overlay);
+      restoreChromeLayers();
     }
   }
 
@@ -433,7 +1074,7 @@ public class SceneManager {
       return;
     }
 
-    rootContainer.getChildren().setAll(view);
+    setMainView(view);
     currentFxml = fxmlName;
 
     Object controller = controllerCache.get(fxmlName);
@@ -536,7 +1177,7 @@ public class SceneManager {
     Label errorLabel = new Label("⚠ Lỗi điều hướng:\n" + message);
     errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 14px; -fx-padding: 20;");
     errorLabel.setWrapText(true);
-    rootContainer.getChildren().setAll(errorLabel);
+    setMainView(errorLabel);
   }
 
   // ========== SESSION MANAGEMENT ==========
