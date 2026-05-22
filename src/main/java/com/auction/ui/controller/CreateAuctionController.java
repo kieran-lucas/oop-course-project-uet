@@ -16,15 +16,32 @@ import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.ScaleTransition;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DateCell;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
+import javafx.scene.control.skin.DatePickerSkin;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +79,14 @@ public class CreateAuctionController implements Navigable {
   @FXML private Label statusLabel;
   @FXML private Button createButton;
 
+  @FXML
+  private void initialize() {
+    installDatePickerMotion(startDatePicker);
+    installDatePickerMotion(endDatePicker);
+    configureDatePicker(startDatePicker);
+    configureDatePicker(endDatePicker);
+  }
+
   // ========== NAVIGABLE LIFECYCLE ==========
 
   /** Load danh sách sản phẩm của seller từ API khi vào màn hình. */
@@ -87,7 +112,7 @@ public class CreateAuctionController implements Navigable {
     String endTimeStr = endTimeField.getText().trim();
 
     if (selectedItem == null) {
-      showStatus("Vui lòng chọn sản phẩm.", true);
+      showStatus("Please choose a product.", true);
       return;
     }
 
@@ -95,20 +120,20 @@ public class CreateAuctionController implements Navigable {
     try {
       startingPrice = new BigDecimal(priceText.replace(",", ""));
       if (startingPrice.compareTo(BigDecimal.ZERO) <= 0) {
-        showStatus("Giá khởi điểm phải lớn hơn 0.", true);
+        showStatus("Starting price must be greater than 0.", true);
         return;
       }
     } catch (NumberFormatException e) {
-      showStatus("Giá khởi điểm không hợp lệ.", true);
+      showStatus("That starting price doesn't look valid.", true);
       return;
     }
 
     if (startDate == null || startTimeStr.isEmpty()) {
-      showStatus("Vui lòng nhập ngày và giờ bắt đầu.", true);
+      showStatus("Please enter a start date and time.", true);
       return;
     }
     if (endDate == null || endTimeStr.isEmpty()) {
-      showStatus("Vui lòng nhập ngày và giờ kết thúc.", true);
+      showStatus("Please enter an end date and time.", true);
       return;
     }
 
@@ -118,12 +143,12 @@ public class CreateAuctionController implements Navigable {
       startTime = LocalDateTime.of(startDate, LocalTime.parse(startTimeStr, TIME_FMT));
       endTime = LocalDateTime.of(endDate, LocalTime.parse(endTimeStr, TIME_FMT));
     } catch (DateTimeParseException e) {
-      showStatus("Định dạng giờ không hợp lệ. Vui lòng dùng HH:mm (vd: 09:00).", true);
+      showStatus("Invalid time format. Please use HH:mm (e.g. 09:00).", true);
       return;
     }
 
     if (!endTime.isAfter(startTime)) {
-      showStatus("Thời gian kết thúc phải sau thời gian bắt đầu.", true);
+      showStatus("End time must be after start time.", true);
       return;
     }
 
@@ -145,14 +170,14 @@ public class CreateAuctionController implements Navigable {
                   // FIX: Hiển thị thông báo thành công, sau đó navigate về auction-list
                   Platform.runLater(
                       () -> {
-                        showStatus("Tạo phiên đấu giá thành công!", false);
+                        showStatus("Auction created successfully.", false);
                         createButton.setDisable(false);
                       });
                   Thread.sleep(1500);
                   Platform.runLater(
                       () -> SceneManager.getInstance().navigateTo("auction-list.fxml"));
                 } else {
-                  String msg = extractMessage(response.body(), "Tạo phiên thất bại.");
+                  String msg = extractMessage(response.body(), "Couldn't create the auction.");
                   Platform.runLater(
                       () -> {
                         showStatus(msg, true);
@@ -163,7 +188,7 @@ public class CreateAuctionController implements Navigable {
                 LOGGER.error("Lỗi tạo phiên đấu giá", e);
                 Platform.runLater(
                     () -> {
-                      showStatus("Không thể kết nối đến server.", true);
+                      showStatus("Unable to reach the server.", true);
                       createButton.setDisable(false);
                     });
               }
@@ -213,18 +238,18 @@ public class CreateAuctionController implements Navigable {
                                 super.updateItem(item, empty);
                                 setText(
                                     empty || item == null
-                                        ? "Chọn sản phẩm của bạn"
+                                        ? "Choose one of your products"
                                         : item.getName());
                               }
                             });
                         if (items.isEmpty()) {
-                          showStatus("Bạn chưa có sản phẩm nào. Hãy tạo sản phẩm trước.", true);
+                          showStatus("You don't have any products yet. Create one first.", true);
                         }
                       });
                 }
               } catch (Exception e) {
                 LOGGER.error("Lỗi load danh sách sản phẩm", e);
-                Platform.runLater(() -> showStatus("Không thể tải danh sách sản phẩm.", true));
+                Platform.runLater(() -> showStatus("Couldn't load your product list.", true));
               }
             });
   }
@@ -293,5 +318,267 @@ public class CreateAuctionController implements Navigable {
     } catch (Exception e) {
       return fallback;
     }
+  }
+
+  /**
+   * Adds a subtle scale pulse when the picker gains focus or opens, so the field feels consistent
+   * with the rest of the animated UI.
+   */
+  private void installDatePickerMotion(DatePicker picker) {
+    if (picker == null) {
+      return;
+    }
+
+    picker
+        .focusedProperty()
+        .addListener((obs, wasFocused, isFocused) -> animateDatePicker(picker, isFocused));
+    picker
+        .showingProperty()
+        .addListener(
+            (obs, wasShowing, isShowing) -> {
+              animateDatePicker(picker, isShowing);
+            });
+  }
+
+  private void animateDatePicker(DatePicker picker, boolean active) {
+    ScaleTransition existing = (ScaleTransition) picker.getProperties().get("datePickerPulse");
+    if (existing != null) {
+      existing.stop();
+    }
+
+    ScaleTransition pulse = new ScaleTransition(Duration.millis(active ? 160 : 120), picker);
+    pulse.setToX(active ? 1.01 : 1.0);
+    pulse.setToY(active ? 1.01 : 1.0);
+    pulse.setInterpolator(Interpolator.EASE_OUT);
+    picker.getProperties().put("datePickerPulse", pulse);
+    pulse.playFromStart();
+  }
+
+  private void configureDatePicker(DatePicker picker) {
+    if (picker == null) {
+      return;
+    }
+
+    if (!picker.getStyleClass().contains("auction-calendar-glass-picker")) {
+      picker.getStyleClass().add("auction-calendar-glass-picker");
+    }
+
+    GlassCalendarState state = new GlassCalendarState();
+    picker.getProperties().put("glassCalendarState", state);
+
+    picker.setDayCellFactory(dp -> new GlassDateCell(picker, state));
+    picker.valueProperty().addListener((obs, oldValue, newValue) -> state.refreshAll());
+    state.hoverProgress.addListener((obs, oldValue, newValue) -> state.refreshAll());
+    state.hoveredCell.addListener((obs, oldValue, newValue) -> state.refreshAll());
+    picker
+        .skinProperty()
+        .addListener(
+            (obs, oldSkin, newSkin) ->
+                Platform.runLater(() -> applyPopupStyleWithRetry(picker, 3)));
+    picker
+        .showingProperty()
+        .addListener(
+            (obs, wasShowing, isShowing) -> {
+              if (isShowing) {
+                applyPopupStyleWithRetry(picker, 3);
+              }
+            });
+  }
+
+  private void applyPopupStyleWithRetry(DatePicker picker, int attemptsRemaining) {
+    if (picker == null || attemptsRemaining < 0) {
+      return;
+    }
+    if (applyPopupStyle(picker)) {
+      return;
+    }
+    Platform.runLater(() -> applyPopupStyleWithRetry(picker, attemptsRemaining - 1));
+  }
+
+  private boolean applyPopupStyle(DatePicker picker) {
+    if (!(picker.getSkin() instanceof DatePickerSkin skin)) {
+      return false;
+    }
+    Region popup = (Region) skin.getPopupContent();
+    if (popup == null) {
+      return false;
+    }
+    if (!popup.getStyleClass().contains("auction-calendar-glass-popup")) {
+      popup.getStyleClass().add("auction-calendar-glass-popup");
+    }
+    return true;
+  }
+
+  private final class GlassDateCell extends DateCell {
+    private final DatePicker picker;
+    private final GlassCalendarState state;
+    private final DropShadow shadow = new DropShadow();
+
+    private GlassDateCell(DatePicker picker, GlassCalendarState state) {
+      this.picker = picker;
+      this.state = state;
+      setFocusTraversable(false);
+      shadow.setColor(Color.rgb(21, 101, 192, 0.12));
+      shadow.setRadius(8);
+      shadow.setOffsetY(1.0);
+
+      hoverProperty()
+          .addListener(
+              (obs, wasHover, isHover) -> {
+                if (isHover) {
+                  state.hoveredCell.set(this);
+                  animateHover(state, 1.0);
+                } else if (state.hoveredCell.get() == this) {
+                  animateHover(state, 0.0);
+                  Platform.runLater(
+                      () -> {
+                        if (!isHover() && state.hoveredCell.get() == this) {
+                          state.hoveredCell.set(null);
+                        }
+                      });
+                }
+              });
+
+      state.hoveredCell.addListener((obs, oldValue, newValue) -> refreshAppearance());
+      state.hoverProgress.addListener((obs, oldValue, newValue) -> refreshAppearance());
+      picker.valueProperty().addListener((obs, oldValue, newValue) -> refreshAppearance());
+    }
+
+    @Override
+    public void updateItem(LocalDate item, boolean empty) {
+      super.updateItem(item, empty);
+      refreshAppearance();
+    }
+
+    private void refreshAppearance() {
+      applyDayCellStyle(this, picker, state, shadow);
+    }
+  }
+
+  private static final class GlassCalendarState {
+    private final javafx.beans.property.ObjectProperty<DateCell> hoveredCell =
+        new javafx.beans.property.SimpleObjectProperty<>(null);
+    private final DoubleProperty hoverProgress = new SimpleDoubleProperty(0.0);
+    private final Timeline hoverTimeline = new Timeline();
+
+    private void refreshAll() {
+      // Cells listen directly to hoverProgress/hoveredCell/picker.valueProperty.
+    }
+  }
+
+  private void animateHover(GlassCalendarState state, double target) {
+    state.hoverTimeline.stop();
+    state
+        .hoverTimeline
+        .getKeyFrames()
+        .setAll(
+            new KeyFrame(
+                Duration.ZERO,
+                new KeyValue(
+                    state.hoverProgress, state.hoverProgress.get(), Interpolator.EASE_BOTH)),
+            new KeyFrame(
+                Duration.millis(target > state.hoverProgress.get() ? 185 : 145),
+                new KeyValue(state.hoverProgress, target, Interpolator.EASE_BOTH)));
+    state.hoverTimeline.playFromStart();
+  }
+
+  private void applyDayCellStyle(
+      DateCell cell, DatePicker picker, GlassCalendarState state, DropShadow shadow) {
+    LocalDate item = cell.getItem();
+    if (cell.isEmpty() || item == null) {
+      cell.setBackground(Background.EMPTY);
+      cell.setBorder(javafx.scene.layout.Border.EMPTY);
+      cell.setEffect(null);
+      cell.setOpacity(1.0);
+      cell.setTextFill(Color.TRANSPARENT);
+      return;
+    }
+
+    DateCell hovered = state.hoveredCell.get();
+    boolean isHovered = hovered == cell;
+    boolean hasHover = hovered != null;
+    boolean selected = picker.getValue() != null && picker.getValue().equals(item);
+    boolean today = LocalDate.now().equals(item);
+    boolean previousMonth = cell.getStyleClass().contains("previous-month");
+    boolean nextMonth = cell.getStyleClass().contains("next-month");
+    boolean outOfMonth =
+        previousMonth
+            || nextMonth
+            || (picker.getValue() != null && item.getMonth() != picker.getValue().getMonth());
+    double hover = state.hoverProgress.get();
+
+    Color outer = Color.TRANSPARENT;
+    Color inner = Color.TRANSPARENT;
+    Color border = Color.TRANSPARENT;
+    Color text = Color.rgb(51, 65, 85);
+    double glow = 0.0;
+    double opacity = 1.0;
+
+    if (selected) {
+      double boost = 0.92 + (0.08 * hover);
+      outer = Color.rgb(35, 92, 226, 0.92 * boost);
+      inner = Color.rgb(16, 102, 204, 0.84 * boost);
+      border = Color.rgb(255, 255, 255, 0.52);
+      text = Color.WHITE;
+      glow = 0.30 + (hover * 0.06);
+    } else if (today) {
+      double todayMix = 0.72 + (0.28 * hover);
+      outer = Color.rgb(255, 255, 255, 0.20 * todayMix);
+      inner = Color.rgb(191, 219, 254, 0.64 * todayMix);
+      border = Color.rgb(37, 99, 235, 0.68 * todayMix);
+      text = Color.rgb(14, 91, 181);
+      glow = 0.18 + (hover * 0.04);
+    } else if (isHovered) {
+      double lift = 0.22 + (0.78 * hover);
+      outer = Color.rgb(255, 255, 255, 0.18 * lift);
+      inner = Color.rgb(191, 219, 254, 0.72 * lift);
+      border = Color.rgb(96, 165, 250, 0.46 * lift);
+      text = Color.rgb(15, 23, 42);
+      glow = 0.24 + (0.12 * hover);
+    } else if (hasHover) {
+      opacity = 0.58;
+      glow = 0.02;
+    }
+
+    if (selected && today) {
+      outer = Color.rgb(31, 111, 235, 0.98);
+      inner = Color.rgb(15, 95, 184, 0.94);
+      border = Color.rgb(255, 255, 255, 0.70);
+      text = Color.WHITE;
+    }
+
+    if (!selected && !today && !isHovered && outOfMonth) {
+      opacity = hasHover ? 0.45 : 0.55;
+    }
+
+    if (selected || today || isHovered) {
+      cell.setBackground(
+          new Background(
+              new BackgroundFill(outer, new CornerRadii(999), Insets.EMPTY),
+              new BackgroundFill(inner, new CornerRadii(999), new Insets(1.1))));
+      cell.setBorder(
+          new javafx.scene.layout.Border(
+              new javafx.scene.layout.BorderStroke(
+                  border,
+                  javafx.scene.layout.BorderStrokeStyle.SOLID,
+                  new CornerRadii(999),
+                  new javafx.scene.layout.BorderWidths(1))));
+      shadow.setColor(Color.rgb(21, 101, 192, glow));
+      shadow.setRadius(isHovered ? 16 : (selected ? 12 : 10));
+      shadow.setOffsetY(isHovered ? 1.4 : 1.0);
+      cell.setEffect(shadow);
+    } else {
+      cell.setBackground(Background.EMPTY);
+      cell.setBorder(
+          new javafx.scene.layout.Border(
+              new javafx.scene.layout.BorderStroke(
+                  Color.TRANSPARENT,
+                  javafx.scene.layout.BorderStrokeStyle.SOLID,
+                  new CornerRadii(999),
+                  new javafx.scene.layout.BorderWidths(1))));
+      cell.setEffect(null);
+    }
+    cell.setTextFill(text);
+    cell.setOpacity(opacity);
   }
 }

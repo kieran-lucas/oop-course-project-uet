@@ -210,7 +210,7 @@ public class AdminPanelController implements Navigable {
    * thị trạng thái tải ở statusLabel trong quá trình chờ phản hồi.
    */
   private void loadAuctions() {
-    setStatus("Đang tải dữ liệu...");
+    setStatus("Loading auctions...");
     Thread.ofVirtual()
         .start(
             () -> {
@@ -223,21 +223,22 @@ public class AdminPanelController implements Navigable {
                       () -> {
                         allAuctions.setAll(list);
                         auctionTable.setItems(FXCollections.observableArrayList(allAuctions));
-                        setStatus("Tổng cộng " + list.size() + " phiên đấu giá.");
+                        setStatus(list.size() + " auctions in total.");
                       });
                 } else {
-                  Platform.runLater(() -> setStatus("Lỗi tải dữ liệu: " + response.statusCode()));
+                  Platform.runLater(
+                      () -> setStatus("Failed to load auctions: " + response.statusCode()));
                 }
               } catch (Exception e) {
                 LOGGER.error("Lỗi load auctions", e);
-                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+                Platform.runLater(() -> setStatus("Unable to reach the server."));
               }
             });
   }
 
   /**
-   * Xóa vĩnh viễn phiên đấu giá khỏi database qua {@code DELETE /api/admin/auctions/{id}}. Khác với
-   * {@link #deleteAuction(Long)} (hủy mềm), thao tác này không thể hoàn tác.
+   * Hard-delete an auction via {@code DELETE /api/admin/auctions/{id}}. Unlike {@link
+   * #deleteAuction(Long)} (soft cancel), this cannot be undone.
    */
   private void hardDeleteAuction(Long id) {
     Thread.ofVirtual()
@@ -248,7 +249,7 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 204 || response.statusCode() == 200) {
-                        setStatus("Đã xóa vĩnh viễn phiên #" + id + ".");
+                        setStatus("Auction #" + id + " permanently deleted.");
                         // Remove from UI immediately so admin sees the row vanish even before
                         // loadAuctions() round-trips.
                         allAuctions.removeIf(a -> id.equals(a.getId()));
@@ -256,13 +257,13 @@ public class AdminPanelController implements Navigable {
                         loadAuctions();
                       } else {
                         String serverMsg = extractServerMessage(response.body());
-                        setStatus("Xóa thất bại (" + response.statusCode() + "): " + serverMsg);
-                        showErrorDialog("Không thể xóa phiên #" + id, serverMsg);
+                        setStatus("Delete failed (" + response.statusCode() + "): " + serverMsg);
+                        showErrorDialog("Couldn't delete auction #" + id, serverMsg);
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi xóa phiên {}", id, e);
-                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+                Platform.runLater(() -> setStatus("Unable to reach the server."));
               }
             });
   }
@@ -280,18 +281,17 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 204 || response.statusCode() == 200) {
-                        setStatus("Đã hủy phiên #" + id + ".");
+                        setStatus("Auction #" + id + " was canceled.");
                         loadAuctions();
                       } else {
                         String serverMsg = extractServerMessage(response.body());
-                        setStatus(
-                            "Hủy phiên thất bại (" + response.statusCode() + "): " + serverMsg);
-                        showErrorDialog("Không thể hủy phiên #" + id, serverMsg);
+                        setStatus("Cancel failed (" + response.statusCode() + "): " + serverMsg);
+                        showErrorDialog("Couldn't cancel auction #" + id, serverMsg);
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi hủy phiên {}", id, e);
-                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+                Platform.runLater(() -> setStatus("Unable to reach the server."));
               }
             });
   }
@@ -303,7 +303,7 @@ public class AdminPanelController implements Navigable {
    */
   private String extractServerMessage(String body) {
     if (body == null || body.isBlank()) {
-      return "Không có thông tin lỗi từ server.";
+      return "No error information returned by the server.";
     }
     try {
       JsonNode node = MAPPER.readTree(body);
@@ -354,21 +354,21 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 204 || response.statusCode() == 200) {
-                        setUserStatus("Đã xóa tài khoản #" + id + " thành công.");
+                        setUserStatus("Account #" + id + " was deleted.");
                         loadUsers();
                       } else {
                         String serverMsg = extractServerMessage(response.body());
-                        setUserStatus("Không thể xóa tài khoản #" + id + ": " + serverMsg);
-                        showErrorDialog("Không thể xóa tài khoản #" + id, serverMsg);
+                        setUserStatus("Couldn't delete account #" + id + ": " + serverMsg);
+                        showErrorDialog("Couldn't delete account #" + id, serverMsg);
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi xóa user {}", id, e);
                 Platform.runLater(
                     () -> {
-                      setUserStatus("Không thể kết nối đến server.");
+                      setUserStatus("Unable to reach the server.");
                       showErrorDialog(
-                          "Lỗi kết nối", "Không thể kết nối đến server. Vui lòng thử lại.");
+                          "Connection error", "Unable to reach the server. Please try again.");
                     });
               }
             });
@@ -417,19 +417,19 @@ public class AdminPanelController implements Navigable {
                     () -> {
                       if (response.statusCode() == 200) {
                         setPasswordResetStatus(
-                            "Đã duyệt yêu cầu #"
+                            "Approved request #"
                                 + id
-                                + ". Mật khẩu mới: "
+                                + ". New password: "
                                 + extractTempPassword(response.body()));
                         loadPasswordResetRequests();
                       } else {
-                        setPasswordResetStatus("Duyệt thất bại: " + response.statusCode(), true);
+                        setPasswordResetStatus("Approval failed: " + response.statusCode(), true);
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi duyệt password reset {}", id, e);
                 Platform.runLater(
-                    () -> setPasswordResetStatus("Không thể kết nối đến server.", true));
+                    () -> setPasswordResetStatus("Unable to reach the server.", true));
               }
             });
   }
@@ -437,9 +437,9 @@ public class AdminPanelController implements Navigable {
   private String extractTempPassword(String responseBody) {
     try {
       JsonNode json = MAPPER.readTree(responseBody);
-      return json.has("tempPassword") ? json.get("tempPassword").asText() : "(không có)";
+      return json.has("tempPassword") ? json.get("tempPassword").asText() : "(missing)";
     } catch (Exception e) {
-      return "(không đọc được)";
+      return "(unreadable)";
     }
   }
 
@@ -458,16 +458,16 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 204) {
-                        setPasswordResetStatus("Đã từ chối yêu cầu đặt lại mật khẩu #" + id);
+                        setPasswordResetStatus("Password reset request #" + id + " rejected.");
                         loadPasswordResetRequests();
                       } else {
-                        setPasswordResetStatus("Từ chối thất bại: " + response.statusCode(), true);
+                        setPasswordResetStatus("Rejection failed: " + response.statusCode(), true);
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi từ chối password reset {}", id, e);
                 Platform.runLater(
-                    () -> setPasswordResetStatus("Không thể kết nối đến server.", true));
+                    () -> setPasswordResetStatus("Unable to reach the server.", true));
               }
             });
   }
@@ -500,7 +500,7 @@ public class AdminPanelController implements Navigable {
       action.accept(item);
     } catch (Exception ex) {
       LOGGER.error("Lỗi xử lý hành động '{}'", label, ex);
-      setStatus("Lỗi mở '" + label + "': " + ex.getMessage());
+      setStatus("Failed to open '" + label + "': " + ex.getMessage());
     }
   }
 
@@ -663,9 +663,9 @@ public class AdminPanelController implements Navigable {
     actionCol.setCellFactory(
         col ->
             new TableCell<>() {
-              private final Button viewBtn = new Button("Xem");
-              private final Button cancelBtn = new Button("Hủy");
-              private final Button deleteBtn = new Button("Xóa");
+              private final Button viewBtn = new Button("View");
+              private final Button cancelBtn = new Button("Cancel");
+              private final Button deleteBtn = new Button("Delete");
               private final HBox box = new HBox(8, viewBtn, cancelBtn, deleteBtn);
 
               {
@@ -678,19 +678,19 @@ public class AdminPanelController implements Navigable {
                         runRowAction(
                             getTableRow(),
                             a -> SceneManager.getInstance().navigateTo("auction-detail.fxml", a),
-                            "Xem phiên"));
+                            "View auction"));
                 cancelBtn.setOnAction(
                     e ->
                         runRowAction(
                             getTableRow(),
                             AdminPanelController.this::confirmCancelAuction,
-                            "Hủy phiên"));
+                            "Cancel auction"));
                 deleteBtn.setOnAction(
                     e ->
                         runRowAction(
                             getTableRow(),
                             AdminPanelController.this::confirmHardDeleteAuction,
-                            "Xóa phiên"));
+                            "Delete auction"));
               }
 
               @Override
@@ -720,14 +720,14 @@ public class AdminPanelController implements Navigable {
   private void confirmCancelAuction(AuctionResponse a) {
     String auctionName = formatAuctionName(a);
     showConfirmDialog(
-        "Xác nhận hủy phiên",
-        "Hủy phiên đấu giá #" + a.getId() + " - " + auctionName + "?",
-        "Phiên "
+        "Cancel auction?",
+        "Cancel auction #" + a.getId() + " — " + auctionName + "?",
+        "Auction "
             + auctionName
-            + " sẽ chuyển sang trạng thái CANCELED.\n"
-            + "Seller và tất cả bidder đã tham gia sẽ nhận thông báo.\n"
-            + "Người dẫn đầu (nếu có) sẽ được hoàn lại tiền giữ chỗ.\n"
-            + "Thao tác này không thể hoàn tác.",
+            + " will move to the CANCELED state.\n"
+            + "The seller and every participating bidder will be notified.\n"
+            + "Reserved funds held against the leading bid will be refunded.\n"
+            + "This action cannot be undone.",
         false,
         () -> deleteAuction(a.getId()));
   }
@@ -736,13 +736,13 @@ public class AdminPanelController implements Navigable {
   private void confirmHardDeleteAuction(AuctionResponse a) {
     String auctionName = formatAuctionName(a);
     showConfirmDialog(
-        "Xác nhận xóa vĩnh viễn",
-        "Xóa phiên đấu giá #" + a.getId() + " - " + auctionName + "?",
-        "Phiên "
+        "Permanently delete?",
+        "Delete auction #" + a.getId() + " — " + auctionName + "?",
+        "Auction "
             + auctionName
-            + " cùng toàn bộ lịch sử bid,\n"
-            + "auto-bid và giao dịch ví liên quan sẽ bị xóa\n"
-            + "khỏi cơ sở dữ liệu. Thao tác này KHÔNG THỂ hoàn tác.",
+            + " and every associated bid,\n"
+            + "auto-bid and wallet transaction will be removed\n"
+            + "from the database. This action CANNOT be undone.",
         true,
         () -> hardDeleteAuction(a.getId()));
   }
@@ -750,13 +750,13 @@ public class AdminPanelController implements Navigable {
   /** Hiện custom dialog xác nhận trước khi xóa tài khoản người dùng. */
   private void confirmDeleteUser(UserResponse u) {
     showConfirmDialog(
-        "Xác nhận xóa tài khoản",
-        "Xóa tài khoản \"" + u.getUsername() + "\"?",
-        "Tài khoản #"
+        "Delete account?",
+        "Delete the account \"" + u.getUsername() + "\"?",
+        "Account #"
             + u.getId()
-            + " sẽ bị xóa vĩnh viễn.\n"
-            + "Lưu ý: không thể xóa nếu tài khoản đã có\n"
-            + "lịch sử đấu giá, bid hoặc giao dịch liên quan.",
+            + " will be permanently deleted.\n"
+            + "Note: deletion is blocked when the account has\n"
+            + "existing auctions, bids, or wallet transactions.",
         true,
         () -> deleteUser(u.getId()));
   }
@@ -788,7 +788,7 @@ public class AdminPanelController implements Navigable {
       // action-handler boundary and the user would see "nothing happens" on click — which
       // is exactly the symptom that was reported.
       LOGGER.error("Không thể mở confirm dialog '{}': {}", title, ex.getMessage(), ex);
-      setStatus("Lỗi mở dialog: " + ex.getMessage());
+      setStatus("Couldn't open the dialog: " + ex.getMessage());
     }
   }
 
@@ -819,7 +819,7 @@ public class AdminPanelController implements Navigable {
             ? "M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 "
                 + "0 0,0 18,19V7H6V19Z"
             : "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z";
-    String confirmLabel = danger ? "Xóa vĩnh viễn" : "Xác nhận hủy";
+    String confirmLabel = danger ? "Delete permanently" : "Confirm cancel";
 
     // ── Backdrop ──────────────────────────────────────────────────────────
     // Slate-900 at 55% — premium feel vs pure black, matches app's #0F172A text color.
@@ -902,7 +902,7 @@ public class AdminPanelController implements Navigable {
             + "-fx-font-smoothing-type: gray;";
     final String cancelHoverStyle = cancelBaseStyle.replace(cancelBaseBg, cancelHoverBg);
 
-    javafx.scene.control.Button cancelBtn = new javafx.scene.control.Button("Hủy bỏ");
+    javafx.scene.control.Button cancelBtn = new javafx.scene.control.Button("Cancel");
     cancelBtn.setMaxWidth(Double.MAX_VALUE);
     javafx.scene.layout.HBox.setHgrow(cancelBtn, javafx.scene.layout.Priority.ALWAYS);
     cancelBtn.setStyle(cancelBaseStyle);
@@ -1140,7 +1140,7 @@ public class AdminPanelController implements Navigable {
       showErrorDialogImpl(header, body);
     } catch (Exception ex) {
       LOGGER.error("Không thể mở error dialog '{}': {}", header, ex.getMessage(), ex);
-      setStatus("Lỗi mở dialog: " + ex.getMessage());
+      setStatus("Couldn't open the dialog: " + ex.getMessage());
     }
   }
 
@@ -1249,7 +1249,7 @@ public class AdminPanelController implements Navigable {
             + "-fx-font-smoothing-type: gray;";
     final String okHoverStyle = okBaseStyle.replace(accentGradient, accentGradientHover);
 
-    javafx.scene.control.Button okBtn = new javafx.scene.control.Button("Đã hiểu");
+    javafx.scene.control.Button okBtn = new javafx.scene.control.Button("Got it");
     okBtn.setMaxWidth(Double.MAX_VALUE);
     javafx.scene.layout.HBox.setHgrow(okBtn, javafx.scene.layout.Priority.ALWAYS);
     okBtn.setStyle(okBaseStyle);
@@ -1400,7 +1400,7 @@ public class AdminPanelController implements Navigable {
     userActionCol.setCellFactory(
         col ->
             new TableCell<>() {
-              private final Button deleteBtn = new Button("Xóa");
+              private final Button deleteBtn = new Button("Delete");
 
               {
                 deleteBtn.getStyleClass().add("table-action-delete");
@@ -1409,7 +1409,7 @@ public class AdminPanelController implements Navigable {
                         runRowAction(
                             getTableRow(),
                             AdminPanelController.this::confirmDeleteUser,
-                            "Xóa tài khoản"));
+                            "Delete account"));
               }
 
               @Override
@@ -1452,16 +1452,16 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 200) {
-                        setDepositStatus("Đã duyệt yêu cầu nạp tiền #" + id);
+                        setDepositStatus("Deposit request #" + id + " approved.");
                         loadDepositRequests();
                         loadUsers();
                       } else {
-                        setDepositStatus("Duyệt thất bại: " + response.statusCode());
+                        setDepositStatus("Approval failed: " + response.statusCode());
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi duyệt deposit {}", id, e);
-                Platform.runLater(() -> setDepositStatus("Không thể kết nối đến server."));
+                Platform.runLater(() -> setDepositStatus("Unable to reach the server."));
               }
             });
   }
@@ -1476,15 +1476,15 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 204) {
-                        setDepositStatus("Đã từ chối yêu cầu nạp tiền #" + id);
+                        setDepositStatus("Deposit request #" + id + " rejected.");
                         loadDepositRequests();
                       } else {
-                        setDepositStatus("Từ chối thất bại: " + response.statusCode());
+                        setDepositStatus("Rejection failed: " + response.statusCode());
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi từ chối deposit {}", id, e);
-                Platform.runLater(() -> setDepositStatus("Không thể kết nối đến server."));
+                Platform.runLater(() -> setDepositStatus("Unable to reach the server."));
               }
             });
   }
@@ -1528,8 +1528,8 @@ public class AdminPanelController implements Navigable {
     depositActionCol.setCellFactory(
         col ->
             new TableCell<>() {
-              private final Button approveBtn = new Button("Duyệt");
-              private final Button rejectBtn = new Button("Từ chối");
+              private final Button approveBtn = new Button("Approve");
+              private final Button rejectBtn = new Button("Reject");
               private final HBox box = new HBox(8, approveBtn, rejectBtn);
 
               {
@@ -1539,11 +1539,11 @@ public class AdminPanelController implements Navigable {
                 approveBtn.setOnAction(
                     e ->
                         runRowAction(
-                            getTableRow(), r -> approveDeposit(r.getId()), "Duyệt nạp tiền"));
+                            getTableRow(), r -> approveDeposit(r.getId()), "Approve deposit"));
                 rejectBtn.setOnAction(
                     e ->
                         runRowAction(
-                            getTableRow(), r -> rejectDeposit(r.getId()), "Từ chối nạp tiền"));
+                            getTableRow(), r -> rejectDeposit(r.getId()), "Reject deposit"));
               }
 
               @Override
@@ -1580,8 +1580,8 @@ public class AdminPanelController implements Navigable {
     prActionCol.setCellFactory(
         col ->
             new TableCell<>() {
-              private final Button approveBtn = new Button("Duyệt");
-              private final Button rejectBtn = new Button("Từ chối");
+              private final Button approveBtn = new Button("Approve");
+              private final Button rejectBtn = new Button("Reject");
               private final HBox box = new HBox(8, approveBtn, rejectBtn);
 
               {
@@ -1593,13 +1593,13 @@ public class AdminPanelController implements Navigable {
                         runRowAction(
                             getTableRow(),
                             r -> approvePasswordReset(r.getId()),
-                            "Duyệt đặt lại mật khẩu"));
+                            "Approve password reset"));
                 rejectBtn.setOnAction(
                     e ->
                         runRowAction(
                             getTableRow(),
                             r -> rejectPasswordReset(r.getId()),
-                            "Từ chối đặt lại mật khẩu"));
+                            "Reject password reset"));
               }
 
               @Override

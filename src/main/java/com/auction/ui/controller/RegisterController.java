@@ -75,23 +75,23 @@ public class RegisterController implements Navigable {
 
     // Validate phía client
     if (username.isEmpty()) {
-      showError("Tên đăng nhập không được để trống.");
+      showError("Username is required.");
       return;
     }
     if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-      showError("Định dạng email không hợp lệ.");
+      showError("That email address doesn't look valid.");
       return;
     }
     if (password.length() < 6) {
-      showError("Mật khẩu phải có ít nhất 6 ký tự.");
+      showError("Password must be at least 6 characters.");
       return;
     }
     if (!password.equals(confirmPassword)) {
-      showError("Hai mật khẩu không khớp nhau.");
+      showError("The two passwords don't match.");
       return;
     }
     if (role == null) {
-      showError("Vui lòng chọn vai trò.");
+      showError("Please choose a role.");
       return;
     }
 
@@ -124,7 +124,7 @@ public class RegisterController implements Navigable {
                   String msg =
                       json.has("message")
                           ? json.get("message").asText()
-                          : "Đăng ký thất bại. Tên đăng nhập có thể đã tồn tại.";
+                          : "Registration failed. The username may already exist.";
                   Platform.runLater(
                       () -> {
                         showError(msg);
@@ -135,7 +135,7 @@ public class RegisterController implements Navigable {
                 LOGGER.error("Lỗi kết nối server khi đăng ký", e);
                 Platform.runLater(
                     () -> {
-                      showError("Không thể kết nối đến server. Vui lòng thử lại.");
+                      showError("Unable to reach the server. Please try again.");
                       registerButton.setDisable(false);
                     });
               }

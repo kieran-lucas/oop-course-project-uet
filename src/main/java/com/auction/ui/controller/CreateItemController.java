@@ -72,20 +72,20 @@ public class CreateItemController implements Navigable {
     }
     switch (category) {
       case "ELECTRONICS" -> {
-        categoryDetailLabel.setText("Thương hiệu *");
-        categoryDetailField.setPromptText("Vd: Apple, Samsung, Sony...");
+        categoryDetailLabel.setText("BRAND *");
+        categoryDetailField.setPromptText("e.g. Apple, Samsung, Sony...");
       }
       case "ART" -> {
-        categoryDetailLabel.setText("Nghệ sĩ *");
-        categoryDetailField.setPromptText("Vd: Van Gogh, Picasso...");
+        categoryDetailLabel.setText("ARTIST *");
+        categoryDetailField.setPromptText("e.g. Van Gogh, Picasso...");
       }
       case "VEHICLE" -> {
-        categoryDetailLabel.setText("Năm sản xuất *");
-        categoryDetailField.setPromptText("Vd: 2022");
+        categoryDetailLabel.setText("YEAR *");
+        categoryDetailField.setPromptText("e.g. 2022");
       }
       default -> {
-        categoryDetailLabel.setText("Chi tiết danh mục *");
-        categoryDetailField.setPromptText("Nhập thông tin chi tiết");
+        categoryDetailLabel.setText("CATEGORY DETAILS *");
+        categoryDetailField.setPromptText("Enter the requested detail");
       }
     }
   }
@@ -102,15 +102,15 @@ public class CreateItemController implements Navigable {
     String categoryDetail = categoryDetailField.getText().trim();
 
     if (name.isEmpty()) {
-      showStatus("Tên sản phẩm không được để trống.", true);
+      showStatus("Product name is required.", true);
       return;
     }
     if (category == null) {
-      showStatus("Vui lòng chọn danh mục.", true);
+      showStatus("Please choose a category.", true);
       return;
     }
     if (categoryDetail.isEmpty()) {
-      showStatus("Vui lòng nhập thông tin chi tiết danh mục.", true);
+      showStatus("Please fill in the category details.", true);
       return;
     }
 
@@ -130,7 +130,7 @@ public class CreateItemController implements Navigable {
                 HttpResponse<String> response = RestClient.post("/api/items", body);
                 if (response.statusCode() == 201) {
                   // FIX 1: Hiển thị thông báo thành công trước khi navigate
-                  Platform.runLater(() -> showStatus("Tạo sản phẩm thành công!", false));
+                  Platform.runLater(() -> showStatus("Product created successfully.", false));
                   Thread.sleep(1500);
                   Platform.runLater(
                       () -> {
@@ -141,7 +141,7 @@ public class CreateItemController implements Navigable {
                         SceneManager.getInstance().navigateBack("create-auction.fxml");
                       });
                 } else {
-                  String msg = extractMessage(response.body(), "Tạo sản phẩm thất bại.");
+                  String msg = extractMessage(response.body(), "Couldn't create the product.");
                   Platform.runLater(
                       () -> {
                         showStatus(msg, true);
@@ -152,7 +152,7 @@ public class CreateItemController implements Navigable {
                 LOGGER.error("Lỗi tạo sản phẩm", e);
                 Platform.runLater(
                     () -> {
-                      showStatus("Không thể kết nối đến server.", true);
+                      showStatus("Unable to reach the server.", true);
                       createButton.setDisable(false);
                     });
               }
@@ -205,7 +205,7 @@ public class CreateItemController implements Navigable {
       categoryDetailField.clear();
     }
     if (categoryDetailLabel != null) {
-      categoryDetailLabel.setText("Chi tiết danh mục *");
+      categoryDetailLabel.setText("CATEGORY DETAILS *");
     }
     hideStatus();
     if (createButton != null) {

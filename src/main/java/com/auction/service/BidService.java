@@ -180,8 +180,8 @@ public class BidService {
                           + " VALUES (?, ?, 'OUTBID')",
                       previousLeaderId,
                       String.format(
-                          Locale.of("vi", "VN"),
-                          "Bạn đã bị vượt giá tại phiên #%d. Giá hiện tại: %,d VND",
+                          Locale.US,
+                          "You have been outbid in auction #%d. Current price: %,d VND",
                           auctionId,
                           toIntegerVnd(amount, "Bid amount")));
                 }
@@ -191,8 +191,8 @@ public class BidService {
                   String bidderLabel = NotificationFormat.user(bidder.getUsername());
                   String sellerMsg =
                       String.format(
-                          Locale.of("vi", "VN"),
-                          "Phiên #%d của bạn vừa nhận bid mới từ %s. Giá hiện tại: %,d VND",
+                          Locale.US,
+                          "Your auction #%d has received a new bid from %s. Current price: %,d VND",
                           auctionId,
                           bidderLabel,
                           toIntegerVnd(amount, "Bid amount"));
@@ -346,9 +346,9 @@ public class BidService {
                           + " VALUES (?, ?, 'AUTOBID_EXHAUSTED')",
                       bidderId,
                       String.format(
-                          Locale.of("vi", "VN"),
-                          "Auto-bid cho phiên #%d không được kích hoạt:"
-                              + " mức tối đa %,d VND thấp hơn giá đặt ban đầu cần thiết %,d VND.",
+                          Locale.US,
+                          "Auto-bid for auction #%d could not be activated:"
+                              + " your maximum bid of %,d VND is below the required opening bid of %,d VND.",
                           auctionId,
                           toIntegerVnd(maxBid, "Max bid"),
                           toIntegerVnd(initialBid, "Initial bid")));
@@ -366,9 +366,9 @@ public class BidService {
                           + " VALUES (?, ?, 'AUTOBID_FAILED')",
                       bidderId,
                       String.format(
-                          Locale.of("vi", "VN"),
-                          "Auto-bid cho phiên #%d không được kích hoạt:"
-                              + " số dư không đủ. Cần %,d VND, có %,d VND",
+                          Locale.US,
+                          "Auto-bid for auction #%d could not be activated:"
+                              + " insufficient balance. Required: %,d VND, available: %,d VND",
                           auctionId,
                           toIntegerVnd(initialBid, "Initial bid"),
                           toIntegerVnd(bidder.getAvailableBalance(), "Available balance")));
@@ -413,8 +413,8 @@ public class BidService {
                           + " VALUES (?, ?, 'OUTBID')",
                       previousLeaderId,
                       String.format(
-                          Locale.of("vi", "VN"),
-                          "Bạn đã bị vượt giá tại phiên #%d. Giá hiện tại: %,d VND",
+                          Locale.US,
+                          "You have been outbid in auction #%d. Current price: %,d VND",
                           auctionId,
                           toIntegerVnd(initialBid, "Initial bid")));
                 }
@@ -424,8 +424,8 @@ public class BidService {
                   String bidderLabel = NotificationFormat.user(bidder.getUsername());
                   String sellerMsg =
                       String.format(
-                          Locale.of("vi", "VN"),
-                          "Phiên #%d của bạn vừa nhận auto-bid mới từ %s. Giá hiện tại: %,d VND",
+                          Locale.US,
+                          "Your auction #%d has received a new auto-bid from %s. Current price: %,d VND",
                           auctionId,
                           bidderLabel,
                           toIntegerVnd(initialBid, "Initial bid"));
@@ -533,8 +533,8 @@ public class BidService {
           "INSERT INTO notifications (user_id, message, notification_type) VALUES (?, ?, 'OUTBID')",
           previousLeaderId,
           String.format(
-              Locale.of("vi", "VN"),
-              "Bạn đã bị vượt giá tại phiên #%d. Giá hiện tại: %,d VND",
+              Locale.US,
+              "You have been outbid in auction #%d. Current price: %,d VND",
               auctionId,
               toIntegerVnd(amount, "Bid amount")));
     }
@@ -551,8 +551,8 @@ public class BidService {
       String bidderLabel = NotificationFormat.user(bidderName);
       String sellerMsg =
           String.format(
-              Locale.of("vi", "VN"),
-              "Phiên #%d của bạn vừa nhận auto-bid mới từ %s. Giá hiện tại: %,d VND",
+              Locale.US,
+              "Your auction #%d has received a new auto-bid from %s. Current price: %,d VND",
               auctionId,
               bidderLabel,
               toIntegerVnd(amount, "Bid amount"));

@@ -30,8 +30,7 @@
                 onMouseClicked="#handleProfile">
             <graphic><Region styleClass="user-icon" /></graphic>
          </Label>
-         <Button text="Đăng xuất" styleClass="logout-button" onAction="#handleLogout"
-                 style="-fx-font-family: 'Lexend'; -fx-font-weight: bold; -fx-font-size: 14px;">
+         <Button text="Log out" styleClass="logout-button" onAction="#handleLogout">
             <graphic><Region styleClass="logout-icon" /></graphic>
          </Button>
       </HBox>
@@ -47,27 +46,27 @@
 
             <!-- ===== Auction management ===== -->
             <HBox alignment="CENTER_LEFT" spacing="12.0">
-               <Label styleClass="section-title" text="Quản lý phiên đấu giá" />
+               <Label styleClass="section-title" text="Auction Management" />
                <Region HBox.hgrow="ALWAYS" />
-               <Button text="Làm mới" styleClass="secondary-button" onAction="#handleRefresh" />
+               <Button text="Refresh" styleClass="secondary-button" onAction="#handleRefresh" />
             </HBox>
 
             <HBox spacing="10.0" alignment="CENTER_LEFT">
-               <TextField fx:id="searchField" promptText="Tìm kiếm phiên..."
+               <TextField fx:id="searchField" promptText="Search auctions..."
                           styleClass="search-field" prefWidth="260.0" />
-               <Button text="Tìm" styleClass="secondary-button" onAction="#handleSearch" />
+               <Button text="Search" styleClass="secondary-button" onAction="#handleSearch" />
             </HBox>
 
             <TableView fx:id="auctionTable" prefHeight="240.0" styleClass="auction-table">
                <columns>
                   <TableColumn fx:id="idCol" text="ID" prefWidth="60.0" />
-                  <TableColumn fx:id="itemCol" text="Sản phẩm" prefWidth="245.0" />
-                  <TableColumn fx:id="statusCol" text="Trạng thái" prefWidth="130.0" />
-                  <TableColumn fx:id="priceCol" text="Giá hiện tại" prefWidth="220.0" />
-                  <TableColumn fx:id="actionCol" text="Hành động" prefWidth="270.0" minWidth="240.0" />
+                  <TableColumn fx:id="itemCol" text="Product" prefWidth="245.0" />
+                  <TableColumn fx:id="statusCol" text="Status" prefWidth="130.0" />
+                  <TableColumn fx:id="priceCol" text="Current Price" prefWidth="220.0" />
+                  <TableColumn fx:id="actionCol" text="Actions" prefWidth="270.0" minWidth="240.0" />
                </columns>
                <placeholder>
-                  <Label text="Không có phiên nào." />
+                  <Label styleClass="empty-state-label" text="No auctions yet." />
                </placeholder>
             </TableView>
 
@@ -78,21 +77,21 @@
 
             <!-- ===== Deposit request management ===== -->
             <HBox alignment="CENTER_LEFT" spacing="12.0">
-               <Label styleClass="section-title" text="Yêu cầu nạp tiền (chờ duyệt)" />
+               <Label styleClass="section-title" text="Deposit Requests (pending)" />
                <Region HBox.hgrow="ALWAYS" />
-               <Button text="Làm mới" styleClass="secondary-button" onAction="#handleRefreshDeposits" />
+               <Button text="Refresh" styleClass="secondary-button" onAction="#handleRefreshDeposits" />
             </HBox>
 
             <TableView fx:id="depositTable" prefHeight="200.0" styleClass="auction-table">
                <columns>
                   <TableColumn fx:id="depositIdCol" text="ID" prefWidth="60.0" />
-                  <TableColumn fx:id="depositUserCol" text="Người dùng" prefWidth="160.0" />
-                  <TableColumn fx:id="depositAmountCol" text="Số tiền" prefWidth="230.0" />
-                  <TableColumn fx:id="depositTimeCol" text="Thời gian" prefWidth="180.0" />
-                  <TableColumn fx:id="depositActionCol" text="Hành động" prefWidth="220.0" minWidth="190.0" />
+                  <TableColumn fx:id="depositUserCol" text="User" prefWidth="160.0" />
+                  <TableColumn fx:id="depositAmountCol" text="Amount" prefWidth="230.0" />
+                  <TableColumn fx:id="depositTimeCol" text="Submitted" prefWidth="180.0" />
+                  <TableColumn fx:id="depositActionCol" text="Actions" prefWidth="220.0" minWidth="190.0" />
                </columns>
                <placeholder>
-                  <Label text="Không có yêu cầu nạp tiền nào đang chờ." />
+                  <Label styleClass="empty-state-label" text="No pending deposit requests." />
                </placeholder>
             </TableView>
 
@@ -103,21 +102,21 @@
 
             <!-- ===== Password reset request management ===== -->
             <HBox alignment="CENTER_LEFT" spacing="12.0">
-               <Label styleClass="section-title" text="Yêu cầu đặt lại mật khẩu (chờ duyệt)" />
+               <Label styleClass="section-title" text="Password Reset Requests (pending)" />
                <Region HBox.hgrow="ALWAYS" />
-               <Button text="Làm mới" styleClass="secondary-button" onAction="#handleRefreshPasswordResets" />
+               <Button text="Refresh" styleClass="secondary-button" onAction="#handleRefreshPasswordResets" />
             </HBox>
 
             <TableView fx:id="passwordResetTable" prefHeight="180.0" styleClass="auction-table">
                <columns>
                   <TableColumn fx:id="prIdCol" text="ID" prefWidth="60.0" />
-                  <TableColumn fx:id="prUsernameCol" text="Tên đăng nhập" prefWidth="150.0" />
+                  <TableColumn fx:id="prUsernameCol" text="Username" prefWidth="150.0" />
                   <TableColumn fx:id="prEmailCol" text="Email" prefWidth="300.0" />
-                  <TableColumn fx:id="prTimeCol" text="Thời gian yêu cầu" prefWidth="180.0" />
-                  <TableColumn fx:id="prActionCol" text="Hành động" prefWidth="220.0" minWidth="190.0" />
+                  <TableColumn fx:id="prTimeCol" text="Requested" prefWidth="180.0" />
+                  <TableColumn fx:id="prActionCol" text="Actions" prefWidth="220.0" minWidth="190.0" />
                </columns>
                <placeholder>
-                  <Label text="Không có yêu cầu đặt lại mật khẩu nào đang chờ." />
+                  <Label styleClass="empty-state-label" text="No pending password reset requests." />
                </placeholder>
             </TableView>
 
@@ -127,19 +126,19 @@
             <Separator />
 
             <!-- ===== User management ===== -->
-            <Label styleClass="section-title" text="Quản lý người dùng" />
+            <Label styleClass="section-title" text="User Management" />
 
             <TableView fx:id="userTable" prefHeight="240.0" styleClass="auction-table">
                <columns>
                   <TableColumn fx:id="userIdCol" text="ID" prefWidth="60.0" />
-                  <TableColumn fx:id="usernameCol" text="Tên đăng nhập" prefWidth="150.0" />
+                  <TableColumn fx:id="usernameCol" text="Username" prefWidth="150.0" />
                   <TableColumn fx:id="emailCol" text="Email" prefWidth="300.0" />
-                  <TableColumn fx:id="roleCol" text="Vai trò" prefWidth="100.0" />
-                  <TableColumn fx:id="balanceCol" text="Số dư" prefWidth="230.0" />
-                  <TableColumn fx:id="userActionCol" text="Hành động" prefWidth="120.0" minWidth="100.0" />
+                  <TableColumn fx:id="roleCol" text="Role" prefWidth="100.0" />
+                  <TableColumn fx:id="balanceCol" text="Balance" prefWidth="230.0" />
+                  <TableColumn fx:id="userActionCol" text="Actions" prefWidth="120.0" minWidth="100.0" />
                </columns>
                <placeholder>
-                  <Label text="Không có người dùng nào." />
+                  <Label styleClass="empty-state-label" text="No users to display." />
                </placeholder>
             </TableView>
 

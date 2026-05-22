@@ -297,10 +297,10 @@ public class AuctionWebSocketHandler {
     String message =
         approved
             ? String.format(
-                Locale.of("vi", "VN"),
-                "Yêu cầu nạp tiền đã được duyệt. Số dư biến động: + %,d VND",
+                Locale.US,
+                "Your deposit request has been approved. Balance change: + %,d VND",
                 balanceDelta != null ? balanceDelta.longValue() : 0)
-            : "Yêu cầu nạp tiền đã bị từ chối.";
+            : "Your deposit request has been declined.";
     saveNotificationToDatabase(userId, message, "BALANCE_UPDATED");
 
     // 2. Push qua WebSocket nếu user đang online

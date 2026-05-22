@@ -21,17 +21,17 @@
       </padding>
 
       <Label styleClass="app-title" text="Online Auction" />
-      <Label fx:id="roleHintLabel" styleClass="app-subtitle" text="Đăng nhập" />
+      <Label fx:id="roleHintLabel" styleClass="app-subtitle" text="Sign in" />
 
       <VBox spacing="6.0">
-         <Label styleClass="field-label" text="TÊN ĐĂNG NHẬP" />
-         <TextField fx:id="usernameField" promptText="Nhập tên đăng nhập"
+         <Label styleClass="field-label" text="USERNAME" />
+         <TextField fx:id="usernameField" promptText="Enter your username"
                     styleClass="text-field" />
       </VBox>
 
       <VBox spacing="6.0">
-         <Label styleClass="field-label" text="MẬT KHẨU" />
-         <PasswordField fx:id="passwordField" promptText="Nhập mật khẩu"
+         <Label styleClass="field-label" text="PASSWORD" />
+         <PasswordField fx:id="passwordField" promptText="Enter your password"
                         styleClass="text-field, password-field"
                         onAction="#handleLogin" />
       </VBox>
@@ -39,17 +39,17 @@
       <Label fx:id="errorLabel" styleClass="error-label" text=""
              visible="false" managed="false" wrapText="true" />
 
-      <Button fx:id="loginButton" styleClass="primary-button" text="Đăng nhập"
+      <Button fx:id="loginButton" styleClass="primary-button" text="Sign in"
               maxWidth="Infinity" onAction="#handleLogin" />
 
       <HBox alignment="CENTER" spacing="20.0">
-         <Hyperlink text="Chưa có tài khoản? Đăng ký" onAction="#goToRegister"
+         <Hyperlink text="Don't have an account? Register" onAction="#goToRegister"
                     styleClass="link" />
-         <Hyperlink text="Quên mật khẩu?" onAction="#goToForgotPassword"
+         <Hyperlink text="Forgot password?" onAction="#goToForgotPassword"
                     styleClass="link" />
       </HBox>
 
-      <Hyperlink text="← Quay lại" onAction="#goBack" styleClass="back-link" />
+      <Hyperlink text="← Back" onAction="#goBack" styleClass="back-link" />
    </VBox>
 
 </StackPane>

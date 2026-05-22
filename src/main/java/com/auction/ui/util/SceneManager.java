@@ -410,18 +410,18 @@ public class SceneManager {
     windowControls.getStyleClass().add("window-controls");
 
     Button minimizeButton =
-        createWindowControlButton("window-minimize-button", "window-minimize-icon", "Thu nhỏ");
+        createWindowControlButton("window-minimize-button", "window-minimize-icon", "Minimize");
     minimizeButton.setOnAction(event -> minimizeWindow());
 
     maximizeButton =
-        createWindowControlButton("window-maximize-button", "window-maximize-icon", "Phóng to");
+        createWindowControlButton("window-maximize-button", "window-maximize-icon", "Maximize");
     maximizeButton.setOnAction(event -> toggleMaximizeWindow());
     primaryStage
         .maximizedProperty()
         .addListener((obs, wasMaximized, isMaximized) -> updateMaximizeButtonState(isMaximized));
 
     Button closeButton =
-        createWindowControlButton("window-close-button", "window-close-icon", "Đóng");
+        createWindowControlButton("window-close-button", "window-close-icon", "Close");
     closeButton.setOnAction(event -> closeWindow());
 
     windowControls.getChildren().addAll(minimizeButton, maximizeButton, closeButton);
@@ -846,7 +846,7 @@ public class SceneManager {
     }
 
     icon.getStyleClass().setAll(maximized ? "window-restore-icon" : "window-maximize-icon");
-    maximizeButton.setTooltip(new Tooltip(maximized ? "Khôi phục" : "Phóng to"));
+    maximizeButton.setTooltip(new Tooltip(maximized ? "Restore" : "Maximize"));
   }
 
   private void closeWindow() {
@@ -1070,7 +1070,7 @@ public class SceneManager {
       }
     } catch (Exception e) {
       LOGGER.error("performNavigate thất bại khi load '{}': {}", fxmlName, e.getMessage(), e);
-      showErrorScreen("Không thể load màn hình: " + fxmlName + "\n" + e.getMessage());
+      showErrorScreen("Couldn't load the screen: " + fxmlName + "\n" + e.getMessage());
       return;
     }
 
@@ -1174,7 +1174,7 @@ public class SceneManager {
    * @param message mô tả lỗi hiển thị trên màn hình
    */
   private void showErrorScreen(String message) {
-    Label errorLabel = new Label("⚠ Lỗi điều hướng:\n" + message);
+    Label errorLabel = new Label("⚠ Navigation error:\n" + message);
     errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 14px; -fx-padding: 20;");
     errorLabel.setWrapText(true);
     setMainView(errorLabel);

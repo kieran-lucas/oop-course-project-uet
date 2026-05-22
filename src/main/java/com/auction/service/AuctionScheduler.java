@@ -390,10 +390,10 @@ public class AuctionScheduler {
                 BigDecimal winnerDelta = price.negate();
                 String winMsg =
                     String.format(
-                        Locale.of("vi", "VN"),
-                        "Bạn đã thắng phiên %s với giá %,d VND."
-                            + " Thanh toán thành công."
-                            + " Số dư biến động: - %,d VND",
+                        Locale.US,
+                        "You won auction %s at %,d VND."
+                            + " Payment completed successfully."
+                            + " Balance change: - %,d VND",
                         auctionLabel,
                         price.longValue(),
                         price.longValue());
@@ -431,9 +431,9 @@ public class AuctionScheduler {
                       sellerNewBalance);
                   String sellerPayoutMsg =
                       String.format(
-                          Locale.of("vi", "VN"),
-                          "Bạn đã được %s thanh toán thành công cho phiên %s."
-                              + " Số dư biến động: + %,d VND",
+                          Locale.US,
+                          "You have successfully received payment from %s for auction %s."
+                              + " Balance change: + %,d VND",
                           winnerLabel,
                           auctionLabel,
                           price.longValue());
@@ -445,8 +445,8 @@ public class AuctionScheduler {
                 // ── Common end-of-auction broadcast (PAID) ─────────────────
                 String commonMsg =
                     String.format(
-                        Locale.of("vi", "VN"),
-                        "🏁 Phiên %s đã kết thúc — Người thắng: %s với giá %,d VND",
+                        Locale.US,
+                        "Auction %s has ended. Winner: %s at %,d VND",
                         auctionLabel,
                         winnerLabel,
                         price.longValue());
@@ -474,8 +474,8 @@ public class AuctionScheduler {
                 // ── Common end-of-auction broadcast (winner couldn't pay) ──
                 String commonMsg =
                     String.format(
-                        Locale.of("vi", "VN"),
-                        "🏁 Phiên %s đã kết thúc nhưng thất bại: người thắng %s không đủ tiền thanh toán %,d VND",
+                        Locale.US,
+                        "Auction %s has ended, but payment failed: winner %s did not have enough funds to pay %,d VND",
                         auctionLabel,
                         winnerLabel,
                         price.longValue());
@@ -488,8 +488,8 @@ public class AuctionScheduler {
               // ── Common end-of-auction broadcast (no bidder) ──
               String commonMsg =
                   String.format(
-                      Locale.of("vi", "VN"),
-                      "🏁 Phiên %s đã kết thúc — không có ai đặt giá. Phiên đấu giá thất bại",
+                      Locale.US,
+                      "Auction %s has ended with no bids. The auction was unsuccessful.",
                       auctionLabel);
               broadcastAuctionResult(
                   handle, userNotifications, bidderAudience, sellerId, commonMsg);

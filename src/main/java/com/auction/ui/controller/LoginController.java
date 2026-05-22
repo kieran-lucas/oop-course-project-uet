@@ -62,10 +62,10 @@ public class LoginController implements Navigable {
       if (roleHintLabel != null) {
         String label =
             switch (role) {
-              case "ADMIN" -> "Đăng nhập với vai trò: Quản trị viên";
-              case "SELLER" -> "Đăng nhập với vai trò: Người bán";
-              case "BIDDER" -> "Đăng nhập với vai trò: Người đặt giá";
-              default -> "Đăng nhập với vai trò: " + role;
+              case "ADMIN" -> "Sign in as Administrator";
+              case "SELLER" -> "Sign in as Seller";
+              case "BIDDER" -> "Sign in as Bidder";
+              default -> "Sign in as " + role;
             };
         roleHintLabel.setText(label);
       }
@@ -103,7 +103,7 @@ public class LoginController implements Navigable {
     String password = passwordField.getText();
 
     if (username.isEmpty() || password.isEmpty()) {
-      showError("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.");
+      showError("Please enter both your username and password.");
       return;
     }
 
@@ -134,7 +134,7 @@ public class LoginController implements Navigable {
                   String msg =
                       json.has("message")
                           ? json.get("message").asText()
-                          : "Đăng nhập thất bại. Vui lòng kiểm tra lại.";
+                          : "Sign-in failed. Please check your credentials.";
                   Platform.runLater(
                       () -> {
                         showError(msg);
@@ -145,7 +145,7 @@ public class LoginController implements Navigable {
                 LOGGER.error("Lỗi kết nối server khi đăng nhập", e);
                 Platform.runLater(
                     () -> {
-                      showError("Không thể kết nối đến server. Vui lòng thử lại.");
+                      showError("Unable to reach the server. Please try again.");
                       loginButton.setDisable(false);
                     });
               }
@@ -186,15 +186,13 @@ public class LoginController implements Navigable {
     if (expectedRole != null && !expectedRole.equals(role)) {
       String portalName =
           switch (expectedRole) {
-            case "ADMIN" -> "Quản trị viên";
-            case "SELLER" -> "Người bán";
-            case "BIDDER" -> "Người đặt giá";
-            default -> expectedRole;
+            case "ADMIN" -> "an Administrator account";
+            case "SELLER" -> "a Seller account";
+            case "BIDDER" -> "a Bidder account";
+            default -> expectedRole + " account";
           };
       showError(
-          "Tài khoản này không phải "
-              + portalName
-              + ". Vui lòng chọn đúng vai trò ở màn hình chào.");
+          "This is not " + portalName + ". Please pick the correct role from the welcome screen.");
       loginButton.setDisable(false);
       return;
     }
@@ -245,7 +243,7 @@ public class LoginController implements Navigable {
     }
     // Only reset the hint label when there is no expected role — onDataReceived may have set it
     if (roleHintLabel != null && expectedRole == null) {
-      roleHintLabel.setText("Đăng nhập");
+      roleHintLabel.setText("Sign in");
     }
     hideError();
     if (loginButton != null) {

@@ -427,7 +427,7 @@ public class AuctionService {
     }
 
     java.util.List<Long> recipients = new java.util.ArrayList<>();
-    String message = "Phiên đấu giá " + formatAuctionDisplayName(auction) + " đã bị Admin xóa";
+    String message = "Auction " + formatAuctionDisplayName(auction) + " was deleted by Admin";
 
     if (jdbi != null) {
       jdbi.useTransaction(
@@ -571,12 +571,12 @@ public class AuctionService {
     if (previousStatus == AuctionStatus.CANCELED) {
       return null;
     }
-    String byWho = "ADMIN".equals(actorRole) ? "Admin" : "người bán";
+    String byWho = "ADMIN".equals(actorRole) ? "Admin" : "seller";
     // Store the canonical "#<auctionId>" token in the DB; AuctionListController
     // (replaceAuctionIdWithName) swaps it for "[Item Name]" at render time. Pre-formatting
     // with formatAuctionDisplayName here would bypass that pipeline and break the
     // LIKE '%#<id>%' contract relied on by the cancellation integration test.
-    String message = "Phiên đấu giá #" + auction.getId() + " đã bị hủy bởi " + byWho;
+    String message = "Auction #" + auction.getId() + " was canceled by " + byWho;
 
     // Tập hợp tất cả người nhận: leadingBidder + tất cả bidder đã từng đặt giá + seller
     java.util.Set<Long> recipients = new java.util.LinkedHashSet<>();

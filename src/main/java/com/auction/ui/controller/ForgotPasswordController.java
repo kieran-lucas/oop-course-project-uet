@@ -47,7 +47,7 @@ public class ForgotPasswordController implements Navigable {
   public void handleSubmit() {
     String email = emailField.getText().trim();
     if (email.isEmpty() || !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-      showStatus("Vui lòng nhập địa chỉ email hợp lệ.", true);
+      showStatus("Please enter a valid email address.", true);
       return;
     }
 
@@ -63,11 +63,11 @@ public class ForgotPasswordController implements Navigable {
                 HttpResponse<String> response = RestClient.post("/api/auth/forgot-password", body);
 
                 if (response.statusCode() == 200) {
-                  String msg = extractMessage(response.body(), "Đã gửi yêu cầu thành công.");
+                  String msg = extractMessage(response.body(), "Request submitted successfully.");
                   Platform.runLater(() -> showStatus(msg, false));
                 } else {
                   String msg =
-                      extractMessage(response.body(), "Không tìm thấy tài khoản với email này.");
+                      extractMessage(response.body(), "No account is registered with this email.");
                   Platform.runLater(
                       () -> {
                         showStatus(msg, true);
@@ -78,7 +78,7 @@ public class ForgotPasswordController implements Navigable {
                 LOGGER.error("Lỗi gửi yêu cầu quên mật khẩu", e);
                 Platform.runLater(
                     () -> {
-                      showStatus("Không thể kết nối đến server. Vui lòng thử lại.", true);
+                      showStatus("Unable to reach the server. Please try again.", true);
                       submitButton.setDisable(false);
                     });
               }

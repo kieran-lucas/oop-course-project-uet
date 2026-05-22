@@ -94,7 +94,7 @@ public class AuctionListController implements Navigable {
       Pattern.compile("([+-]?\\s*[\\d.,]+\\s*(?:VND|VNĐ|₫|đ))", Pattern.CASE_INSENSITIVE);
   private static final Pattern NEW_BALANCE_PATTERN =
       Pattern.compile(
-          "S\u1ed1 d\u01b0 (?:m\u1edbi|bi\u1ebfn \u0111\u1ed9ng):\\s*([\\d.,]+)",
+          "(?:S\u1ed1 d\u01b0 (?:m\u1edbi|bi\u1ebfn \u0111\u1ed9ng)|Balance (?:new|change)):\\s*([\\d.,]+)",
           Pattern.CASE_INSENSITIVE);
   private static final Pattern BALANCE_DELTA_PATTERN =
       Pattern.compile("([+-]\\s*[\\d.,]+\\s*(?:VND|VNĐ|₫|đ))", Pattern.CASE_INSENSITIVE);
@@ -227,10 +227,10 @@ public class AuctionListController implements Navigable {
                           || (a.getItemName() != null
                               && a.getItemName().toLowerCase().contains(keyword));
                   boolean matchStatus =
-                      status == null || "Tất cả".equals(status) || status.equals(a.getStatus());
+                      status == null || "All".equals(status) || status.equals(a.getStatus());
                   boolean matchCategory =
                       category == null
-                          || "Tất cả".equals(category)
+                          || "All".equals(category)
                           || category.equals(a.getItemCategory());
                   return matchName && matchStatus && matchCategory;
                 })
@@ -272,7 +272,7 @@ public class AuctionListController implements Navigable {
    * statusLabel với tổng số phiên.
    */
   public void loadAuctions() {
-    setStatus("Đang tải dữ liệu...");
+    setStatus("Loading auctions...");
     Thread.ofVirtual()
         .start(
             () -> {
@@ -286,14 +286,15 @@ public class AuctionListController implements Navigable {
                         allAuctions.setAll(list);
                         updateCategoryFilter(list);
                         handleSearch();
-                        setStatus("Tổng cộng " + list.size() + " phiên đấu giá.");
+                        setStatus(list.size() + " auctions in total.");
                       });
                 } else {
-                  Platform.runLater(() -> setStatus("Lỗi tải dữ liệu: " + response.statusCode()));
+                  Platform.runLater(
+                      () -> setStatus("Failed to load auctions: " + response.statusCode()));
                 }
               } catch (Exception e) {
                 LOGGER.error("Lỗi load danh sách auction", e);
-                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+                Platform.runLater(() -> setStatus("Unable to reach the server."));
               }
             });
   }
@@ -389,6 +390,8 @@ public class AuctionListController implements Navigable {
     panel.setMaxWidth(panelWidth);
     panel.setPadding(new Insets(14, 16, 14, 16));
     panel.getStyleClass().add("notification-popup");
+    // Geometric radii must be set inline because the controller controls the matching Rectangle
+    // clip — keeping the literal here documents the contract between the two.
     panel.setStyle(
         "-fx-background-radius: "
             + cornerRadius
@@ -397,8 +400,8 @@ public class AuctionListController implements Navigable {
             + cornerRadius
             + ";");
 
-    // Rounded-rect clip — safety net để scrollbar/row không vẽ tràn ra khỏi 4 góc bo của panel
-    // (background-radius chỉ bo nền của panel, không tự clip children).
+    // Rounded-rect clip — safety net so scrollbar/row content never paints outside the panel's
+    // 4 rounded corners (background-radius only rounds the panel's own background, not its kids).
     Rectangle clip = new Rectangle();
     clip.setArcWidth(cornerRadius * 2.0);
     clip.setArcHeight(cornerRadius * 2.0);
@@ -406,17 +409,18 @@ public class AuctionListController implements Navigable {
     clip.heightProperty().bind(panel.heightProperty());
     panel.setClip(clip);
 
-    Label header = new Label("Thông báo");
-    header.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
+    Label header = new Label("Notifications");
+    header.getStyleClass().add("notification-popup-header");
     Separator sep = new Separator();
-    sep.setStyle("-fx-background-color: rgba(255,255,255,0.15);");
+    sep.getStyleClass().add("notification-popup-separator");
     panel.getChildren().addAll(header, sep);
 
     ObservableList<NotificationItem> notifications =
         NotificationStore.getInstance().getNotifications();
     if (notifications.isEmpty()) {
-      Label empty = new Label("Chưa có thông báo nào.");
-      empty.setStyle("-fx-text-fill: #94A3B8; -fx-font-size: 13px; -fx-padding: 4 0 4 0;");
+      Label empty = new Label("No notifications yet.");
+      empty.getStyleClass().add("notification-empty");
+      empty.setMaxWidth(Double.MAX_VALUE);
       panel.getChildren().add(empty);
       panel.setMinHeight(panelEmptyHeight);
       panel.setPrefHeight(panelEmptyHeight);
@@ -424,7 +428,7 @@ public class AuctionListController implements Navigable {
     } else {
       int limit = Math.min(notifications.size(), 50);
       VBox items = new VBox(4);
-      // NotificationStore: index 0 = moi nhat, hien thi moi nhat o tren cung.
+      // NotificationStore: index 0 = newest; we keep that order so the newest entry is at top.
       for (int i = 0; i < limit; i++) {
         items.getChildren().add(buildNotificationRow(notifications.get(i).getMessage()));
       }
@@ -433,23 +437,17 @@ public class AuctionListController implements Navigable {
       scroll.setFitToWidth(true);
       scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
       scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-      // Mặc định ScrollPane.prefHeight là một con số nhỏ cố định (~100px) khi không set
-      // prefViewportHeight, kể cả khi content chỉ vài chục pixel — đây chính là nguyên nhân
-      // tạo cảm giác "khung nhỏ kẹt trong khung to". Bind viewport ≡ chiều cao thật của content,
-      // clamp ở maxViewportHeight để khi danh sách dài thì scrollbar tự hiện và panel dừng ở
-      // ½ scene height.
+      scroll.getStyleClass().add("notification-popup-scroll");
+      // ScrollPane's default prefHeight is a small fixed value (~100px) when prefViewportHeight
+      // isn't set, even if the content is only a few dozen pixels tall — which was the source
+      // of the "small box trapped inside a big box" feel. Bind the viewport to the actual content
+      // height, clamped at maxViewportHeight so long lists scroll within ½-scene-height.
       scroll
           .prefViewportHeightProperty()
           .bind(
               Bindings.createDoubleBinding(
                   () -> Math.min(items.getHeight(), maxViewportHeight), items.heightProperty()));
       scroll.setMaxHeight(maxViewportHeight);
-      scroll.setStyle(
-          "-fx-background-color: transparent;"
-              + " -fx-background: transparent;"
-              + " -fx-control-inner-background: transparent;"
-              + " -fx-background-insets: 0;"
-              + " -fx-padding: 0;");
       panel.getChildren().add(scroll);
       Platform.runLater(() -> scroll.setVvalue(0.0));
 
@@ -532,8 +530,7 @@ public class AuctionListController implements Navigable {
   private Node createGenericFlowNode(String text) {
     TextFlow flow = new TextFlow();
     flow.setMaxWidth(Double.MAX_VALUE);
-    flow.setPadding(new Insets(7, 10, 7, 10));
-    flow.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-background-radius: 6;");
+    flow.getStyleClass().add("notification-row");
     appendColoredSegments(flow, text, DEFAULT_COLOR);
     return flow;
   }
@@ -546,8 +543,7 @@ public class AuctionListController implements Navigable {
     String[] parts = balance.text().split("\n", 2);
     VBox box = new VBox(2);
     box.setMaxWidth(Double.MAX_VALUE);
-    box.setPadding(new Insets(7, 10, 7, 10));
-    box.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-background-radius: 6;");
+    box.getStyleClass().add("notification-row");
     if (parts.length == 2 && !parts[0].isBlank()) {
       // Dong 1: prefix mo ta — TextFlow co mau de phan ten user/phien noi bat.
       TextFlow descFlow = new TextFlow();
@@ -777,15 +773,15 @@ public class AuctionListController implements Navigable {
       String rawPrefix = notification.substring(0, deltaMatcher.start()).trim();
       String prefix =
           rawPrefix
-              .replaceAll("(?i)[.,\\s]*S\u1ed1 d\u01b0 bi\u1ebfn \u0111\u1ed9ng:\\s*$", "")
+              .replaceAll(
+                  "(?i)[.,\\s]*(?:S\\u1ed1 d\\u01b0 bi\\u1ebfn \\u0111\\u1ed9ng|Balance change):\\s*$",
+                  "")
               .trim();
-      prefix = prefix.replaceAll("[.,;:]+$", "").trim();
-      // \u0110\u1ed5i "#5" trong ph\u1ea7n m\u00f4 t\u1ea3 th\u00e0nh "[T\u00ean s\u1ea3n
-      // ph\u1ea9m]" cho th\u00f4ng b\u00e1o settlement/payout
+      // Turn "#5" in the descriptive prefix into "[Item Name]" for settlement/payout messages.
       if (!prefix.isEmpty()) {
         prefix = replaceAuctionIdWithName(prefix);
       }
-      String deltaLine = "S\u1ed1 d\u01b0 bi\u1ebfn \u0111\u1ed9ng: " + formatDelta(delta);
+      String deltaLine = "Balance change: " + formatDelta(delta);
       String deltaText = prefix.isEmpty() ? deltaLine : prefix + "\n" + deltaLine;
       return new BalanceDisplay(deltaText, delta.signum() >= 0 ? "#22C55E" : "#EF4444");
     }
@@ -796,7 +792,8 @@ public class AuctionListController implements Navigable {
     }
 
     String lowerAgain = notification.toLowerCase(Locale.ROOT);
-    if (lowerAgain.contains("số dư")
+    if (lowerAgain.contains("s\u1ed1 d\u01b0")
+        || lowerAgain.contains("balance change")
         || lowerAgain.contains("so du")
         || lowerAgain.contains("balance")) {
       Matcher fallbackDeltaMatcher = BALANCE_DELTA_PATTERN.matcher(notification);
@@ -834,7 +831,7 @@ public class AuctionListController implements Navigable {
     }
     String current = categoryFilter.getValue();
     List<String> categories = new ArrayList<>();
-    categories.add("Tất cả");
+    categories.add("All");
     for (String cat : new String[] {"ART", "ELECTRONICS", "VEHICLE"}) {
       categories.add(cat);
     }
@@ -1014,7 +1011,7 @@ public class AuctionListController implements Navigable {
                 }
                 String st = computeClientStatus(a);
                 if ("FINISHED".equals(st) || "CANCELED".equals(st) || "PAID".equals(st)) {
-                  setText("Đã kết thúc");
+                  setText("Ended");
                   setTextFill(null);
                   setStyle("-fx-alignment: CENTER; -fx-text-fill: #64748B; -fx-font-weight: bold;");
                   return;
@@ -1038,7 +1035,7 @@ public class AuctionListController implements Navigable {
                   }
                   long ms = java.time.Duration.between(now, startTime).toMillis();
                   if (ms <= 0) {
-                    setText("Sắp bắt đầu");
+                    setText("Starting soon");
                   } else {
                     long totalSec = ms / 1000;
                     long h = totalSec / 3600;
@@ -1046,7 +1043,7 @@ public class AuctionListController implements Navigable {
                     long s = totalSec % 60;
                     String timeStr = String.format("%02d:%02d:%02d", h, m, s);
                     setText(timeStr);
-                    setTooltip(new javafx.scene.control.Tooltip("Bắt đầu sau: " + timeStr));
+                    setTooltip(new javafx.scene.control.Tooltip("Starts in: " + timeStr));
                   }
                 } else {
                   // RUNNING: hien thi thoi gian den khi ket thuc
@@ -1057,7 +1054,7 @@ public class AuctionListController implements Navigable {
                   }
                   long ms = java.time.Duration.between(now, endTime).toMillis();
                   if (ms <= 0) {
-                    setText("Đã kết thúc");
+                    setText("Ended");
                     setStyle(
                         "-fx-alignment: CENTER; -fx-text-fill: #64748B; -fx-font-weight: bold;");
                   } else {
@@ -1174,7 +1171,7 @@ public class AuctionListController implements Navigable {
   private void setupStatusFilter() {
     statusFilter.setItems(
         FXCollections.observableArrayList(
-            "Tất cả", "OPEN", "RUNNING", "FINISHED", "CANCELED", "PAID"));
+            "All", "OPEN", "RUNNING", "FINISHED", "CANCELED", "PAID"));
   }
 
   /**

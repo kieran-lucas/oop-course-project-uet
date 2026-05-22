@@ -74,8 +74,16 @@
    WELCOME SCREEN
    ================================================================ */
 
+/* Welcome screen — deep cinematic blue with a soft cyan glow in the top-right corner
+   (achieved via a radial gradient layered above the linear blue wash). The glow reads as
+   ambient light, not a logo or decoration. */
 .welcome-root {
-    -fx-background-color: linear-gradient(to bottom, #0D47A1, #1565C0 55%, #1976D2);
+    -fx-background-color:
+        radial-gradient(center 78% 18%, radius 60%,
+            rgba(125,211,252,0.28) 0%,
+            rgba(125,211,252,0.10) 40%,
+            transparent 90%),
+        linear-gradient(to bottom right, #082C72 0%, #0D47A1 38%, #1565C0 72%, #1E88E5 100%);
 }
 
 .welcome-title {
@@ -172,14 +180,30 @@
    AUTH SCREENS  (login / register / deposit / change-password)
    ================================================================ */
 
+/* Auth screen background — same cinematic gradient family as welcome, with a soft cyan
+   light from the upper-right. Slightly lighter terminal stop (#1E88E5) so the white
+   form-card on top still has strong contrast. */
 .login-root {
-    -fx-background-color: linear-gradient(to bottom right, #0D47A1, #1565C0, #1976D2);
+    -fx-background-color:
+        radial-gradient(center 82% 14%, radius 55%,
+            rgba(125,211,252,0.26) 0%,
+            rgba(125,211,252,0.08) 42%,
+            transparent 92%),
+        linear-gradient(to bottom right, #082C72 0%, #0D47A1 32%, #1565C0 68%, #1E88E5 100%);
 }
 
+/* Auth form card — frosted, premium glass over the cinematic background. Two-layer
+   background: an inner white sheet for legibility plus a faint white-to-icy gradient
+   on top that catches light at the top edge. Soft cyan shadow underneath grounds it.
+   Border highlight at 60% white = subtle frosted edge. */
 .login-card {
-    -fx-background-color: #FFFFFF;
-    -fx-background-radius: 20;
-    -fx-effect: dropshadow(gaussian, rgba(13,71,161,0.30), 48, 0.05, 0, 10);
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.96) 60%, #FFFFFF 100%);
+    -fx-background-radius: 22;
+    -fx-border-color: rgba(255,255,255,0.65);
+    -fx-border-width: 1.2;
+    -fx-border-radius: 22;
+    -fx-effect: dropshadow(gaussian, rgba(8,40,114,0.42), 60, 0.08, 0, 18);
 }
 
 /* ================================================================
@@ -1003,56 +1027,141 @@
 }
 
 /* ================================================================
-   DATE PICKER  — normalized to 40px height
+   CREATE AUCTION CALENDAR
    ================================================================ */
 
-.date-picker {
+.auction-calendar-glass-picker {
     -fx-font-size: 14px;
-    -fx-background-color: #FFFFFF;
-    -fx-border-color: #E2E8F0;
+    -fx-font-family: 'Lexend';
+    -fx-text-fill: #1E293B;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.92) 0%, rgba(235,244,255,0.88) 100%);
+    -fx-border-color: rgba(191,219,254,0.88);
     -fx-border-width: 1.5;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
+    -fx-background-insets: 0;
+    -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.08), 10, 0.08, 0, 2);
     -fx-pref-height: 40;
     -fx-min-height: 40;
+    -fx-cursor: hand;
 }
 
-.date-picker:focused {
+.auction-calendar-glass-picker:hover {
+    -fx-border-color: rgba(147,197,253,0.98);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.18), 12, 0.10, 0, 3);
+}
+
+.auction-calendar-glass-picker:focused {
     -fx-border-color: #1565C0;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.98) 0%, rgba(225,238,253,0.96) 100%);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.24), 16, 0.12, 0, 3);
 }
 
-.date-picker .text-field {
+.auction-calendar-glass-picker .text-field {
     -fx-border-width: 0;
     -fx-border-color: transparent;
-    -fx-background-color: transparent;
+    -fx-background-color: linear-gradient(to bottom, rgba(255,255,255,0.50) 0%, rgba(235,244,255,0.40) 100%);
     -fx-effect: none;
+    -fx-background-insets: 0;
     -fx-pref-height: 36;
     -fx-min-height: 36;
+    -fx-padding: 0 12 0 12;
 }
 
-.date-picker .arrow-button {
-    -fx-background-color: transparent;
+.auction-calendar-glass-picker .arrow-button {
+    -fx-background-color: linear-gradient(to bottom, rgba(240,248,255,0.92) 0%, rgba(219,234,254,0.92) 100%);
+    -fx-background-radius: 0 8 8 0;
     -fx-border-color: transparent;
+    -fx-padding: 0 12 0 12;
 }
 
-.date-picker .arrow-button:hover {
-    -fx-background-color: #EFF6FF;
-    -fx-background-radius: 5;
+.auction-calendar-glass-picker .arrow-button:hover {
+    -fx-background-color: linear-gradient(to bottom, rgba(191,219,254,0.98) 0%, rgba(147,197,253,0.98) 100%);
+}
+
+.auction-calendar-glass-picker .arrow-button .arrow {
+    -fx-background-color: #1565C0;
+}
+
+.auction-calendar-glass-popup {
+    -fx-background-color: transparent;
+    -fx-background-radius: 22;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+    -fx-effect:
+        dropshadow(gaussian, rgba(15,23,42,0.16), 28, 0.10, 0, 10),
+        dropshadow(gaussian, rgba(21,101,192,0.10), 16, 0.06, 0, 3),
+        innershadow(gaussian, rgba(255,255,255,0.78), 18, 0.12, 0, 1);
+}
+
+.auction-calendar-glass-popup .month-year-pane {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(247,250,255,0.96) 0%, rgba(231,241,255,0.88) 100%);
+    -fx-background-radius: 22 22 0 0;
+    -fx-background-insets: 0;
+    -fx-padding: 10 10 8 10;
+}
+
+.auction-calendar-glass-popup .calendar-grid {
+    -fx-background-color: linear-gradient(to bottom, rgba(250,253,255,0.58) 0%, rgba(235,244,255,0.48) 100%);
+    -fx-background-radius: 0 0 22 22;
+    -fx-background-insets: 0;
+    -fx-padding: 0 0 10 0;
+}
+
+.auction-calendar-glass-popup .calendar-grid .grid,
+.auction-calendar-glass-popup .calendar-grid .headers,
+.auction-calendar-glass-popup .calendar-grid .weekday-header {
+    -fx-background-color: transparent;
+}
+
+.auction-calendar-glass-popup .spinner {
+    -fx-background-color: transparent;
+}
+
+.auction-calendar-glass-popup .spinner .button {
+    -fx-background-color: rgba(255,255,255,0.18);
+    -fx-background-radius: 999;
+    -fx-border-color: rgba(255,255,255,0.12);
+    -fx-border-width: 1;
+    -fx-border-radius: 999;
+}
+
+.auction-calendar-glass-popup .spinner .button:hover {
+    -fx-background-color: rgba(219,234,254,0.72);
 }
 
 /* ================================================================
    LAYOUT CONTAINERS
    ================================================================ */
 
+/* Premium icy-blue gradient page background. Replaces the previous flat #EFF6FF
+   so every logged-in screen sits on a soft sky-to-snow vertical wash. Subtle enough
+   to keep tables readable, blue enough to identify the product. */
 .main-layout {
-    -fx-background-color: #EFF6FF;
+    -fx-background-color: linear-gradient(to bottom,
+        #DEEBFD 0%,
+        #E8F1FC 38%,
+        #F1F6FC 72%,
+        #F6FAFE 100%);
 }
 
+/* Brand top bar — a tri-stop blue gradient with a soft inner highlight at the very
+   top edge (achieved via a 1-pixel-tall white-tinted gradient stacked on top). The
+   inner highlight gives the bar a "glossy chrome" feel without being plasticky. */
 .top-bar {
-    -fx-background-color: linear-gradient(to right, #0D47A1, #1565C0 60%, #1976D2);
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 8, 0, 0, 2);
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.00) 8%, rgba(255,255,255,0.00) 100%),
+        linear-gradient(to right, #0A3D91, #1565C0 58%, #1E88E5);
+    -fx-background-insets: 0, 0;
+    -fx-effect: dropshadow(gaussian, rgba(10,40,90,0.30), 14, 0, 0, 3);
     -fx-min-height: 60;
     -fx-pref-height: 60;
+    -fx-border-color: transparent transparent rgba(255,255,255,0.18) transparent;
+    -fx-border-width: 0 0 1 0;
 }
 
 .window-title-bar {
@@ -1220,22 +1329,29 @@
    CARDS
    ================================================================ */
 
+/* Generic info card — single-tone white with a faint icy edge highlight and a soft
+   blue-tinted drop shadow. Drop shadow uses cool blue rather than neutral grey so
+   the card reads as "floating over icy water" rather than "elevated paper". */
 .info-card {
-    -fx-background-color: #FFFFFF;
-    -fx-background-radius: 12;
-    -fx-border-color: #E8F0FE;
+    -fx-background-color:
+        linear-gradient(to bottom, #FFFFFF 0%, #FCFDFF 100%);
+    -fx-background-radius: 14;
+    -fx-border-color: rgba(219,234,254,0.95);
     -fx-border-width: 1;
-    -fx-border-radius: 12;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.08), 14, 0, 0, 2);
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.12), 18, 0.02, 0, 4);
 }
 
+/* Form card — slightly larger radius + stronger lift, used by all auth/create screens
+   so they feel like the dominant focal surface on the page. */
 .form-card {
-    -fx-background-color: #FFFFFF;
-    -fx-background-radius: 16;
-    -fx-border-color: #E8F0FE;
+    -fx-background-color:
+        linear-gradient(to bottom, #FFFFFF 0%, #FBFDFF 100%);
+    -fx-background-radius: 18;
+    -fx-border-color: rgba(219,234,254,0.95);
     -fx-border-width: 1;
-    -fx-border-radius: 16;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.12), 20, 0, 0, 4);
+    -fx-border-radius: 18;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.16), 26, 0.04, 0, 6);
 }
 
 /* ----------------------------------------------------------------
@@ -1282,40 +1398,43 @@
    TABLE VIEW
    ================================================================ */
 
+/* Table container — frosted icy edge, soft blue elevation, slightly stronger radius. */
 .auction-table {
     -fx-background-color: #FFFFFF;
     -fx-background-insets: 0;
-    -fx-border-color: #E8F0FE;
-    -fx-border-radius: 12;
-    -fx-background-radius: 12;
+    -fx-border-color: rgba(219,234,254,0.95);
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
     -fx-border-width: 1;
     -fx-padding: 0;
     -fx-table-cell-border-color: #F1F5F9;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.08), 12, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.14), 18, 0.04, 0, 4);
 }
 
 /*
-   Keep the blue table header and JavaFX's right-side header filler/menu nodes on the same
-   rounded layer. Without these explicit rules, the default white filler/scroll-corner can show
-   through at the top-right corner of admin tables.
+   Header band is a vertical gradient from deeper navy to primary blue + a hairline white
+   highlight at the very top, giving the bar subtle dimension. The filler/menu corners on the
+   right reuse the same gradient so the rounded top-right corner stays continuous.
 */
 .auction-table .column-header-background {
-    -fx-background-color: #1565C0;
-    -fx-background-insets: 0;
-    -fx-background-radius: 12 12 0 0;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.00) 100%),
+        linear-gradient(to bottom, #0D47A1 0%, #1565C0 100%);
+    -fx-background-insets: 0, 0;
+    -fx-background-radius: 14 14 0 0;
 }
 
 .auction-table .column-header-background .filler,
 .auction-table .filler {
-    -fx-background-color: #1565C0;
+    -fx-background-color: linear-gradient(to bottom, #0D47A1 0%, #1565C0 100%);
     -fx-background-insets: 0;
-    -fx-background-radius: 0 12 0 0;
+    -fx-background-radius: 0 14 0 0;
 }
 
 .auction-table .show-hide-columns-button {
-    -fx-background-color: #1565C0;
+    -fx-background-color: linear-gradient(to bottom, #0D47A1 0%, #1565C0 100%);
     -fx-background-insets: 0;
-    -fx-background-radius: 0 12 0 0;
+    -fx-background-radius: 0 14 0 0;
 }
 
 .auction-table .column-header {
@@ -1471,18 +1590,20 @@
 /* Area fill — vertical gradient: stronger blue near the line, fading
    to near-transparent at the baseline. Gives the price curve a clear
    "ribbon" under it without dominating the plot. */
-.default-color0.chart-area-fill {
+.default-color0.chart-area-fill,
+.default-color0.chart-series-area-fill {
     -fx-fill: linear-gradient(to bottom,
-        rgba(21, 101, 192, 0.38) 0%,
-        rgba(21, 101, 192, 0.14) 60%,
-        rgba(21, 101, 192, 0.02) 100%);
+        rgba(29, 140, 255, 0.22) 0%,
+        rgba(71, 162, 255, 0.12) 58%,
+        rgba(191, 225, 255, 0.03) 100%);
     -fx-stroke: transparent;
 }
 
 /* Area line — solid blue 3px, rounded joints so polylines don't show
    sharp angles at each bid. */
-.default-color0.chart-area-line {
-    -fx-stroke: #1565C0;
+.default-color0.chart-area-line,
+.default-color0.chart-series-area-line {
+    -fx-stroke: #1D8CFF;
     -fx-stroke-width: 3;
     -fx-stroke-line-cap: round;
     -fx-stroke-line-join: round;
@@ -1491,16 +1612,16 @@
 /* Data-point symbols — filled blue dot ringed in white with a soft
    drop shadow so each bid reads as a tactile node on the curve. */
 .default-color0.chart-area-symbol {
-    -fx-background-color: #FFFFFF, #1565C0;
+    -fx-background-color: #FFFFFF, #1D8CFF;
     -fx-background-insets: 0, 3;
     -fx-background-radius: 7;
     -fx-padding: 6;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.42), 5, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, rgba(29,140,255,0.42), 5, 0, 0, 1);
 }
 
 .default-color0.chart-area-symbol:hover {
     -fx-padding: 7;
-    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.65), 8, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(11,114,231,0.65), 8, 0, 0, 2);
 }
 
 /* Axis labels */
@@ -1623,9 +1744,14 @@
     -fx-scale-shape: true;
 }
 
+/* Notification popup outer container — premium dark navy glass.
+   Two-layer background: a subtle top-edge highlight + a deep navy gradient gives the
+   popup a tactile, glassy feel against the bright blue top bar. */
 .notification-popup {
-    -fx-background-color: #1e2d40;
-    -fx-border-color: rgba(33, 150, 243, 0.45);
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.00) 12%, rgba(255,255,255,0.00) 100%),
+        linear-gradient(to bottom, #1B2A45 0%, #16243C 100%);
+    -fx-border-color: rgba(125,211,252,0.30);
     -fx-border-width: 1;
 }
 
@@ -1642,12 +1768,308 @@
 }
 
 /* ================================================================
+   PREMIUM BLUE GLASS v4 — additions
+   ================================================================
+   This block layers a richer, more premium identity on top of the
+   existing v3 design tokens. v3 classes remain valid so every
+   existing FXML/controller continues to resolve cleanly; the new
+   classes below are used by the redesigned notification popup,
+   admin dialogs, glass utility surfaces, and refined micro-interactions.
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   Glass surface utilities
+   ---------------------------------------------------------------- */
+
+/* Drop-in glass card — slightly more translucent than .info-card so it
+   reads as "frosted" rather than "solid white". Use when a panel sits over
+   the gradient page background and we want a sense of depth without
+   over-decorating. */
+.glass-card {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.98) 70%, #FFFFFF 100%);
+    -fx-background-radius: 16;
+    -fx-border-color: rgba(255,255,255,0.85);
+    -fx-border-width: 1;
+    -fx-border-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.16), 22, 0.04, 0, 6);
+}
+
+/* Subsurface — a softer, less prominent surface used INSIDE a glass-card
+   (e.g. the auto-bid sub-panel inside the bid card). */
+.glass-subsurface {
+    -fx-background-color: rgba(239,246,255,0.65);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(219,234,254,0.85);
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+}
+
+/* Decorative blue ambient blob — meant to be placed in a background StackPane
+   layer behind content. Soft, low-opacity, blue, rounded. Use sparingly. */
+.glass-blob {
+    -fx-background-color:
+        radial-gradient(center 50% 50%, radius 60%,
+            rgba(125,211,252,0.36) 0%, rgba(125,211,252,0.12) 55%, transparent 90%);
+    -fx-background-radius: 999;
+}
+
+/* ----------------------------------------------------------------
+   Section title with subtle vertical accent
+   ---------------------------------------------------------------- */
+
+/* Same as .section-title but with a brand-blue leading bar via -fx-border.
+   Apply to a Label that already uses .section-title for typography. */
+.section-title-accent {
+    -fx-border-color: #1565C0 transparent transparent transparent;
+    -fx-border-width: 0 0 0 0;
+    -fx-padding: 0 0 0 10;
+}
+
+/* ----------------------------------------------------------------
+   Empty-state styling for tables / list views
+   ---------------------------------------------------------------- */
+
+.empty-state-label {
+    -fx-font-size: 13.5px;
+    -fx-text-fill: #94A3B8;
+    -fx-alignment: CENTER;
+}
+
+/* ----------------------------------------------------------------
+   Notification popup — premium dark glass treatment.
+   These classes replace the per-element setStyle() calls that the
+   AuctionListController previously emitted inline. The controller
+   sets style classes instead of inline strings; the visual look
+   is governed entirely from this CSS block.
+   ---------------------------------------------------------------- */
+
+.notification-popup-header {
+    -fx-text-fill: rgba(255,255,255,0.94);
+    -fx-font-size: 14.5px;
+    -fx-font-weight: bold;
+}
+
+.notification-popup-separator .line {
+    -fx-border-color: rgba(125,211,252,0.30) transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.notification-popup-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.notification-popup-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* Notification row — each entry inside the popup. Subtle translucent strip
+   so individual items are visually grouped without looking boxy. Hover lift
+   gives the list interactive feedback. */
+.notification-row {
+    -fx-background-color: rgba(255,255,255,0.05);
+    -fx-background-radius: 8;
+    -fx-padding: 10 12 10 12;
+    -fx-cursor: hand;
+}
+
+.notification-row:hover {
+    -fx-background-color: rgba(125,211,252,0.12);
+}
+
+.notification-empty {
+    -fx-text-fill: rgba(255,255,255,0.55);
+    -fx-font-size: 13px;
+    -fx-alignment: CENTER;
+    -fx-padding: 18 0 18 0;
+}
+
+/* Notification dot — the small leading accent on a fresh notification. */
+.notification-dot {
+    -fx-background-color: #38BDF8;
+    -fx-background-radius: 999;
+    -fx-min-width: 7;
+    -fx-min-height: 7;
+    -fx-pref-width: 7;
+    -fx-pref-height: 7;
+    -fx-effect: dropshadow(gaussian, rgba(56,189,248,0.65), 5, 0.20, 0, 0);
+}
+
+/* ----------------------------------------------------------------
+   Dialog (confirm / info) — replaces inline-styled overlays in
+   AdminPanelController. These classes give the dialog a coherent
+   premium glass look that matches the rest of the app.
+   ---------------------------------------------------------------- */
+
+/* Backdrop behind a modal dialog — semi-opaque navy wash. */
+.dialog-overlay {
+    -fx-background-color: rgba(8,28,68,0.48);
+}
+
+/* Modal card — premium glass treatment, more lift than info-card. */
+.dialog-card {
+    -fx-background-color:
+        linear-gradient(to bottom, #FFFFFF 0%, #FBFDFF 100%);
+    -fx-background-radius: 18;
+    -fx-border-color: rgba(219,234,254,1);
+    -fx-border-width: 1;
+    -fx-border-radius: 18;
+    -fx-effect: dropshadow(gaussian, rgba(8,28,68,0.40), 36, 0.06, 0, 12);
+}
+
+.dialog-title {
+    -fx-font-family: 'LexendSemiBold';
+    -fx-font-size: 18px;
+    -fx-text-fill: #0F172A;
+}
+
+.dialog-body {
+    -fx-font-size: 13.5px;
+    -fx-text-fill: #475569;
+    -fx-wrap-text: true;
+}
+
+/* Circular icon containers for dialog headers. The icon's SVG shape is set
+   via -fx-shape elsewhere; these classes only govern the circle behind it. */
+.dialog-icon-circle-info {
+    -fx-background-color: linear-gradient(to bottom right, #1976D2 0%, #1565C0 100%);
+    -fx-background-radius: 999;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.42), 12, 0.12, 0, 3);
+    -fx-min-width: 44;
+    -fx-min-height: 44;
+    -fx-pref-width: 44;
+    -fx-pref-height: 44;
+    -fx-alignment: CENTER;
+}
+
+.dialog-icon-circle-warn {
+    -fx-background-color: linear-gradient(to bottom right, #F59E0B 0%, #D97706 100%);
+    -fx-background-radius: 999;
+    -fx-effect: dropshadow(gaussian, rgba(217,119,6,0.42), 12, 0.12, 0, 3);
+    -fx-min-width: 44;
+    -fx-min-height: 44;
+    -fx-pref-width: 44;
+    -fx-pref-height: 44;
+    -fx-alignment: CENTER;
+}
+
+.dialog-icon-circle-danger {
+    -fx-background-color: linear-gradient(to bottom right, #EF4444 0%, #DC2626 100%);
+    -fx-background-radius: 999;
+    -fx-effect: dropshadow(gaussian, rgba(220,38,38,0.42), 12, 0.12, 0, 3);
+    -fx-min-width: 44;
+    -fx-min-height: 44;
+    -fx-pref-width: 44;
+    -fx-pref-height: 44;
+    -fx-alignment: CENTER;
+}
+
+/* ----------------------------------------------------------------
+   Refined micro-interactions on primary/secondary buttons
+   ---------------------------------------------------------------- */
+
+/* A whisker of upward lift on hover for primary CTAs. Combined with the
+   existing shadow ramp, this gives Apple-like "lift" feedback without
+   touching layout (scale only, no translate that would reflow neighbours). */
+.primary-button:hover {
+    -fx-scale-x: 1.012;
+    -fx-scale-y: 1.012;
+}
+
+.primary-button:pressed {
+    -fx-scale-x: 0.985;
+    -fx-scale-y: 0.985;
+}
+
+.secondary-button:hover {
+    -fx-scale-x: 1.010;
+    -fx-scale-y: 1.010;
+}
+
+.secondary-button:pressed {
+    -fx-scale-x: 0.985;
+    -fx-scale-y: 0.985;
+}
+
+/* ----------------------------------------------------------------
+   Wallet balance pill — used in profile.fxml (replaces the inline
+   #EFF6FF padded box that lived in FXML).
+   ---------------------------------------------------------------- */
+
+.balance-pill {
+    -fx-background-color:
+        linear-gradient(to right, rgba(219,234,254,0.85) 0%, rgba(239,246,255,0.95) 100%);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(191,219,254,0.95);
+    -fx-border-width: 1;
+    -fx-border-radius: 10;
+    -fx-padding: 12 16 12 16;
+}
+
+/* ----------------------------------------------------------------
+   Bid notification toast — used in auction-detail. Replaces the
+   inline-styled label that previously had a hardcoded #1565C0 bg.
+   ---------------------------------------------------------------- */
+
+.bid-toast {
+    -fx-background-color: linear-gradient(to bottom, #1976D2 0%, #1565C0 100%);
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 10 20 10 20;
+    -fx-background-radius: 999;
+    -fx-effect: dropshadow(gaussian, rgba(21,101,192,0.45), 14, 0.06, 0, 4);
+}
+
+.bid-toast.success {
+    -fx-background-color: linear-gradient(to bottom, #22C55E 0%, #16A34A 100%);
+    -fx-effect: dropshadow(gaussian, rgba(22,163,74,0.45), 14, 0.06, 0, 4);
+}
+
+.bid-toast.warn {
+    -fx-background-color: linear-gradient(to bottom, #F59E0B 0%, #D97706 100%);
+    -fx-effect: dropshadow(gaussian, rgba(217,119,6,0.45), 14, 0.06, 0, 4);
+}
+
+.bid-toast.error {
+    -fx-background-color: linear-gradient(to bottom, #EF4444 0%, #DC2626 100%);
+    -fx-effect: dropshadow(gaussian, rgba(220,38,38,0.45), 14, 0.06, 0, 4);
+}
+
+/* ----------------------------------------------------------------
+   Auto-bid spinner — replaces the inline-styled big number label.
+   ---------------------------------------------------------------- */
+
+/* Auto-bid spinner glyph — uses Segoe UI Symbol because Lexend has no gear/cog character.
+   The negative top/bottom padding keeps the 48px glyph from inflating the surrounding HBox. */
+.autobid-counter {
+    -fx-font-family: 'Segoe UI Symbol';
+    -fx-font-size: 48px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1565C0;
+    -fx-padding: -7 0 -7 0;
+}
+
+/* ----------------------------------------------------------------
+   Chart polish — subtle plot-area inner highlight + slightly softer
+   grid lines than v3, so the chart looks more premium without
+   changing the data presentation.
+   ---------------------------------------------------------------- */
+
+.chart-plot-background {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent;
+}
+
+/* ================================================================
    GLOBAL TEXT SMOOTHING — layout-safe
    Replaces Prism's default LCD subpixel rendering with grayscale AA.
-   LCD AA produces visible color fringes / "răng cưa li ti" on custom
-   fonts (Lexend) rendered against alpha-blended backgrounds (the many
-   rgba(...) panels and dropshadows used in this theme). Grayscale AA
-   is cleaner against any background.
+   LCD AA produces visible color fringes on custom fonts (Lexend)
+   rendered against alpha-blended backgrounds (the many rgba(...)
+   panels and dropshadows used in this theme). Grayscale AA is
+   cleaner against any background.
    Does not change layout, sizing, spacing, colour, border, or radius.
    ================================================================ */
 * {

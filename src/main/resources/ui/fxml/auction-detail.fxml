@@ -25,7 +25,7 @@
          <padding>
             <Insets bottom="0.0" left="20.0" right="20.0" top="0.0" />
          </padding>
-         <Button text="Quay lại" styleClass="back-button" onAction="#goBack">
+         <Button text="Back" styleClass="back-button" onAction="#goBack">
             <graphic><Region styleClass="back-icon" /></graphic>
          </Button>
          <Label styleClass="app-logo" text="Auction House" />
@@ -40,13 +40,15 @@
    <!-- ===== CENTER ===== -->
    <center>
       <VBox>
-      <!-- Notification toast — hiển thị tạm 3 giây khi có bid mới -->
+      <!-- Notification toast — appears briefly when a new bid arrives. Styled via
+           .bid-toast in CSS so semantic variants (.success/.warn/.error) can be applied
+           by the controller through styleClass without inline-style churn. -->
       <Label fx:id="bidNotificationLabel"
              text=""
              visible="false" managed="false"
              alignment="CENTER"
              maxWidth="Infinity"
-             style="-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 10 20 10 20; -fx-font-weight: bold;" />
+             styleClass="bid-toast" />
       <HBox fx:id="contentHBox" spacing="20.0" VBox.vgrow="ALWAYS">
          <padding>
             <Insets bottom="24.0" left="24.0" right="24.0" top="22.0" />
@@ -63,12 +65,12 @@
             <VBox spacing="6.0" styleClass="info-card">
                <padding><Insets bottom="18.0" left="20.0" right="20.0" top="18.0" /></padding>
                <HBox alignment="CENTER_LEFT" spacing="12.0">
-                  <Label fx:id="itemNameLabel" styleClass="detail-title" text="Đang tải..."
+                  <Label fx:id="itemNameLabel" styleClass="detail-title" text="Loading..."
                          HBox.hgrow="ALWAYS" />
                   <Label fx:id="auctionStatusLabel" styleClass="status-badge" text="" />
                </HBox>
                <Label fx:id="itemCategoryLabel" styleClass="detail-subtitle" text="" />
-               <!-- Category-specific metadata: chỉ 1 trong 3 label hiển thị tại một thời điểm -->
+               <!-- Category-specific metadata: only one of the three labels is shown at a time -->
                <Label fx:id="itemBrandLabel" styleClass="detail-subtitle" text=""
                       visible="false" managed="false" />
                <Label fx:id="itemArtistLabel" styleClass="detail-subtitle" text=""
@@ -85,17 +87,17 @@
             <HBox spacing="10.0">
                <VBox alignment="CENTER_LEFT" spacing="6.0" styleClass="stat-card-price"
                      HBox.hgrow="ALWAYS">
-                  <Label styleClass="stat-label" text="GIÁ HIỆN TẠI" />
+                  <Label styleClass="stat-label" text="CURRENT PRICE" />
                   <Label fx:id="currentPriceLabel" styleClass="price-highlight" text="—" />
                </VBox>
                <VBox alignment="CENTER_LEFT" spacing="6.0" styleClass="stat-card"
-                     HBox.hgrow="SOMETIMES" prefWidth="160.0">
-                  <Label styleClass="stat-label" text="NGƯỜI DẪN ĐẦU" />
+                     HBox.hgrow="SOMETIMES" prefWidth="170.0">
+                  <Label styleClass="stat-label" text="LEADING BIDDER" />
                   <Label fx:id="leadingBidderLabel" styleClass="detail-text" text="—" />
                </VBox>
                <VBox alignment="CENTER_LEFT" spacing="6.0" styleClass="stat-card-timer"
-                     HBox.hgrow="NEVER" prefWidth="140.0">
-                  <Label fx:id="timerHeaderLabel" styleClass="stat-label" text="THỜI GIAN CÒN" />
+                     HBox.hgrow="NEVER" prefWidth="150.0">
+                  <Label fx:id="timerHeaderLabel" styleClass="stat-label" text="TIME LEFT" />
                   <Label fx:id="countdownLabel" styleClass="countdown-label" text="—" />
                </VBox>
             </HBox>
@@ -106,14 +108,14 @@
 
                <!-- Manual bid -->
                <HBox alignment="CENTER_LEFT" spacing="0.0">
-                  <Label styleClass="section-title" text="Đặt giá thủ công" />
+                  <Label styleClass="section-title" text="Place a bid" />
                   <Region HBox.hgrow="ALWAYS" />
-                  <Label fx:id="balanceLabel" text="Số dư: —" styleClass="balance-inline" />
+                  <Label fx:id="balanceLabel" text="Balance: —" styleClass="balance-inline" />
                </HBox>
                <HBox spacing="10.0" alignment="CENTER_LEFT">
-                  <TextField fx:id="bidAmountField" promptText="Nhập số tiền (VND)"
+                  <TextField fx:id="bidAmountField" promptText="Enter amount (VND)"
                              styleClass="text-field" HBox.hgrow="ALWAYS" />
-                  <Button fx:id="bidButton" text="Đặt giá" styleClass="primary-button"
+                  <Button fx:id="bidButton" text="Bid" styleClass="primary-button"
                           onAction="#handleBid" />
                </HBox>
                <Label fx:id="bidErrorLabel" styleClass="error-label" text=""
@@ -121,38 +123,42 @@
 
                <Separator />
 
-               <!-- Auto-bid -->
-               <Label styleClass="section-title" text="Auto-bid tự động" />
-               <HBox spacing="12.0">
-                  <VBox spacing="6.0" HBox.hgrow="ALWAYS">
-                     <Label styleClass="field-label" text="GIÁ TỐI ĐA (VND)" />
-                     <TextField fx:id="maxBidField" promptText="VD: 10,000,000"
-                                styleClass="text-field" />
-                  </VBox>
-                  <VBox spacing="6.0" HBox.hgrow="ALWAYS">
-                     <Label styleClass="field-label" text="BƯỚC TĂNG (VND)" />
-                     <TextField fx:id="incrementField" promptText="VD: 100,000"
-                                styleClass="text-field" />
-                  </VBox>
-               </HBox>
-               <HBox spacing="12.0" alignment="CENTER_LEFT">
-                  <Button fx:id="autoBidButton" text="Bật auto-bid" styleClass="primary-button"
-                          onAction="#handleAutoBid" />
-                  <Button fx:id="cancelAutoBidButton" text="Tắt auto-bid"
-                          styleClass="secondary-button" onAction="#handleCancelAutoBid" />
-                  <Label fx:id="autoBidSpinner" text="⚙"
-                         visible="false" managed="false"
-                         style="-fx-font-family: 'Segoe UI Symbol'; -fx-font-size: 48px; -fx-text-fill: #1565C0; -fx-font-weight: bold; -fx-padding: -7 0 -7 0;" />
-               </HBox>
-               <Label fx:id="autoBidStatusLabel" styleClass="detail-text" text=""
-                      wrapText="true" />
+               <!-- Auto-bid — styled via .glass-subsurface so it visually nests inside the
+                    bid card instead of competing with it. -->
+               <Label styleClass="section-title" text="Auto-bid" />
+               <VBox spacing="12.0" styleClass="glass-subsurface">
+                  <padding><Insets bottom="14.0" left="14.0" right="14.0" top="14.0" /></padding>
+                  <HBox spacing="12.0">
+                     <VBox spacing="6.0" HBox.hgrow="ALWAYS">
+                        <Label styleClass="field-label" text="MAX BID (VND)" />
+                        <TextField fx:id="maxBidField" promptText="e.g. 10,000,000"
+                                   styleClass="text-field" />
+                     </VBox>
+                     <VBox spacing="6.0" HBox.hgrow="ALWAYS">
+                        <Label styleClass="field-label" text="INCREMENT (VND)" />
+                        <TextField fx:id="incrementField" promptText="e.g. 100,000"
+                                   styleClass="text-field" />
+                     </VBox>
+                  </HBox>
+                  <HBox spacing="12.0" alignment="CENTER_LEFT">
+                     <Button fx:id="autoBidButton" text="Turn on auto-bid" styleClass="primary-button"
+                             onAction="#handleAutoBid" />
+                     <Button fx:id="cancelAutoBidButton" text="Turn off"
+                             styleClass="secondary-button" onAction="#handleCancelAutoBid" />
+                     <Label fx:id="autoBidSpinner" text="⚙"
+                            visible="false" managed="false"
+                            styleClass="autobid-counter" />
+                  </HBox>
+                  <Label fx:id="autoBidStatusLabel" styleClass="detail-text" text=""
+                         wrapText="true" />
+               </VBox>
             </VBox>
 
             <!-- Session ended notice -->
             <VBox fx:id="endedBox" spacing="8.0" styleClass="info-card"
                   visible="false" managed="false">
                <padding><Insets bottom="18.0" left="20.0" right="20.0" top="18.0" /></padding>
-               <Label styleClass="section-title" text="Phiên đã kết thúc" />
+               <Label styleClass="section-title" text="Auction has ended" />
                <Label fx:id="winnerLabel" styleClass="winner-label" text="" />
             </VBox>
          </VBox>
@@ -164,22 +170,22 @@
             <!-- Chart in card -->
             <VBox spacing="10.0" styleClass="info-card">
                <padding><Insets bottom="18.0" left="18.0" right="18.0" top="18.0" /></padding>
-               <Label styleClass="section-title" text="Biểu đồ giá thầu" />
+               <Label styleClass="section-title" text="Price history" />
                <AreaChart fx:id="bidChart" prefHeight="320.0" animated="false">
                   <xAxis>
-                     <NumberAxis label="Lần đặt" />
+                     <NumberAxis label="Bid #" />
                   </xAxis>
                   <yAxis>
-                     <NumberAxis label="Giá (VND)" />
+                     <NumberAxis label="Price (VND)" />
                   </yAxis>
                </AreaChart>
             </VBox>
 
             <!-- Bid history -->
             <HBox alignment="CENTER_LEFT" spacing="10.0">
-               <Label styleClass="section-title" text="Lịch sử đặt giá" />
+               <Label styleClass="section-title" text="Bid history" />
                <Region HBox.hgrow="ALWAYS" />
-               <Label fx:id="totalBidsLabel" text="0 lượt" styleClass="muted-caption" />
+               <Label fx:id="totalBidsLabel" text="0 bids" styleClass="muted-caption" />
             </HBox>
             <ListView fx:id="bidHistoryList" VBox.vgrow="ALWAYS"
                       styleClass="bid-history-list" />

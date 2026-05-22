@@ -16,7 +16,7 @@
 
    <VBox alignment="CENTER" spacing="60.0">
 
-      <!-- Logo + Tiêu đề -->
+      <!-- Logo + title -->
       <VBox alignment="CENTER" spacing="12.0">
          <ImageView fitHeight="76.0" fitWidth="76.0" pickOnBounds="true" preserveRatio="true">
             <image>
@@ -24,11 +24,11 @@
             </image>
          </ImageView>
          <Label styleClass="welcome-title" text="Auction House" />
-         <Label styleClass="welcome-subtitle" text="Hệ thống đấu giá trực tuyến" />
+         <Label styleClass="welcome-subtitle" text="Premium online auction platform" />
       </VBox>
 
-      <!-- Chọn vai trò -->
-      <Label styleClass="welcome-prompt" text="Chọn vai trò để tiếp tục" />
+      <!-- Role picker -->
+      <Label styleClass="welcome-prompt" text="Choose a role to continue" />
 
       <HBox alignment="CENTER" spacing="28.0">
 
@@ -42,8 +42,8 @@
                      </ImageView>
                   </StackPane>
                   <VBox alignment="CENTER" spacing="4.0">
-                     <Label styleClass="role-label" text="Quản trị viên" />
-                     <Label styleClass="role-desc" text="Quản lý hệ thống" />
+                     <Label styleClass="role-label" text="Administrator" />
+                     <Label styleClass="role-desc" text="System management" />
                   </VBox>
                </VBox>
             </graphic>
@@ -59,8 +59,8 @@
                      </ImageView>
                   </StackPane>
                   <VBox alignment="CENTER" spacing="4.0">
-                     <Label styleClass="role-label" text="Người đặt giá" />
-                     <Label styleClass="role-desc" text="Tham gia đấu giá" />
+                     <Label styleClass="role-label" text="Bidder" />
+                     <Label styleClass="role-desc" text="Join auctions and bid" />
                   </VBox>
                </VBox>
             </graphic>
@@ -76,8 +76,8 @@
                      </ImageView>
                   </StackPane>
                   <VBox alignment="CENTER" spacing="4.0">
-                     <Label styleClass="role-label" text="Người bán" />
-                     <Label styleClass="role-desc" text="Đăng bán sản phẩm" />
+                     <Label styleClass="role-label" text="Seller" />
+                     <Label styleClass="role-desc" text="List items for auction" />
                   </VBox>
                </VBox>
             </graphic>

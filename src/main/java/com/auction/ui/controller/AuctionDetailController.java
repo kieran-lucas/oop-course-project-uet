@@ -148,7 +148,7 @@ public class AuctionDetailController implements Navigable {
 
   // ── Bid chart ──
   @FXML private AreaChart<Number, Number> bidChart;
-  private final XYChart.Series<Number, Number> bidSeries = new XYChart.Series<>();
+  private Long priceHistoryChartAuctionId;
 
   // ── Notification toast ──
   @FXML private Label bidNotificationLabel;
@@ -266,7 +266,7 @@ public class AuctionDetailController implements Navigable {
 
   private void setLeadingBidderText(String username) {
     boolean hasLeader = username != null && !username.isBlank();
-    leadingBidderLabel.setText(hasLeader ? username : "Chưa có");
+    leadingBidderLabel.setText(hasLeader ? username : "No bids yet");
     leadingBidderLabel.setStyle(
         hasLeader ? "-fx-text-fill: " + LEADING_BIDDER_COLOR + "; -fx-font-weight: bold;" : "");
   }
@@ -330,6 +330,10 @@ public class AuctionDetailController implements Navigable {
     boolean sameAsRendered = auctionId != null && auctionId.equals(renderedAuctionId);
     AuctionResponse cached = auctionId == null ? null : detailCache.get(auctionId);
 
+    if (!sameAsRendered) {
+      resetPriceHistoryChart(auctionId);
+    }
+
     if (sameAsRendered) {
       // Quietly refresh — labels already correct for this auction.
       if (bidNotificationLabel != null) {
@@ -363,7 +367,7 @@ public class AuctionDetailController implements Navigable {
       currentPriceLabel.setText("—");
       leadingBidderLabel.setText("—");
       leadingBidderLabel.setStyle("");
-      itemNameLabel.setText("Đang tải...");
+      itemNameLabel.setText("Loading...");
       itemCategoryLabel.setText("");
       itemCategoryLabel.setStyle("");
       itemDescriptionLabel.setText("");
@@ -410,7 +414,7 @@ public class AuctionDetailController implements Navigable {
       lastKnownTotalBalance = null;
       lastAutoBidStatus = null;
       if (balanceLabel != null) {
-        balanceLabel.setText("Số dư: đang tải...");
+        balanceLabel.setText("Balance: loading...");
         // Clear stale inline colour from the previous auction so the placeholder uses
         // .balance-inline's slate tone instead of leftover red/green.
         balanceLabel.setStyle("");
@@ -438,25 +442,14 @@ public class AuctionDetailController implements Navigable {
 
     if (!sameAsRendered && cached == null) {
       // Fresh navigation — clear chart and endedBox so prior auction's data never bleeds through.
-      // When we have cached data, updateAuctionUI already painted the correct state above and
-      // loadBidHistory below will atomically replace the chart points; skipping the reset here
-      // avoids an empty-chart flash during the 1-2s refresh window.
       endedBox.setVisible(false);
       endedBox.setManaged(false);
-      bidSeries.getData().clear();
-      bidChart.getData().clear();
-      bidSeries.setName("Giá bid");
-      bidChart.getData().add(bidSeries);
-    } else if (bidChart.getData().isEmpty()) {
-      // Defensive: re-attach series if a previous reset cleared the chart.
-      bidSeries.setName("Giá bid");
-      bidChart.getData().add(bidSeries);
     }
 
     bidChart.setLegendVisible(false);
 
     NumberAxis yAxis = (NumberAxis) bidChart.getYAxis();
-    yAxis.setForceZeroInRange(false);
+    yAxis.setForceZeroInRange(true);
     yAxis.setTickLabelFormatter(
         new StringConverter<>() {
           @Override
@@ -481,6 +474,7 @@ public class AuctionDetailController implements Navigable {
         });
 
     NumberAxis xAxis = (NumberAxis) bidChart.getXAxis();
+    xAxis.setForceZeroInRange(true);
     xAxis.setTickUnit(1);
     xAxis.setMinorTickCount(0);
 
@@ -556,7 +550,7 @@ public class AuctionDetailController implements Navigable {
   public void handleBid() {
     String amountText = bidAmountField.getText().trim();
     if (amountText.isEmpty()) {
-      showBidError("Vui lòng nhập số tiền.");
+      showBidError("Please enter a bid amount.");
       return;
     }
 
@@ -564,19 +558,19 @@ public class AuctionDetailController implements Navigable {
     try {
       amount = new BigDecimal(amountText.replace(",", ""));
       if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-        showBidError("Số tiền phải lớn hơn 0.");
+        showBidError("Bid amount must be greater than 0.");
         return;
       }
     } catch (NumberFormatException e) {
-      showBidError("Số tiền không hợp lệ.");
+      showBidError("That bid amount doesn't look valid.");
       return;
     }
 
     if (lastKnownBalance != null && amount.compareTo(lastKnownBalance) > 0) {
-      // Cảnh báo dựa trên số dư khả dụng (đã trừ tiền giữ chỗ cho các phiên đang dẫn đầu);
-      // label "Số dư" ở trên vẫn hiển thị tổng. Nói rõ "khả dụng" để user hiểu vì sao bid bị chặn
-      // dù label balance còn nhiều.
-      showBidError("Số dư khả dụng (" + vnd(lastKnownBalance) + ") không đủ cho mức giá này.");
+      // The warning is based on the available balance (total minus reservations held on auctions
+      // where the user is currently leading). We say "available" explicitly so users understand
+      // why the bid is rejected even when the headline balance label looks large enough.
+      showBidError("Available balance (" + vnd(lastKnownBalance) + ") isn't enough for this bid.");
       return;
     }
 
@@ -626,7 +620,7 @@ public class AuctionDetailController implements Navigable {
                       if (!bidAuctionId.equals(auctionId)) {
                         return;
                       }
-                      showBidError("Không thể kết nối đến server.");
+                      showBidError("Unable to reach the server.");
                       bidButton.setDisable(false);
                       bidAmountField.requestFocus();
                     });
@@ -646,7 +640,7 @@ public class AuctionDetailController implements Navigable {
     String incrementText = incrementField.getText().trim();
 
     if (maxBidText.isEmpty() || incrementText.isEmpty()) {
-      showAutoBidMessage("Vui lòng nhập đầy đủ thông tin.", "#DC2626");
+      showAutoBidMessage("Please fill in both fields.", "#DC2626");
       return;
     }
 
@@ -656,20 +650,20 @@ public class AuctionDetailController implements Navigable {
       maxBid = new BigDecimal(maxBidText.replace(",", "").replace(".", ""));
       increment = new BigDecimal(incrementText.replace(",", "").replace(".", ""));
     } catch (NumberFormatException e) {
-      showAutoBidMessage("Giá trị không hợp lệ.", "#DC2626");
+      showAutoBidMessage("Those amounts don't look valid.", "#DC2626");
       return;
     }
 
     if (maxBid.signum() <= 0 || increment.signum() <= 0) {
-      showAutoBidMessage("Giá tối đa và bước tăng phải lớn hơn 0.", "#DC2626");
+      showAutoBidMessage("Max bid and increment must both be greater than 0.", "#DC2626");
       return;
     }
 
     if (currentPriceValue != null && currentPriceValue.add(increment).compareTo(maxBid) > 0) {
       showAutoBidMessage(
-          "Giá tối đa ("
+          "Max bid ("
               + vnd(maxBid)
-              + ") không đủ để đặt bid đầu tiên ("
+              + ") isn't high enough for the first bid ("
               + vnd(currentPriceValue.add(increment))
               + ").",
           "#DC2626");
@@ -701,7 +695,7 @@ public class AuctionDetailController implements Navigable {
                         showAutoBidMessage(
                             err != null && !err.isBlank()
                                 ? err
-                                : "Bật auto-bid thất bại: " + response.statusCode(),
+                                : "Couldn't enable auto-bid: " + response.statusCode(),
                             "#DC2626");
                       }
                     });
@@ -713,7 +707,7 @@ public class AuctionDetailController implements Navigable {
                         return;
                       }
                       autoBidButton.setDisable(false);
-                      showAutoBidMessage("Không thể kết nối đến server.", "#DC2626");
+                      showAutoBidMessage("Unable to reach the server.", "#DC2626");
                     });
               }
             });
@@ -741,12 +735,13 @@ public class AuctionDetailController implements Navigable {
                         // applyAutoBidState(STOPPED, ...) tự xóa field + hiện thông báo grey.
                         applyAutoBidState("STOPPED", null, null, null);
                       } else {
-                        showAutoBidMessage("Tắt auto-bid thất bại.", "#DC2626");
+                        showAutoBidMessage("Couldn't turn off auto-bid.", "#DC2626");
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi tắt auto-bid", e);
-                Platform.runLater(() -> showAutoBidMessage("Không thể kết nối.", "#DC2626"));
+                Platform.runLater(
+                    () -> showAutoBidMessage("Unable to reach the server.", "#DC2626"));
               }
             });
   }
@@ -841,13 +836,13 @@ public class AuctionDetailController implements Navigable {
       if ("EXHAUSTED".equals(status)) {
         text =
             itemLabel
-                + "Auto-bid đã đạt mức tối đa"
+                + "Auto-bid reached its maximum"
                 + (maxBid != null ? " (" + vnd(maxBid) + ")" : "")
-                + " và đã được dừng.";
+                + " and was stopped.";
       } else if ("INSUFFICIENT_BALANCE".equals(reason)) {
-        text = itemLabel + "Auto-bid đã dừng: số dư không đủ để tiếp tục.";
+        text = itemLabel + "Auto-bid stopped: balance is too low to continue.";
       } else {
-        text = itemLabel + "Auto-bid đã dừng tự động.";
+        text = itemLabel + "Auto-bid was stopped automatically.";
       }
       NotificationStore.getInstance().add(text);
       displayToast(text, "#D97706", 4);
@@ -868,9 +863,9 @@ public class AuctionDetailController implements Navigable {
       cancelAutoBidButton.setDisable(false);
       startAutoBidSpinner();
       showAutoBidMessage(
-          "Auto-bid đang hoạt động. Tối đa: "
+          "Auto-bid is active. Max: "
               + (maxBid != null ? vnd(maxBid) : "—")
-              + " — Bước: "
+              + " — Step: "
               + (increment != null ? vnd(increment) : "—"),
           "#16A34A");
       return;
@@ -892,8 +887,8 @@ public class AuctionDetailController implements Navigable {
         incrementField.setText(increment.stripTrailingZeros().toPlainString());
       }
       String msg =
-          "Auto-bid đã dừng: hạn mức (max) thấp hơn giá hiện tại + bước tăng."
-              + " Hãy chỉnh giá tối đa cao hơn rồi bật lại.";
+          "Auto-bid stopped: your max is lower than the current price plus the increment."
+              + " Raise the max bid and turn it back on.";
       showAutoBidMessage(msg, "#D97706");
     } else if ("FAILED".equals(status)) {
       if (maxBid != null) {
@@ -904,14 +899,14 @@ public class AuctionDetailController implements Navigable {
       }
       String msg =
           "INSUFFICIENT_BALANCE".equals(reason)
-              ? "Auto-bid đã dừng: số dư khả dụng không đủ để tiếp tục."
-                  + " Hãy nạp thêm tiền rồi bật lại."
-              : "Auto-bid đã dừng do lỗi" + (reason != null ? " (" + reason + ")." : ".");
+              ? "Auto-bid stopped: available balance isn't enough to continue."
+                  + " Top up your wallet and turn it back on."
+              : "Auto-bid stopped due to an error" + (reason != null ? " (" + reason + ")." : ".");
       showAutoBidMessage(msg, "#DC2626");
     } else if ("STOPPED".equals(status)) {
       maxBidField.clear();
       incrementField.clear();
-      showAutoBidMessage("Auto-bid đã tắt.", "#64748B");
+      showAutoBidMessage("Auto-bid is turned off.", "#64748B");
     } else {
       maxBidField.clear();
       incrementField.clear();
@@ -982,6 +977,96 @@ public class AuctionDetailController implements Navigable {
             });
   }
 
+  private void resetPriceHistoryChart(Long id) {
+    priceHistoryChartAuctionId = id;
+    if (bidChart == null) {
+      return;
+    }
+
+    bidChart.getData().clear();
+    bidChart.setLegendVisible(false);
+
+    NumberAxis xAxis = (NumberAxis) bidChart.getXAxis();
+    xAxis.setAutoRanging(false);
+    xAxis.setForceZeroInRange(true);
+    xAxis.setLowerBound(0);
+    xAxis.setUpperBound(1);
+    xAxis.setTickUnit(1);
+    xAxis.setMinorTickCount(0);
+
+    NumberAxis yAxis = (NumberAxis) bidChart.getYAxis();
+    yAxis.setAutoRanging(false);
+    yAxis.setForceZeroInRange(true);
+    yAxis.setLowerBound(0);
+    yAxis.setUpperBound(1);
+    yAxis.setTickUnit(1);
+    yAxis.setMinorTickCount(0);
+  }
+
+  private void renderPriceHistoryChart(
+      java.util.List<XYChart.Data<Number, Number>> points, Long id) {
+    if (bidChart == null || id == null || !id.equals(auctionId)) {
+      return;
+    }
+    if (!id.equals(priceHistoryChartAuctionId)) {
+      resetPriceHistoryChart(id);
+    }
+
+    bidChart.getData().clear();
+    XYChart.Series<Number, Number> series = new XYChart.Series<>();
+    series.setName("Bid price");
+    series.getData().setAll(points);
+
+    configurePriceHistoryAxes(points);
+    if (!points.isEmpty()) {
+      bidChart.getData().add(series);
+    }
+  }
+
+  private void configurePriceHistoryAxes(java.util.List<XYChart.Data<Number, Number>> points) {
+    NumberAxis xAxis = (NumberAxis) bidChart.getXAxis();
+    NumberAxis yAxis = (NumberAxis) bidChart.getYAxis();
+
+    int count = points.size();
+    double maxPrice = 0.0;
+    for (XYChart.Data<Number, Number> point : points) {
+      Number y = point.getYValue();
+      if (y != null) {
+        maxPrice = Math.max(maxPrice, y.doubleValue());
+      }
+    }
+
+    xAxis.setAutoRanging(false);
+    xAxis.setForceZeroInRange(true);
+    xAxis.setLowerBound(0);
+    xAxis.setUpperBound(Math.max(1, count));
+    xAxis.setTickUnit(1);
+    xAxis.setMinorTickCount(0);
+
+    double paddedUpper = maxPrice <= 0 ? 1 : maxPrice * 1.10;
+    yAxis.setAutoRanging(false);
+    yAxis.setForceZeroInRange(true);
+    yAxis.setLowerBound(0);
+    yAxis.setUpperBound(paddedUpper);
+    yAxis.setTickUnit(Math.max(1, paddedUpper / 5.0));
+    yAxis.setMinorTickCount(0);
+  }
+
+  private void appendPriceHistoryPoint(Long id, double price) {
+    if (id == null || !id.equals(auctionId) || !id.equals(priceHistoryChartAuctionId)) {
+      return;
+    }
+
+    java.util.List<XYChart.Data<Number, Number>> points = new java.util.ArrayList<>();
+    if (!bidChart.getData().isEmpty()) {
+      for (XYChart.Data<Number, Number> point : bidChart.getData().get(0).getData()) {
+        points.add(new XYChart.Data<>(point.getXValue(), point.getYValue()));
+      }
+    }
+    points.add(new XYChart.Data<>(points.size() + 1, price));
+    renderPriceHistoryChart(points, id);
+  }
+
   /**
    * Load lịch sử bid từ {@code GET /api/auctions/{id}/bids} trên luồng nền. Cập nhật {@code
    * bidHistoryItems} (ListView) và {@code bidSeries} (AreaChart). Đồng thời đánh dấu {@code
@@ -1016,7 +1101,7 @@ public class AuctionDetailController implements Navigable {
                     }
                     String bidderLabel;
                     if (isMyBid) {
-                      bidderLabel = "Bạn";
+                      bidderLabel = "You";
                     } else if (bid.getBidderUsername() != null
                         && !bid.getBidderUsername().isBlank()) {
                       bidderLabel = bid.getBidderUsername();
@@ -1045,7 +1130,7 @@ public class AuctionDetailController implements Navigable {
                         }
                         userHasBid = userHasBidNow;
                         bidHistoryItems.setAll(newItems);
-                        bidSeries.getData().setAll(newPoints);
+                        renderPriceHistoryChart(newPoints, id);
                         updateTotalBidsLabel(bidCount);
                         // Snapshot for instant re-render on revisit (see detailCache).
                         bidHistoryCache.put(id, new java.util.ArrayList<>(newItems));
@@ -1093,16 +1178,15 @@ public class AuctionDetailController implements Navigable {
    * <p>Phải gọi trên JavaFX thread (được đảm bảo bởi {@link #connectWebSocket}).
    */
   private void handleWsMessage(BidUpdateMessage msg) {
+    if (msg.getAuctionId() != null && !msg.getAuctionId().equals(auctionId)) {
+      return;
+    }
     switch (msg.getType()) {
       case BidUpdateMessage.TYPE_BID_UPDATE -> {
         if (msg.getCurrentPrice() != null) {
           currentPriceValue = msg.getCurrentPrice();
           currentPriceLabel.setText(vnd(msg.getCurrentPrice()));
-          bidSeries
-              .getData()
-              .add(
-                  new XYChart.Data<>(
-                      bidSeries.getData().size() + 1, msg.getCurrentPrice().doubleValue()));
+          appendPriceHistoryPoint(auctionId, msg.getCurrentPrice().doubleValue());
         }
         if (msg.getLeadingBidderUsername() != null) {
           setLeadingBidderText(msg.getLeadingBidderUsername());
@@ -1134,9 +1218,9 @@ public class AuctionDetailController implements Navigable {
         endedBox.setVisible(true);
         endedBox.setManaged(true);
         boolean hasWinner = msg.getLeadingBidderUsername() != null;
-        String winner = hasWinner ? msg.getLeadingBidderUsername() : "Không có người thắng";
+        String winner = hasWinner ? msg.getLeadingBidderUsername() : "No winner";
         String price = msg.getCurrentPrice() != null ? vnd(msg.getCurrentPrice()) : "—";
-        winnerLabel.setText("Người thắng: " + winner + " — Giá cuối: " + price);
+        winnerLabel.setText("Winner: " + winner + " — Final price: " + price);
         // The server-driven AUCTION_RESULT notification (broadcast to every distinct bidder +
         // seller) already lands in the bell via /ws/user/{id}. Skip the client-side fallback so
         // bidders don't see two near-identical entries.
@@ -1163,7 +1247,7 @@ public class AuctionDetailController implements Navigable {
     boolean isSeller = "SELLER".equals(currentRole);
 
     String bidder =
-        msg.getLeadingBidderUsername() != null ? msg.getLeadingBidderUsername() : "Ẩn danh";
+        msg.getLeadingBidderUsername() != null ? msg.getLeadingBidderUsername() : "Anonymous";
     String price = msg.getCurrentPrice() != null ? vnd(msg.getCurrentPrice()) : "—";
     String itemPlain = currentItemName != null ? "[" + currentItemName + "] " : "";
     // Marker-wrapped variant for the bell: server-side messages use the same convention so the
@@ -1179,23 +1263,23 @@ public class AuctionDetailController implements Navigable {
     String color;
 
     if (isSeller) {
-      toastText = itemPlain + "Có bid mới: " + price + " từ " + bidder;
-      storeText = itemMarker + "Có bid mới: " + price + " từ " + bidderMarker;
+      toastText = itemPlain + "New bid: " + price + " from " + bidder;
+      storeText = itemMarker + "New bid: " + price + " from " + bidderMarker;
       color = "#1565C0";
-      // Bell entry được đẩy qua kênh /ws/user/{sellerId} (SELLER_BID_RECEIVED) — tránh nhân đôi.
+      // Bell entry is pushed via /ws/user/{sellerId} (SELLER_BID_RECEIVED) — avoid duplicates.
     } else if (isOwnBid && msg.isAutoBid()) {
-      toastText = itemPlain + "Auto-bid đã đặt " + price + " cho bạn";
-      storeText = itemMarker + "Auto-bid đã đặt " + price + " cho bạn";
+      toastText = itemPlain + "Auto-bid placed " + price + " for you";
+      storeText = itemMarker + "Auto-bid placed " + price + " for you";
       color = "#16A34A";
       NotificationStore.getInstance().add(storeText);
     } else if (isOwnBid) {
-      toastText = itemPlain + "Bạn đặt giá: " + price;
-      storeText = itemMarker + "Bạn đặt giá: " + price;
+      toastText = itemPlain + "You placed a bid: " + price;
+      storeText = itemMarker + "You placed a bid: " + price;
       color = "#16A34A";
       NotificationStore.getInstance().add(storeText);
     } else {
-      toastText = itemPlain + bidder + " vừa bid " + price;
-      storeText = itemMarker + bidderMarker + " vừa bid " + price;
+      toastText = itemPlain + bidder + " just bid " + price;
+      storeText = itemMarker + bidderMarker + " just bid " + price;
       color = "#1565C0";
       if (userHasBid) {
         NotificationStore.getInstance().add(storeText);
@@ -1215,11 +1299,21 @@ public class AuctionDetailController implements Navigable {
    */
   private void displayToast(String text, String bgColor, int seconds) {
     bidNotificationLabel.setText(text);
-    bidNotificationLabel.setStyle(
-        "-fx-background-color: "
-            + bgColor
-            + "; -fx-text-fill: white; "
-            + "-fx-font-size: 13px; -fx-padding: 10 20 10 20; -fx-font-weight: bold;");
+    // Translate the legacy hex-code argument into one of the .bid-toast CSS variants so styling
+    // lives entirely in style.css. Keeping the argument shape (hex string) means every existing
+    // call site continues to work unchanged.
+    bidNotificationLabel.getStyleClass().removeAll("success", "warn", "error");
+    String variant =
+        switch (bgColor) {
+          case "#16A34A" -> "success";
+          case "#D97706" -> "warn";
+          case "#DC2626" -> "error";
+          default -> null;
+        };
+    if (variant != null) {
+      bidNotificationLabel.getStyleClass().add(variant);
+    }
+    bidNotificationLabel.setStyle("");
     bidNotificationLabel.setVisible(true);
     bidNotificationLabel.setManaged(true);
 
@@ -1248,7 +1342,7 @@ public class AuctionDetailController implements Navigable {
     if (balanceLabel == null) {
       return;
     }
-    balanceLabel.setText("Số dư: " + vnd(balance));
+    balanceLabel.setText("Balance: " + vnd(balance));
     balanceLabel.setStyle(
         balance.compareTo(BigDecimal.ZERO) == 0
             ? "-fx-text-fill: #DC2626;"
@@ -1329,7 +1423,7 @@ public class AuctionDetailController implements Navigable {
   private void updateAuctionUI(AuctionResponse auction) {
     currentItemName = auction.getItemName();
     itemNameLabel.setText(
-        currentItemName != null ? currentItemName : "Sản phẩm #" + auction.getItemId());
+        currentItemName != null ? currentItemName : "Product #" + auction.getItemId());
     String category = auction.getItemCategory();
     itemCategoryLabel.setText(category != null ? category : "");
     applyCategoryStyle(category);
@@ -1343,7 +1437,7 @@ public class AuctionDetailController implements Navigable {
     // nằm cùng khối mô tả sản phẩm để dễ so sánh với giá hiện tại ở stat strip.
     if (auction.getStartingPrice() != null) {
       setPrefixedValue(
-          startingPriceLabel, "Giá khởi điểm: ", vnd(auction.getStartingPrice()), MONEY_COLOR);
+          startingPriceLabel, "Starting price: ", vnd(auction.getStartingPrice()), MONEY_COLOR);
       startingPriceLabel.setVisible(true);
       startingPriceLabel.setManaged(true);
     } else {
@@ -1408,13 +1502,13 @@ public class AuctionDetailController implements Navigable {
         endedBox.setManaged(true);
 
         if ("CANCELED".equals(status)) {
-          winnerLabel.setText("Phiên đã bị hủy — không có người thắng");
+          winnerLabel.setText("Auction was canceled — no winner");
         } else {
           String winner =
               auction.getLeadingBidderUsername() != null
                   ? auction.getLeadingBidderUsername()
-                  : "Không có người thắng";
-          String prefix = "PAID".equals(status) ? "Đã thanh toán — " : "Người thắng: ";
+                  : "No winner";
+          String prefix = "PAID".equals(status) ? "Paid — " : "Winner: ";
           winnerLabel.setText(prefix + winner);
         }
       }
@@ -1459,7 +1553,7 @@ public class AuctionDetailController implements Navigable {
       case "ELECTRONICS" -> {
         String brand = auction.getItemBrand();
         if (brand != null && !brand.isBlank()) {
-          setPrefixedValue(itemBrandLabel, "Hãng: ", brand, BRAND_VALUE_COLOR);
+          setPrefixedValue(itemBrandLabel, "Brand: ", brand, BRAND_VALUE_COLOR);
           itemBrandLabel.setVisible(true);
           itemBrandLabel.setManaged(true);
         }
@@ -1467,7 +1561,7 @@ public class AuctionDetailController implements Navigable {
       case "ART" -> {
         String artist = auction.getItemArtist();
         if (artist != null && !artist.isBlank()) {
-          setPrefixedValue(itemArtistLabel, "Nghệ sĩ: ", artist, ARTIST_VALUE_COLOR);
+          setPrefixedValue(itemArtistLabel, "Artist: ", artist, ARTIST_VALUE_COLOR);
           itemArtistLabel.setVisible(true);
           itemArtistLabel.setManaged(true);
         }
@@ -1475,7 +1569,7 @@ public class AuctionDetailController implements Navigable {
       case "VEHICLE" -> {
         Integer year = auction.getItemYear();
         if (year != null && year > 0) {
-          setPrefixedValue(itemYearLabel, "Năm sản xuất: ", String.valueOf(year), YEAR_VALUE_COLOR);
+          setPrefixedValue(itemYearLabel, "Year: ", String.valueOf(year), YEAR_VALUE_COLOR);
           itemYearLabel.setVisible(true);
           itemYearLabel.setManaged(true);
         }
@@ -1570,13 +1664,13 @@ public class AuctionDetailController implements Navigable {
   /** Cập nhật header "THỜI GIAN CÒN" / "BẮT ĐẦU SAU" theo trạng thái phiên. */
   private void setTimerHeader(boolean toStart) {
     if (timerHeaderLabel != null) {
-      timerHeaderLabel.setText(toStart ? "BẮT ĐẦU SAU" : "THỜI GIAN CÒN");
+      timerHeaderLabel.setText(toStart ? "STARTS IN" : "TIME LEFT");
     }
   }
 
   /** Đặt countdownLabel sang trạng thái "đã kết thúc" — text + style class .ended. */
   private void markCountdownEnded() {
-    countdownLabel.setText("Đã kết thúc");
+    countdownLabel.setText("Ended");
     if (!countdownLabel.getStyleClass().contains("ended")) {
       countdownLabel.getStyleClass().add("ended");
     }
@@ -1628,7 +1722,7 @@ public class AuctionDetailController implements Navigable {
     if (totalBidsLabel == null) {
       return;
     }
-    totalBidsLabel.setText(count + " lượt");
+    totalBidsLabel.setText(count + (count == 1 ? " bid" : " bids"));
   }
 
   /** Hiển thị thông báo lỗi dưới form đặt giá. */
@@ -1650,9 +1744,9 @@ public class AuctionDetailController implements Navigable {
    */
   private String extractErrorMessage(String body) {
     try {
-      return MAPPER.readTree(body).path("message").asText("Đặt giá thất bại.");
+      return MAPPER.readTree(body).path("message").asText("Couldn't place the bid.");
     } catch (Exception e) {
-      return "Đặt giá thất bại.";
+      return "Couldn't place the bid.";
     }
   }
 }

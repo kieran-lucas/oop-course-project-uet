@@ -301,9 +301,9 @@ public class AutoBidStrategy {
                 + " VALUES (?, ?, 'AUTOBID_EXHAUSTED')",
             config.getBidderId(),
             String.format(
-                Locale.of("vi", "VN"),
-                "Auto-bid của bạn cho phiên #%d đã dừng:"
-                    + " giá hiện tại %,d VND đã vượt mức tối đa %,d VND của bạn.",
+                Locale.US,
+                "Your auto-bid for auction #%d has stopped:"
+                    + " the current price of %,d VND has exceeded your maximum bid of %,d VND.",
                 auctionId,
                 toIntegerVnd(currentPrice, "Current price"),
                 toIntegerVnd(config.getMaxBid(), "Max bid")));
@@ -328,9 +328,9 @@ public class AutoBidStrategy {
                 + " VALUES (?, ?, 'AUTOBID_FAILED')",
             config.getBidderId(),
             String.format(
-                Locale.of("vi", "VN"),
-                "Auto-bid của bạn cho phiên #%d thất bại: số dư không đủ."
-                    + " Cần %,d VND, có %,d VND",
+                Locale.US,
+                "Your auto-bid for auction #%d failed due to insufficient balance."
+                    + " Required: %,d VND, available: %,d VND",
                 auctionId,
                 toIntegerVnd(nextAmount, "Next auto-bid amount"),
                 toIntegerVnd(bidder.getAvailableBalance(), "Available balance")));
@@ -361,8 +361,8 @@ public class AutoBidStrategy {
                 + " VALUES (?, ?, 'AUTOBID_EXHAUSTED')",
             config.getBidderId(),
             String.format(
-                Locale.of("vi", "VN"),
-                "Auto-bid của bạn cho phiên #%d đã đạt mức tối đa %,d VND và đã được dừng.",
+                Locale.US,
+                "Your auto-bid for auction #%d has reached your maximum bid of %,d VND and has been stopped.",
                 auctionId,
                 toIntegerVnd(config.getMaxBid(), "Max bid")));
         queue.addAll(skippedLeaderConfigs);

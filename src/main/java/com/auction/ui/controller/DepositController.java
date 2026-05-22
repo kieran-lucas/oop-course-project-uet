@@ -81,11 +81,11 @@ public class DepositController implements Navigable {
     try {
       amount = new BigDecimal(amountText);
       if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-        showStatus("Số tiền nạp phải lớn hơn 0.", true);
+        showStatus("Deposit amount must be greater than 0.", true);
         return;
       }
     } catch (NumberFormatException e) {
-      showStatus("Số tiền không hợp lệ.", true);
+      showStatus("That amount doesn't look valid.", true);
       return;
     }
 
@@ -104,15 +104,14 @@ public class DepositController implements Navigable {
                     () -> {
                       if (response.statusCode() == 202) {
                         showStatus(
-                            "Yêu cầu nạp "
+                            "Deposit request for "
                                 + VND.format(amount)
-                                + " VND đã được gửi. Chờ Admin xác nhận.",
+                                + " VND submitted. Waiting for admin approval.",
                             false);
                         amountField.clear();
                         loadHistory();
                       } else {
-                        String errMsg =
-                            "Gửi yêu cầu thất bại (HTTP " + response.statusCode() + ").";
+                        String errMsg = "Submission failed (HTTP " + response.statusCode() + ").";
                         try {
                           var node = MAPPER.readTree(response.body());
                           if (node.has("message")) {
@@ -128,7 +127,7 @@ public class DepositController implements Navigable {
                 LOGGER.error("Lỗi nạp tiền", e);
                 Platform.runLater(
                     () -> {
-                      showStatus("Không thể kết nối đến server.", true);
+                      showStatus("Unable to reach the server.", true);
                       depositButton.setDisable(false);
                     });
               }
@@ -158,7 +157,7 @@ public class DepositController implements Navigable {
                     Platform.runLater(
                         () ->
                             balanceLabel.setText(
-                                "Số dư hiện tại: " + VND.format(balance) + " VND"));
+                                "Current balance: " + VND.format(balance) + " VND"));
                   }
                 }
               } catch (Exception e) {
@@ -207,9 +206,9 @@ public class DepositController implements Navigable {
       String curr = r.getStatus() != null ? r.getStatus() : "PENDING";
       String statusText =
           switch (curr) {
-            case "APPROVED" -> "✓ Đã duyệt";
-            case "REJECTED" -> "✗ Từ chối";
-            default -> "⏳ Chờ duyệt";
+            case "APPROVED" -> "✓ Approved";
+            case "REJECTED" -> "✗ Rejected";
+            default -> "⏳ Pending review";
           };
       String dateStr = r.getCreatedAt() != null ? r.getCreatedAt().format(DATE_FMT) : "—";
       String amtStr = r.getAmount() != null ? VND.format(r.getAmount()) + " VND" : "—";
@@ -220,9 +219,9 @@ public class DepositController implements Navigable {
         if (notify && prev != null && !prev.equals(curr)) {
           String statusMsg =
               switch (curr) {
-                case "APPROVED" -> "Nạp tiền " + amtStr + " đã được duyệt ✓";
-                case "REJECTED" -> "Nạp tiền " + amtStr + " bị từ chối ✗";
-                default -> "Trạng thái nạp tiền " + amtStr + " đã thay đổi";
+                case "APPROVED" -> "Deposit of " + amtStr + " was approved ✓";
+                case "REJECTED" -> "Deposit of " + amtStr + " was rejected ✗";
+                default -> "Status of deposit " + amtStr + " has changed";
               };
           // FIX Bug 3: chỉ cập nhật status label — KHÔNG add vào NotificationStore
           showStatus(statusMsg, "REJECTED".equals(curr));

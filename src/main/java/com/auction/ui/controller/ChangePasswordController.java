@@ -49,15 +49,15 @@ public class ChangePasswordController implements Navigable {
     String confirm = confirmPasswordField.getText();
 
     if (current.isEmpty() || newPass.isEmpty()) {
-      showStatus("Vui lòng điền đầy đủ thông tin.", true);
+      showStatus("Please fill in every field.", true);
       return;
     }
     if (newPass.length() < 6) {
-      showStatus("Mật khẩu mới phải có ít nhất 6 ký tự.", true);
+      showStatus("The new password must be at least 6 characters.", true);
       return;
     }
     if (!newPass.equals(confirm)) {
-      showStatus("Hai mật khẩu mới không khớp.", true);
+      showStatus("The two new passwords don't match.", true);
       return;
     }
 
@@ -77,14 +77,14 @@ public class ChangePasswordController implements Navigable {
                     () -> {
                       int code = response.statusCode();
                       if (code == 200 || code == 204) {
-                        showStatus(
-                            "Đổi mật khẩu thành công! Tự động đăng xuất sau 3 giây...", false);
+                        showStatus("Password changed. Signing you out in 3 seconds...", false);
                         new Timeline(
                                 new KeyFrame(
                                     Duration.seconds(3), ev -> SceneManager.getInstance().logout()))
                             .play();
                       } else {
-                        showStatus("Đổi mật khẩu thất bại. Mật khẩu hiện tại không đúng.", true);
+                        showStatus(
+                            "Password change failed. Your current password is incorrect.", true);
                         changeButton.setDisable(false);
                       }
                     });
@@ -92,7 +92,7 @@ public class ChangePasswordController implements Navigable {
                 LOGGER.error("Lỗi đổi mật khẩu", e);
                 Platform.runLater(
                     () -> {
-                      showStatus("Không thể kết nối đến server.", true);
+                      showStatus("Unable to reach the server.", true);
                       changeButton.setDisable(false);
                     });
               }

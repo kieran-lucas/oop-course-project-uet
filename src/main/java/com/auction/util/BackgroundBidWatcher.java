@@ -131,7 +131,7 @@ public class BackgroundBidWatcher {
               case BidUpdateMessage.TYPE_BID_UPDATE -> {
                 Long leaderId = msg.getLeadingBidderId();
                 BigDecimal price = msg.getCurrentPrice();
-                NumberFormat fmt = NumberFormat.getNumberInstance(Locale.of("vi", "VN"));
+                NumberFormat fmt = NumberFormat.getNumberInstance(Locale.US);
                 String priceStr = price != null ? fmt.format(price) + " VND" : "?";
                 String notification;
                 if (leaderId == null) {
@@ -144,15 +144,15 @@ public class BackgroundBidWatcher {
                     break;
                   }
                   notification =
-                      "Auto-bid của bạn vừa đặt giá tại phiên "
+                      "Your auto-bid has just placed a bid in auction "
                           + auctionLabel
-                          + ". Giá hiện tại: "
+                          + ". Current price: "
                           + priceStr;
                 } else {
                   notification =
-                      "Bạn đã bị vượt giá tại phiên "
+                      "You have been outbid in auction "
                           + auctionLabel
-                          + ". Giá hiện tại: "
+                          + ". Current price: "
                           + priceStr;
                 }
                 final String finalNotification = notification;

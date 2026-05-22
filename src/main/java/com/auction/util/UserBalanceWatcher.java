@@ -141,15 +141,15 @@ public class UserBalanceWatcher {
                     } else {
                       // Fallback cho luồng deposit cũ: server chỉ truyền approved + delta.
                       java.text.NumberFormat vndFmt =
-                          java.text.NumberFormat.getNumberInstance(java.util.Locale.of("vi", "VN"));
+                          java.text.NumberFormat.getNumberInstance(java.util.Locale.US);
                       BigDecimal absDelta =
                           balanceDelta != null ? balanceDelta.abs() : BigDecimal.ZERO;
                       text =
                           approved
-                              ? "Yêu cầu nạp tiền đã được duyệt. Số dư biến động: + "
+                              ? "Your deposit request has been approved. Balance change: + "
                                   + vndFmt.format(absDelta)
                                   + " VND"
-                              : "❌ Yêu cầu nạp tiền bị từ chối";
+                              : "Your deposit request has been declined.";
                     }
                     NotificationStore.getInstance().add(text);
 

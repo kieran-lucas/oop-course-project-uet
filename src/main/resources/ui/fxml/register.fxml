@@ -24,36 +24,36 @@
       </padding>
 
       <Label styleClass="app-title" text="Online Auction" />
-      <Label styleClass="app-subtitle" text="Tạo tài khoản mới" />
+      <Label styleClass="app-subtitle" text="Create a new account" />
 
       <VBox spacing="6.0">
-         <Label styleClass="field-label" text="TÊN ĐĂNG NHẬP" />
-         <TextField fx:id="usernameField" promptText="Nhập tên đăng nhập"
+         <Label styleClass="field-label" text="USERNAME" />
+         <TextField fx:id="usernameField" promptText="Enter your username"
                     styleClass="text-field" />
       </VBox>
 
       <VBox spacing="6.0">
          <Label styleClass="field-label" text="EMAIL" />
-         <TextField fx:id="emailField" promptText="Nhập địa chỉ email"
+         <TextField fx:id="emailField" promptText="Enter your email address"
                     styleClass="text-field" />
       </VBox>
 
       <VBox spacing="6.0">
-         <Label styleClass="field-label" text="MẬT KHẨU" />
-         <PasswordField fx:id="passwordField" promptText="Ít nhất 6 ký tự"
+         <Label styleClass="field-label" text="PASSWORD" />
+         <PasswordField fx:id="passwordField" promptText="At least 6 characters"
                         styleClass="text-field, password-field" />
       </VBox>
 
       <VBox spacing="6.0">
-         <Label styleClass="field-label" text="XÁC NHẬN MẬT KHẨU" />
-         <PasswordField fx:id="confirmPasswordField" promptText="Nhập lại mật khẩu"
+         <Label styleClass="field-label" text="CONFIRM PASSWORD" />
+         <PasswordField fx:id="confirmPasswordField" promptText="Re-enter your password"
                         styleClass="text-field, password-field" />
       </VBox>
 
       <VBox spacing="6.0">
-         <Label styleClass="field-label" text="VAI TRÒ" />
+         <Label styleClass="field-label" text="ROLE" />
          <ComboBox fx:id="roleCombo" maxWidth="Infinity" styleClass="combo-box"
-                   promptText="Chọn vai trò">
+                   promptText="Choose a role">
             <items>
                <FXCollections fx:factory="observableArrayList">
                   <String fx:value="BIDDER" />
@@ -66,11 +66,11 @@
       <Label fx:id="errorLabel" styleClass="error-label" text=""
              visible="false" managed="false" wrapText="true" />
 
-      <Button fx:id="registerButton" styleClass="primary-button" text="Đăng ký"
+      <Button fx:id="registerButton" styleClass="primary-button" text="Create account"
               maxWidth="Infinity" onAction="#handleRegister" />
 
       <HBox alignment="CENTER">
-         <Hyperlink text="Đã có tài khoản? Đăng nhập" onAction="#goToLogin"
+         <Hyperlink text="Already have an account? Sign in" onAction="#goToLogin"
                     styleClass="link" />
       </HBox>
    </VBox>
