@@ -1,6 +1,5 @@
 package com.auction;
 
-import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.auction.config.DatabaseConfig;
 import com.auction.config.JwtUtil;
 import com.auction.controller.AuctionController;
@@ -27,7 +26,6 @@ import com.auction.exception.InvalidBidException;
 import com.auction.exception.NotFoundException;
 import com.auction.exception.UnauthorizedException;
 import com.auction.middleware.JwtMiddleware;
-import com.auction.model.Admin;
 import com.auction.model.AutoBidStatus;
 import com.auction.model.DepositRecord;
 import com.auction.pattern.observer.AuctionEventManager;
@@ -538,21 +536,9 @@ public class App {
     }
   }
 
-  /** Tạo tài khoản admin mặc định (admin / 123456) khi server khởi động nếu chưa tồn tại. */
+  /** Tạo tài khoản admin mặc định khi server khởi động nếu chưa tồn tại. */
   private static void seedAdminIfNeeded(UserDao userDao) {
-    try {
-      var existing = userDao.findByUsername("admin");
-      if (existing.isEmpty()) {
-        String hash = BCrypt.withDefaults().hashToString(12, "123456".toCharArray());
-        Admin admin = new Admin("admin", hash, "admin@auction.com");
-        userDao.insert(admin);
-        LOGGER.info("Đã tạo tài khoản admin mặc định: username=admin, password=123456");
-      } else {
-        LOGGER.info("Tài khoản admin đã tồn tại, bỏ qua seed.");
-      }
-    } catch (Exception e) {
-      LOGGER.warn("Không thể seed admin: {}", e.getMessage());
-    }
+    new AdminSeeder(userDao).seed();
   }
 
   /**
