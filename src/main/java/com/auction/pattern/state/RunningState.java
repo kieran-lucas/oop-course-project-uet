@@ -80,7 +80,10 @@ public class RunningState implements AuctionState {
     // Ràng buộc 1: giá đặt phải cao hơn giá hiện tại của phiên
     if (amount.compareTo(auction.getCurrentPrice()) <= 0) {
       throw new InvalidBidException(
-          "Giá đặt " + amount + " phải cao hơn giá hiện tại " + auction.getCurrentPrice());
+          "Bid amount "
+              + amount
+              + " must be higher than current price "
+              + auction.getCurrentPrice());
     }
 
     // Ràng buộc 2: seller không được tự đặt giá cho phiên của chính mình

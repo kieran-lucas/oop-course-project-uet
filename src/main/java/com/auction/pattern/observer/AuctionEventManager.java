@@ -147,7 +147,7 @@ public class AuctionEventManager {
         action.accept(listener);
       } catch (Exception e) {
         LOGGER.error(
-            "Lỗi khi notify listener {} sự kiện {} cho phiên #{}: {}",
+            "Error notifying listener {} for event {} on auction #{}: {}",
             listener.getClass().getSimpleName(),
             eventType,
             auctionId,

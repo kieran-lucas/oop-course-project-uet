@@ -25,16 +25,16 @@ public final class ItemFactory {
               req.getName(), req.getDescription(), sellerId, parseYear(req.getCategoryDetail()));
       default ->
           throw new IllegalArgumentException(
-              "Category không hợp lệ: '"
+              "Invalid category: '"
                   + req.getCategory()
-                  + "'. Chỉ chấp nhận: ELECTRONICS, ART, VEHICLE");
+                  + "'. Accepted values: ELECTRONICS, ART, VEHICLE");
     };
   }
 
   private static int parseYear(String yearText) {
     int year = Integer.parseInt(yearText.trim());
     if (year < 1886 || year > 2100) {
-      throw new IllegalArgumentException("Năm sản xuất không hợp lệ (1886-2100): " + year);
+      throw new IllegalArgumentException("Invalid manufacture year (1886-2100): " + year);
     }
     return year;
   }

@@ -32,7 +32,7 @@ A full-stack **desktop auction platform** built with Java 21. A **JavaFX client*
 - A **6-state auction lifecycle** enforced by the State pattern - illegal state operations throw typed exceptions instead of failing silently
 - **12 JavaFX screens** with a clean blue theme (`#1565C0` primary, `#EFF6FF` background) and a live `AreaChart` fed directly from WebSocket events
 
-The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle) modeled as `Item` subclasses, and the main auction workflow from item creation to settlement, with supporting deposit and password-reset flows — **103 production Java files**, **29 test classes**, and **17 Flyway migrations**.
+The project covers **3 user roles** (Admin, Seller, Bidder), **3 item categories** (Electronics, Art, Vehicle) modeled as `Item` subclasses, and the main auction workflow from item creation to settlement, with supporting deposit and password-reset flows — **104 production Java files**, **54 test classes**, and **17 Flyway migrations**.
 
 **Environment:** Java 21+ • Windows / macOS / Linux • Default local run uses embedded PostgreSQL; no separately installed local database is required
 
@@ -434,7 +434,7 @@ classDiagram
 
     class AuctionEventManager {
         <<subject>>
-        -listeners ConcurrentHashMap
+        -listeners Map
         +subscribe(Long, AuctionEventListener) void
         +unsubscribe(Long, AuctionEventListener) void
         +notifyBidUpdate(Long, BidUpdateMessage) void
@@ -1119,7 +1119,7 @@ These JARs use the same server/client packaging shape as the GitHub release asse
 | `./gradlew runClient` | Start the JavaFX client from source |
 | `./gradlew buildJars` | Produce both fat JARs in `build/libs/` |
 | `./gradlew test` | Run the JUnit 5 + Mockito suite (uses embedded PostgreSQL for integration tests) |
-| `./gradlew check` | Full quality gate: tests + Checkstyle + SpotBugs + JaCoCo 20 % instruction-coverage verification |
+| `./gradlew check` | Full quality gate: tests + Checkstyle + SpotBugs + JaCoCo 70 % instruction-coverage verification |
 | `./gradlew jacocoTestReport` | HTML coverage report at `build/reports/jacoco/test/html/index.html` |
 | `./gradlew spotlessCheck` | Verify Google Java Style (CI gate) |
 | `./gradlew spotlessApply` | Auto-format all Java sources |
@@ -1220,8 +1220,8 @@ rm -rf data logs build        # macOS / Linux
 |---|---|---|---|
 | **Bui Ngoc Phu Hung** | [@HumaNormal](https://github.com/HumaNormal) | Backend Lead | Javalin server setup · REST controllers · WebSocket handler (`AuctionWebSocketHandler`) · JDBI DAOs · Flyway migrations · HikariCP connection pool config |
 | **Tran Anh Duc** | [@kieran-lucas](https://github.com/kieran-lucas) | Frontend Lead | 12 JavaFX screen controllers · 12 FXML layout files · `SceneManager` singleton · scene-overlay notification dropdown · blue CSS theme (`#1565C0`) · Lexend font integration |
-| **Nguyen Dinh Viet Duc** | [@Black1206-coder](https://github.com/Black1206-coder) | Business Logic | Service-layer classes · 4 design pattern packages (14 files) · `AuctionException` hierarchy (5 custom subclasses) · JWT authentication · BCrypt password hashing |
-| **Bui Quang Huy** | [@stillqhuy](https://github.com/stillqhuy) | DevOps & QA | GitHub Actions CI pipeline · JUnit 5 regression suite · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
+| **Nguyen Dinh Viet Duc** | [@Black1206-coder](https://github.com/Black1206-coder) | Business Logic | Service-layer classes · 4 design pattern packages (15 files) · `AuctionException` hierarchy (5 custom subclasses) · JWT authentication · BCrypt password hashing |
+| **Bui Quang Huy** | [@stillqhuy](https://github.com/stillqhuy) | DevOps & QA | GitHub Actions CI pipeline · JUnit 5 regression suite (54 test classes) · Gradle Kotlin DSL config · Checkstyle + Spotless + SpotBugs integration · Git workflow & documentation |
 
 Shared areas such as `model/`, `dto/`, and documentation were reviewed collaboratively across the team.
 
@@ -1244,7 +1244,7 @@ Shared areas such as `model/`, `dto/`, and documentation were reviewed collabora
 | Auth | JWT (Auth0) | 4.4.0 | HMAC JWT with per-user tokenVersion check after password changes |
 | Password | BCrypt | 0.10.2 | One-way hash with salt, cost factor 12 |
 | Testing | JUnit 5 + Mockito | 5.11.4 | Parameterized tests + mock injection |
-| Coverage | JaCoCo | - | GitHub Actions artifact + 20% minimum instruction coverage gate in `check` |
+| Coverage | JaCoCo | - | GitHub Actions artifact + 70% minimum instruction coverage gate in `check` |
 | Build | Gradle (Kotlin DSL) | 8.12.1 | Type-safe build scripts |
 | Code Style | Checkstyle + Spotless | - | Google Java Style checks in CI; optional Git hook can run Spotless before commits |
 | Static Analysis | SpotBugs | 6.0.9 | Static bug-pattern analysis at MAX effort with HIGH confidence threshold |
@@ -1295,6 +1295,8 @@ oop-course-project-uet/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/auction/
+│   │   │   ├── AdminSeeder.java                ← Seeds the default admin account on first startup;
+│   │   │   │                                      reads DEFAULT_ADMIN_PASSWORD env var, falls back to demo password
 │   │   │   ├── App.java                        ← Server entry point: Javalin setup, route registration,
 │   │   │   │                                      WebSocket registration, scheduler startup,
 │   │   │   │                                      global exception handlers (AuctionException hierarchy)
@@ -1372,7 +1374,7 @@ oop-course-project-uet/
 │   │   │   │                                      Extracts + verifies JWT from Authorization: Bearer <token>
 │   │   │   │                                      Injects { userId, username, role } into request context
 │   │   │   │
-│   │   │   ├── model/                          ← 14 domain classes - pure data, no framework coupling
+│   │   │   ├── model/                          ← 17 model files: 14 entity/record classes + 3 status enums; pure data, no framework coupling
 │   │   │   │   ├── Admin.java                  ← User subclass · getRole() = "ADMIN"
 │   │   │   │   ├── Auction.java                ← Core aggregate: price (BigDecimal), status, startTime/endTime
 │   │   │   │   ├── AutoBidConfig.java          ← { maxBid, increment, registeredAt } - PriorityQueue sort key
@@ -1456,7 +1458,7 @@ oop-course-project-uet/
 │   │   │   └── util/                           ← client-side utility classes
 │   │   │       ├── BackgroundBidWatcher.java   ← Background watcher for bid updates
 │   │   │       ├── MoneyValidator.java         ← Integer VND validation helpers
-│   │   │       ├── NotificationFormat.java     ← Consistent Vietnamese notification label formatting
+│   │   │       ├── NotificationFormat.java     ← Wraps usernames in guillemets («user») and auction names in [brackets] for notification rendering
 │   │   │       ├── NotificationItem.java       ← Client-side notification item model
 │   │   │       ├── NotificationStore.java      ← In-memory store for push notifications received via WebSocket
 │   │   │       ├── RestClient.java             ← HTTP client wrapper: auto-injects Authorization: Bearer <JWT>
@@ -1522,7 +1524,8 @@ oop-course-project-uet/
 │   │               └── welcome.fxml            ← Bound to WelcomeController (app entry screen)
 │
 │   └── test/
-│       └── java/com/auction/                   ← 28 test classes; mix of unit (Mockito) and integration (real PostgreSQL)
+│       └── java/com/auction/                   ← 54 test classes; mix of unit (Mockito) and integration (real PostgreSQL)
+│           ├── AdminSeederTest.java            ← Admin seed logic: env var resolution + idempotent behavior
 │           ├── SetupTest.java                  ← Bootstraps embedded PostgreSQL + JDBI for integration tests
 │           ├── HttpAuthorizationIntegrationTest.java ← End-to-end JWT + role checks across REST routes
 │           ├── NotificationApiPersistenceTest.java   ← Notification REST endpoints against real DB
@@ -1533,8 +1536,24 @@ oop-course-project-uet/
 │           │   └── JwtUtilTest.java            ← Token generation, verification, expiry, tampering
 │           │
 │           ├── controller/
+│           │   ├── AuctionControllerTest.java  ← REST auction CRUD route guards
 │           │   ├── AuctionWebSocketHandlerTest.java ← Auction + user WebSocket subscribe/broadcast paths
-│           │   └── BidControllerTest.java      ← BIDDER-only guard + happy path for POST /bid
+│           │   ├── AuthControllerTest.java     ← Register + login happy path and validation
+│           │   ├── BidControllerTest.java      ← BIDDER-only guard + happy path for POST /bid
+│           │   └── ItemControllerTest.java     ← Item REST route role guards
+│           │
+│           ├── dto/
+│           │   ├── BidUpdateMessageTest.java   ← BidUpdateMessage static factory methods per type
+│           │   ├── DtoCompletenessTest.java    ← All DTO fields presence check
+│           │   └── ErrorResponseTest.java      ← ErrorResponse factory + timestamp serialisation
+│           │
+│           ├── exception/
+│           │   ├── AuctionClosedExceptionTest.java ← Verifies message + HTTP mapping
+│           │   ├── AuctionExceptionHierarchyTest.java ← Hierarchy + toString contract
+│           │   ├── DuplicateExceptionTest.java ← 409 mapping
+│           │   ├── InvalidBidExceptionTest.java ← 400 mapping
+│           │   ├── NotFoundExceptionTest.java  ← 404 mapping
+│           │   └── UnauthorizedExceptionTest.java ← 401 mapping
 │           │
 │           ├── middleware/
 │           │   └── JwtMiddlewareTest.java      ← Public/semi-public/protected route classification
@@ -1546,25 +1565,44 @@ oop-course-project-uet/
 │           │   ├── ItemDaoTest.java            ← Category-specific field persistence (brand/artist/year)
 │           │   └── UserDaoTest.java            ← Registration, BCrypt hash storage, balance updates
 │           │
-│           ├── exception/
-│           │   ├── AuctionClosedExceptionTest.java ← Verifies message + HTTP mapping
-│           │   ├── DuplicateExceptionTest.java ← 409 mapping
-│           │   ├── InvalidBidExceptionTest.java ← 400 mapping
-│           │   ├── NotFoundExceptionTest.java  ← 404 mapping
-│           │   └── UnauthorizedExceptionTest.java ← 401 mapping
-│           │
 │           ├── model/
-│           │   └── ModelTest.java              ← Entity → User/Item subclass dispatch (getRole, getCategory)
+│           │   ├── DomainEnumsTest.java        ← AuctionStatus / AutoBidStatus / AutoBidFailureReason values
+│           │   ├── DomainModelTest.java        ← Entity equals/hashCode + field contracts
+│           │   └── ModelTest.java              ← User/Item subclass dispatch (getRole, getCategory)
 │           │
-│           └── service/
-│               ├── AuctionServiceTest.java     ← Create/edit/delete + State pattern guards
-│               ├── AuctionServiceCreateIntegrationTest.java ← End-to-end auction creation against PostgreSQL
-│               ├── AuctionSchedulerSettlementTest.java ← OPEN → RUNNING → SETTLING → FINISHED/PAID transitions
-│               ├── AuctionCancellationNotificationIntegrationTest.java ← Cancel auction → observer broadcast
-│               ├── BidServiceTest.java         ← Bid logic, anti-sniping (30s), auto-bid chain
-│               ├── BidServiceConcurrencyTest.java ← Parallel bid threads + SELECT FOR UPDATE correctness
-│               ├── WalletLedgerIntegrationTest.java ← wallet_transactions ledger movements (deposit, freeze, release)
-│               └── UserServiceTest.java        ← Registration, BCrypt verify, balance mutation
+│           ├── pattern/
+│           │   ├── factory/
+│           │   │   ├── AuctionStateFactoryTest.java ← Factory returns correct singleton per status string
+│           │   │   ├── ItemFactoryTest.java     ← Factory returns correct Item subclass per category
+│           │   │   ├── UserFactoryTest.java     ← Factory returns correct User subclass per role
+│           │   │   └── state/
+│           │   │       ├── OpenStateTest.java      ← OpenState: edit allowed, bid rejected
+│           │   │       ├── RunningStateTest.java   ← RunningState: bid + extend allowed, edit rejected
+│           │   │       └── TerminalStatesTest.java ← PaidState + CanceledState throw on all operations
+│           │   ├── observer/
+│           │   │   └── AuctionEventManagerTest.java ← Subscribe / unsubscribe / notify paths
+│           │   └── strategy/
+│           │       └── AutoBidStrategyTest.java ← FIFO chain, EXHAUSTED / FAILED branching, cap at 100
+│           │
+│           ├── service/
+│           │   ├── AuctionServiceTest.java     ← Create/edit/delete + State pattern guards
+│           │   ├── AuctionServiceExtendedTest.java ← Additional auction service edge cases
+│           │   ├── AuctionServiceCreateIntegrationTest.java ← End-to-end auction creation against PostgreSQL
+│           │   ├── AuctionSchedulerSettlementTest.java ← OPEN → RUNNING → SETTLING → FINISHED/PAID transitions
+│           │   ├── AuctionCancellationNotificationIntegrationTest.java ← Cancel auction → observer broadcast
+│           │   ├── BidServiceTest.java         ← Bid logic, anti-sniping (30s), auto-bid chain
+│           │   ├── BidServiceConcurrencyTest.java ← Parallel bid threads + SELECT FOR UPDATE correctness
+│           │   ├── ItemServiceTest.java        ← Item CRUD + ownership permission checks
+│           │   ├── NotificationServiceTest.java ← Mark-read + list notification service
+│           │   ├── PasswordResetServiceTest.java ← Admin-reviewed reset request lifecycle
+│           │   ├── UserServiceTest.java        ← Registration, BCrypt verify, balance mutation
+│           │   ├── UserServiceExtendedTest.java ← Additional user service edge cases
+│           │   └── WalletLedgerIntegrationTest.java ← wallet_transactions ledger movements (deposit, freeze, release)
+│           │
+│           └── util/
+│               ├── MoneyValidatorTest.java     ← Integer VND validation rules
+│               ├── NotificationFormatTest.java ← Guillemet / bracket wrapping contract
+│               └── NotificationItemTest.java   ← NotificationItem field accessors + read flag
 ```
 
 </details>
