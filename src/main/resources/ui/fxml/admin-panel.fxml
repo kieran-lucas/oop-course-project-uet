@@ -96,6 +96,9 @@
                </placeholder>
             </TableView>
 
+            <Label fx:id="depositStatusLabel" styleClass="status-label" text=""
+                   visible="false" managed="false" wrapText="true" />
+
             <Separator />
 
             <!-- ===== Password reset request management ===== -->
@@ -139,6 +142,9 @@
                   <Label text="Không có người dùng nào." />
                </placeholder>
             </TableView>
+
+            <Label fx:id="userStatusLabel" styleClass="status-label" text=""
+                   visible="false" managed="false" wrapText="true" />
 
          </VBox>
       </ScrollPane>

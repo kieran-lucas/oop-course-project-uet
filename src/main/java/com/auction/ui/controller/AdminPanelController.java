@@ -107,6 +107,8 @@ public class AdminPanelController implements Navigable {
   @FXML private TableColumn<PasswordResetRecord, java.time.LocalDateTime> prTimeCol;
   @FXML private TableColumn<PasswordResetRecord, Void> prActionCol;
   @FXML private Label passwordResetStatusLabel;
+  @FXML private Label depositStatusLabel;
+  @FXML private Label userStatusLabel;
 
   private final ObservableList<AuctionResponse> allAuctions = FXCollections.observableArrayList();
   private final ObservableList<UserResponse> allUsers = FXCollections.observableArrayList();
@@ -352,11 +354,11 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 204 || response.statusCode() == 200) {
-                        setStatus("Đã xóa tài khoản #" + id + " thành công.");
+                        setUserStatus("Đã xóa tài khoản #" + id + " thành công.");
                         loadUsers();
                       } else {
                         String serverMsg = extractServerMessage(response.body());
-                        setStatus("Không thể xóa tài khoản #" + id + ": " + serverMsg);
+                        setUserStatus("Không thể xóa tài khoản #" + id + ": " + serverMsg);
                         showErrorDialog("Không thể xóa tài khoản #" + id, serverMsg);
                       }
                     });
@@ -364,7 +366,7 @@ public class AdminPanelController implements Navigable {
                 LOGGER.error("Lỗi xóa user {}", id, e);
                 Platform.runLater(
                     () -> {
-                      setStatus("Không thể kết nối đến server.");
+                      setUserStatus("Không thể kết nối đến server.");
                       showErrorDialog(
                           "Lỗi kết nối", "Không thể kết nối đến server. Vui lòng thử lại.");
                     });
@@ -1450,16 +1452,16 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 200) {
-                        setStatus("Đã duyệt yêu cầu nạp tiền #" + id);
+                        setDepositStatus("Đã duyệt yêu cầu nạp tiền #" + id);
                         loadDepositRequests();
                         loadUsers();
                       } else {
-                        setStatus("Duyệt thất bại: " + response.statusCode());
+                        setDepositStatus("Duyệt thất bại: " + response.statusCode());
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi duyệt deposit {}", id, e);
-                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+                Platform.runLater(() -> setDepositStatus("Không thể kết nối đến server."));
               }
             });
   }
@@ -1474,15 +1476,15 @@ public class AdminPanelController implements Navigable {
                 Platform.runLater(
                     () -> {
                       if (response.statusCode() == 204) {
-                        setStatus("Đã từ chối yêu cầu nạp tiền #" + id);
+                        setDepositStatus("Đã từ chối yêu cầu nạp tiền #" + id);
                         loadDepositRequests();
                       } else {
-                        setStatus("Từ chối thất bại: " + response.statusCode());
+                        setDepositStatus("Từ chối thất bại: " + response.statusCode());
                       }
                     });
               } catch (Exception e) {
                 LOGGER.error("Lỗi từ chối deposit {}", id, e);
-                Platform.runLater(() -> setStatus("Không thể kết nối đến server."));
+                Platform.runLater(() -> setDepositStatus("Không thể kết nối đến server."));
               }
             });
   }
@@ -1648,6 +1650,20 @@ public class AdminPanelController implements Navigable {
     passwordResetStatusLabel.getStyleClass().setAll(isError ? "error-label" : "status-label");
     passwordResetStatusLabel.setVisible(true);
     passwordResetStatusLabel.setManaged(true);
+  }
+
+  /** Hiển thị thông báo trạng thái dưới bảng yêu cầu nạp tiền. */
+  private void setDepositStatus(String text) {
+    depositStatusLabel.setText(text);
+    depositStatusLabel.setVisible(true);
+    depositStatusLabel.setManaged(true);
+  }
+
+  /** Hiển thị thông báo trạng thái dưới bảng người dùng. */
+  private void setUserStatus(String text) {
+    userStatusLabel.setText(text);
+    userStatusLabel.setVisible(true);
+    userStatusLabel.setManaged(true);
   }
 
   /** Hiển thị thông báo trạng thái trên thanh status của màn hình quản trị. */
