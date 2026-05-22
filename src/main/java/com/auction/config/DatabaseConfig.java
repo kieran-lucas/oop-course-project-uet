@@ -34,6 +34,10 @@ public class DatabaseConfig {
   private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseConfig.class);
   private static final Object SHUTDOWN_LOCK = new Object();
 
+  // PID của chính JVM đang chạy — KHÔNG BAO GIỜ được destroy chính mình.
+  // Java 21 ném IllegalStateException nếu cố gọi destroy()/destroyForcibly() lên current process.
+  private static final long CURRENT_JVM_PID = ProcessHandle.current().pid();
+
   // Singleton instances
   private static volatile Jdbi jdbi;
   private static HikariDataSource dataSource;
@@ -354,12 +358,32 @@ public class DatabaseConfig {
 
   private static boolean killPostgresFromPidFile(File pidFile) {
     Long oldPid = readPid(pidFile);
-    return oldPid == null
-        || ProcessHandle.of(oldPid)
-            .map(process -> stopPostgresProcess(process, oldPid))
-            .orElse(true);
+    if (oldPid == null) {
+      return true;
+    }
+    // Guard: nếu PID file (stale) trùng với JVM hiện tại thì bỏ qua, không được destroy chính mình.
+    if (oldPid == CURRENT_JVM_PID) {
+      LOGGER.debug("PID file {} chứa PID của JVM hiện tại — bỏ qua", pidFile.getPath());
+      return true;
+    }
+    return ProcessHandle.of(oldPid)
+        .map(process -> stopPostgresProcess(process, oldPid))
+        .orElse(true);
   }
 
+  /**
+   * Quét tất cả process trên máy và dừng những Postgres còn sót lại từ lần chạy trước có dùng cùng
+   * data directory.
+   *
+   * <p>Hai điều kiện lọc PHẢI cả hai cùng đúng:
+   *
+   * <ol>
+   *   <li>Process không phải là JVM hiện tại (Java 21 cấm destroy current process).
+   *   <li>Executable name phải đúng là {@code postgres} hoặc {@code postgres.exe} — tránh match
+   *       nhầm JVM có data dir trong command line (ví dụ {@code -Dauction.db.dir=.../
+   *       embedded-postgres/test} — string này chứa "postgres").
+   * </ol>
+   */
   private static boolean killPostgresUsingDataDir() {
     String relativeDataDir =
         EMBEDDED_DATA_DIR.getPath().replace('\\', '/').toLowerCase(Locale.ROOT);
@@ -367,6 +391,11 @@ public class DatabaseConfig {
         EMBEDDED_DATA_DIR.getAbsolutePath().replace('\\', '/').toLowerCase(Locale.ROOT);
 
     return ProcessHandle.allProcesses()
+        // (1) Không bao giờ chạm vào JVM hiện tại
+        .filter(process -> process.pid() != CURRENT_JVM_PID)
+        // (2) Chỉ giữ process mà EXECUTABLE thực sự là 'postgres' / 'postgres.exe'
+        .filter(DatabaseConfig::isPostgresExecutable)
+        // (3) Khớp data dir như cũ
         .filter(
             process ->
                 process
@@ -375,22 +404,49 @@ public class DatabaseConfig {
                     .map(command -> command.replace('\\', '/').toLowerCase(Locale.ROOT))
                     .map(
                         command ->
-                            command.contains("postgres")
-                                && (command.contains(relativeDataDir)
-                                    || command.contains(absoluteDataDir)))
+                            command.contains(relativeDataDir) || command.contains(absoluteDataDir))
                     .orElse(false))
         .map(process -> stopPostgresProcess(process, process.pid()))
         .reduce(true, (left, right) -> left && right);
   }
 
+  /** True nếu executable của process đúng là {@code postgres} hoặc {@code postgres.exe}. */
+  private static boolean isPostgresExecutable(ProcessHandle process) {
+    return process
+        .info()
+        .command()
+        .map(
+            cmd -> {
+              String lower = cmd.replace('\\', '/').toLowerCase(Locale.ROOT);
+              // /usr/local/.../bin/postgres   hoặc  C:/.../bin/postgres.exe
+              return lower.endsWith("/postgres")
+                  || lower.endsWith("/postgres.exe")
+                  || lower.equals("postgres")
+                  || lower.equals("postgres.exe");
+            })
+        .orElse(false);
+  }
+
   private static boolean stopPostgresProcess(ProcessHandle process, long pid) {
+    // Guard tuyệt đối: không bao giờ destroy chính mình.
+    if (pid == CURRENT_JVM_PID) {
+      LOGGER.debug("Bỏ qua PID {} vì là JVM hiện tại", pid);
+      return true;
+    }
     if (!process.isAlive()) {
       return true;
     }
 
     boolean stopped = stopProcessGracefully(process, 10);
     if (!stopped) {
-      process.destroyForcibly();
+      try {
+        process.destroyForcibly();
+      } catch (IllegalStateException e) {
+        // Có thể xảy ra trên process đặc biệt (vd: parent/ancestor của JVM hiện tại).
+        // Không được throw — coi như cleanup này thất bại và để các bước khác xử lý.
+        LOGGER.debug("destroyForcibly bị từ chối cho PID {}: {}", pid, e.getMessage());
+        return false;
+      }
       stopped = waitForProcessExit(process, 10);
     }
 
@@ -406,6 +462,10 @@ public class DatabaseConfig {
     try {
       process.destroy();
       return waitForProcessExit(process, timeoutSeconds);
+    } catch (IllegalStateException e) {
+      // Cấm destroy current process — coi như không gửi được tín hiệu, nhường cho destroyForcibly.
+      LOGGER.debug("destroy() bị từ chối: {}", e.getMessage());
+      return false;
     } catch (Exception e) {
       LOGGER.debug("Could not send stop signal to process: {}", e.getMessage());
       return false;
@@ -482,6 +542,10 @@ public class DatabaseConfig {
     if (pid == null) {
       return;
     }
+    // Phòng hờ: nếu vì lý do nào đó pid trùng JVM hiện tại thì bỏ qua.
+    if (pid == CURRENT_JVM_PID) {
+      return;
+    }
 
     ProcessHandle.of(pid)
         .ifPresent(
@@ -492,7 +556,13 @@ public class DatabaseConfig {
 
               LOGGER.warn("PostgreSQL PID {} still running after close, stopping it again", pid);
               if (!stopProcessGracefully(process, 5)) {
-                process.destroyForcibly();
+                try {
+                  process.destroyForcibly();
+                } catch (IllegalStateException e) {
+                  LOGGER.debug(
+                      "destroyForcibly bị từ chối cho PID {} ở shutdown: {}", pid, e.getMessage());
+                  return;
+                }
                 waitForProcessExit(process, 5);
               }
             });

@@ -3,9 +3,21 @@
 
 if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.java$'; then
   echo "Running spotlessApply on staged Java files..."
-  ./gradlew.bat spotlessApply --quiet || {
+
+  # Chọn gradle wrapper phù hợp với OS
+  if [ -x ./gradlew ]; then
+    GRADLE_CMD="./gradlew"
+  elif [ -f ./gradlew.bat ]; then
+    GRADLE_CMD="./gradlew.bat"
+  else
+    echo "Gradle wrapper not found. Aborting commit."
+    exit 1
+  fi
+
+  "$GRADLE_CMD" spotlessApply --quiet || {
     echo "spotlessApply failed. Aborting commit."
     exit 1
   }
+
   git diff --cached --name-only --diff-filter=ACM | grep -E '\.java$' | xargs git add
 fi
