@@ -301,7 +301,7 @@ public class AutoBidStrategy {
                 + " VALUES (?, ?, 'AUTOBID_EXHAUSTED')",
             config.getBidderId(),
             String.format(
-                Locale.US,
+                Locale.GERMANY,
                 "Your auto-bid for auction #%d has stopped:"
                     + " the current price of %,d VND has exceeded your maximum bid of %,d VND.",
                 auctionId,
@@ -328,7 +328,7 @@ public class AutoBidStrategy {
                 + " VALUES (?, ?, 'AUTOBID_FAILED')",
             config.getBidderId(),
             String.format(
-                Locale.US,
+                Locale.GERMANY,
                 "Your auto-bid for auction #%d failed due to insufficient balance."
                     + " Required: %,d VND, available: %,d VND",
                 auctionId,
@@ -361,7 +361,7 @@ public class AutoBidStrategy {
                 + " VALUES (?, ?, 'AUTOBID_EXHAUSTED')",
             config.getBidderId(),
             String.format(
-                Locale.US,
+                Locale.GERMANY,
                 "Your auto-bid for auction #%d has reached your maximum bid of %,d VND and has been stopped.",
                 auctionId,
                 toIntegerVnd(config.getMaxBid(), "Max bid")));

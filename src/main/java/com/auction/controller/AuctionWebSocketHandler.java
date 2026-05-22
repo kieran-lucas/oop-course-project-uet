@@ -297,7 +297,7 @@ public class AuctionWebSocketHandler {
     String message =
         approved
             ? String.format(
-                Locale.US,
+                Locale.GERMANY,
                 "Your deposit request has been approved. Balance change: + %,d VND",
                 balanceDelta != null ? balanceDelta.longValue() : 0)
             : "Your deposit request has been declined.";

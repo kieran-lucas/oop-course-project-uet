@@ -120,13 +120,13 @@ public class BidService {
                 try {
                   auction = auctionDao.findByIdForUpdate(handle, auctionId);
                 } catch (IllegalStateException e) {
-                  throw new NotFoundException("Không tìm thấy phiên đấu giá với id: " + auctionId);
+                  throw new NotFoundException("Auction not found with id: " + auctionId);
                 }
 
                 if (!isAutoBid && autoBidConfigDao.hasActiveConfig(handle, auctionId, bidderId)) {
                   throw new InvalidBidException(
-                      "Bạn đang bật auto-bid cho phiên này."
-                          + " Hãy tắt auto-bid trước khi đặt giá thủ công.");
+                      "You have an active auto-bid for this auction."
+                          + " Please disable auto-bid before placing a manual bid.");
                 }
 
                 Long previousLeaderId = auction.getLeadingBidderId();
@@ -137,11 +137,11 @@ public class BidService {
                 BigDecimal available = bidder.getAvailableBalance();
                 if (available.compareTo(amount) < 0) {
                   throw new InvalidBidException(
-                      "Số dư khả dụng không đủ. Số dư khả dụng hiện tại: "
+                      "Insufficient available balance. Current available balance: "
                           + available
-                          + ", giá bid: "
+                          + ", bid amount: "
                           + amount
-                          + ". Vui lòng nạp thêm tiền.");
+                          + ". Please deposit more funds.");
                 }
 
                 if (auction.getRemainingTimeMs() < ANTI_SNIPE_THRESHOLD_MS) {
@@ -153,7 +153,7 @@ public class BidService {
                         eventManager.notifyTimeExtended(
                             auctionId, BidUpdateMessage.timeExtended(auctionId, snap.getEndTime()));
                         LOGGER.info(
-                            "Chống snipe kích hoạt cho phiên #{}: gia hạn thêm {}s",
+                            "Anti-snipe triggered for auction #{}: extended by {}s",
                             auctionId,
                             ANTI_SNIPE_EXTENSION_SECONDS);
                       });
@@ -180,7 +180,7 @@ public class BidService {
                           + " VALUES (?, ?, 'OUTBID')",
                       previousLeaderId,
                       String.format(
-                          Locale.US,
+                          Locale.GERMANY,
                           "You have been outbid in auction #%d. Current price: %,d VND",
                           auctionId,
                           toIntegerVnd(amount, "Bid amount")));
@@ -191,7 +191,7 @@ public class BidService {
                   String bidderLabel = NotificationFormat.user(bidder.getUsername());
                   String sellerMsg =
                       String.format(
-                          Locale.US,
+                          Locale.GERMANY,
                           "Your auction #%d has received a new bid from %s. Current price: %,d VND",
                           auctionId,
                           bidderLabel,
@@ -254,7 +254,7 @@ public class BidService {
    */
   public List<BidTransaction> getBidHistory(Long auctionId) {
     if (!auctionDao.existsById(auctionId)) {
-      throw new NotFoundException("Không tìm thấy phiên đấu giá với id: " + auctionId);
+      throw new NotFoundException("Auction not found with id: " + auctionId);
     }
     List<BidTransaction> bids = bidTransactionDao.findByAuctionId(auctionId);
     // Resolve usernames once per distinct bidder so the client can render real names in the
@@ -314,24 +314,24 @@ public class BidService {
                 try {
                   auction = auctionDao.findByIdForUpdate(handle, auctionId);
                 } catch (IllegalStateException e) {
-                  throw new NotFoundException("Không tìm thấy phiên đấu giá: " + auctionId);
+                  throw new NotFoundException("Auction not found: " + auctionId);
                 }
 
                 if (auction.getStatus() != AuctionStatus.RUNNING) {
                   throw new InvalidBidException(
-                      "Auto-bid chỉ được tạo cho phiên RUNNING. Trạng thái hiện tại: "
+                      "Auto-bid can only be created for RUNNING auctions. Current status: "
                           + auction.getStatus());
                 }
 
                 if (bidderId.equals(auction.getLeadingBidderId())) {
                   throw new InvalidBidException(
-                      "Bạn đang là người đặt giá cao nhất, không cần bật auto-bid");
+                      "You are currently the highest bidder, no need to enable auto-bid");
                 }
 
                 if (autoBidConfigDao.hasActiveConfig(handle, auctionId, bidderId)) {
                   throw new InvalidBidException(
-                      "Bạn đã có auto-bid đang hoạt động cho phiên này."
-                          + " Hãy dừng trước khi tạo mới.");
+                      "You already have an active auto-bid for this auction."
+                          + " Please stop it before creating a new one.");
                 }
 
                 BigDecimal initialBid = auction.getCurrentPrice().add(increment);
@@ -346,7 +346,7 @@ public class BidService {
                           + " VALUES (?, ?, 'AUTOBID_EXHAUSTED')",
                       bidderId,
                       String.format(
-                          Locale.US,
+                          Locale.GERMANY,
                           "Auto-bid for auction #%d could not be activated:"
                               + " your maximum bid of %,d VND is below the required opening bid of %,d VND.",
                           auctionId,
@@ -366,7 +366,7 @@ public class BidService {
                           + " VALUES (?, ?, 'AUTOBID_FAILED')",
                       bidderId,
                       String.format(
-                          Locale.US,
+                          Locale.GERMANY,
                           "Auto-bid for auction #%d could not be activated:"
                               + " insufficient balance. Required: %,d VND, available: %,d VND",
                           auctionId,
@@ -413,7 +413,7 @@ public class BidService {
                           + " VALUES (?, ?, 'OUTBID')",
                       previousLeaderId,
                       String.format(
-                          Locale.US,
+                          Locale.GERMANY,
                           "You have been outbid in auction #%d. Current price: %,d VND",
                           auctionId,
                           toIntegerVnd(initialBid, "Initial bid")));
@@ -424,7 +424,7 @@ public class BidService {
                   String bidderLabel = NotificationFormat.user(bidder.getUsername());
                   String sellerMsg =
                       String.format(
-                          Locale.US,
+                          Locale.GERMANY,
                           "Your auction #%d has received a new auto-bid from %s. Current price: %,d VND",
                           auctionId,
                           bidderLabel,
@@ -498,7 +498,7 @@ public class BidService {
     try {
       auction = auctionDao.findByIdForUpdate(handle, auctionId);
     } catch (IllegalStateException e) {
-      throw new NotFoundException("Không tìm thấy phiên đấu giá: " + auctionId);
+      throw new NotFoundException("Auction not found: " + auctionId);
     }
 
     Long previousLeaderId = auction.getLeadingBidderId();
@@ -533,7 +533,7 @@ public class BidService {
           "INSERT INTO notifications (user_id, message, notification_type) VALUES (?, ?, 'OUTBID')",
           previousLeaderId,
           String.format(
-              Locale.US,
+              Locale.GERMANY,
               "You have been outbid in auction #%d. Current price: %,d VND",
               auctionId,
               toIntegerVnd(amount, "Bid amount")));
@@ -551,7 +551,7 @@ public class BidService {
       String bidderLabel = NotificationFormat.user(bidderName);
       String sellerMsg =
           String.format(
-              Locale.US,
+              Locale.GERMANY,
               "Your auction #%d has received a new auto-bid from %s. Current price: %,d VND",
               auctionId,
               bidderLabel,
@@ -586,7 +586,8 @@ public class BidService {
               auctionId, amount, bidderId, username, auction.getEndTime(), isAutoBid);
       eventManager.notifyBidUpdate(auctionId, msg);
     } catch (Exception e) {
-      LOGGER.error("Lỗi khi gửi thông báo BID_UPDATE cho phiên #{}: {}", auctionId, e.getMessage());
+      LOGGER.error(
+          "Error sending BID_UPDATE notification for auction #{}: {}", auctionId, e.getMessage());
     }
   }
 

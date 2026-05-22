@@ -59,17 +59,16 @@ public class PasswordResetService {
     User user =
         userDao
             .findByEmail(email.toLowerCase().trim())
-            .orElseThrow(
-                () -> new NotFoundException("Không tìm thấy tài khoản với email: " + email));
+            .orElseThrow(() -> new NotFoundException("No account found with email: " + email));
 
     if (resetDao.hasPendingRequest(user.getId())) {
-      throw new DuplicateException("Bạn đã có yêu cầu đang chờ Admin xét duyệt.");
+      throw new DuplicateException("You already have a pending request awaiting Admin review.");
     }
 
     try {
       resetDao.insert(new PasswordResetRecord(user.getId()));
     } catch (org.jdbi.v3.core.statement.UnableToExecuteStatementException e) {
-      throw new DuplicateException("Bạn đã có yêu cầu đang chờ Admin xét duyệt.");
+      throw new DuplicateException("You already have a pending request awaiting Admin review.");
     }
   }
 
@@ -95,9 +94,9 @@ public class PasswordResetService {
           PasswordResetRecord record =
               resetDao
                   .findByIdForUpdate(handle, requestId)
-                  .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu: " + requestId));
+                  .orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
           if (!"PENDING".equals(record.getStatus())) {
-            throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+            throw new IllegalStateException("This request has already been processed.");
           }
           String resetPassword = generateTempPassword();
           String hash = BCrypt.withDefaults().hashToString(12, resetPassword.toCharArray());
@@ -124,10 +123,10 @@ public class PasswordResetService {
           PasswordResetRecord record =
               resetDao
                   .findByIdForUpdate(handle, requestId)
-                  .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu: " + requestId));
+                  .orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
 
           if (!"PENDING".equals(record.getStatus())) {
-            throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+            throw new IllegalStateException("This request has already been processed.");
           }
 
           resetDao.transitionStatusInTransaction(handle, requestId, "PENDING", "REJECTED");

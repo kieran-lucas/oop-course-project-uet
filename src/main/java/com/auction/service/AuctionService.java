@@ -209,38 +209,38 @@ public class AuctionService {
 
   private void validateItemCanBeAuctioned(Long itemId, Long sellerId, Item item) {
     if (!item.getSellerId().equals(sellerId)) {
-      throw new UnauthorizedException("Bạn chỉ có thể tạo phiên đấu giá cho sản phẩm của mình");
+      throw new UnauthorizedException("You can only create auctions for your own items");
     }
 
     if (!"AVAILABLE".equals(item.getStatus())) {
-      throw new DuplicateException("Sản phẩm #" + itemId + " không còn ở trạng thái AVAILABLE");
+      throw new DuplicateException("Item #" + itemId + " is no longer in AVAILABLE status");
     }
 
     if (auctionDao.existsActiveAuctionForItem(itemId)) {
-      throw new DuplicateException("Sản phẩm #" + itemId + " đã có phiên đấu giá đang hoạt động");
+      throw new DuplicateException("Item #" + itemId + " already has an active auction");
     }
 
     if (auctionDao.existsPaidAuctionForItem(itemId)) {
-      throw new DuplicateException("Sản phẩm #" + itemId + " đã được bán");
+      throw new DuplicateException("Item #" + itemId + " has already been sold");
     }
   }
 
   private void validateItemCanBeAuctionedInTransaction(
       org.jdbi.v3.core.Handle handle, Long itemId, Long sellerId, Item item) {
     if (!item.getSellerId().equals(sellerId)) {
-      throw new UnauthorizedException("Bạn chỉ có thể tạo phiên đấu giá cho sản phẩm của mình");
+      throw new UnauthorizedException("You can only create auctions for your own items");
     }
 
     if (!"AVAILABLE".equals(item.getStatus())) {
-      throw new DuplicateException("Sản phẩm #" + itemId + " không còn ở trạng thái AVAILABLE");
+      throw new DuplicateException("Item #" + itemId + " is no longer in AVAILABLE status");
     }
 
     if (auctionDao.existsActiveAuctionForItem(handle, itemId)) {
-      throw new DuplicateException("Sản phẩm #" + itemId + " đã có phiên đấu giá đang hoạt động");
+      throw new DuplicateException("Item #" + itemId + " already has an active auction");
     }
 
     if (auctionDao.existsPaidAuctionForItem(handle, itemId)) {
-      throw new DuplicateException("Sản phẩm #" + itemId + " đã được bán");
+      throw new DuplicateException("Item #" + itemId + " has already been sold");
     }
   }
 
@@ -344,16 +344,16 @@ public class AuctionService {
       AuctionStatus status = auction.getStatus();
       if (status != AuctionStatus.OPEN && status != AuctionStatus.RUNNING) {
         throw new IllegalStateException(
-            "Chỉ có thể hủy phiên đấu giá khi đang ở trạng thái OPEN hoặc RUNNING."
-                + " Trạng thái hiện tại: "
+            "Only auctions in OPEN or RUNNING status can be cancelled."
+                + " Current status: "
                 + status
-                + ". Hãy dùng nút Xóa để xóa phiên đã kết thúc.");
+                + ". Use the Delete button to remove completed auctions.");
       }
       AuctionStatus previousStatus = status;
       auction.setStatus(AuctionStatus.CANCELED);
       persistCanceledAuction(auction, previousStatus, "ADMIN");
       emitCancellationIfNeeded(auction, previousStatus);
-      LOGGER.info("ADMIN (userId={}) đã hủy phiên đấu giá #{}", userId, auctionId);
+      LOGGER.info("ADMIN (userId={}) cancelled auction #{}", userId, auctionId);
       return;
     }
 
@@ -369,7 +369,8 @@ public class AuctionService {
       }
 
       if (!actualSellerId.equals(userId)) {
-        throw new UnauthorizedException("Bạn không có quyền hủy phiên đấu giá của người khác!");
+        throw new UnauthorizedException(
+            "You do not have permission to cancel another seller's auction!");
       }
 
       if (AuctionStatus.RUNNING == auction.getStatus() && !"ADMIN".equals(role)) {
@@ -379,8 +380,8 @@ public class AuctionService {
       AuctionStatus status = auction.getStatus();
       if (status != AuctionStatus.OPEN && status != AuctionStatus.RUNNING) {
         throw new IllegalStateException(
-            "Chỉ có thể hủy phiên đấu giá khi đang ở trạng thái OPEN hoặc RUNNING."
-                + " Trạng thái hiện tại: "
+            "Only auctions in OPEN or RUNNING status can be cancelled."
+                + " Current status: "
                 + status);
       }
 
@@ -389,7 +390,7 @@ public class AuctionService {
       persistCanceledAuction(auction, previousStatus, "SELLER");
       emitCancellationIfNeeded(auction, previousStatus);
       LOGGER.info(
-          "SELLER (userId={}) đã hủy phiên đấu giá #{} (trạng thái trước: {})",
+          "SELLER (userId={}) cancelled auction #{} (previous status: {})",
           userId,
           auctionId,
           status);
@@ -397,7 +398,7 @@ public class AuctionService {
     }
 
     // Các role khác (BIDDER, ...) không được phép
-    throw new UnauthorizedException("Bạn không có quyền thực hiện thao tác này.");
+    throw new UnauthorizedException("You do not have permission to perform this action.");
   }
 
   /**
@@ -422,7 +423,7 @@ public class AuctionService {
             BidUpdateMessage.auctionEnded(auction.getId(), auction.getCurrentPrice(), null, null);
         eventManager.notifyAuctionEnd(auction.getId(), msg);
       } catch (Exception e) {
-        LOGGER.warn("Không thể broadcast AUCTION_ENDED trước khi hard-delete phiên #{}", auctionId);
+        LOGGER.warn("Cannot broadcast AUCTION_ENDED before hard-deleting auction #{}", auctionId);
       }
     }
 
@@ -631,7 +632,7 @@ public class AuctionService {
         itemName = itemDao.findById(auction.getItemId()).map(Item::getName).orElse(null);
       }
     } catch (Exception e) {
-      LOGGER.warn("Không thể resolve tên sản phẩm cho phiên #{}", auction.getId(), e);
+      LOGGER.warn("Cannot resolve item name for auction #{}", auction.getId(), e);
     }
     return NotificationFormat.auctionName(auction.getId(), itemName);
   }
@@ -648,7 +649,7 @@ public class AuctionService {
       try {
         wsHandler.pushUserNotification(uid, message);
       } catch (Exception e) {
-        LOGGER.warn("Không thể push USER_NOTIFICATION cho user #{}: {}", uid, e.getMessage());
+        LOGGER.warn("Cannot push USER_NOTIFICATION to user #{}: {}", uid, e.getMessage());
       }
     }
   }

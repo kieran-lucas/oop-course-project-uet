@@ -241,7 +241,7 @@ class UserServiceTest {
     IllegalStateException ex =
         assertThrows(IllegalStateException.class, () -> userService.delete(1L));
 
-    assertTrue(ex.getMessage().contains("lịch sử"));
+    assertTrue(ex.getMessage().contains("history"));
     verify(userDao, never()).delete(1L);
   }
 

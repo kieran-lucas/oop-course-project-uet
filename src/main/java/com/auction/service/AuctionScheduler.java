@@ -107,7 +107,7 @@ public class AuctionScheduler {
    */
   public void start() {
     if (!running.compareAndSet(false, true)) {
-      LOG.warn("AuctionScheduler đã chạy rồi, bỏ qua lệnh start() thứ hai");
+      LOG.warn("AuctionScheduler is already running, ignoring duplicate start() call");
       return;
     }
 
@@ -118,7 +118,7 @@ public class AuctionScheduler {
             SCAN_INTERVAL_SECONDS,
             TimeUnit.SECONDS);
 
-    LOG.info("AuctionScheduler đã khởi động — quét mỗi {}s", SCAN_INTERVAL_SECONDS);
+    LOG.info("AuctionScheduler started — scanning every {}s", SCAN_INTERVAL_SECONDS);
   }
 
   /**
@@ -140,7 +140,7 @@ public class AuctionScheduler {
       Thread.currentThread().interrupt();
     }
     running.set(false);
-    LOG.info("AuctionScheduler đã dừng");
+    LOG.info("AuctionScheduler stopped");
   }
 
   // ── Core scan logic ──────────────────────────────────────
@@ -154,7 +154,7 @@ public class AuctionScheduler {
   void scanAndTransition() {
     try {
       LocalDateTime now = LocalDateTime.now();
-      LOG.debug("Scheduler scan tại {}", now);
+      LOG.debug("Scheduler scan at {}", now);
 
       openToRunning(now);
       runningToFinished(now);
@@ -162,7 +162,7 @@ public class AuctionScheduler {
     } catch (Exception e) {
       // Bắt tất cả exception để scheduler không chết âm thầm.
       // Nếu không có try-catch này, một RuntimeException sẽ cancel scheduledTask.
-      LOG.error("Lỗi trong AuctionScheduler.scanAndTransition()", e);
+      LOG.error("Error in AuctionScheduler.scanAndTransition()", e);
     }
   }
 
@@ -179,12 +179,12 @@ public class AuctionScheduler {
       try {
         boolean ok = auctionDao.atomicTransition(id, "OPEN", "RUNNING");
         if (ok) {
-          LOG.info("Phiên #{} OPEN → RUNNING", id);
+          LOG.info("Auction #{} OPEN → RUNNING", id);
         } else {
-          LOG.debug("Phiên #{} skip — đã transition trước", id);
+          LOG.debug("Auction #{} skipped — already transitioned", id);
         }
       } catch (Exception e) {
-        LOG.error("Không thể chuyển phiên #{} sang RUNNING", id, e);
+        LOG.error("Cannot transition auction #{} to RUNNING", id, e);
       }
     }
   }
@@ -212,9 +212,7 @@ public class AuctionScheduler {
                 wsHandler.pushUserNotification(note.userId, note.message);
               } catch (Exception e) {
                 LOG.error(
-                    "Không thể push USER_NOTIFICATION cho user #{}: {}",
-                    note.userId,
-                    e.getMessage());
+                    "Cannot push USER_NOTIFICATION to user #{}: {}", note.userId, e.getMessage());
               }
             }
           }
@@ -229,15 +227,13 @@ public class AuctionScheduler {
                     change.notificationType);
               } catch (Exception e) {
                 LOG.error(
-                    "Không thể notify BALANCE_UPDATED cho user #{}: {}",
-                    change.userId,
-                    e.getMessage());
+                    "Cannot notify BALANCE_UPDATED to user #{}: {}", change.userId, e.getMessage());
               }
             }
           }
         }
       } catch (Exception e) {
-        LOG.error("Không thể kết thúc phiên #{}", id, e);
+        LOG.error("Cannot finalize auction #{}", id, e);
       }
     }
   }
@@ -297,7 +293,7 @@ public class AuctionScheduler {
                     .execute();
             if (claimed == 0) {
               LOG.info(
-                  "Phiên #{} chưa đủ điều kiện SETTLING tại {}, có thể đã được gia hạn hoặc xử lý trước đó",
+                  "Auction #{} not eligible for SETTLING at {}, may have been extended or already processed",
                   auctionId,
                   now);
               return;
@@ -307,7 +303,7 @@ public class AuctionScheduler {
                 auctionDao.findByIdForUpdateOptional(handle, auctionId);
             if (refetchedAuction.isEmpty()) {
               LOG.warn(
-                  "Không tìm thấy phiên #{} sau khi claim SETTLING, bỏ qua settlement", auctionId);
+                  "Auction #{} not found after claiming SETTLING, skipping settlement", auctionId);
               return;
             }
 
@@ -364,11 +360,11 @@ public class AuctionScheduler {
                         .execute();
                 if (winnerRows == 0) {
                   throw new IllegalStateException(
-                      "Không thể thanh toán phiên #"
+                      "Cannot settle auction #"
                           + auction.getId()
-                          + ": tiền giữ chỗ của bidder #"
+                          + ": bidder #"
                           + winnerId
-                          + " không đủ");
+                          + " has insufficient reserved balance");
                 }
                 WalletTransactionDao.insert(
                     handle,
@@ -378,9 +374,10 @@ public class AuctionScheduler {
                     "WIN_CONSUME",
                     price,
                     "settlement:" + auction.getId());
-                LOG.info("Phiên #{}: trừ {} từ bidder #{}", auction.getId(), price, winnerId);
                 LOG.info(
-                    "Phiên #{}: bidder #{} balance {} → {}",
+                    "Auction #{}: deducted {} from bidder #{}", auction.getId(), price, winnerId);
+                LOG.info(
+                    "Auction #{}: bidder #{} balance {} → {}",
                     auction.getId(),
                     winnerId,
                     balanceBefore,
@@ -390,7 +387,7 @@ public class AuctionScheduler {
                 BigDecimal winnerDelta = price.negate();
                 String winMsg =
                     String.format(
-                        Locale.US,
+                        Locale.GERMANY,
                         "You won auction %s at %,d VND."
                             + " Payment completed successfully."
                             + " Balance change: - %,d VND",
@@ -421,17 +418,18 @@ public class AuctionScheduler {
                       "SELLER_PAYOUT",
                       price,
                       "settlement:" + auction.getId());
-                  LOG.info("Phiên #{}: cộng {} cho seller #{}", auction.getId(), price, sellerId);
+                  LOG.info(
+                      "Auction #{}: credited {} to seller #{}", auction.getId(), price, sellerId);
                   BigDecimal sellerNewBalance = sellerBalanceBefore.add(price);
                   LOG.info(
-                      "Phiên #{}: seller #{} balance {} → {}",
+                      "Auction #{}: seller #{} balance {} → {}",
                       auction.getId(),
                       sellerId,
                       sellerBalanceBefore,
                       sellerNewBalance);
                   String sellerPayoutMsg =
                       String.format(
-                          Locale.US,
+                          Locale.GERMANY,
                           "You have successfully received payment from %s for auction %s."
                               + " Balance change: + %,d VND",
                           winnerLabel,
@@ -445,7 +443,7 @@ public class AuctionScheduler {
                 // ── Common end-of-auction broadcast (PAID) ─────────────────
                 String commonMsg =
                     String.format(
-                        Locale.US,
+                        Locale.GERMANY,
                         "Auction %s has ended. Winner: %s at %,d VND",
                         auctionLabel,
                         winnerLabel,
@@ -456,7 +454,7 @@ public class AuctionScheduler {
                 auction.setStatus(AuctionStatus.PAID);
               } else {
                 LOG.warn(
-                    "Phiên #{}: bidder #{} không đủ số dư ({}) để thanh toán {}. Chuyển FINISHED (nợ).",
+                    "Auction #{}: bidder #{} has insufficient balance ({}) to pay {}. Transitioning to FINISHED.",
                     auction.getId(),
                     winnerId,
                     balance,
@@ -474,7 +472,7 @@ public class AuctionScheduler {
                 // ── Common end-of-auction broadcast (winner couldn't pay) ──
                 String commonMsg =
                     String.format(
-                        Locale.US,
+                        Locale.GERMANY,
                         "Auction %s has ended, but payment failed: winner %s did not have enough funds to pay %,d VND",
                         auctionLabel,
                         winnerLabel,
@@ -488,7 +486,7 @@ public class AuctionScheduler {
               // ── Common end-of-auction broadcast (no bidder) ──
               String commonMsg =
                   String.format(
-                      Locale.US,
+                      Locale.GERMANY,
                       "Auction %s has ended with no bids. The auction was unsuccessful.",
                       auctionLabel);
               broadcastAuctionResult(
@@ -505,7 +503,7 @@ public class AuctionScheduler {
         return null;
       }
       LOG.info(
-          "Phiên #{} → {} (endTime={}, winner={})",
+          "Auction #{} → {} (endTime={}, winner={})",
           settledAuction[0].getId(),
           settledAuction[0].getStatus(),
           settledAuction[0].getEndTime(),
@@ -570,7 +568,7 @@ public class AuctionScheduler {
       eventManager.notifyAuctionEnd(auction.getId(), msg);
 
     } catch (Exception e) {
-      LOG.error("Không thể broadcast AUCTION_ENDED cho phiên #{}", auction.getId(), e);
+      LOG.error("Cannot broadcast AUCTION_ENDED for auction #{}", auction.getId(), e);
     }
   }
 

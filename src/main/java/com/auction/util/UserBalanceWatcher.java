@@ -141,7 +141,7 @@ public class UserBalanceWatcher {
                     } else {
                       // Fallback cho luồng deposit cũ: server chỉ truyền approved + delta.
                       java.text.NumberFormat vndFmt =
-                          java.text.NumberFormat.getNumberInstance(java.util.Locale.US);
+                          java.text.NumberFormat.getNumberInstance(java.util.Locale.GERMANY);
                       BigDecimal absDelta =
                           balanceDelta != null ? balanceDelta.abs() : BigDecimal.ZERO;
                       text =

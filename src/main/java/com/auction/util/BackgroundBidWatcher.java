@@ -131,7 +131,7 @@ public class BackgroundBidWatcher {
               case BidUpdateMessage.TYPE_BID_UPDATE -> {
                 Long leaderId = msg.getLeadingBidderId();
                 BigDecimal price = msg.getCurrentPrice();
-                NumberFormat fmt = NumberFormat.getNumberInstance(Locale.US);
+                NumberFormat fmt = NumberFormat.getNumberInstance(Locale.GERMANY);
                 String priceStr = price != null ? fmt.format(price) + " VND" : "?";
                 String notification;
                 if (leaderId == null) {

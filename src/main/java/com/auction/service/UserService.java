@@ -57,27 +57,27 @@ public class UserService {
     String role = req.getRole() != null ? req.getRole().trim() : null;
 
     if (username == null || username.isEmpty()) {
-      throw new IllegalArgumentException("Username không được để trống");
+      throw new IllegalArgumentException("Username cannot be empty");
     }
 
     // Regex cơ bản: kiểm tra có ký tự @ và phần domain phía sau
     String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
     if (email == null || !email.matches(emailRegex)) {
-      throw new IllegalArgumentException("Định dạng email không hợp lệ.");
+      throw new IllegalArgumentException("Invalid email format.");
     }
 
     if (req.getPassword() == null || req.getPassword().length() < 6) {
-      throw new IllegalArgumentException("Mật khẩu phải có ít nhất 6 ký tự.");
+      throw new IllegalArgumentException("Password must be at least 6 characters.");
     }
     if (role == null || role.isEmpty()) {
-      throw new IllegalArgumentException("Role không hợp lệ: " + req.getRole());
+      throw new IllegalArgumentException("Invalid role: " + req.getRole());
     }
 
     if (userDao.existsByUsername(username)) {
-      throw new DuplicateException("Username '" + username + "' đã tồn tại!");
+      throw new DuplicateException("Username '" + username + "' already exists!");
     }
     if (userDao.existsByEmail(email)) {
-      throw new DuplicateException("Email '" + email + "' đã tồn tại!");
+      throw new DuplicateException("Email '" + email + "' already exists!");
     }
 
     // BCrypt với cost factor 12: đủ chậm để chống brute-force, không quá nặng cho server
@@ -87,10 +87,10 @@ public class UserService {
     try {
       newUser = UserFactory.create(role);
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException("Role không hợp lệ: " + role);
+      throw new IllegalArgumentException("Invalid role: " + role);
     }
     if (newUser instanceof Admin) {
-      throw new IllegalArgumentException("Role không hợp lệ: " + role);
+      throw new IllegalArgumentException("Invalid role: " + role);
     }
 
     newUser.setUsername(username);
@@ -102,12 +102,12 @@ public class UserService {
     } catch (org.jdbi.v3.core.statement.UnableToExecuteStatementException e) {
       String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
       if (msg.contains("users_email_key") || (msg.contains("duplicate") && msg.contains("email"))) {
-        throw new DuplicateException("Email '" + email + "' đã tồn tại!");
+        throw new DuplicateException("Email '" + email + "' already exists!");
       }
       if (msg.contains("users_username_key")
           || msg.contains("unique")
           || msg.contains("duplicate")) {
-        throw new DuplicateException("Username '" + username + "' đã tồn tại!");
+        throw new DuplicateException("Username '" + username + "' already exists!");
       }
       throw e;
     }
@@ -126,25 +126,25 @@ public class UserService {
   public String login(LoginRequest req) {
     String username = req.getUsername() != null ? req.getUsername().trim() : null;
     if (username == null || username.isEmpty()) {
-      throw new IllegalArgumentException("Username không được để trống");
+      throw new IllegalArgumentException("Username cannot be empty");
     }
     if (req.getPassword() == null || req.getPassword().isEmpty()) {
-      throw new IllegalArgumentException("Mật khẩu không được để trống");
+      throw new IllegalArgumentException("Password cannot be empty");
     }
 
     User user =
         userDao
             .findByUsername(username)
-            .orElseThrow(() -> new NotFoundException("Không tìm thấy tài khoản với username này."));
+            .orElseThrow(() -> new NotFoundException("No account found with this username."));
 
     BCrypt.Result result;
     try {
       result = BCrypt.verifyer().verify(req.getPassword().toCharArray(), user.getPasswordHash());
     } catch (RuntimeException e) {
-      throw new UnauthorizedException("Sai mật khẩu.");
+      throw new UnauthorizedException("Incorrect password.");
     }
     if (!result.verified) {
-      throw new UnauthorizedException("Sai mật khẩu.");
+      throw new UnauthorizedException("Incorrect password.");
     }
 
     // Nhúng userId, username, role vào payload của JWT để middleware đọc sau này
@@ -164,8 +164,7 @@ public class UserService {
     return userDao
         .findByUsername(normalizedUsername)
         .map(User::getRole)
-        .orElseThrow(
-            () -> new NotFoundException("Không tìm thấy người dùng: " + normalizedUsername));
+        .orElseThrow(() -> new NotFoundException("User not found: " + normalizedUsername));
   }
 
   /**
@@ -179,7 +178,7 @@ public class UserService {
     User user =
         userDao
             .findById(userId)
-            .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + userId));
+            .orElseThrow(() -> new NotFoundException("User not found: " + userId));
     return UserResponse.from(user);
   }
 
@@ -194,19 +193,19 @@ public class UserService {
    */
   public void changePassword(Long userId, ChangePasswordRequest req) {
     if (req.getNewPassword() == null || req.getNewPassword().length() < 6) {
-      throw new IllegalArgumentException("Mật khẩu mới phải có ít nhất 6 ký tự.");
+      throw new IllegalArgumentException("New password must be at least 6 characters.");
     }
 
     User user =
         userDao
             .findById(userId)
-            .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + userId));
+            .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
     // Xác minh mật khẩu cũ — bắt buộc để chống tấn công chiếm quyền khi token bị lộ
     BCrypt.Result result =
         BCrypt.verifyer().verify(req.getCurrentPassword().toCharArray(), user.getPasswordHash());
     if (!result.verified) {
-      throw new UnauthorizedException("Mật khẩu hiện tại không đúng.");
+      throw new UnauthorizedException("Current password is incorrect.");
     }
 
     String newHash = BCrypt.withDefaults().hashToString(12, req.getNewPassword().toCharArray());
@@ -230,9 +229,7 @@ public class UserService {
   public DepositRecord requestDeposit(Long userId, BigDecimal amount) {
     MoneyValidator.requirePositiveIntegerVnd(amount, "Deposit amount");
     // Kiểm tra user tồn tại trước khi tạo bản ghi deposit
-    userDao
-        .findById(userId)
-        .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + userId));
+    userDao.findById(userId).orElseThrow(() -> new NotFoundException("User not found: " + userId));
     return depositRequestDao.insert(new DepositRecord(userId, amount));
   }
 
@@ -263,10 +260,10 @@ public class UserService {
               depositRequestDao
                   .findByIdForUpdate(handle, requestId)
                   .orElseThrow(
-                      () -> new NotFoundException("Không tìm thấy yêu cầu nạp tiền: " + requestId));
+                      () -> new NotFoundException("Deposit request not found: " + requestId));
 
           if (!"PENDING".equals(record.getStatus())) {
-            throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+            throw new IllegalStateException("This request has already been processed.");
           }
 
           // Khóa row user để cập nhật balance an toàn
@@ -312,10 +309,10 @@ public class UserService {
               depositRequestDao
                   .findByIdForUpdate(handle, requestId)
                   .orElseThrow(
-                      () -> new NotFoundException("Không tìm thấy yêu cầu nạp tiền: " + requestId));
+                      () -> new NotFoundException("Deposit request not found: " + requestId));
 
           if (!"PENDING".equals(record.getStatus())) {
-            throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+            throw new IllegalStateException("This request has already been processed.");
           }
           depositRequestDao.transitionStatusInTransaction(handle, requestId, "PENDING", "REJECTED");
           return record.getUserId();
@@ -338,17 +335,15 @@ public class UserService {
    * @throws NotFoundException nếu người dùng không tồn tại
    */
   public void delete(Long userId) {
-    userDao
-        .findById(userId)
-        .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + userId));
+    userDao.findById(userId).orElseThrow(() -> new NotFoundException("User not found: " + userId));
     if (userDao.hasDeleteBlockingReferences(userId)) {
       throw new IllegalStateException(
-          "Không thể xóa người dùng "
+          "Cannot delete user "
               + userId
-              + " vì tài khoản đã có lịch sử đấu giá, sản phẩm, lượt bid hoặc giao dịch liên quan.");
+              + " because the account has associated auction history, items, bids, or transactions.");
     }
     if (!userDao.delete(userId)) {
-      throw new NotFoundException("Không tìm thấy người dùng: " + userId);
+      throw new NotFoundException("User not found: " + userId);
     }
   }
 }

@@ -33,12 +33,12 @@ public class ItemService {
   public Item getById(Long id) {
     return itemDao
         .findById(id)
-        .orElseThrow(() -> new NotFoundException("Sản phẩm #" + id + " không tồn tại"));
+        .orElseThrow(() -> new NotFoundException("Item #" + id + " not found"));
   }
 
   public Item update(Long id, CreateItemRequest request, Long requesterId) {
     Item existing = getById(id);
-    checkOwnership(existing, requesterId, "cập nhật");
+    checkOwnership(existing, requesterId, "update");
 
     Item updatedItem = ItemFactory.create(request, existing.getSellerId());
     updatedItem.setId(id);
@@ -51,7 +51,7 @@ public class ItemService {
     Item existing = getById(id);
 
     if (!"ADMIN".equals(requesterRole)) {
-      checkOwnership(existing, requesterId, "xóa");
+      checkOwnership(existing, requesterId, "delete");
     }
 
     itemDao.delete(id);
@@ -60,11 +60,11 @@ public class ItemService {
   private void checkOwnership(Item item, Long requesterId, String action) {
     if (!item.getSellerId().equals(requesterId)) {
       throw new UnauthorizedException(
-          "Bạn không có quyền "
+          "You do not have permission to "
               + action
-              + " sản phẩm #"
+              + " item #"
               + item.getId()
-              + " vì bạn không phải người tạo sản phẩm này");
+              + " because you are not the owner of this item");
     }
   }
 }

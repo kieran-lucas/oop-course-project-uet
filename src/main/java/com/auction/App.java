@@ -291,7 +291,7 @@ public class App {
               .json(
                   Map.of(
                       "message",
-                      "Mật khẩu mới đã được tạo gồm 6 ký tự chữ thường và số.",
+                      "A new password has been generated with 6 lowercase alphanumeric characters.",
                       "tempPassword",
                       tempPwd));
         });
@@ -330,7 +330,7 @@ public class App {
           Long userId = Long.parseLong(ctx.pathParam("id"));
           Long requesterId = ctx.attribute("userId");
           if (userId.equals(requesterId)) {
-            throw new UnauthorizedException("Admin không thể tự xóa chính mình.");
+            throw new UnauthorizedException("Admin cannot delete themselves.");
           }
           userService.delete(userId);
           ctx.status(204);
@@ -342,7 +342,7 @@ public class App {
         ctx -> {
           String role = ctx.attribute("role");
           if (!"BIDDER".equals(role)) {
-            throw new UnauthorizedException("Chỉ BIDDER mới được xem auto-bid của mình");
+            throw new UnauthorizedException("Only BIDDERs can view their own auto-bid");
           }
           Long auctionId = Long.parseLong(ctx.pathParam("id"));
           Long bidderId = ctx.attribute("userId");
@@ -359,13 +359,13 @@ public class App {
         ctx -> {
           String role = ctx.attribute("role");
           if (!"BIDDER".equals(role)) {
-            throw new UnauthorizedException("Chỉ BIDDER mới được bật auto-bid");
+            throw new UnauthorizedException("Only BIDDERs can enable auto-bid");
           }
           Long auctionId = Long.parseLong(ctx.pathParam("id"));
           Long bidderId = ctx.attribute("userId");
           AutoBidRequest req = ctx.bodyAsClass(AutoBidRequest.class);
           if (req.getMaxBid() == null || req.getIncrement() == null) {
-            throw new InvalidBidException("maxBid và increment là bắt buộc");
+            throw new InvalidBidException("maxBid and increment are required");
           }
           var config =
               bidService.createAutoBid(auctionId, bidderId, req.getMaxBid(), req.getIncrement());
@@ -377,7 +377,7 @@ public class App {
         ctx -> {
           String role = ctx.attribute("role");
           if (!"BIDDER".equals(role)) {
-            throw new UnauthorizedException("Chỉ BIDDER mới được tắt auto-bid");
+            throw new UnauthorizedException("Only BIDDERs can disable auto-bid");
           }
           Long auctionId = Long.parseLong(ctx.pathParam("id"));
           Long bidderId = ctx.attribute("userId");
@@ -532,7 +532,7 @@ public class App {
   /** Ném {@link UnauthorizedException} nếu request không đến từ tài khoản ADMIN. */
   private static void requireAdmin(io.javalin.http.Context ctx) {
     if (!"ADMIN".equals(ctx.attribute("role"))) {
-      throw new UnauthorizedException("Chỉ ADMIN mới có quyền thực hiện thao tác này");
+      throw new UnauthorizedException("Only ADMIN is authorized to perform this action");
     }
   }
 
@@ -559,58 +559,58 @@ public class App {
     app.exception(
         IllegalArgumentException.class,
         (e, ctx) -> {
-          LOGGER.warn("Dữ liệu không hợp lệ: {}", e.getMessage());
+          LOGGER.warn("Invalid input: {}", e.getMessage());
           ctx.status(400).json(ErrorResponse.of("BAD_REQUEST", e.getMessage()));
         });
 
     app.exception(
         IllegalStateException.class,
         (e, ctx) -> {
-          LOGGER.warn("Trạng thái không hợp lệ: {}", e.getMessage());
+          LOGGER.warn("Invalid state: {}", e.getMessage());
           ctx.status(409).json(ErrorResponse.of("INVALID_STATE", e.getMessage()));
         });
 
     app.exception(
         InvalidBidException.class,
         (e, ctx) -> {
-          LOGGER.warn("Lỗi đặt giá: {}", e.getMessage());
+          LOGGER.warn("Invalid bid: {}", e.getMessage());
           ctx.status(400).json(ErrorResponse.of("INVALID_BID", e.getMessage()));
         });
 
     app.exception(
         AuctionClosedException.class,
         (e, ctx) -> {
-          LOGGER.warn("Lỗi trạng thái phiên: {}", e.getMessage());
+          LOGGER.warn("Auction closed: {}", e.getMessage());
           ctx.status(400).json(ErrorResponse.of("AUCTION_CLOSED", e.getMessage()));
         });
 
     app.exception(
         UnauthorizedException.class,
         (e, ctx) -> {
-          LOGGER.warn("Lỗi xác thực: {}", e.getMessage());
+          LOGGER.warn("Unauthorized: {}", e.getMessage());
           ctx.status(401).json(ErrorResponse.of("UNAUTHORIZED", e.getMessage()));
         });
 
     app.exception(
         NotFoundException.class,
         (e, ctx) -> {
-          LOGGER.warn("Không tìm thấy tài nguyên: {}", e.getMessage());
+          LOGGER.warn("Resource not found: {}", e.getMessage());
           ctx.status(404).json(ErrorResponse.of("NOT_FOUND", e.getMessage()));
         });
 
     app.exception(
         DuplicateException.class,
         (e, ctx) -> {
-          LOGGER.warn("Xung đột dữ liệu: {}", e.getMessage());
+          LOGGER.warn("Data conflict: {}", e.getMessage());
           ctx.status(409).json(ErrorResponse.of("DUPLICATE", e.getMessage()));
         });
 
     app.exception(
         Exception.class,
         (e, ctx) -> {
-          LOGGER.error("Lỗi server không xác định", e);
+          LOGGER.error("Unexpected server error", e);
           ctx.status(500)
-              .json(ErrorResponse.of("INTERNAL_ERROR", "Lỗi hệ thống, vui lòng thử lại sau."));
+              .json(ErrorResponse.of("INTERNAL_ERROR", "System error, please try again later."));
         });
   }
 }
