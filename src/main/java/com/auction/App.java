@@ -417,7 +417,12 @@ public class App {
     LOGGER.info("Server đang chạy tại http://localhost:{}", SERVER_PORT);
   }
 
-  /** Ném UnauthorizedException nếu request không đến từ ADMIN. */
+  /**
+   * Tạo Javalin instance với Jackson mapper và CORS rule.
+   *
+   * <p>CORS hiện chỉ cho phép {@code localhost:8080} (desktop client). Trước khi deploy production,
+   * nên chuyển allowed origin sang biến môi trường {@code APP_CORS_ORIGIN}.
+   */
   private static Javalin buildJavalin(ObjectMapper mapper) {
     return Javalin.create(
         config -> {
@@ -439,7 +444,7 @@ public class App {
         .addShutdownHook(
             new Thread(
                 () -> {
-                  LOGGER.info("Server Ä‘ang táº¯t...");
+                  LOGGER.info("Server đang tắt...");
                   stopServer(app, scheduler);
                 }));
   }
@@ -526,6 +531,7 @@ public class App {
         || "localhost".equalsIgnoreCase(ip);
   }
 
+  /** Ném {@link UnauthorizedException} nếu request không đến từ tài khoản ADMIN. */
   private static void requireAdmin(io.javalin.http.Context ctx) {
     if (!"ADMIN".equals(ctx.attribute("role"))) {
       throw new UnauthorizedException("Chỉ ADMIN mới có quyền thực hiện thao tác này");

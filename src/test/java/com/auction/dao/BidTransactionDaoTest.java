@@ -107,12 +107,6 @@ class BidTransactionDaoTest {
                 new BigDecimal("100000"),
                 LocalDateTime.now(),
                 LocalDateTime.now().plusHours(24)));
-
-    System.out.println(
-        "Cleaned DB & Initialized IDs -> Auction: "
-            + testAuction.getId()
-            + ", Bidder: "
-            + testBidder.getId());
   }
 
   /**

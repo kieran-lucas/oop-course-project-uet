@@ -104,9 +104,6 @@ class AuctionDaoTest {
     testBidder = userDao.insert(new Bidder("auction_bidder", "hash", "bidder@test.com"));
     testItem = new Electronics("Auction Item", "For auction", testSeller.getId(), "Brand");
     itemDao.insert(testItem);
-
-    System.out.println(
-        "DB Reset. Test IDs -> Seller: " + testSeller.getId() + ", Item: " + testItem.getId());
   }
 
   /**
