@@ -468,6 +468,7 @@ public class AuctionService {
                 auction.getCurrentPrice(),
                 "auction_cancel:" + auction.getId());
           }
+          deactivateActiveAutoBidsInTransaction(handle, auction.getId());
           itemDao.updateStatusInTransaction(handle, auction.getItemId(), "AVAILABLE");
           auctionDao.updateInTransaction(handle, auction);
           msgHolder[0] =
@@ -476,6 +477,20 @@ public class AuctionService {
         });
 
     pushLiveNotifications(recipients, msgHolder[0]);
+  }
+
+  private void deactivateActiveAutoBidsInTransaction(Handle handle, Long auctionId) {
+    handle
+        .createUpdate(
+            """
+            UPDATE auto_bid_configs
+            SET active = false,
+                status = 'STOPPED',
+                failure_reason = NULL
+            WHERE auction_id = :auctionId AND status = 'ACTIVE'
+            """)
+        .bind("auctionId", auctionId)
+        .execute();
   }
 
   private String insertCancellationNotificationInTransaction(
