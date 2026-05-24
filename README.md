@@ -187,11 +187,11 @@ Endpoint paths are kept in Markdown tables, not inside Mermaid `classDiagram` bo
 
 ### Relationship Audit Notes
 
-- Arrows now represent **source-code dependency or stored foreign-key reference** when possible, not only conceptual ownership.
+- Arrows represent **source-code dependency or stored foreign-key reference** when possible, not only conceptual ownership.
+- Mermaid `classDiagram` creates empty boxes for any relation endpoint that is not declared inside the same diagram block. Therefore every class referenced by a relation below has a local declaration with at least one real field or method.
 - `Auction --> Item` and `Auction --> Seller` are used because `Auction` stores `itemId` and `sellerId`.
 - `BidTransaction --> Auction/Bidder` and `AutoBidConfig --> Auction/Bidder` are used because those records store the corresponding IDs.
-- `AuctionWebSocketHandler` both creates/stores `WebSocketObserver` instances and is called back by `WebSocketObserver.broadcast(...)`, so the observer relation is intentionally bidirectional in the pattern diagram.
-- Classes that are intentionally stateless in source, such as concrete State implementations, still list their implemented methods so no UML node is empty.
+- `AuctionWebSocketHandler` creates/stores `WebSocketObserver`, while `WebSocketObserver` calls `AuctionWebSocketHandler.broadcast(...)`, so the Observer/WebSocket link is intentionally bidirectional.
 
 ---
 
@@ -363,6 +363,74 @@ classDiagram
         -runningToFinished()
         -settleAndClose()
         -notifyAuctionEnded()
+    }
+
+    class UserService {
+        -userDao
+        +register()
+        +login()
+        +findById()
+    }
+
+    class PasswordResetService {
+        -resetDao
+        +requestReset()
+        +approveReset()
+    }
+
+    class ItemService {
+        -itemDao
+        +create()
+        +getById()
+    }
+
+    class AuctionService {
+        -auctionDao
+        +create()
+        +getState()
+    }
+
+    class BidService {
+        -auctionDao
+        +placeBid()
+        +createAutoBid()
+    }
+
+    class NotificationService {
+        -notificationDao
+        +getRecentNotifications()
+    }
+
+    class UserDao {
+        -jdbi
+        +findById()
+        +findByIdForUpdate()
+    }
+
+    class AuctionDao {
+        -jdbi
+        +findByIdForUpdate()
+        +atomicTransition()
+    }
+
+    class ItemDao {
+        -jdbi
+        +findByIdForUpdate()
+        +updateStatusInTransaction()
+    }
+
+    class AuctionEventManager {
+        -listeners
+        +subscribe()
+        +notifyBidUpdate()
+        +notifyAuctionEnd()
+    }
+
+    class WebSocketObserver {
+        -handler
+        -auctionId
+        +onBidUpdate()
+        +getAuctionId()
     }
 
     App --> DatabaseConfig
@@ -578,6 +646,46 @@ classDiagram
 
     class WalletTransactionDao {
         +insert()
+    }
+
+    class ItemFactory {
+        +create()
+        -parseYear()
+    }
+
+    class AuctionEventManager {
+        -listeners
+        +notifyBidUpdate()
+        +notifyAuctionEnd()
+    }
+
+    class AuctionWebSocketHandler {
+        -connections
+        +broadcast()
+        +pushUserNotification()
+    }
+
+    class AuctionStates {
+        +OPEN
+        +RUNNING
+        +FINISHED
+    }
+
+    class MoneyValidator {
+        +requirePositiveIntegerVnd()
+        +isIntegerVnd()
+    }
+
+    class NotificationFormat {
+        +user()
+        +auctionName()
+    }
+
+    class AutoBidStrategy {
+        -autoBidConfigDao
+        -userDao
+        +executeAll()
+        +executeAllInTransaction()
     }
 
     UserService --> UserDao
@@ -951,6 +1059,20 @@ classDiagram
         +userNotification()
     }
 
+    class User {
+        -username
+        -email
+        -balance
+        +getRole()
+    }
+
+    class Auction {
+        -itemId
+        -currentPrice
+        -status
+        +isActive()
+    }
+
     class InvalidBidException {
         +InvalidBidException()
     }
@@ -1101,6 +1223,61 @@ classDiagram
     class InTransactionBidExecutor {
         <<interface>>
         +execute()
+    }
+
+    class Admin {
+        +getRole()
+    }
+
+    class Seller {
+        +getRole()
+    }
+
+    class Bidder {
+        +getRole()
+    }
+
+    class Electronics {
+        -brand
+        +getCategory()
+    }
+
+    class Art {
+        -artist
+        +getCategory()
+    }
+
+    class Vehicle {
+        -year
+        +getCategory()
+    }
+
+    class BidUpdateMessage {
+        -type
+        +bidUpdate()
+        +auctionEnded()
+    }
+
+    class AuctionWebSocketHandler {
+        -observers
+        +broadcast()
+    }
+
+    class AutoBidConfigDao {
+        -jdbi
+        +findActiveByAuctionId()
+        +update()
+    }
+
+    class UserDao {
+        -jdbi
+        +findByIdForUpdate()
+    }
+
+    class AutoBidConfig {
+        -maxBid
+        -increment
+        +getNextBidAmount()
     }
 
     UserFactory --> Admin
