@@ -207,9 +207,125 @@ Important design choices:
 
 ---
 
-## Class Diagram
+## Class Diagrams
 
-The core domain model is centered around `Entity`, `User`, `Item`, `Auction`, bid history, and auto-bid configuration. Inheritance is used for users and item categories; associations show how auctions connect sellers, bidders, bids, and auto-bid rules.
+The diagrams are intentionally split by architecture slice instead of compressed into one unreadable mega-diagram. This mirrors how large engineering teams document systems: a small number of high-signal views, each with a clear ownership boundary.
+
+| Slice | Main files covered |
+|---|---|
+| Runtime composition | `App`, `AdminSeeder`, `DatabaseConfig`, `JwtUtil`, `JwtMiddleware`, controllers, services, DAOs, scheduler, WebSocket handler |
+| Domain model | `Entity`, user hierarchy, item hierarchy, auctions, bids, auto-bid config, deposit/password-reset records, enums |
+| API and contracts | REST controllers, request/response DTOs, error DTOs, custom exceptions |
+| Persistence | JDBI DAOs, row mappers, transaction boundaries, PostgreSQL/Flyway integration |
+| Design patterns | Factory, State, Observer, Strategy implementations |
+| JavaFX client | `ClientApp`, `Launcher`, `SceneManager`, `Navigable`, UI controllers, REST/WebSocket/client notification utilities |
+
+### 1. Runtime Composition and Dependency Wiring
+
+```mermaid
+classDiagram
+    direction TB
+
+    class App
+    class AdminSeeder
+    class DatabaseConfig
+    class JwtUtil
+    class JwtMiddleware
+    class AuctionEventManager
+    class AuctionWebSocketHandler
+    class AuctionScheduler
+
+    class AuthController
+    class ItemController
+    class AuctionController
+    class BidController
+    class NotificationController
+
+    class UserService
+    class PasswordResetService
+    class ItemService
+    class AuctionService
+    class BidService
+    class NotificationService
+
+    class UserDao
+    class ItemDao
+    class AuctionDao
+    class BidTransactionDao
+    class AutoBidConfigDao
+    class DepositRequestDao
+    class PasswordResetRequestDao
+    class NotificationDao
+    class WalletTransactionDao
+
+    class AutoBidStrategy
+    class Jdbi
+    class PostgreSQL
+
+    App --> DatabaseConfig : creates
+    DatabaseConfig --> Jdbi : configures
+    DatabaseConfig --> PostgreSQL : embedded/external
+    App --> JwtUtil : validates secret
+    App --> JwtMiddleware : configures
+    App --> AdminSeeder : seeds admin
+
+    App --> UserDao
+    App --> ItemDao
+    App --> AuctionDao
+    App --> BidTransactionDao
+    App --> AutoBidConfigDao
+    App --> DepositRequestDao
+    App --> PasswordResetRequestDao
+    App --> NotificationDao
+
+    App --> AuctionEventManager
+    App --> AuctionWebSocketHandler
+    App --> AutoBidStrategy
+    App --> AuctionScheduler
+
+    App --> UserService
+    App --> PasswordResetService
+    App --> ItemService
+    App --> AuctionService
+    App --> BidService
+    App --> NotificationService
+
+    App --> AuthController : registers routes
+    App --> ItemController : registers routes
+    App --> AuctionController : registers routes
+    App --> BidController : registers routes
+    App --> NotificationController : registers routes
+
+    UserService --> UserDao
+    UserService --> DepositRequestDao
+    UserService ..> WalletTransactionDao
+    PasswordResetService --> UserDao
+    PasswordResetService --> PasswordResetRequestDao
+    ItemService --> ItemDao
+    AuctionService --> AuctionDao
+    AuctionService --> ItemDao
+    AuctionService --> UserDao
+    AuctionService --> BidTransactionDao
+    AuctionService --> AuctionEventManager
+    AuctionService --> AuctionWebSocketHandler
+    BidService --> AuctionDao
+    BidService --> BidTransactionDao
+    BidService --> AutoBidConfigDao
+    BidService --> UserDao
+    BidService --> AuctionService
+    BidService --> AutoBidStrategy
+    BidService --> AuctionEventManager
+    BidService --> AuctionWebSocketHandler
+    BidService ..> WalletTransactionDao
+    NotificationService --> NotificationDao
+    AuctionScheduler --> AuctionDao
+    AuctionScheduler --> UserDao
+    AuctionScheduler --> ItemDao
+    AuctionScheduler --> AuctionEventManager
+    AuctionScheduler --> AuctionWebSocketHandler
+```
+
+### 2. Domain Model and Core Business Objects
 
 ```mermaid
 classDiagram
@@ -237,17 +353,9 @@ classDiagram
         +BigDecimal getAvailableBalance()
     }
 
-    class Admin {
-        +String getRole()
-    }
-
-    class Seller {
-        +String getRole()
-    }
-
-    class Bidder {
-        +String getRole()
-    }
+    class Admin
+    class Seller
+    class Bidder
 
     class Item {
         <<abstract>>
@@ -308,25 +416,51 @@ classDiagram
         +BigDecimal getNextBidAmount(BigDecimal currentPrice)
     }
 
-    class AuctionState {
-        <<interface>>
-        +void placeBid(Auction auction, BigDecimal amount, Long bidderId)
-        +void close(Auction auction)
-        +void edit(Auction auction)
-        +void extend(Auction auction, long extraSeconds)
+    class DepositRecord {
+        -Long id
+        -Long userId
+        -String username
+        -BigDecimal amount
+        -String status
+        -LocalDateTime createdAt
+        -LocalDateTime reviewedAt
     }
 
-    class AutoBidStrategy {
-        +void executeAll(...)
-        +void executeAllInTransaction(...)
+    class PasswordResetRecord {
+        -Long id
+        -Long userId
+        -String username
+        -String email
+        -String status
+        -LocalDateTime createdAt
+        -LocalDateTime reviewedAt
     }
 
-    class AuctionEventManager {
-        +void subscribe(Long auctionId, AuctionEventListener listener)
-        +void unsubscribe(Long auctionId, AuctionEventListener listener)
-        +void notifyBidUpdate(Long auctionId, BidUpdateMessage msg)
-        +void notifyTimeExtended(Long auctionId, BidUpdateMessage msg)
-        +void notifyAuctionEnd(Long auctionId, BidUpdateMessage msg)
+    class AuctionStatus {
+        <<enum>>
+        OPEN
+        RUNNING
+        SETTLING
+        FINISHED
+        PAID
+        CANCELED
+    }
+
+    class AutoBidStatus {
+        <<enum>>
+        ACTIVE
+        STOPPED
+        EXHAUSTED
+        FAILED
+    }
+
+    class AutoBidFailureReason {
+        <<enum>>
+        MAX_PRICE_TOO_LOW
+        INSUFFICIENT_BALANCE
+        AUCTION_NOT_RUNNING
+        BIDDER_ALREADY_HIGHEST
+        ACTIVE_AUTOBID_EXISTS
     }
 
     Entity <|-- User
@@ -343,15 +477,340 @@ classDiagram
     Entity <|-- BidTransaction
     Entity <|-- AutoBidConfig
 
-    Auction "1" --> "1" Item : itemId
     Seller "1" --> "0..*" Item : owns
+    Item "1" --> "0..1" Auction : auctioned by
     Auction "1" --> "0..*" BidTransaction : bid history
     Bidder "1" --> "0..*" BidTransaction : places
     Auction "1" --> "0..*" AutoBidConfig : auto-bid rules
     Bidder "1" --> "0..*" AutoBidConfig : configures
-    AuctionState ..> Auction : validates lifecycle behavior
-    AutoBidStrategy ..> AutoBidConfig : prioritizes by registeredAt
-    AuctionEventManager ..> Auction : publishes realtime events
+    Bidder "1" --> "0..*" DepositRecord : requests
+    User "1" --> "0..*" PasswordResetRecord : requests
+    Auction --> AuctionStatus
+    AutoBidConfig --> AutoBidStatus
+    AutoBidConfig --> AutoBidFailureReason
+```
+
+### 3. REST API, Service Layer, DTOs, and Error Contracts
+
+```mermaid
+classDiagram
+    direction LR
+
+    class AuthController
+    class ItemController
+    class AuctionController
+    class BidController
+    class NotificationController
+
+    class UserService
+    class PasswordResetService
+    class ItemService
+    class AuctionService
+    class BidService
+    class NotificationService
+
+    class LoginRequest
+    class RegisterRequest
+    class ForgotPasswordRequest
+    class ChangePasswordRequest
+    class DepositRequest
+    class CreateItemRequest
+    class CreateAuctionRequest
+    class BidRequest
+    class AutoBidRequest
+    class PageRequest
+
+    class UserResponse
+    class AuctionResponse
+    class BidUpdateMessage
+    class ErrorResponse
+
+    class InvalidBidException
+    class AuctionClosedException
+    class UnauthorizedException
+    class NotFoundException
+    class DuplicateException
+
+    AuthController --> UserService
+    AuthController --> PasswordResetService
+    AuthController ..> LoginRequest
+    AuthController ..> RegisterRequest
+    AuthController ..> ForgotPasswordRequest
+    AuthController ..> UserResponse
+
+    ItemController --> ItemService
+    ItemController ..> CreateItemRequest
+
+    AuctionController --> AuctionService
+    AuctionController ..> CreateAuctionRequest
+    AuctionController ..> PageRequest
+    AuctionController ..> AuctionResponse
+
+    BidController --> BidService
+    BidController ..> BidRequest
+    BidController ..> BidUpdateMessage
+
+    NotificationController --> NotificationService
+
+    UserService ..> ChangePasswordRequest
+    UserService ..> DepositRequest
+    UserService ..> UserResponse
+    AuctionService ..> AuctionResponse
+    BidService ..> BidUpdateMessage
+    BidService ..> AutoBidRequest
+
+    ErrorResponse ..> InvalidBidException
+    ErrorResponse ..> AuctionClosedException
+    ErrorResponse ..> UnauthorizedException
+    ErrorResponse ..> NotFoundException
+    ErrorResponse ..> DuplicateException
+```
+
+### 4. Persistence Layer, DAOs, and Database Mapping
+
+```mermaid
+classDiagram
+    direction LR
+
+    class DatabaseConfig
+    class Jdbi
+    class Flyway
+    class HikariDataSource
+    class PostgreSQL
+
+    class UserDao
+    class ItemDao
+    class AuctionDao
+    class BidTransactionDao
+    class AutoBidConfigDao
+    class DepositRequestDao
+    class PasswordResetRequestDao
+    class NotificationDao
+    class WalletTransactionDao
+
+    class UserMapper
+    class ItemMapper
+    class AuctionMapper
+    class BidTransactionMapper
+    class AutoBidConfigMapper
+
+    class User
+    class Item
+    class Auction
+    class BidTransaction
+    class AutoBidConfig
+    class DepositRecord
+    class PasswordResetRecord
+
+    DatabaseConfig --> HikariDataSource
+    DatabaseConfig --> Flyway
+    DatabaseConfig --> Jdbi
+    HikariDataSource --> PostgreSQL
+    Flyway --> PostgreSQL
+    Jdbi --> PostgreSQL
+
+    UserDao --> Jdbi
+    ItemDao --> Jdbi
+    AuctionDao --> Jdbi
+    BidTransactionDao --> Jdbi
+    AutoBidConfigDao --> Jdbi
+    DepositRequestDao --> Jdbi
+    PasswordResetRequestDao --> Jdbi
+    NotificationDao --> Jdbi
+    WalletTransactionDao ..> Jdbi
+
+    UserDao --> UserMapper
+    ItemDao --> ItemMapper
+    AuctionDao --> AuctionMapper
+    BidTransactionDao --> BidTransactionMapper
+    AutoBidConfigDao --> AutoBidConfigMapper
+
+    UserMapper ..> User
+    ItemMapper ..> Item
+    AuctionMapper ..> Auction
+    BidTransactionMapper ..> BidTransaction
+    AutoBidConfigMapper ..> AutoBidConfig
+    DepositRequestDao ..> DepositRecord
+    PasswordResetRequestDao ..> PasswordResetRecord
+
+    AuctionDao ..> Auction : SELECT FOR UPDATE
+    UserDao ..> User : balance locks
+    WalletTransactionDao ..> PostgreSQL : ledger rows
+```
+
+### 5. Design Patterns and Realtime Collaboration
+
+```mermaid
+classDiagram
+    direction LR
+
+    class UserFactory
+    class ItemFactory
+    class AuctionStateFactory
+
+    class AuctionState {
+        <<interface>>
+        +placeBid(Auction auction, BigDecimal amount, Long bidderId)
+        +close(Auction auction)
+        +edit(Auction auction)
+        +extend(Auction auction, long extraSeconds)
+    }
+
+    class AuctionStates
+    class OpenState
+    class RunningState
+    class SettlingState
+    class FinishedState
+    class PaidState
+    class CanceledState
+
+    class AuctionEventListener {
+        <<interface>>
+        +onBidUpdate(BidUpdateMessage msg)
+        +onTimeExtended(BidUpdateMessage msg)
+        +onAuctionEnd(BidUpdateMessage msg)
+    }
+
+    class AuctionEventManager
+    class WebSocketObserver
+    class AuctionWebSocketHandler
+    class AutoBidStrategy
+    class AutoBidExecutor
+    class InTransactionBidExecutor
+
+    class User
+    class Item
+    class Auction
+    class AutoBidConfig
+    class BidUpdateMessage
+
+    UserFactory ..> User : creates subclass
+    ItemFactory ..> Item : creates subclass
+    AuctionStateFactory --> AuctionStates
+    AuctionStateFactory ..> AuctionState
+
+    AuctionState <|.. OpenState
+    AuctionState <|.. RunningState
+    AuctionState <|.. SettlingState
+    AuctionState <|.. FinishedState
+    AuctionState <|.. PaidState
+    AuctionState <|.. CanceledState
+    AuctionStates --> OpenState
+    AuctionStates --> RunningState
+    AuctionStates --> SettlingState
+    AuctionStates --> FinishedState
+    AuctionStates --> PaidState
+    AuctionStates --> CanceledState
+    AuctionState ..> Auction
+
+    AuctionEventListener <|.. WebSocketObserver
+    AuctionEventManager --> AuctionEventListener : subscribe/notify
+    WebSocketObserver --> AuctionWebSocketHandler : broadcast
+    AuctionEventManager ..> BidUpdateMessage
+
+    AutoBidStrategy --> AutoBidConfig : PriorityQueue by registeredAt
+    AutoBidStrategy --> AutoBidExecutor
+    AutoBidStrategy --> InTransactionBidExecutor
+    AutoBidStrategy ..> Auction
+```
+
+### 6. JavaFX Client, Navigation, and Realtime Utilities
+
+```mermaid
+classDiagram
+    direction TB
+
+    class Launcher
+    class ClientApp
+    class SceneManager
+    class Navigable {
+        <<interface>>
+        +onNavigatedTo()
+        +onDataReceived(Object data)
+        +onNavigatedFrom()
+    }
+
+    class WelcomeController
+    class LoginController
+    class RegisterController
+    class ForgotPasswordController
+    class AuctionListController
+    class AuctionDetailController
+    class CreateItemController
+    class CreateAuctionController
+    class ProfileController
+    class DepositController
+    class ChangePasswordController
+    class AdminPanelController
+
+    class RestClient
+    class WebSocketClient
+    class BackgroundBidWatcher
+    class UserBalanceWatcher
+    class NotificationStore
+    class NotificationItem
+    class AuctionResponse
+    class BidUpdateMessage
+    class UserResponse
+    class Item
+    class DepositRecord
+    class PasswordResetRecord
+
+    Launcher --> ClientApp
+    ClientApp --> SceneManager
+    SceneManager --> Navigable : lifecycle callbacks
+    SceneManager --> NotificationStore : global badge/session cleanup
+    SceneManager --> BackgroundBidWatcher : stopAll on logout
+    SceneManager --> UserBalanceWatcher : disconnect on logout
+
+    Navigable <|.. LoginController
+    Navigable <|.. RegisterController
+    Navigable <|.. ForgotPasswordController
+    Navigable <|.. AuctionListController
+    Navigable <|.. AuctionDetailController
+    Navigable <|.. CreateItemController
+    Navigable <|.. CreateAuctionController
+    Navigable <|.. ProfileController
+    Navigable <|.. DepositController
+    Navigable <|.. ChangePasswordController
+    Navigable <|.. AdminPanelController
+
+    WelcomeController --> SceneManager
+    LoginController --> RestClient
+    LoginController --> SceneManager
+    LoginController --> UserBalanceWatcher
+    RegisterController --> RestClient
+    RegisterController --> SceneManager
+    RegisterController --> UserBalanceWatcher
+    ForgotPasswordController --> RestClient
+    AuctionListController --> RestClient
+    AuctionListController --> NotificationStore
+    AuctionListController ..> AuctionResponse
+    AuctionDetailController --> RestClient
+    AuctionDetailController --> WebSocketClient
+    AuctionDetailController --> BackgroundBidWatcher
+    AuctionDetailController ..> AuctionResponse
+    AuctionDetailController ..> BidUpdateMessage
+    CreateItemController --> RestClient
+    CreateAuctionController --> RestClient
+    CreateAuctionController ..> Item
+    ProfileController --> RestClient
+    ProfileController --> UserBalanceWatcher
+    ProfileController --> BackgroundBidWatcher
+    DepositController --> RestClient
+    DepositController ..> DepositRecord
+    ChangePasswordController --> RestClient
+    AdminPanelController --> RestClient
+    AdminPanelController ..> UserResponse
+    AdminPanelController ..> AuctionResponse
+    AdminPanelController ..> DepositRecord
+    AdminPanelController ..> PasswordResetRecord
+
+    BackgroundBidWatcher --> WebSocketClient
+    BackgroundBidWatcher --> NotificationStore
+    UserBalanceWatcher --> WebSocketClient
+    UserBalanceWatcher --> NotificationStore
+    NotificationStore --> NotificationItem
 ```
 
 ---
