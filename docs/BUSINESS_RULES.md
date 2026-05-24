@@ -17,7 +17,7 @@ Client-side checks improve usability, but server-side services and DAOs are the 
 | Role | Main permissions | Important limitations |
 |---|---|---|
 | `ADMIN` | Approve/reject deposits; approve/reject password-reset requests; list/delete users when safe; soft-cancel or hard-delete auctions through admin routes | Not created through public registration; seeded by `AdminSeeder` |
-| `SELLER` | Create/edit/delete own items; create/edit own auctions; cancel own auction only when state rules allow it | Cannot place bids; cannot bid on own auction |
+| `SELLER` | Create/edit/delete own available items; create/edit own auctions; cancel own auction only when state rules allow it | Cannot place bids; cannot bid on own auction |
 | `BIDDER` | Request deposits; place manual bids; configure/stop own auto-bids; read notifications | Cannot create items or auctions; cannot use admin workflows |
 
 Rules:
@@ -37,6 +37,7 @@ Rules:
 | JWT claims | Tokens carry user identity, role, and token version. |
 | Required secret | Server startup validates `JWT_SECRET`; it must be present and at least 32 UTF-8 bytes. |
 | Token invalidation | `users.token_version` is checked by middleware and incremented after password changes/resets. |
+| Email normalization | Public registration stores email as trimmed lowercase so reset lookup and duplicate checks are consistent. |
 
 Seeded admin behavior:
 
@@ -51,6 +52,7 @@ Seeded admin behavior:
 |---|---|
 | Ownership | Every item belongs to one seller through `items.seller_id`. |
 | Owner control | A seller can edit/delete only their own items. |
+| Mutation status guard | Item update/delete is allowed only while the item status is `AVAILABLE`. |
 | Categories | Supported categories are `ELECTRONICS`, `ART`, and `VEHICLE`. |
 | Category details | Electronics/Vehicle use `brand`; Art uses `artist`; `year` is optional. |
 | Auction eligibility | A new auction requires an item that is currently `AVAILABLE`. |
@@ -106,11 +108,12 @@ Cancel/delete rules:
 - Admin can soft-cancel `OPEN` or `RUNNING` auctions.
 - If a running auction with a leader is cancelled, the leader reservation is released and `CANCEL_RELEASE` is recorded in the wallet ledger.
 - Soft-cancelled auctions restore their item to `AVAILABLE`.
+- Soft-cancel and settlement stop active auto-bid configs for the auction in the same transaction.
 - Admin hard-delete removes dependent wallet, auto-bid, and bid rows before deleting the auction row, while keeping item status consistent with the auction outcome.
 
 ---
 
-## 5. Auction Creation Rules
+## 5. Auction Creation and Update Rules
 
 | Rule | Behavior |
 |---|---|
@@ -118,6 +121,7 @@ Cancel/delete rules:
 | Item availability | The item must be `AVAILABLE`. |
 | Starting price | Must be positive. |
 | Time range | `end_time` must be after `start_time`. |
+| Update time range | Partial auction updates are validated against the final merged `start_time`/`end_time` pair. |
 | Active conflict prevention | The same item cannot have another active auction. |
 | Paid-item protection | An item already associated with a paid auction is not auctioned again. |
 
@@ -192,6 +196,7 @@ Chain rules:
 - The chain is capped at 100 auto-bids per trigger.
 - Active configs are processed by `registered_at`.
 - Configs unable to exceed current price become `EXHAUSTED`; configs lacking balance become `FAILED`.
+- Active configs are moved to `STOPPED` when the auction is cancelled or settled.
 
 ---
 
@@ -219,9 +224,10 @@ available_balance = balance - reserved_balance
 
 Ledger intent:
 
-- Money movements are auditable through append-only rows.
+- Money movements are append-only and auditable during normal business operations.
 - `reserved_balance` prevents one wallet from overcommitting to multiple leading bids.
 - Transactional service code keeps wallet, auction, item status, and notification changes consistent.
+- Admin hard-delete is explicit destructive cleanup and may remove auction-scoped ledger rows together with the auction's dependent rows.
 
 ---
 
@@ -257,7 +263,8 @@ The scheduler processes expired `RUNNING` auctions:
 2. If there is no leading bidder, mark the auction `FINISHED` and restore the item to `AVAILABLE`.
 3. If the winner can pay, record winner consumption, record seller payout, mark the auction `PAID`, and mark the item `SOLD`.
 4. If the winner cannot pay, release the reservation, mark the auction `FINISHED`, and restore the item to `AVAILABLE`.
-5. Insert result notifications in the same transaction and push realtime messages after commit.
+5. Stop active auto-bid configs for the auction in the same transaction.
+6. Insert result notifications in the same transaction and push realtime messages after commit.
 
 ---
 
