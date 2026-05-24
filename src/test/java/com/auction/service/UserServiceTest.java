@@ -144,12 +144,36 @@ class UserServiceTest {
         () -> userService.register(regReq));
   }
 
+  @Test
+  @Order(6)
+  @DisplayName("register() — chuẩn hóa email về lowercase trước khi kiểm tra và lưu")
+  void registerNormalizesEmailToLowercase() {
+    when(userDao.insert(any(User.class)))
+        .thenAnswer(
+            invocation -> {
+              User u = invocation.getArgument(0);
+              u.setId(100L);
+              return u;
+            });
+
+    RegisterRequest regReq =
+        new RegisterRequest("newUser", "pass123", "  MixedCase@Example.COM  ", "BIDDER");
+
+    User result = userService.register(regReq);
+
+    assertEquals("mixedcase@example.com", result.getEmail());
+    verify(userDao).existsByEmail("mixedcase@example.com");
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(userDao).insert(captor.capture());
+    assertEquals("mixedcase@example.com", captor.getValue().getEmail());
+  }
+
   // ============================================================
   // 2. TEST ĐĂNG NHẬP (LOGIN)
   // ============================================================
 
   @Test
-  @Order(6)
+  @Order(7)
   @DisplayName("testLoginSuccess() — nhomAnhDuc login -> Token")
   void testLoginSuccess() {
     when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
@@ -163,7 +187,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(7)
+  @Order(8)
   @DisplayName("testLoginWrongPassword() — Sai mật khẩu -> UnauthorizedException")
   void testLoginWrongPassword() {
     when(userDao.findByUsername(any())).thenReturn(Optional.of(mockUser));
@@ -179,7 +203,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(8)
+  @Order(9)
   @DisplayName("testLoginUserNotFound() — Không tồn tại User -> NotFoundException")
   void testLoginUserNotFound() {
     when(userDao.findByUsername(any())).thenReturn(Optional.empty());
@@ -194,7 +218,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(9)
+  @Order(10)
   @DisplayName("testLoginInvalidStoredHash() — Hash lỗi trong DB -> UnauthorizedException")
   void testLoginInvalidStoredHash() {
     mockUser.setPasswordHash("hash");
@@ -206,7 +230,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(10)
+  @Order(11)
   @DisplayName("changePassword() — hash lại mật khẩu và tăng tokenVersion")
   void changePasswordIncrementsTokenVersion() {
     mockUser.setTokenVersion(4);
@@ -228,7 +252,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(11)
+  @Order(12)
   @DisplayName("delete() — xóa cứng user không có lịch sử giao dịch")
   void deleteUserWithoutHistorySucceeds() {
     when(userDao.findById(1L)).thenReturn(Optional.of(mockUser));
@@ -241,7 +265,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(12)
+  @Order(13)
   @DisplayName("delete() — từ chối xóa user có lịch sử giao dịch")
   void deleteUserWithHistoryThrowsConflictState() {
     when(userDao.findById(1L)).thenReturn(Optional.of(mockUser));
@@ -255,7 +279,7 @@ class UserServiceTest {
   }
 
   @Test
-  @Order(13)
+  @Order(14)
   @DisplayName("requestDeposit() — từ chối số tiền có phần thập phân")
   void requestDepositRejectsDecimalAmount() {
     assertThrows(
