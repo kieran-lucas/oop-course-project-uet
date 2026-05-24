@@ -53,8 +53,7 @@
 | [![Download Server JAR](https://img.shields.io/badge/Download-Server%20JAR-0969DA?style=for-the-badge&logo=openjdk&logoColor=white)](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) | [![Download Client JAR](https://img.shields.io/badge/Download-Client%20JAR-2EA44F?style=for-the-badge&logo=openjdk&logoColor=white)](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
 | `auction-server-1.0.0.jar` | `auction-client-1.0.0.jar` |
 
-> [!WARNING]
-> **Before final submission, replace the two highlighted entries above with the final Report PDF link and Demo video link.** These two links are official submission requirements and should be immediately visible to the evaluator.
+
 
 ---
 
