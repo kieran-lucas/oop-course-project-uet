@@ -714,13 +714,13 @@ classDiagram
 
     class BidHistoryEntry {
         <<record>>
-        -id
-        -auctionId
-        -bidderId
-        -bidderUsername
-        -amount
-        -autoBid
-        -createdAt
+        -transaction
+        -username
+        +getAuctionId()
+        +getBidderId()
+        +getAmount()
+        +isAutoBid()
+        +getCreatedAt()
     }
 
     class AutoBidConfigDao {
@@ -1288,12 +1288,12 @@ classDiagram
     }
 
     class BidUpdateMessage {
-        -TYPE_BID_UPDATE
-        -TYPE_TIME_EXTENDED
-        -TYPE_AUCTION_ENDED
-        -TYPE_AUTO_BID_TRIGGERED
-        -TYPE_BALANCE_UPDATED
-        -TYPE_USER_NOTIFICATION
+        +TYPE_BID_UPDATE
+        +TYPE_TIME_EXTENDED
+        +TYPE_AUCTION_ENDED
+        +TYPE_AUTO_BID_TRIGGERED
+        +TYPE_BALANCE_UPDATED
+        +TYPE_USER_NOTIFICATION
         -type
         -auctionId
         -currentPrice
@@ -1915,13 +1915,13 @@ classDiagram
 
     class BidHistoryEntry {
         <<record>>
-        -id
-        -auctionId
-        -bidderId
-        -bidderUsername
-        -amount
-        -autoBid
-        -createdAt
+        -transaction
+        -username
+        +getAuctionId()
+        +getBidderId()
+        +getAmount()
+        +isAutoBid()
+        +getCreatedAt()
     }
 
     class DepositRequestDao {
@@ -2027,8 +2027,8 @@ classDiagram
 
     class BalanceDisplay {
         <<record>>
-        -balance
-        -availableBalance
+        -text
+        -color
     }
 
     class CreateAuctionController {
@@ -2039,13 +2039,18 @@ classDiagram
         <<nested class>>
         -picker
         -state
+        -shadow
+        -GlassDateCell()
         +updateItem()
+        -refreshAppearance()
     }
 
     class GlassCalendarState {
-        <<record>>
-        -visibleMonth
-        -selectedDate
+        <<nested class>>
+        -hoveredCell
+        -hoverProgress
+        -hoverTimeline
+        -refreshAll()
     }
 
     AuctionDao *-- AuctionMapper
