@@ -418,7 +418,6 @@ public class CreateAuctionController implements Navigable {
       this.picker = picker;
       this.state = state;
       setFocusTraversable(false);
-      setPickOnBounds(false);
       // Shadow is permanently attached. Radius/offset are constants so the cell's effect-extended
       // bounds never change. Per-hover visual is achieved by mutating shadow.color (paint-only) —
       // setEffect is never called again, so neighboring cells never see a bounds invalidation when
