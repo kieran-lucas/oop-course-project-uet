@@ -557,10 +557,17 @@ public class CreateAuctionController implements Navigable {
     if (cell.isEmpty() || item == null) {
       cell.setBackground(Background.EMPTY);
       cell.setBorder(javafx.scene.layout.Border.EMPTY);
-      cell.setEffect(null);
+      shadow.setColor(SHADOW_HIDDEN);
+      if (cell.getEffect() != shadow) {
+        cell.setEffect(shadow);
+      }
       cell.setOpacity(1.0);
       cell.setTextFill(Color.TRANSPARENT);
       return;
+    }
+
+    if (cell.getEffect() != shadow) {
+      cell.setEffect(shadow);
     }
 
     DateCell hovered = state.hoveredCell.get();
