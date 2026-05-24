@@ -6,12 +6,12 @@
 
 *A real-time desktop auction platform — JavaFX client · Javalin server · PostgreSQL · WebSocket*
 
-[![CI](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml)
-[![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)](https://adoptium.net/)
-[![Javalin](https://img.shields.io/badge/Javalin-6.4.0-black)](https://javalin.io)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Embedded%20%2F%20CI%2016-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Gradle](https://img.shields.io/badge/Gradle-Kotlin%20DSL-02303A?logo=gradle&logoColor=white)](https://gradle.org/)
-[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/kieran-labs/oop-course-project-uet/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml)
+[![Java](https://img.shields.io/badge/Java-21-E76F00?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net/)
+[![Javalin](https://img.shields.io/badge/Javalin-6.4.0-111827?style=for-the-badge)](https://javalin.io)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Embedded%20%2F%20CI%2016-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Gradle](https://img.shields.io/badge/Gradle-Kotlin%20DSL-02303A?style=for-the-badge&logo=gradle&logoColor=white)](https://gradle.org/)
+[![License](https://img.shields.io/badge/License-MIT-2563EB?style=for-the-badge)](LICENSE)
 
 [![Download Server JAR](https://img.shields.io/badge/Download-Server%20JAR-0969DA?style=for-the-badge&logo=openjdk&logoColor=white)](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar)
 [![Download Client JAR](https://img.shields.io/badge/Download-Client%20JAR-2EA44F?style=for-the-badge&logo=openjdk&logoColor=white)](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar)
