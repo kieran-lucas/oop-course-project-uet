@@ -21,6 +21,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.jdbi.v3.core.Handle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -33,31 +34,16 @@ import org.slf4j.MDC;
  * phiên đấu giá đang hoạt động và thực hiện chuyển trạng thái nếu điều kiện thỏa mãn:
  *
  * <pre>
- *   OPEN ──(startTime đến)──► RUNNING ──(endTime qua)──► FINISHED
+ *   OPEN ──(startTime đến)──► RUNNING ──(endTime qua)──► SETTLING ──► PAID/FINISHED
  * </pre>
  *
- * <p><b>Tại sao cần class này?</b> Trạng thái phiên không tự thay đổi — nếu không có scheduler,
- * phiên sẽ mãi ở OPEN hoặc RUNNING dù thời gian đã qua. AuctionScheduler thay thế cron job ở tầng
- * application, phù hợp với project không deploy production server riêng.
- *
- * <p><b>Concurrency note:</b> ScheduledExecutorService đảm bảo mỗi lần chỉ chạy 1 task (không
- * overlap). Dùng {@code scheduleAtFixedRate} thay vì {@code scheduleWithFixedDelay} để giữ chu kỳ
- * ổn định dù task mất bao lâu.
- *
- * <p><b>Liên kết file khác:</b>
- *
- * <ul>
- *   <li>{@link AuctionDao} — query + update trạng thái trong DB
- *   <li>{@link AuctionEventManager} — broadcast thông báo đến client qua WebSocket
- *   <li>{@link BidUpdateMessage} — định dạng message gửi khi phiên kết thúc
- *   <li>{@link com.auction.App} — khởi động scheduler khi server start
- * </ul>
+ * <p>Khi settlement hoàn tất, scheduler đồng bộ cả auction status và item status trong cùng
+ * transaction: phiên bán thành công đưa item về {@code SOLD}; phiên không bán được đưa item về
+ * {@code AVAILABLE} để seller có thể tạo phiên mới.
  */
 public class AuctionScheduler {
 
   private static final Logger LOG = LoggerFactory.getLogger(AuctionScheduler.class);
-
-  /** Chu kỳ quét (giây) — đủ nhạy mà không overload DB */
   private static final int SCAN_INTERVAL_SECONDS = 5;
 
   private final AuctionDao auctionDao;
@@ -67,19 +53,15 @@ public class AuctionScheduler {
   private final org.jdbi.v3.core.Jdbi jdbi;
   private final AuctionWebSocketHandler wsHandler;
 
-  /** Thread pool 1 thread — đủ cho scheduler đơn giản này */
   private final ScheduledExecutorService scheduler =
       Executors.newSingleThreadScheduledExecutor(
           r -> {
             Thread t = new Thread(r, "auction-scheduler");
-            t.setDaemon(true); // không ngăn JVM tắt khi main thread kết thúc
+            t.setDaemon(true);
             return t;
           });
 
-  /** Future của task đang chạy — dùng để cancel khi shutdown */
   private ScheduledFuture<?> scheduledTask;
-
-  /** Guard tránh start() gọi nhiều lần */
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   public AuctionScheduler(
@@ -97,14 +79,6 @@ public class AuctionScheduler {
     this.wsHandler = wsHandler;
   }
 
-  // ── Lifecycle ────────────────────────────────────────────
-
-  /**
-   * Khởi động scheduler. Gọi một lần duy nhất khi server start.
-   *
-   * <p>Dùng {@code scheduleAtFixedRate} để task chạy đều đặn mỗi {@value #SCAN_INTERVAL_SECONDS}
-   * giây, bất kể task trước mất bao lâu.
-   */
   public void start() {
     if (!running.compareAndSet(false, true)) {
       LOG.warn("AuctionScheduler is already running, ignoring duplicate start() call");
@@ -113,22 +87,14 @@ public class AuctionScheduler {
 
     scheduledTask =
         scheduler.scheduleAtFixedRate(
-            this::scanAndTransition,
-            0, // delay ban đầu: chạy ngay khi start
-            SCAN_INTERVAL_SECONDS,
-            TimeUnit.SECONDS);
+            this::scanAndTransition, 0, SCAN_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
     LOG.info("AuctionScheduler started — scanning every {}s", SCAN_INTERVAL_SECONDS);
   }
 
-  /**
-   * Dừng scheduler khi server shutdown.
-   *
-   * <p>Gọi trong shutdown hook của {@code App.java} để giải phóng thread pool.
-   */
   public void stop() {
     if (scheduledTask != null) {
-      scheduledTask.cancel(false); // không interrupt task đang chạy giữa chừng
+      scheduledTask.cancel(false);
     }
     scheduler.shutdown();
     try {
@@ -143,14 +109,6 @@ public class AuctionScheduler {
     LOG.info("AuctionScheduler stopped");
   }
 
-  // ── Core scan logic ──────────────────────────────────────
-
-  /**
-   * Hàm chính được gọi mỗi {@value #SCAN_INTERVAL_SECONDS} giây.
-   *
-   * <p>Thứ tự xử lý: chuyển OPEN→RUNNING trước, rồi RUNNING→FINISHED. Điều này xử lý đúng edge case
-   * startTime == endTime.
-   */
   void scanAndTransition() {
     try {
       LocalDateTime now = LocalDateTime.now();
@@ -158,21 +116,11 @@ public class AuctionScheduler {
 
       openToRunning(now);
       runningToFinished(now);
-
     } catch (Exception e) {
-      // Bắt tất cả exception để scheduler không chết âm thầm.
-      // Nếu không có try-catch này, một RuntimeException sẽ cancel scheduledTask.
       LOG.error("Error in AuctionScheduler.scanAndTransition()", e);
     }
   }
 
-  // ── OPEN → RUNNING ───────────────────────────────────────
-
-  /**
-   * Chuyển các phiên từ OPEN sang RUNNING khi đến giờ bắt đầu.
-   *
-   * @param now thời điểm hiện tại
-   */
   private void openToRunning(LocalDateTime now) {
     List<Long> ids = auctionDao.findDueAuctionIds("OPEN", now);
     for (Long id : ids) {
@@ -189,16 +137,6 @@ public class AuctionScheduler {
     }
   }
 
-  // ── RUNNING → FINISHED ───────────────────────────────────
-
-  /**
-   * Chuyển các phiên từ RUNNING sang FINISHED khi hết giờ.
-   *
-   * <p>Sau khi cập nhật DB, broadcast AUCTION_ENDED qua WebSocket để tất cả client đang xem phiên
-   * nhận được thông báo ngay lập tức.
-   *
-   * @param now thời điểm hiện tại
-   */
   private void runningToFinished(LocalDateTime now) {
     List<Long> ids = auctionDao.findExpiredAuctionIds("RUNNING", now);
     for (Long id : ids) {
@@ -238,7 +176,6 @@ public class AuctionScheduler {
     }
   }
 
-  /** Một sự kiện biến động số dư cần push qua WS sau khi transaction commit. */
   private record BalanceChange(
       Long userId,
       BigDecimal newBalance,
@@ -246,32 +183,13 @@ public class AuctionScheduler {
       String message,
       String notificationType) {}
 
-  /** Thông báo chung (không kèm biến động số dư) cần push trước balance change. */
   private record UserNotification(Long userId, String message, String notificationType) {}
 
-  /**
-   * Kết quả của một lần settlement: phiên đã đóng + danh sách user notifications (kết quả phiên)
-   * cần phát trước balance changes.
-   */
   private record SettlementResult(
       Auction auction,
       List<UserNotification> userNotifications,
       List<BalanceChange> balanceChanges) {}
 
-  /**
-   * Thanh toán và đóng phiên: - Nếu có người thắng: trừ tiền bidder, cộng tiền seller, status →
-   * PAID. - Nếu không ai bid: status → FINISHED.
-   *
-   * <p>Notifications produced per settlement:
-   *
-   * <ul>
-   *   <li>One AUCTION_RESULT "common" message broadcast to every distinct bidder of the auction AND
-   *       the seller, describing the auction outcome (winner + price, or no winner).
-   *   <li>For the PAID case: a private AUCTION_WON balance notification to the winner (with "Thanh
-   *       toán thành công" wording) and a private SELLER_PAYOUT balance notification to the seller
-   *       (with the winner's username embedded).
-   * </ul>
-   */
   private SettlementResult settleAndClose(Long auctionId, LocalDateTime now) {
     MDC.put("auctionId", String.valueOf(auctionId));
     try {
@@ -299,8 +217,7 @@ public class AuctionScheduler {
               return;
             }
 
-            Optional<Auction> refetchedAuction =
-                auctionDao.findByIdForUpdateOptional(handle, auctionId);
+            Optional<Auction> refetchedAuction = auctionDao.findByIdForUpdateOptional(handle, auctionId);
             if (refetchedAuction.isEmpty()) {
               LOG.warn(
                   "Auction #{} not found after claiming SETTLING, skipping settlement", auctionId);
@@ -310,10 +227,8 @@ public class AuctionScheduler {
             Auction auction = refetchedAuction.get();
             Long winnerId = auction.getLeadingBidderId();
             Long sellerId = auction.getSellerId();
+            String finalItemStatus;
 
-            // Resolve display name once — used in every settlement notification. Plain SELECT
-            // (no FOR UPDATE) because we only read the name and don't want to widen the locked
-            // row set inside the settlement transaction.
             String itemName =
                 handle
                     .createQuery("SELECT name FROM items WHERE id = :id")
@@ -323,8 +238,6 @@ public class AuctionScheduler {
                     .orElse(null);
             String auctionLabel = NotificationFormat.auctionName(auction.getId(), itemName);
 
-            // Distinct bidders of this auction — receive the "common" end-of-auction broadcast.
-            // The seller is added separately below so we don't double-insert if seller bid too.
             List<Long> bidderAudience =
                 handle
                     .createQuery(
@@ -336,15 +249,12 @@ public class AuctionScheduler {
             if (winnerId != null) {
               BigDecimal price = auction.getCurrentPrice();
 
-              // Khóa row winner để chuyển khoản giữ chỗ thành thanh toán an toàn
               User winner = userDao.findByIdForUpdate(handle, winnerId);
-              BigDecimal balance =
-                  winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
+              BigDecimal balance = winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
               String winnerLabel = NotificationFormat.user(winner.getUsername());
 
               if (balance.compareTo(price) >= 0) {
                 BigDecimal balanceBefore = balance;
-                // Trừ tiền bidder và release phần tiền đã giữ cho bid thắng.
                 int winnerRows =
                     handle
                         .createUpdate(
@@ -398,9 +308,7 @@ public class AuctionScheduler {
                     new BalanceChange(
                         winnerId, winnerNewBalance, winnerDelta, winMsg, "AUCTION_WON"));
 
-                // Cộng tiền seller
                 if (sellerId != null) {
-                  // Khóa row seller để cộng tiền
                   User seller = userDao.findByIdForUpdate(handle, sellerId);
                   BigDecimal sellerBalanceBefore =
                       seller.getBalance() != null ? seller.getBalance() : BigDecimal.ZERO;
@@ -440,7 +348,6 @@ public class AuctionScheduler {
                           sellerId, sellerNewBalance, price, sellerPayoutMsg, "SELLER_PAYOUT"));
                 }
 
-                // ── Common end-of-auction broadcast (PAID) ─────────────────
                 String commonMsg =
                     String.format(
                         Locale.GERMANY,
@@ -452,6 +359,7 @@ public class AuctionScheduler {
                     handle, userNotifications, bidderAudience, sellerId, commonMsg);
 
                 auction.setStatus(AuctionStatus.PAID);
+                finalItemStatus = "SOLD";
               } else {
                 LOG.warn(
                     "Auction #{}: bidder #{} has insufficient balance ({}) to pay {}. Transitioning to FINISHED.",
@@ -469,7 +377,6 @@ public class AuctionScheduler {
                     price,
                     "settlement_insufficient_balance:" + auction.getId());
 
-                // ── Common end-of-auction broadcast (winner couldn't pay) ──
                 String commonMsg =
                     String.format(
                         Locale.GERMANY,
@@ -481,20 +388,20 @@ public class AuctionScheduler {
                     handle, userNotifications, bidderAudience, sellerId, commonMsg);
 
                 auction.setStatus(AuctionStatus.FINISHED);
+                finalItemStatus = "AVAILABLE";
               }
             } else {
-              // ── Common end-of-auction broadcast (no bidder) ──
               String commonMsg =
                   String.format(
                       Locale.GERMANY,
                       "Auction %s has ended with no bids. The auction was unsuccessful.",
                       auctionLabel);
-              broadcastAuctionResult(
-                  handle, userNotifications, bidderAudience, sellerId, commonMsg);
+              broadcastAuctionResult(handle, userNotifications, bidderAudience, sellerId, commonMsg);
               auction.setStatus(AuctionStatus.FINISHED);
+              finalItemStatus = "AVAILABLE";
             }
 
-            // Cập nhật trạng thái auction cuối cùng
+            updateItemStatusInSettlement(handle, auction, finalItemStatus);
             auctionDao.updateInTransaction(handle, auction);
             settledAuction[0] = auction;
           });
@@ -514,16 +421,15 @@ public class AuctionScheduler {
     }
   }
 
-  /**
-   * Persist + queue an AUCTION_RESULT notification for every distinct bidder of the auction plus
-   * the seller. Deduplicates so a seller who also bid only receives it once.
-   *
-   * <p>Called inside the settlement transaction so notifications are atomic with status change.
-   * Post-commit pushes happen via {@link #runningToFinished} which drains {@code userNotifications}
-   * and sends a WS toast to each currently-online recipient.
-   */
+  private void updateItemStatusInSettlement(Handle handle, Auction auction, String status) {
+    if (auction.getItemId() == null || status == null) {
+      return;
+    }
+    itemDao.updateStatusInTransaction(handle, auction.getItemId(), status);
+  }
+
   private void broadcastAuctionResult(
-      org.jdbi.v3.core.Handle handle,
+      Handle handle,
       List<UserNotification> userNotifications,
       List<Long> bidderAudience,
       Long sellerId,
@@ -545,34 +451,21 @@ public class AuctionScheduler {
     }
   }
 
-  // ── Notification ─────────────────────────────────────────
-
-  /**
-   * Gửi thông báo AUCTION_ENDED đến tất cả client đang xem phiên này.
-   *
-   * <p>Message chứa: auctionId, winnerId, winningPrice. Client nhận message → disable nút bid →
-   * hiển thị "Người thắng: ...".
-   *
-   * @param auction phiên vừa kết thúc
-   */
   private void notifyAuctionEnded(Auction auction) {
     try {
       String winnerName = null;
       if (auction.getLeadingBidderId() != null) {
-        winnerName =
-            userDao.findById(auction.getLeadingBidderId()).map(User::getUsername).orElse(null);
+        winnerName = userDao.findById(auction.getLeadingBidderId()).map(User::getUsername).orElse(null);
       }
       BidUpdateMessage msg =
           BidUpdateMessage.auctionEnded(
               auction.getId(), auction.getCurrentPrice(), auction.getLeadingBidderId(), winnerName);
       eventManager.notifyAuctionEnd(auction.getId(), msg);
-
     } catch (Exception e) {
       LOG.error("Cannot broadcast AUCTION_ENDED for auction #{}", auction.getId(), e);
     }
   }
 
-  /** Trả về trạng thái chạy hiện tại — dùng trong health check endpoint. */
   public boolean isRunning() {
     return running.get();
   }
