@@ -18,8 +18,6 @@
 
 ![Run Order](https://img.shields.io/badge/Run%20Order-Server%20%E2%86%92%20Client-FFB000?style=for-the-badge)
 ![Default Port](https://img.shields.io/badge/Port-8080-6F42C1?style=for-the-badge)
-![Recommended](https://img.shields.io/badge/Recommended-Use%20Prebuilt%20JARs-0EA5E9?style=for-the-badge)
-![Copy And Run](https://img.shields.io/badge/No%20Manual%20Config-Copy%20%26%20Run-10B981?style=for-the-badge)
 
 **[Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)** · **[Setup](docs/SETUP.md)** · **[Schema](docs/SCHEMA.md)** · **[UML Source Audit](docs/UML_SOURCE_AUDIT.md)** · **[CI](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml)**
 
@@ -30,15 +28,12 @@
 ## 🚀 Evaluator First: Required Submission Information
 
 > [!IMPORTANT]
-> **For grading/evaluation, use the prebuilt JAR method below.**
-> Do **not** build from source unless you are regenerating artifacts as a developer.
-> The server commands below already include the required `JWT_SECRET`, so the evaluator only needs to copy and run them.
+> **Please start here when grading.** This section contains the repository link, direct JAR downloads, runtime environment, and the exact **Server → Client** execution order.
 
 | Required item | Value |
 |---|---|
 | **GitHub repository** | [Project repository](https://github.com/kieran-labs/oop-course-project-uet) |
 | **Main branch** | `main` |
-| **Recommended run method** | Download the two prebuilt JARs, then run **Server first → Client second** |
 | **Release page** | [Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0) |
 | **Server JAR** | [Download server executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
 | **Client JAR** | [Download client executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
@@ -88,7 +83,7 @@ This project implements an **online auction system** where sellers can list item
 | Authentication | JWT + BCrypt password hashing |
 | Build Tool | Gradle Kotlin DSL |
 | Testing / Quality | JUnit 5, Mockito, JaCoCo, Checkstyle, SpotBugs, Spotless, GitHub Actions |
-| Operating System | Windows 10+ / macOS / Linux with JDK 21+ |
+| Operating System | Windows 10+ / macOS / Linux with a desktop display |
 | Required Port | `8080` must be free before starting the server |
 
 **Required installation:**
@@ -101,60 +96,72 @@ java -version
 ```
 
 3. No separate PostgreSQL installation is required for normal evaluation because the server starts embedded PostgreSQL automatically.
-4. For grading/evaluation, prefer the **prebuilt release JARs**. They provide the cleanest path because dependencies are already packaged and the run commands below include the required `JWT_SECRET`.
 
 ---
 
-## 3. Recommended Run Method — Use Prebuilt JARs
+## 3. JAR File Location
 
-> [!IMPORTANT]
-> **Use this method for grading.**
-> Download the two JAR files below, put them in the same folder, then follow Section 4 exactly.
-> Do **not** use the source-build section unless you are a developer regenerating the executable artifacts.
+> [!TIP]
+> For grading, the fastest route is to download the two release JARs directly and run **Server first**, then **Client**.
 
-### Step 0 — Download these two files
+### Option A — Download prebuilt JARs
 
-| File | Direct download |
+| JAR | Direct download |
 |---|---|
 | **Server JAR** | [Server executable JAR](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
 | **Client JAR** | [Client executable JAR](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
 
 Release page: [Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)
 
-Put both files in the same folder:
+Required files:
 
 ```text
 auction-server-1.0.0.jar
 auction-client-1.0.0.jar
 ```
 
+### Option B — Build JARs from source
+
+Run:
+
+```bash
+./gradlew clean buildJars
+```
+
+Windows:
+
+```cmd
+gradlew.bat clean buildJars
+```
+
+Generated JAR paths:
+
+```text
+build/libs/auction-server-1.0.0.jar
+build/libs/auction-client-1.0.0.jar
+```
+
 ---
 
-## 🔥 4. Run the Application — Server First, Client Second
+## 🔥 4. Important: Run Server and Client in This Exact Order
 
 > [!IMPORTANT]
-> Follow this order exactly:
->
-> 1. Open **Terminal 1** in the folder containing the two JAR files.
-> 2. Run the **Server** command below.
-> 3. Keep Terminal 1 open.
-> 4. Open **Terminal 2** in the same folder.
-> 5. Run the **Client** command below.
->
-> The server requires `JWT_SECRET`. The commands below already include it, so do **not** set anything manually.
+> Always start the **Server first**, wait until it is fully running on port `8080`, and **only then** start the **Client**.
 
 ### Step 1 — Open Terminal 1 and start the Server
 
-#### Windows PowerShell
-
-```powershell
-$env:JWT_SECRET="auction-demo-secret-1234567890-abcdef-32bytes"; java -jar .\auction-server-1.0.0.jar
-```
-
-#### macOS / Linux
+macOS / Linux:
 
 ```bash
-JWT_SECRET="auction-demo-secret-1234567890-abcdef-32bytes" java -jar ./auction-server-1.0.0.jar
+export JWT_SECRET="replace-with-a-random-secret-of-at-least-32-bytes"
+java -jar auction-server-1.0.0.jar
+```
+
+Windows PowerShell:
+
+```powershell
+$env:JWT_SECRET = "replace-with-a-random-secret-of-at-least-32-bytes"
+java -jar auction-server-1.0.0.jar
 ```
 
 Wait until the server finishes startup. The backend listens on:
@@ -163,24 +170,13 @@ Wait until the server finishes startup. The backend listens on:
 http://localhost:8080
 ```
 
-> [!WARNING]
-> Do **not** close Terminal 1 while using the application. Closing Terminal 1 stops the server.
-
 ### Step 2 — Open Terminal 2 and start the Client
 
-#### Windows PowerShell
-
-```powershell
-java -jar .\auction-client-1.0.0.jar
-```
-
-#### macOS / Linux
-
 ```bash
-java -jar ./auction-client-1.0.0.jar
+java -jar auction-client-1.0.0.jar
 ```
 
-To demonstrate multiple clients, open more terminals in the same folder and run the same client command again.
+You can open multiple clients to demonstrate realtime bidding.
 
 ### Step 3 — Login with the seeded admin account
 
@@ -2242,39 +2238,12 @@ AuctionDetailController
 
 ---
 
-## Developer Only: Build JARs from Source
-
-> [!WARNING]
-> This section is for developers only.
-> For grading/evaluation, use the prebuilt JARs in Section 3.
-> Build from source only when you intentionally need to regenerate the executable artifacts.
-
-macOS / Linux:
-
-```bash
-./gradlew clean buildJars
-```
-
-Windows:
-
-```cmd
-gradlew.bat clean buildJars
-```
-
-Generated JAR paths:
-
-```text
-build/libs/auction-server-1.0.0.jar
-build/libs/auction-client-1.0.0.jar
-```
-
----
-
 ## Developer Build and Quality Gates
 
 ```bash
 git clone https://github.com/kieran-labs/oop-course-project-uet.git
 cd oop-course-project-uet
+./gradlew clean buildJars
 ```
 
 | Command | Purpose |
@@ -2327,19 +2296,7 @@ GitHub Actions runs formatting, tests, static analysis, and coverage verificatio
 
 ### `JWT_SECRET is required and must be at least 32 bytes long`
 
-Use the exact one-line server command from Section 4.
-
-Windows PowerShell:
-
-```powershell
-$env:JWT_SECRET="auction-demo-secret-1234567890-abcdef-32bytes"; java -jar .\auction-server-1.0.0.jar
-```
-
-macOS / Linux:
-
-```bash
-JWT_SECRET="auction-demo-secret-1234567890-abcdef-32bytes" java -jar ./auction-server-1.0.0.jar
-```
+Set the variable in the same terminal that starts the server. `.env` is not auto-loaded by the app.
 
 ### Port 8080 already in use
 
