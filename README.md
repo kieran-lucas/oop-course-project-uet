@@ -32,13 +32,13 @@
 
 | Required item | Value |
 |---|---|
-| **GitHub repository** | https://github.com/kieran-labs/oop-course-project-uet |
+| **GitHub repository** | [Project repository](https://github.com/kieran-labs/oop-course-project-uet) |
 | **Main branch** | `main` |
-| **Release page** | https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0 |
-| **Server JAR** | [Download `auction-server-1.0.0.jar`](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
-| **Client JAR** | [Download `auction-client-1.0.0.jar`](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
-| **Report PDF** | `TODO_ADD_REPORT_PDF_LINK` |
-| **Demo video** | `TODO_ADD_DEMO_VIDEO_LINK` |
+| **Release page** | [Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0) |
+| **Server JAR** | [Download server executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
+| **Client JAR** | [Download client executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
+| **Report PDF** | `Pending final report link` |
+| **Demo video** | `Pending demo video link` |
 
 ### ⚡ Quick Download
 
@@ -48,7 +48,7 @@
 | `auction-server-1.0.0.jar` | `auction-client-1.0.0.jar` |
 
 > [!WARNING]
-> Before final submission, replace `TODO_ADD_REPORT_PDF_LINK` and `TODO_ADD_DEMO_VIDEO_LINK` with the actual report PDF and demo video URLs.
+> Before final submission, replace the pending report PDF and demo video entries with the final links.
 
 ---
 
@@ -108,14 +108,10 @@ java -version
 
 | JAR | Direct download |
 |---|---|
-| **Server JAR** | [Download `auction-server-1.0.0.jar`](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
-| **Client JAR** | [Download `auction-client-1.0.0.jar`](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
+| **Server JAR** | [Server executable JAR](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
+| **Client JAR** | [Client executable JAR](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
 
-Release page:
-
-```text
-https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0
-```
+Release page: [Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)
 
 Required files:
 
