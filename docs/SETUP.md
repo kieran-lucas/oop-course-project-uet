@@ -1,229 +1,267 @@
 # Hướng dẫn cài đặt và chạy
 
-Tài liệu này dành cho người **clone repo về máy lần đầu** và muốn chạy được cả server lẫn client. Mọi lệnh dưới đây ưu tiên **Windows**; với macOS/Linux, thay `gradlew.bat` bằng `./gradlew` và thay `set`/`setx` bằng `export`.
+Tài liệu này giữ **tiếng Việt** để người chấm và người chạy dự án thao tác đúng, nhanh, ít nhầm nhất. Cách ưu tiên khi chấm bài là dùng **hai file JAR dựng sẵn** trong GitHub Release.
+
+Thứ tự bắt buộc:
+
+```text
+Chạy Server trước -> chạy Client sau
+```
 
 ---
 
-## 1. Cài đặt môi trường
+## 1. Cách khuyến nghị cho người chấm: dùng JAR dựng sẵn
 
-### Bắt buộc
+Tải hai file trong release `v1.0.0`:
 
-| Phần mềm | Phiên bản tối thiểu | Kiểm tra |
-|---|---|---|
-| **Git** | 2.x | `git --version` |
-| **JDK 21** | 21.x | `java -version` và `javac -version` |
+| File | Vai trò |
+|---|---|
+| `auction-server-1.0.0.jar` | Backend Javalin, WebSocket, Embedded PostgreSQL, PostgreSQL JDBC, HikariCP, Flyway, JDBI |
+| `auction-client-1.0.0.jar` | JavaFX desktop client |
 
-> Project dùng Gradle Java Toolchain với `JavaLanguageVersion.of(21)`. Cách ít lỗi nhất là cài JDK 21 và trỏ `JAVA_HOME` vào JDK 21. JDK 17 hoặc thấp hơn không phù hợp; JDK mới hơn có thể chạy Gradle, nhưng build vẫn cần Gradle tìm được toolchain Java 21.
+Release page:
 
-### Không cần cài cho chế độ mặc định
+```text
+https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0
+```
 
-- **PostgreSQL** — mặc định project dùng Embedded PostgreSQL, tự khởi động khi server chạy. Dữ liệu lưu ở `data/postgres/`.
-- **Gradle** — repo có sẵn Gradle Wrapper (`gradlew.bat` / `gradlew`).
-- **Maven** — project không dùng Maven.
+Đặt cả hai file trong cùng một thư mục:
 
-> Nâng cao: nếu set `DB_URL`, server sẽ dùng PostgreSQL bên ngoài thay vì Embedded PostgreSQL. Khi đó có thể set thêm `DB_USER` và `DB_PASSWORD`; Flyway vẫn chạy cùng bộ migrations.
+```text
+auction-server-1.0.0.jar
+auction-client-1.0.0.jar
+```
 
-### Khuyến nghị
+---
 
-- **Eclipse Temurin JDK 21**: https://adoptium.net/
+## 2. Yêu cầu môi trường
 
-Sau khi cài, kiểm tra:
+| Thành phần | Yêu cầu |
+|---|---|
+| JDK | Java 21 trở lên, khuyến nghị JDK 21 |
+| Port | `8080` phải rảnh |
+| PostgreSQL | Không cần cài riêng khi dùng chế độ mặc định |
+| Gradle | Không cần cài riêng nếu chỉ chạy JAR release |
+
+Kiểm tra Java:
 
 ```cmd
 java -version
-:: expected: version 21.x
-
-javac -version
-:: expected: javac 21.x
 ```
 
-Nếu bạn cài nhiều JDK, set `JAVA_HOME` trỏ vào JDK 21:
-
-```cmd
-setx JAVA_HOME "C:\Program Files\Eclipse Adoptium\jdk-21.x.x-hotspot"
-```
-
-Sau `setx`, đóng terminal cũ và mở terminal mới.
+Server mặc định tự chạy Embedded PostgreSQL. Lần đầu chạy có thể lâu hơn vì embedded-postgres cần tải/cache binary PostgreSQL tương ứng hệ điều hành.
 
 ---
 
-## 2. Clone repo
+## 3. Chạy Server
+
+Mở **Terminal 1** trong thư mục chứa hai file JAR.
+
+### Windows PowerShell
+
+```powershell
+$env:JWT_SECRET='auction-demo-secret-1234567890-abcdef-32bytes'; java -jar .\auction-server-1.0.0.jar
+```
+
+### macOS / Linux
+
+```bash
+JWT_SECRET='auction-demo-secret-1234567890-abcdef-32bytes' java -jar ./auction-server-1.0.0.jar
+```
+
+Đợi server lên tại:
+
+```text
+http://localhost:8080
+```
+
+Không đóng Terminal 1 trong lúc dùng app. Đóng Terminal 1 là dừng server.
+
+---
+
+## 4. Chạy Client
+
+Mở **Terminal 2** trong cùng thư mục.
+
+### Windows PowerShell
+
+```powershell
+java -jar .\auction-client-1.0.0.jar
+```
+
+### macOS / Linux
+
+```bash
+java -jar ./auction-client-1.0.0.jar
+```
+
+Muốn demo nhiều client thì mở thêm terminal và chạy lại lệnh client.
+
+---
+
+## 5. Tài khoản admin mặc định
+
+Khi server khởi động, `AdminSeeder` tạo admin nếu chưa có admin trong database.
+
+| Role | Username | Password |
+|---|---|---|
+| ADMIN | `admin` | `123456` |
+
+Tài khoản `SELLER` và `BIDDER` được tạo trong màn hình đăng ký của client.
+
+---
+
+## 6. Luồng demo khuyến nghị
+
+1. Chạy server.
+2. Chạy ít nhất hai client.
+3. Đăng nhập admin.
+4. Tạo seller và bidder bằng màn hình đăng ký.
+5. Bidder gửi yêu cầu nạp tiền.
+6. Admin duyệt yêu cầu nạp tiền.
+7. Seller tạo item và auction.
+8. Hai bidder cùng vào một auction và đặt giá.
+9. Bật auto-bid cho một bidder.
+10. Quan sát realtime update, chart, notification, balance update và anti-sniping extension.
+
+---
+
+## 7. Chạy từ source cho developer
+
+Chỉ dùng phần này nếu cần clone repo và tự build/chạy source.
+
+Clone repo:
 
 ```cmd
 git clone https://github.com/kieran-labs/oop-course-project-uet.git
 cd oop-course-project-uet
 ```
 
----
+Set biến môi trường bắt buộc cho terminal đang chạy server. Secret phải dài ít nhất 32 bytes UTF-8.
 
-## 3. Cấu hình `JWT_SECRET` (BẮT BUỘC)
-
-Server **fail-fast** nếu thiếu `JWT_SECRET`, nếu giá trị rỗng, hoặc nếu chuỗi ngắn hơn 32 bytes khi encode bằng UTF-8.
-
-> Secret ký JWT không được hardcode trong source code. Nếu secret bị public, người khác có thể giả mạo token.
-
-### Cách 1 — set tạm thời cho một terminal session
-
-**cmd.exe:**
+### Windows cmd.exe
 
 ```cmd
-set JWT_SECRET=replace-with-a-random-secret-of-at-least-32-bytes
+set JWT_SECRET=auction-demo-secret-1234567890-abcdef-32bytes
 ```
 
-**PowerShell:**
+### Windows PowerShell
 
 ```powershell
-$env:JWT_SECRET = "replace-with-a-random-secret-of-at-least-32-bytes"
+$env:JWT_SECRET='auction-demo-secret-1234567890-abcdef-32bytes'
 ```
 
-Biến này chỉ tồn tại trong terminal hiện tại. Mở terminal mới thì phải set lại.
+### macOS / Linux
 
-### Cách 2 — set vĩnh viễn cho User
-
-```cmd
-setx JWT_SECRET "replace-with-a-random-secret-of-at-least-32-bytes"
+```bash
+export JWT_SECRET='auction-demo-secret-1234567890-abcdef-32bytes'
 ```
 
-Sau lệnh này, đóng terminal hiện tại và mở terminal mới.
-
-### Tạo secret ngẫu nhiên
-
-**PowerShell:**
-
-```powershell
-[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
-```
-
-Copy output rồi set vào `JWT_SECRET`.
-
-> File `.env.example` chỉ là mẫu tham khảo. Ứng dụng hiện đọc `JWT_SECRET` từ environment variable thật qua `System.getenv(...)`; `.env` ở repo root không được auto-load bởi server.
-
----
-
-## 4. Chạy server
-
-Đảm bảo bạn đang ở thư mục gốc của repo (`oop-course-project-uet/`) và terminal hiện tại đã có `JWT_SECRET`.
-
-### Cách A — chạy trực tiếp bằng Gradle (khuyên dùng khi dev)
+Chạy server từ source:
 
 ```cmd
 gradlew.bat run
 ```
 
-Lần đầu Gradle sẽ tải dependencies. Đợi đến khi thấy log dạng:
-
-```text
-Javalin started in <N> ms
-```
-
-Server sẵn sàng ở `http://localhost:8080`.
-
-Kiểm tra nhanh:
-
-```cmd
-curl http://localhost:8080/api/health
-```
-
-Dừng server bằng `Ctrl+C` trong terminal đang chạy Gradle.
-
-### Cách B — dùng script `.bat` (chạy background, có log file)
-
-```cmd
-server-start.bat
-```
-
-Script này:
-
-- kiểm tra `/api/health` để tránh start trùng server;
-- build server JAR bằng `shadowJar` nếu chưa có JAR;
-- chạy server ẩn bằng `java -jar`;
-- ghi launcher PID vào `data/launcher.pid`;
-- ghi log vào `logs/server.out.log` và `logs/server.err.log`;
-- chờ `/api/health` báo `ok`.
-
-Dừng server:
-
-```cmd
-server-stop.bat
-```
-
-Kiểm tra trạng thái:
-
-```cmd
-server-status.bat
-```
-
-> Vẫn cần set `JWT_SECRET` trước khi chạy `server-start.bat`. Script không tự tạo hoặc tự set secret.
-
-### Cách C — chạy từ JAR local hoặc release
-
-Nếu bạn đã có `auction-server-1.0.0.jar`:
-
-```cmd
-set JWT_SECRET=replace-with-a-random-secret-of-at-least-32-bytes
-java -jar auction-server-1.0.0.jar
-```
-
-Nếu muốn build server JAR từ source trước:
-
-```cmd
-gradlew.bat shadowJar
-java -jar build\libs\auction-server-1.0.0.jar
-```
-
----
-
-## 5. Chạy client JavaFX
-
-Mở terminal khác, `cd` vào repo, rồi chạy:
+Chạy client từ source trong terminal khác:
 
 ```cmd
 gradlew.bat runClient
 ```
 
-Cửa sổ JavaFX sẽ mở ra.
+macOS/Linux thay `gradlew.bat` bằng `./gradlew`.
 
-> Client không cần `JWT_SECRET`; chỉ server cần secret để ký/verify JWT.
+---
 
-### Chạy nhiều client cùng lúc
+## 8. Build JAR từ source
 
-Mở nhiều terminal và chạy `gradlew.bat runClient` ở mỗi terminal. Đăng nhập bằng các tài khoản khác nhau để test bidding/concurrent UI updates.
-
-Nếu đã có client JAR:
+Build cả server và client JAR:
 
 ```cmd
-java -jar auction-client-1.0.0.jar
+gradlew.bat clean buildJars
 ```
 
-Hoặc nếu build local:
+macOS/Linux:
+
+```bash
+./gradlew clean buildJars
+```
+
+Output:
+
+```text
+build/libs/auction-server-1.0.0.jar
+build/libs/auction-client-1.0.0.jar
+```
+
+Build riêng:
 
 ```cmd
-java -jar build\libs\auction-client-1.0.0.jar
+gradlew.bat shadowJar
+gradlew.bat shadowClient
 ```
 
 ---
 
-## 6. Tài khoản mặc định
+## 9. Database runtime
 
-Khi server khởi động, `App.seedAdminIfNeeded()` tạo tài khoản admin nếu chưa tồn tại:
+Stack database mặc định:
 
-| Tài khoản | Username | Password | Role |
-|---|---|---|---|
-| Admin | `admin` | `123456` | ADMIN |
+```text
+Embedded PostgreSQL
+  -> PostgreSQL JDBC
+  -> HikariCP connection pool
+  -> Flyway migrations
+  -> JDBI DAOs
+```
 
-Để tạo tài khoản BIDDER/SELLER, dùng nút **Đăng ký** trên màn hình login/register của client.
+Ý nghĩa:
+
+- Không cần cài PostgreSQL riêng khi demo/evaluation.
+- Dữ liệu local nằm trong `data/postgres/`.
+- Flyway chạy migrations trong `src/main/resources/db/migration`.
+- `DatabaseConfig` tạo `HikariDataSource`, chạy migrations, rồi tạo JDBI.
+- Có thể dùng PostgreSQL ngoài bằng `DB_URL`, `DB_USER`, `DB_PASSWORD` nếu cần.
 
 ---
 
-## 7. Lỗi thường gặp
+## 10. Script Windows có sẵn
 
-### `JWT_SECRET is required and must be at least 32 bytes long`
+| Script | Mục đích |
+|---|---|
+| `server-start.bat` | Start server nền, ghi log vào `logs/`. |
+| `server-stop.bat` | Dừng server local. |
+| `server-status.bat` | Kiểm tra server. |
+| `db-reset.bat` | Xóa state local generated để reset demo. |
 
-Bạn chưa set `JWT_SECRET`, set trong terminal khác, hoặc set giá trị quá ngắn. Quay lại [mục 3](#3-cấu-hình-jwt_secret-bắt-buộc).
+---
 
-### `Port 8080 already in use` hoặc `Server is already running at http://localhost:8080`
+## 11. Test và quality checks
 
-Server cũ chưa tắt hoặc process khác đang chiếm port 8080.
+```cmd
+gradlew.bat spotlessCheck
+gradlew.bat test
+gradlew.bat check
+gradlew.bat jacocoTestReport
+```
+
+Một số report:
+
+```text
+build/reports/jacoco/test/html/index.html
+build/reports/spotbugs/spotbugsMain.html
+build/reports/problems/problems-report.html
+```
+
+---
+
+## 12. Lỗi thường gặp
+
+### Thiếu `JWT_SECRET`
+
+Dùng lại lệnh server ở mục 3 hoặc set biến môi trường này trong terminal chạy server.
+
+### Port `8080` bị chiếm
 
 ```cmd
 server-status.bat
@@ -234,43 +272,32 @@ Hoặc kiểm tra thủ công:
 
 ```cmd
 netstat -ano | findstr :8080
-taskkill /PID <PID> /F
 ```
 
-### Server start bằng `.bat` nhưng không healthy
+### Embedded PostgreSQL bị kẹt sau khi kill process
 
-Xem log:
-
-```cmd
-type logs\server.out.log
-type logs\server.err.log
-```
-
-Nguyên nhân phổ biến nhất là terminal chạy `server-start.bat` chưa có `JWT_SECRET`.
-
-### Embedded PostgreSQL / database bị kẹt sau khi kill process
-
-Nếu server bị kill đột ngột, `data/postgres/` hoặc PID file có thể còn trạng thái cũ. Reset database nếu bạn chấp nhận xóa dữ liệu local:
+Nếu chấp nhận xóa dữ liệu demo local:
 
 ```cmd
 db-reset.bat
 ```
 
-Lần chạy server kế tiếp sẽ tạo lại embedded database và chạy Flyway migrations từ đầu.
-
-### Lần đầu chạy mất lâu
-
-Bình thường. Gradle cần tải dependencies, và Embedded PostgreSQL có thể tải/cached binary lần đầu. Các lần sau sẽ nhanh hơn nhờ cache trong `~/.gradle/` và cache của embedded-postgres.
-
-### JavaFX client báo `Module javafx.controls not found`
-
-Project dùng `org.openjfx.javafxplugin`, nên lỗi này thường xuất hiện khi JVM/toolchain không đúng hoặc dependency chưa resolve xong. Kiểm tra:
+Hoặc:
 
 ```cmd
+rmdir /s /q data logs
+```
+
+### Client JavaFX không mở
+
+Kiểm tra Java:
+
+```cmd
+java -version
 gradlew.bat --version
 ```
 
-Đảm bảo JVM/Toolchain là Java 21, rồi chạy lại:
+Sau đó thử:
 
 ```cmd
 gradlew.bat clean runClient
@@ -278,110 +305,12 @@ gradlew.bat clean runClient
 
 ---
 
-## 8. Build JAR
-
-### Build cả server và client JAR
-
-```cmd
-gradlew.bat clean buildJars
-```
-
-Output:
+## 13. Thứ tự thao tác an toàn nhất
 
 ```text
-build\libs\auction-server-1.0.0.jar
-build\libs\auction-client-1.0.0.jar
+1. Tải Server JAR và Client JAR.
+2. Terminal 1: chạy server bằng lệnh có JWT_SECRET.
+3. Đợi server lên localhost:8080.
+4. Terminal 2: chạy client.
+5. Mở thêm client nếu cần demo realtime bidding.
 ```
-
-### Build riêng từng JAR
-
-```cmd
-gradlew.bat shadowJar      :: server JAR
-gradlew.bat shadowClient   :: client JAR
-```
-
-### Chạy JAR sau khi build
-
-```cmd
-:: Server — vẫn cần JWT_SECRET
-set JWT_SECRET=replace-with-a-random-secret-of-at-least-32-bytes
-java -jar build\libs\auction-server-1.0.0.jar
-
-:: Client — terminal khác
-java -jar build\libs\auction-client-1.0.0.jar
-```
-
----
-
-## 9. Chạy test và quality checks
-
-```cmd
-:: Toàn bộ test suite + quality gates
-
-gradlew.bat clean test check jacocoTestReport
-```
-
-Báo cáo coverage:
-
-```text
-build/reports/jacoco/test/html/index.html
-```
-
-SpotBugs report:
-
-```text
-build/reports/spotbugs/spotbugsMain.html
-```
-
----
-
-## 10. Cấu trúc thư mục sinh ra khi chạy
-
-| Thư mục / file | Mô tả | Ignore trong git? |
-|---|---|---|
-| `data/postgres/` | Embedded PostgreSQL data directory | Có |
-| `data/postgres.pid` | PID của embedded PostgreSQL | Có |
-| `data/launcher.pid` | PID của process do `server-start.bat` tạo | Có |
-| `data/server.pid` | PID do app ghi khi server chạy | Có |
-| `data/server.token` | Random token dùng cho `/internal/shutdown` local-only | Có |
-| `logs/` | Stdout/stderr khi chạy server bằng `.bat` | Có |
-| `build/` | Gradle output: classes, JARs, reports | Có |
-| `.gradle/` | Gradle local cache trong repo | Có |
-
----
-
-## 11. Workflow điển hình
-
-```cmd
-:: Lần đầu sau khi clone
-cd oop-course-project-uet
-setx JWT_SECRET "my-local-dev-secret-at-least-32-bytes-long-x"
-:: đóng terminal, mở lại
-
-:: Terminal 1: server
-gradlew.bat run
-
-:: Terminal 2: client
-gradlew.bat runClient
-
-:: Terminal 3: client thứ hai để test realtime bidding
-gradlew.bat runClient
-```
-
-Khi xong việc, dừng server bằng `Ctrl+C` ở terminal server hoặc dùng `server-stop.bat` nếu server được start bằng script.
-
----
-
-## 12. Tham khảo thêm
-
-- **Business rules**: `docs/BUSINESS_RULES.md`
-- **Database schema**: `docs/SCHEMA.md`
-- **README chính**: `README.md` — overview, architecture, design patterns, API endpoints
-
-Nếu gặp lỗi không có trong mục 7, mở issue trên GitHub kèm:
-
-- Output của `java -version`
-- Output của `javac -version`
-- Output của `gradlew.bat --version`
-- Log lỗi 10–20 dòng cuối
-- Các bước tái hiện
