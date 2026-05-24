@@ -1,186 +1,281 @@
 # Business Rules
 
-This document describes the business rules implemented by the current Java source code.
+This document describes the business behavior implemented by the current Java source code. It is written for reviewers who need to verify what the system allows, rejects, and records.
 
-## Roles
-
-| Role | Permissions |
-|---|---|
-| ADMIN | Approve/reject deposit requests; approve/reject password reset requests; list/delete users except self; soft-cancel `OPEN`/`RUNNING` auctions; hard-delete auctions through the admin route |
-| SELLER | Create/edit/delete own items; create/edit own auctions; cancel own auction only while it is `OPEN` |
-| BIDDER | Request deposits; place manual bids; create/stop own auto-bid configurations; view personal notifications |
-
-- Roles are mutually exclusive and stored in `users.role`.
-- Sellers and Admins cannot place manual bids.
-- A seller cannot bid on their own auction even if they somehow reach the bidding service path.
-
----
-
-## Bidding
-
-### Manual Bid
-
-- Only `BIDDER` accounts may call the manual-bid endpoint.
-- The auction must be in `RUNNING` status.
-- The bid amount must be a positive integer VND value.
-- The bid amount must strictly exceed `auctions.current_price`.
-- The current highest bidder (`auctions.leading_bidder_id`) cannot place another bid while they remain the leader.
-- A bidder cannot place a manual bid on an auction for which they already have an `ACTIVE` auto-bid config; they must stop the auto-bid first.
-- The bidder must have enough available balance for the bid amount.
-- When a bid becomes the leader, the previous leader's reserved balance is released and the new leader's bid amount is reserved.
-
-### Seller Self-Bid
-
-- The seller of an auction (`auctions.seller_id`) is blocked from bidding in that auction.
-- This is enforced in the running-state bid validation path.
-
-### Anti-Sniping
-
-- If a bid is placed with fewer than 30 seconds remaining, `auctions.end_time` is extended by 60 seconds.
-- A `TIME_EXTENDED` WebSocket event is queued and sent after the transaction commits.
-
----
-
-## Auto-Bid
-
-Auto-bid lets a bidder set a maximum price. The system can place bids on the bidder's behalf according to `increment_amount` and the bidder's available balance.
-
-### Configuration fields
-
-| Field | Meaning |
-|---|---|
-| `max_bid` | Maximum price the user is willing to pay |
-| `increment_amount` | Step size for each automatic bid |
-| `active` | Legacy compatibility flag; `status` is the main state field |
-| `status` | `ACTIVE` / `STOPPED` / `EXHAUSTED` / `FAILED` |
-| `failure_reason` | May contain `MAX_PRICE_TOO_LOW` or `INSUFFICIENT_BALANCE` when the service records a failed/exhausted config. The enum also defines additional values for future/edge states. |
-| `registered_at` | FIFO ordering timestamp for the auto-bid chain |
-
-### Rules
-
-- Only one config is stored per `(auction_id, bidder_id)` pair by a UNIQUE constraint.
-- Auto-bid can only be created while the auction is `RUNNING`; otherwise the request is rejected.
-- The bidder must not already be the current leader; otherwise the request is rejected.
-- If the bidder already has an active config for the auction, the request is rejected before creating a second active config.
-- On creation, the initial bid amount is `current_price + increment_amount`.
-- If the initial bid exceeds `max_bid`, the config is stored as `EXHAUSTED` with `MAX_PRICE_TOO_LOW` and no bid is placed.
-- If the bidder's available balance is insufficient for the initial bid, the config is stored as `FAILED` with `INSUFFICIENT_BALANCE` and no bid is placed.
-- If the initial bid is valid, it is placed immediately as an auto-bid, the bid is persisted, and the bidder's reserved balance is updated.
-- The auto-bid chain runs in the same transaction as the triggering bid path and is capped at 100 auto-bids per trigger.
-- Auto-bids are ordered by `registered_at` (FIFO) for deterministic fairness.
-- During a chain, configs that can no longer bid above the current price transition to `EXHAUSTED`; configs with insufficient available balance transition to `FAILED`.
-
----
-
-## Auction Lifecycle
+Runtime path:
 
 ```text
-OPEN ──► RUNNING ──► SETTLING ──► PAID
-                  └──────────────► FINISHED
-
-OPEN ──► CANCELED       seller or admin soft-cancel
-RUNNING ──► CANCELED    admin soft-cancel only
+JavaFX client -> Javalin controller -> service validation -> JDBI transaction -> PostgreSQL tables
 ```
 
-Admin hard-delete is a separate route that removes the auction row and related `wallet_transactions`, `auto_bid_configs`, and `bid_transactions`; it is not a status transition.
-
-### Status reference
-
-| Status | Stored value | Plain-English meaning | Terminal? |
-|---|---|---|---|
-| `OPEN` | `"OPEN"` | Created, not yet started. `start_time` has not been reached. Bids are not accepted. Seller may still edit or cancel. | No |
-| `RUNNING` | `"RUNNING"` | Actively accepting bids. Scheduler transitions from `OPEN` once `start_time <= now`. | No |
-| `SETTLING` | `"SETTLING"` | Settlement is being claimed and processed by the scheduler. Client-facing operations are blocked by state rules. | No |
-| `PAID` | `"PAID"` | Successful settlement: winner's funds are deducted and seller is credited. | Yes |
-| `FINISHED` | `"FINISHED"` | Ended without a completed sale: either no bids existed, or the leading bidder could not complete settlement. | Yes |
-| `CANCELED` | `"CANCELED"` | Soft-cancelled auction. Seller can reach this only from `OPEN`; admin can soft-cancel `OPEN` or `RUNNING`. | Yes |
-
-> **Common confusion**
->
-> - `OPEN` does **not** mean "open for bidding." It means the auction exists but `start_time` is in the future. Use `RUNNING` to check whether bids are accepted.
-> - `FINISHED` does **not** mean "successfully paid." A completed sale ends in `PAID`.
-> - The enum value in code is `CANCELED` (with one L and a D), not `CANCEL`.
-
-### Cancel / delete rules
-
-- A seller may soft-cancel only their own auction while it is `OPEN`.
-- A seller cannot cancel a `RUNNING` auction.
-- An admin may soft-cancel an `OPEN` or `RUNNING` auction.
-- For ended/canceled auctions, admin hard-delete is handled through the admin delete route rather than by changing status again.
-- When a `RUNNING` auction with a leader is soft-cancelled, the leader's reserved balance is released with a `CANCEL_RELEASE` wallet transaction.
-
-### One auction per item
-
-- Auction creation requires the item to belong to the seller.
-- Auction creation requires the item status to be `AVAILABLE`.
-- Creating an auction marks the item as `IN_AUCTION`.
-- The service also rejects creation when an item already has an `OPEN` or `RUNNING` auction, or when a paid auction already exists for that item.
+Client-side checks improve usability, but server-side services and DAOs are the source of truth.
 
 ---
 
-## Wallet & Reserved Balance
+## 1. Roles and Access Boundaries
 
-Each user has two balance fields:
+| Role | Main permissions | Important limitations |
+|---|---|---|
+| `ADMIN` | Approve/reject deposits; approve/reject password-reset requests; list/delete users when safe; soft-cancel or hard-delete auctions through admin routes | Not created through public registration; seeded by `AdminSeeder` |
+| `SELLER` | Create/edit/delete own items; create/edit own auctions; cancel own auction only when state rules allow it | Cannot place bids; cannot bid on own auction |
+| `BIDDER` | Request deposits; place manual bids; configure/stop own auto-bids; read notifications | Cannot create items or auctions; cannot use admin workflows |
+
+Rules:
+
+- Roles are stored in `users.role` as `ADMIN`, `SELLER`, or `BIDDER`.
+- Public registration creates normal application users; admin creation is controlled by startup seeding.
+- Protected routes use JWT middleware and then apply controller/service role checks.
+- The JavaFX client hides screens by role, but backend authorization remains mandatory.
+
+---
+
+## 2. Authentication and Session Rules
+
+| Rule | Source-level behavior |
+|---|---|
+| Password storage | Passwords are stored as BCrypt hashes in `users.password_hash`. |
+| JWT claims | Tokens carry user identity, role, and token version. |
+| Required secret | Server startup validates `JWT_SECRET`; it must be present and at least 32 UTF-8 bytes. |
+| Token invalidation | `users.token_version` is checked by middleware and incremented after password changes/resets. |
+
+Seeded admin behavior:
+
+- Startup creates the default admin only when no admin exists.
+- The classroom/demo fallback password is not a production security model.
+
+---
+
+## 3. Item Rules
+
+| Rule | Meaning |
+|---|---|
+| Ownership | Every item belongs to one seller through `items.seller_id`. |
+| Owner control | A seller can edit/delete only their own items. |
+| Categories | Supported categories are `ELECTRONICS`, `ART`, and `VEHICLE`. |
+| Category details | Electronics/Vehicle use `brand`; Art uses `artist`; `year` is optional. |
+| Auction eligibility | A new auction requires an item that is currently `AVAILABLE`. |
+
+Item status values: `AVAILABLE`, `IN_AUCTION`, `SOLD`, `REMOVED`.
+
+---
+
+## 4. Auction Lifecycle
+
+```text
+OPEN -> RUNNING -> SETTLING -> PAID
+                 -> FINISHED
+
+OPEN    -> CANCELED
+RUNNING -> CANCELED
+```
+
+| Status | Meaning |
+|---|---|
+| `OPEN` | Created but not yet accepting bids. |
+| `RUNNING` | Accepts valid bids. |
+| `SETTLING` | Scheduler has claimed the expired auction for settlement. |
+| `PAID` | Winner payment and seller payout completed. |
+| `FINISHED` | Auction ended without completed sale, for example no bids or failed settlement. |
+| `CANCELED` | Soft-cancelled before normal completion. |
+
+Important distinctions:
+
+- `OPEN` does not mean open for bidding. Bids require `RUNNING`.
+- `FINISHED` does not mean successful payment. Successful sale uses `PAID`.
+- `SETTLING` prevents duplicate scheduler settlement.
+- Admin hard-delete is cleanup, not a lifecycle status.
+
+Cancel/delete rules:
+
+- Seller can cancel only their own `OPEN` auction.
+- Seller cannot cancel a `RUNNING` auction.
+- Admin can soft-cancel `OPEN` or `RUNNING` auctions.
+- If a running auction with a leader is cancelled, the leader reservation is released and `CANCEL_RELEASE` is recorded in the wallet ledger.
+- Admin hard-delete removes dependent wallet, auto-bid, and bid rows before deleting the auction row.
+
+---
+
+## 5. Auction Creation Rules
+
+| Rule | Behavior |
+|---|---|
+| Seller ownership | The selected item must belong to the seller creating the auction. |
+| Item availability | The item must be `AVAILABLE`. |
+| Starting price | Must be positive. |
+| Time range | `end_time` must be after `start_time`. |
+| Active conflict prevention | The same item cannot have another active auction. |
+| Paid-item protection | An item already associated with a paid auction is not auctioned again. |
+
+On successful creation:
+
+- `auctions.current_price` starts from `starting_price`.
+- `auctions.status` starts as `OPEN`.
+- Item status is moved to `IN_AUCTION`.
+
+---
+
+## 6. Manual Bidding Rules
+
+A manual bid is accepted only when all conditions below are true:
+
+| Condition | Requirement |
+|---|---|
+| Caller role | Caller must be `BIDDER`. |
+| Auction state | Auction must be `RUNNING`. |
+| Seller self-bid | Auction seller cannot bid on their own auction. |
+| Amount | Bid amount must be positive and greater than `auctions.current_price`. |
+| Current leader | Current leading bidder cannot bid again while still leading. |
+| Auto-bid conflict | A bidder with active auto-bid for the same auction must stop it before manual bidding. |
+| Available balance | Bidder must have enough `balance - reserved_balance`. |
+
+Successful leading bid behavior:
+
+1. The auction row and relevant user rows are locked inside a JDBI transaction.
+2. Previous leader reservation is released.
+3. New leader amount is added to `reserved_balance`.
+4. A `bid_transactions` row is inserted.
+5. Wallet movement is recorded in `wallet_transactions`.
+6. WebSocket updates are sent after transaction commit.
+
+---
+
+## 7. Anti-Sniping Rule
+
+- If a valid bid arrives with fewer than 30 seconds remaining, the auction end time is extended by 60 seconds.
+- A `TIME_EXTENDED` WebSocket message is sent after commit.
+- The rule applies to manual and auto-bid paths when they produce a valid leading bid.
+
+---
+
+## 8. Auto-Bid Rules
+
+Auto-bid lets a bidder define a maximum bid and increment amount. The strategy can bid for that user while rules and balance allow it.
 
 | Field | Meaning |
 |---|---|
-| `balance` | Total wallet balance recorded for the user |
-| `reserved_balance` | Portion of the balance currently locked by active leading bids |
+| `max_bid` | Highest price the bidder accepts. |
+| `increment_amount` | Step used for automatic bids. |
+| `active` | Legacy compatibility flag. |
+| `status` | `ACTIVE`, `STOPPED`, `EXHAUSTED`, or `FAILED`. |
+| `failure_reason` | Stored reason when a config cannot continue. |
+| `registered_at` | FIFO ordering timestamp for deterministic chain order. |
 
-**Effective available balance = `balance - reserved_balance`**
+Creation rules:
 
-Balance movements are recorded in the `wallet_transactions` ledger:
+- Auction must be `RUNNING`.
+- Bidder must not already be current leader.
+- A bidder can have only one config per auction because of the unique database constraint.
+- A second active config for the same auction is rejected.
+- Initial bid is `current_price + increment_amount`.
+- If initial bid exceeds `max_bid`, config becomes `EXHAUSTED` with `MAX_PRICE_TOO_LOW`.
+- If available balance is insufficient, config becomes `FAILED` with `INSUFFICIENT_BALANCE`.
+- If valid, the initial auto-bid is placed immediately and reserved.
 
-| `kind` | Trigger | Effect |
-|---|---|---|
-| `DEPOSIT` | Admin approves deposit request | `balance += amount` |
-| `FREEZE` | Bid is placed and user becomes leader | `reserved_balance += amount` |
-| `RELEASE` | User is outbid, or settlement fails because the leader cannot pay | `reserved_balance -= amount` |
-| `WIN_CONSUME` | Settlement — winner pays | `balance -= amount`, `reserved_balance -= amount` |
-| `SELLER_PAYOUT` | Settlement — seller receives proceeds | seller `balance += amount` |
-| `CANCEL_RELEASE` | Running auction is cancelled with a leading bidder | `reserved_balance -= amount` |
+Chain rules:
 
----
-
-## Settlement
-
-The scheduler periodically processes auctions whose `end_time` has passed:
-
-1. The auction is atomically claimed by moving `RUNNING -> SETTLING` if it is still due for settlement.
-2. If there are no bids, the auction becomes `FINISHED`; no money moves.
-3. If a winner exists, the scheduler checks the winner's wallet balance and reserved balance path:
-   - **Sufficient funds / reservation:** winner is charged (`WIN_CONSUME`), seller is credited (`SELLER_PAYOUT`), and the auction becomes `PAID`.
-   - **Insufficient funds:** the winner's reserved balance is released (`RELEASE`) and the auction becomes `FINISHED`.
-4. Result notifications are inserted in the same settlement transaction and pushed to online users after the transaction completes.
+- Chain execution runs in the same transaction as the triggering bid path.
+- The chain is capped at 100 auto-bids per trigger.
+- Active configs are processed by `registered_at`.
+- Configs unable to exceed current price become `EXHAUSTED`; configs lacking balance become `FAILED`.
 
 ---
 
-## Notifications
+## 9. Wallet, Reservation, and Ledger Rules
 
-| Type | Trigger |
+| Field | Meaning |
 |---|---|
-| `OUTBID` | User was outbid |
-| `SELLER_BID_RECEIVED` | Seller's auction received a manual or auto bid |
-| `AUTOBID_FAILED` | Auto-bid failed because of insufficient balance |
-| `AUTOBID_EXHAUSTED` | Auto-bid could not continue because the next bid would exceed `max_bid` |
-| `AUCTION_RESULT` | Auction ended; sent to the seller and distinct bidders for the auction result |
-| `AUCTION_WON` | Winner successfully paid during settlement |
-| `SELLER_PAYOUT` | Seller received the settlement payout |
-| `AUCTION_CANCELED` | Auction was soft-cancelled |
-| `AUCTION_DELETED` | Auction was hard-deleted by admin |
-| `BALANCE_UPDATED` | Deposit request was approved or rejected |
+| `balance` | Total wallet balance recorded for the user. |
+| `reserved_balance` | Amount locked by current leading bids. |
 
-- Each notification has an `is_read` flag (default `false`).
-- Users can mark one notification or all their notifications as read.
-- Online users receive real-time messages through `/ws/user/{id}`.
-- Persisted notification rows allow offline users to see history when they reconnect or reload notifications.
-- Password reset approval currently returns the generated temporary password in the admin response; it does not insert a user notification row.
+Available balance:
+
+```text
+available_balance = balance - reserved_balance
+```
+
+| Ledger `kind` | Trigger | Source-level meaning |
+|---|---|---|
+| `DEPOSIT` | Admin approves a deposit request | User balance increases. |
+| `FREEZE` | User becomes leading bidder | User reserved balance increases. |
+| `RELEASE` | User is outbid or settlement cannot charge winner | User reserved balance decreases. |
+| `WIN_CONSUME` | Winner successfully pays during settlement | Winner balance and reserved balance are consumed according to service logic. |
+| `SELLER_PAYOUT` | Seller receives proceeds | Seller balance increases. |
+| `CANCEL_RELEASE` | Running auction is cancelled with a leader | Leader reserved balance decreases. |
+
+Ledger intent:
+
+- Money movements are auditable through append-only rows.
+- `reserved_balance` prevents one wallet from overcommitting to multiple leading bids.
+- Transactional service code keeps wallet, auction, and notification changes consistent.
 
 ---
 
-## Bid History & Charts
+## 10. Deposit Workflow
 
-- Every normal bid path inserts a `bid_transactions` row for manual bids and auto-bids.
-- `bid_transactions.auto_bid` distinguishes system-placed bids from user-initiated bids.
-- The full history is retrievable via `BidService.getBidHistory(auctionId)` and is used by the UI for price-over-time charts.
-- Bid history rows are not updated by normal bidding flow. Admin hard-delete of an auction removes related bid rows as part of the cleanup required by foreign-key constraints.
+| Step | Rule |
+|---|---|
+| Request | User creates a `PENDING` deposit request; balance is unchanged. |
+| Approve | Admin adds amount to balance, writes a `DEPOSIT` ledger row, and marks request `APPROVED`. |
+| Reject | Admin marks request `REJECTED`; balance is unchanged. |
+| Reprocess guard | A non-`PENDING` request cannot be processed again. |
+
+---
+
+## 11. Password Reset Workflow
+
+| Step | Rule |
+|---|---|
+| Request | User creates a pending reset request if no pending request already exists. |
+| Approve | Admin generates a temporary password, stores a new BCrypt hash, increments token version, and receives the temporary password in response. |
+| Reject | Admin rejects the request without changing the password. |
+| Pending uniqueness | The database enforces at most one pending reset request per user. |
+
+This is an admin-reviewed classroom flow. Production should replace it with secure out-of-band reset delivery.
+
+---
+
+## 12. Settlement Rules
+
+The scheduler processes expired `RUNNING` auctions:
+
+1. Claim a due auction by moving `RUNNING` to `SETTLING` atomically.
+2. If there is no leading bidder, mark the auction `FINISHED`.
+3. If the winner can pay, record winner consumption, record seller payout, and mark the auction `PAID`.
+4. If the winner cannot pay, release the reservation and mark the auction `FINISHED`.
+5. Insert result notifications in the same transaction and push realtime messages after commit.
+
+This documentation intentionally does not claim that settlement marks the item `SOLD`, because the current source path marks the auction paid/finished and records wallet movements; item status handling must be verified separately before documenting it as settlement behavior.
+
+---
+
+## 13. Notifications and Realtime Events
+
+| Type / event | Trigger |
+|---|---|
+| `OUTBID` | Previous leader is replaced. |
+| `SELLER_BID_RECEIVED` | Seller receives a manual or auto bid. |
+| `AUTOBID_FAILED` | Auto-bid cannot activate or continue due to balance. |
+| `AUTOBID_EXHAUSTED` | Auto-bid cannot continue because next bid exceeds `max_bid`. |
+| `AUCTION_RESULT` | Auction final result is available. |
+| `AUCTION_WON` | Winner successfully pays. |
+| `SELLER_PAYOUT` | Seller receives payout. |
+| `AUCTION_CANCELED` | Auction is cancelled. |
+| `AUCTION_DELETED` | Auction is removed by admin cleanup. |
+| `BALANCE_UPDATED` | Deposit or balance state changes. |
+| `BID_UPDATE` | Auction price/leader changes. |
+| `TIME_EXTENDED` | Anti-sniping extension happens. |
+| `AUCTION_ENDED` | Auction ending event is broadcast. |
+
+- Persistent notifications are stored in `notifications`.
+- Auction updates use `/ws/auction/{id}`.
+- User-specific notifications use `/ws/user/{id}`.
+
+---
+
+## 14. Bid History and Charts
+
+- Accepted manual and auto bids insert rows into `bid_transactions`.
+- `auto_bid` distinguishes automatic bids from manual bids.
+- Bid history powers the JavaFX auction-detail price chart.
+- Normal bidding does not mutate old bid rows.
+- Admin auction cleanup removes related bid rows only as part of deletion cleanup.
