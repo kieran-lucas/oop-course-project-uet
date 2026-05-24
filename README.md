@@ -137,6 +137,49 @@ Core capabilities:
 
 ## Architecture
 
+The application is split into a JavaFX desktop client, a Javalin server, and PostgreSQL persistence. The client never accesses the database directly; all protected operations go through JWT-secured REST endpoints or WebSocket channels managed by the server.
+
+```mermaid
+flowchart LR
+    subgraph Client["JavaFX Desktop Client"]
+        FXML["FXML Views"]
+        UI["UI Controllers<br/>MVC layer"]
+        Scene["SceneManager<br/>Session state"]
+        Rest["RestClient<br/>HTTP + JSON"]
+        WsClient["WebSocketClient<br/>auction/user channels"]
+        LiveUI["Auction Detail UI<br/>chart + countdown + notifications"]
+
+        FXML --> UI
+        UI --> Scene
+        UI --> Rest
+        UI --> WsClient
+        WsClient --> LiveUI
+    end
+
+    subgraph Server["Javalin Server"]
+        Jwt["JwtMiddleware<br/>auth + role context"]
+        Controllers["REST Controllers<br/>Auth · Item · Auction · Bid · Notification"]
+        WsHandler["AuctionWebSocketHandler"]
+        Services["Service Layer<br/>business rules + transactions"]
+        Patterns["Design Patterns<br/>State · Factory · Observer · Strategy"]
+        Scheduler["AuctionScheduler<br/>lifecycle transitions"]
+        DAO["DAO Layer<br/>JDBI SQL access"]
+    end
+
+    DB[("PostgreSQL<br/>embedded local / external CI<br/>Flyway migrations")]
+
+    Rest -- "REST /api/* + JWT" --> Jwt
+    Jwt --> Controllers
+    Controllers --> Services
+    WsClient -- "WebSocket /ws/auction/{id}<br/>/ws/user/{id}" --> WsHandler
+    Services --> Patterns
+    Services --> DAO
+    Scheduler --> Services
+    WsHandler --> Patterns
+    Patterns --> WsHandler
+    DAO --> DB
+```
+
 ```text
 JavaFX Client
   ├─ FXML views
@@ -161,6 +204,155 @@ Important design choices:
 - **Server layering:** Controller → Service → DAO → Database.
 - **SQL-first persistence:** JDBI keeps locking and transaction behavior explicit.
 - **Database-level concurrency:** bidding correctness does not depend on a single JVM lock.
+
+---
+
+## Class Diagram
+
+The core domain model is centered around `Entity`, `User`, `Item`, `Auction`, bid history, and auto-bid configuration. Inheritance is used for users and item categories; associations show how auctions connect sellers, bidders, bids, and auto-bid rules.
+
+```mermaid
+classDiagram
+    direction LR
+
+    class Entity {
+        <<abstract>>
+        -Long id
+        -LocalDateTime createdAt
+        +Long getId()
+        +LocalDateTime getCreatedAt()
+        +boolean equals(Object o)
+        +int hashCode()
+    }
+
+    class User {
+        <<abstract>>
+        -String username
+        -String passwordHash
+        -String email
+        -BigDecimal balance
+        -BigDecimal reservedBalance
+        -int tokenVersion
+        +String getRole()
+        +BigDecimal getAvailableBalance()
+    }
+
+    class Admin {
+        +String getRole()
+    }
+
+    class Seller {
+        +String getRole()
+    }
+
+    class Bidder {
+        +String getRole()
+    }
+
+    class Item {
+        <<abstract>>
+        -String name
+        -String description
+        -Long sellerId
+        -String status
+        +String getCategory()
+    }
+
+    class Electronics {
+        -String brand
+        +String getCategory()
+    }
+
+    class Art {
+        -String artist
+        +String getCategory()
+    }
+
+    class Vehicle {
+        -Integer year
+        +String getCategory()
+    }
+
+    class Auction {
+        -Long itemId
+        -Long sellerId
+        -BigDecimal startingPrice
+        -BigDecimal currentPrice
+        -Long leadingBidderId
+        -LocalDateTime startTime
+        -LocalDateTime endTime
+        -AuctionStatus status
+        -LocalDateTime updatedAt
+        +boolean isExpired()
+        +boolean isActive()
+        +long getRemainingTimeMs()
+    }
+
+    class BidTransaction {
+        -Long auctionId
+        -Long bidderId
+        -BigDecimal amount
+        -boolean autoBid
+        -String bidderUsername
+    }
+
+    class AutoBidConfig {
+        -Long auctionId
+        -Long bidderId
+        -BigDecimal maxBid
+        -BigDecimal increment
+        -AutoBidStatus status
+        -AutoBidFailureReason failureReason
+        -LocalDateTime registeredAt
+        +boolean canBidAt(BigDecimal currentPrice)
+        +BigDecimal getNextBidAmount(BigDecimal currentPrice)
+    }
+
+    class AuctionState {
+        <<interface>>
+        +void placeBid(Auction auction, BigDecimal amount, Long bidderId)
+        +void close(Auction auction)
+        +void edit(Auction auction)
+        +void extend(Auction auction, long extraSeconds)
+    }
+
+    class AutoBidStrategy {
+        +void executeAll(...)
+        +void executeAllInTransaction(...)
+    }
+
+    class AuctionEventManager {
+        +void subscribe(Long auctionId, AuctionEventListener listener)
+        +void unsubscribe(Long auctionId, AuctionEventListener listener)
+        +void notifyBidUpdate(Long auctionId, BidUpdateMessage msg)
+        +void notifyTimeExtended(Long auctionId, BidUpdateMessage msg)
+        +void notifyAuctionEnd(Long auctionId, BidUpdateMessage msg)
+    }
+
+    Entity <|-- User
+    User <|-- Admin
+    User <|-- Seller
+    User <|-- Bidder
+
+    Entity <|-- Item
+    Item <|-- Electronics
+    Item <|-- Art
+    Item <|-- Vehicle
+
+    Entity <|-- Auction
+    Entity <|-- BidTransaction
+    Entity <|-- AutoBidConfig
+
+    Auction "1" --> "1" Item : itemId
+    Seller "1" --> "0..*" Item : owns
+    Auction "1" --> "0..*" BidTransaction : bid history
+    Bidder "1" --> "0..*" BidTransaction : places
+    Auction "1" --> "0..*" AutoBidConfig : auto-bid rules
+    Bidder "1" --> "0..*" AutoBidConfig : configures
+    AuctionState ..> Auction : validates lifecycle behavior
+    AutoBidStrategy ..> AutoBidConfig : prioritizes by registeredAt
+    AuctionEventManager ..> Auction : publishes realtime events
+```
 
 ---
 
