@@ -5,18 +5,25 @@
 --          Không có bản ghi nào được cập nhật hay xóa — đây là audit trail
 --          toàn vẹn cho mọi luồng tiền trong hệ thống.
 --
+--         Mô hình balance hiện tại:
+--           balance là tổng số dư ví đã nạp, chưa trừ tiền giữ chỗ.
+--           reserved_balance là phần balance đang bị khóa bởi bid đang dẫn đầu.
+--           available_balance = balance - reserved_balance.
+--
 --         Các loại giao dịch (kind):
---           DEPOSIT       — User nạp tiền vào ví (admin duyệt deposit request)
+--           DEPOSIT       — User nạp tiền vào ví khi admin duyệt deposit request
+--                           (balance tăng).
 --           FREEZE        — Tạm giữ tiền khi user dẫn đầu phiên đấu giá
---                           (trừ balance, cộng reserved_balance)
---           RELEASE       — Hoàn tiền khi user bị vượt qua
---                           (cộng balance, trừ reserved_balance)
+--                           (reserved_balance tăng; balance chưa giảm ở bước này).
+--           RELEASE       — Giải phóng tiền giữ chỗ khi user bị vượt qua hoặc
+--                           settlement không thu được tiền thắng
+--                           (reserved_balance giảm; balance không tăng ở bước này).
 --           WIN_CONSUME   — Xác nhận tiêu dùng khi user thắng đấu giá
---                           (trừ reserved_balance — tiền đã bị FREEZE trước đó)
+--                           (balance giảm và reserved_balance giảm).
 --           SELLER_PAYOUT — Chuyển tiền cho seller khi phiên kết thúc
---                           (cộng balance của seller)
---           CANCEL_RELEASE— Hoàn toàn bộ tiền đang FREEZE khi phiên bị hủy
---                           (cộng balance, trừ reserved_balance)
+--                           (balance của seller tăng).
+--           CANCEL_RELEASE— Giải phóng tiền đang giữ khi phiên bị hủy
+--                           (reserved_balance giảm; balance không tăng ở bước này).
 --
 --         Liên kết:
 --           user_id            — chủ tài khoản của giao dịch
