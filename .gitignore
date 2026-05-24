@@ -43,11 +43,6 @@ pnpm-debug.log*
 # package-lock.json is intentionally tracked
 # for reproducible installs and CI builds
 # =========================================================
-# Claude / AI tooling
-# =========================================================
-.claude/
-.claude-cache/
-.claude.json
 # =========================================================
 # RepoWise / MCP local state
 # =========================================================
