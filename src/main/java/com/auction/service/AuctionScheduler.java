@@ -217,7 +217,8 @@ public class AuctionScheduler {
               return;
             }
 
-            Optional<Auction> refetchedAuction = auctionDao.findByIdForUpdateOptional(handle, auctionId);
+            Optional<Auction> refetchedAuction =
+                auctionDao.findByIdForUpdateOptional(handle, auctionId);
             if (refetchedAuction.isEmpty()) {
               LOG.warn(
                   "Auction #{} not found after claiming SETTLING, skipping settlement", auctionId);
@@ -250,7 +251,8 @@ public class AuctionScheduler {
               BigDecimal price = auction.getCurrentPrice();
 
               User winner = userDao.findByIdForUpdate(handle, winnerId);
-              BigDecimal balance = winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
+              BigDecimal balance =
+                  winner.getBalance() != null ? winner.getBalance() : BigDecimal.ZERO;
               String winnerLabel = NotificationFormat.user(winner.getUsername());
 
               if (balance.compareTo(price) >= 0) {
@@ -396,7 +398,8 @@ public class AuctionScheduler {
                       Locale.GERMANY,
                       "Auction %s has ended with no bids. The auction was unsuccessful.",
                       auctionLabel);
-              broadcastAuctionResult(handle, userNotifications, bidderAudience, sellerId, commonMsg);
+              broadcastAuctionResult(
+                  handle, userNotifications, bidderAudience, sellerId, commonMsg);
               auction.setStatus(AuctionStatus.FINISHED);
               finalItemStatus = "AVAILABLE";
             }
@@ -455,7 +458,8 @@ public class AuctionScheduler {
     try {
       String winnerName = null;
       if (auction.getLeadingBidderId() != null) {
-        winnerName = userDao.findById(auction.getLeadingBidderId()).map(User::getUsername).orElse(null);
+        winnerName =
+            userDao.findById(auction.getLeadingBidderId()).map(User::getUsername).orElse(null);
       }
       BidUpdateMessage msg =
           BidUpdateMessage.auctionEnded(
