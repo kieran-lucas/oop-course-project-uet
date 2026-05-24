@@ -1,9 +1,14 @@
 -- ============================================================
 -- Migration V17: Bảng wallet_transactions — Sổ cái ví điện tử
--- Mô tả : Lưu lịch sử toàn bộ giao dịch tài chính của từng user
---          dưới dạng append-only ledger (sổ cái chỉ thêm, không sửa).
---          Không có bản ghi nào được cập nhật hay xóa — đây là audit trail
---          toàn vẹn cho mọi luồng tiền trong hệ thống.
+-- Mô tả : Lưu lịch sử giao dịch tài chính của từng user trong
+--          các luồng nghiệp vụ bình thường dưới dạng append-only
+--          ledger (sổ cái chỉ thêm, không sửa).
+--
+--          Ngoại lệ có chủ đích: admin hard-delete auction là
+--          destructive cleanup. Luồng đó có thể purge các ledger
+--          rows gắn với auction bị xóa để dọn khóa ngoại trước khi
+--          xóa auction row. Không dùng hard-delete như nghiệp vụ
+--          tài chính thông thường.
 --
 --         Mô hình balance hiện tại:
 --           balance là tổng số dư ví đã nạp, chưa trừ tiền giữ chỗ.
