@@ -20,6 +20,8 @@ import java.util.List;
  */
 public class ItemService {
 
+  private static final String STATUS_AVAILABLE = "AVAILABLE";
+
   private final ItemDao itemDao;
 
   /**
@@ -92,10 +94,12 @@ public class ItemService {
    * @return sản phẩm sau khi cập nhật
    * @throws NotFoundException nếu sản phẩm không tồn tại
    * @throws UnauthorizedException nếu người yêu cầu không phải chủ sản phẩm
+   * @throws IllegalStateException nếu sản phẩm không còn ở trạng thái AVAILABLE
    */
   public Item update(Long id, CreateItemRequest request, Long requesterId) {
     Item existing = getById(id);
     checkOwnership(existing, requesterId, "update");
+    ensureAvailableForMutation(existing, "update");
 
     Item updatedItem = ItemFactory.create(request, existing.getSellerId());
     updatedItem.setId(id);
@@ -115,6 +119,7 @@ public class ItemService {
    * @param requesterRole role của người thực hiện ("ADMIN" hoặc "SELLER")
    * @throws NotFoundException nếu sản phẩm không tồn tại
    * @throws UnauthorizedException nếu SELLER cố xóa sản phẩm của người khác
+   * @throws IllegalStateException nếu sản phẩm không còn ở trạng thái AVAILABLE
    */
   public void delete(Long id, Long requesterId, String requesterRole) {
     Item existing = getById(id);
@@ -124,6 +129,7 @@ public class ItemService {
       checkOwnership(existing, requesterId, "delete");
     }
 
+    ensureAvailableForMutation(existing, "delete");
     itemDao.delete(id);
   }
 
@@ -143,6 +149,23 @@ public class ItemService {
               + " item #"
               + item.getId()
               + " because you are not the owner of this item");
+    }
+  }
+
+  /**
+   * Chặn sửa/xóa sản phẩm không còn rảnh. Item đang đấu giá, đã bán hoặc đã bị remove không được
+   * mutate qua ItemService vì sẽ phá vỡ vòng đời auction-item.
+   */
+  private void ensureAvailableForMutation(Item item, String action) {
+    if (!STATUS_AVAILABLE.equals(item.getStatus())) {
+      throw new IllegalStateException(
+          "Cannot "
+              + action
+              + " item #"
+              + item.getId()
+              + " because its status is "
+              + item.getStatus()
+              + ". Only AVAILABLE items can be modified.");
     }
   }
 }
