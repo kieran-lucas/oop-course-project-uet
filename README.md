@@ -67,7 +67,7 @@ This project implements an **online auction system** where sellers can list item
 | Area | Included scope |
 |---|---|
 | User management | Register, login, JWT authentication, BCrypt password hashing, token-version invalidation, and role-based access for `ADMIN`, `SELLER`, and `BIDDER` |
-| Item management | Sellers create, view, edit, and delete their own items by category; item state is tracked with `AVAILABLE`, `IN_AUCTION`, `SOLD`, and `REMOVED` |
+| Item management | Sellers create, view, edit, and delete their own `AVAILABLE` items by category; item state prevents mutation while an item is in auction, sold, or removed |
 | Auction management | Sellers create auctions; the scheduler manages lifecycle transitions and settlement through `OPEN`, `RUNNING`, `SETTLING`, `FINISHED`, `PAID`, and `CANCELED` |
 | Bidding | Manual bidding, auto-bidding, bid history, validation, row-level locking, reserved balance, and wallet ledger |
 | Realtime update | WebSocket notifications for bid updates, time extension, auction ending, user notifications, and balance changes |
@@ -265,7 +265,7 @@ docs/
 | Rubric area | Completed functionality | Concrete implementation evidence |
 |---|---|---|
 | User management and authentication | Register, login, JWT authentication, BCrypt password hashing, token-version invalidation, role-based authorization for `ADMIN`, `SELLER`, and `BIDDER` | `AuthController`, `UserService`, `UserDao`, `JwtUtil`, `JwtMiddleware`, `UserFactory`, `Admin`, `Seller`, `Bidder`, `users.token_version` |
-| Product / item management | Sellers can create, view, edit, and delete their own items by category and item status | `ItemController`, `ItemService`, `ItemDao`, `ItemFactory`, `Item`, `Electronics`, `Art`, `Vehicle`, `items.status` |
+| Product / item management | Sellers can create, view, edit, and delete their own `AVAILABLE` items by category; item state prevents mutation while an item is in auction, sold, or removed | `ItemController`, `ItemService`, `ItemDao`, `ItemFactory`, `Item`, `Electronics`, `Art`, `Vehicle`, `items.status` |
 | Auction management | Sellers create auctions for their own available items; the system validates ownership and item availability | `AuctionController`, `AuctionService`, `AuctionDao`, `CreateAuctionRequest`, `AuctionResponse`, `auctions.seller_id` |
 | Auction lifecycle | Auctions move through `OPEN → RUNNING → SETTLING → FINISHED / PAID / CANCELED` with scheduler-driven transitions and settlement logic | `AuctionStatus`, `AuctionScheduler`, `AuctionStateFactory`, `AuctionStates`, `OpenState`, `RunningState`, `SettlingState`, `FinishedState`, `PaidState`, `CanceledState` |
 | Manual bidding | Bidders can join auctions and place valid manual bids with bid history and highest-price tracking | `BidController`, `BidService`, `BidTransactionDao`, `BidTransaction`, `BidRequest`, `BidUpdateMessage` |
@@ -274,7 +274,7 @@ docs/
 | Admin functions | Admin can manage users, approve/reject deposits, approve/reject password reset requests, and moderate auctions | `AdminPanelController`, admin routes in `App.java`, `UserService`, `PasswordResetService`, `DepositRequestDao`, `PasswordResetRequestDao` |
 | Error handling | Domain errors are represented by a custom exception hierarchy and mapped to HTTP/API errors | `AuctionException`, `InvalidBidException`, `AuctionClosedException`, `UnauthorizedException`, `NotFoundException`, `DuplicateException`, `ErrorResponse` |
 | Realtime update | Bid updates, time extension updates, auction-ended events, user notifications, and balance updates are pushed through WebSocket | `AuctionWebSocketHandler`, `AuctionEventManager`, `AuctionEventListener`, `WebSocketObserver`, `WebSocketClient`, `BidUpdateMessage` |
-| Advanced feature: auto-bidding | Users can configure auto-bidding with maximum bid, increment, status detection, failure reasons, and chained execution | `AutoBidStrategy`, `AutoBidConfig`, `AutoBidConfigDao`, `AutoBidRequest`, `AutoBidStatus`, `AutoBidFailureReason` |
+| Advanced feature: auto-bidding | Users can configure auto-bidding with maximum bid, increment, status detection, failure reasons, chained execution, and automatic cleanup when auctions are canceled or settled | `AutoBidStrategy`, `AutoBidConfig`, `AutoBidConfigDao`, `AutoBidRequest`, `AutoBidStatus`, `AutoBidFailureReason` |
 | Advanced feature: anti-sniping | Late bids automatically extend auction end time to reduce last-second unfair wins | `BidService`, `ANTI_SNIPE_THRESHOLD_MS`, `ANTI_SNIPE_EXTENSION_SECONDS`, `BidUpdateMessage.timeExtended(...)` |
 | Client-server architecture | JavaFX desktop client communicates with a Javalin backend through REST APIs and WebSocket channels | JavaFX controllers, `RestClient`, `WebSocketClient`, REST controllers, `AuctionWebSocketHandler` |
 | MVC / layered architecture | UI, controller, service, DAO, model, DTO, and database migration responsibilities are separated | `ui/controller`, `controller`, `service`, `dao`, `model`, `dto`, `db/migration` |
@@ -589,6 +589,7 @@ classDiagram
         +update()
         +delete()
         -checkOwnership()
+        -ensureAvailableForMutation()
     }
 
     class AuctionService {
