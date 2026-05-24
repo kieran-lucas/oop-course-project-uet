@@ -43,7 +43,7 @@
 | **Release page** | [Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0) |
 | **Server JAR** | [Download server executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
 | **Client JAR** | [Download client executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
-| **📄 Report PDF** | ![Report PDF Pending](https://img.shields.io/badge/Report%20PDF-Pending%20final%20link-F59E0B?style=for-the-badge&logo=adobeacrobatreader&logoColor=white) |
+| **📄 Report PDF** | [![Report PDF](https://img.shields.io/badge/Report%20PDF-Final%20PDF-F59E0B?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](https://drive.google.com/file/d/1tma9vZBT1YerlTCyiguBYfJj-S69wJ7R/view) |
 | **🎥 Demo video** | ![Demo Video Pending](https://img.shields.io/badge/Demo%20Video-Pending%20final%20link-EA580C?style=for-the-badge&logo=youtube&logoColor=white) |
 
 ### ⚡ Quick Download
