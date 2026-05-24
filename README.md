@@ -138,7 +138,7 @@ Core capabilities:
 The application is split into a JavaFX desktop client, a Javalin server, and PostgreSQL persistence. The client never accesses the database directly; all protected operations go through JWT-secured REST endpoints or WebSocket channels managed by the server.
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Client["JavaFX Desktop Client"]
         ClientApp["ClientApp / Launcher"]
         SceneManager["SceneManager<br/>single Scene + cached FXML"]
@@ -163,21 +163,22 @@ flowchart LR
         Patterns["Design Patterns<br/>Factory · State · Observer · Strategy"]
         Scheduler["AuctionScheduler"]
         DAO["DAO Layer<br/>JDBI + SQL"]
+
+        App --> JwtMiddleware
+        JwtMiddleware --> RestControllers
+        RestControllers --> Services
+        App --> Services
+        App --> WsHandler
+        Services --> Patterns
+        Services --> DAO
+        Scheduler --> Services
+        WsHandler --> Patterns
     end
 
     DB[("PostgreSQL<br/>Embedded or external<br/>Flyway migrations")]
 
     RestClient -- "REST /api/* + JWT" --> JwtMiddleware
-    JwtMiddleware --> RestControllers
-    JwtMiddleware --> App
-    RestControllers --> Services
-    App --> Services
     WebSocketClient -- "/ws/auction/{id}<br/>/ws/user/{id}" --> WsHandler
-    Services --> Patterns
-    Services --> DAO
-    Scheduler --> Services
-    WsHandler --> Patterns
-    Patterns --> WsHandler
     DAO --> DB
 ```
 
@@ -217,7 +218,7 @@ The class diagrams below were reconciled against source files imported by `App.j
 | `util` | `MoneyValidator`, `NotificationFormat`, `RestClient`, `WebSocketClient`, `BackgroundBidWatcher`, `UserBalanceWatcher`, `NotificationStore`, `NotificationItem` |
 | `ui.controller` / `ui.util` | `WelcomeController`, `LoginController`, `RegisterController`, `ForgotPasswordController`, `AuctionListController`, `AuctionDetailController`, `CreateItemController`, `CreateAuctionController`, `ProfileController`, `DepositController`, `ChangePasswordController`, `AdminPanelController`, `SceneManager`, `Navigable` |
 
-Getter/setter boilerplate is intentionally summarized where it is structurally repetitive. Business methods, lifecycle methods, factory methods, validation methods, transaction methods, and WebSocket/event methods are listed explicitly.
+All Mermaid diagrams use top-down layout (`TD`/`TB`) to reduce horizontal expansion in GitHub's renderer. Getter/setter boilerplate is summarized where it is structurally repetitive. Business methods, lifecycle methods, factory methods, validation methods, transaction methods, and WebSocket/event methods are listed explicitly.
 
 ---
 
@@ -430,7 +431,7 @@ classDiagram
 
 ```mermaid
 classDiagram
-    direction LR
+    direction TB
 
     class UserService {
         -UserDao userDao
@@ -633,7 +634,7 @@ classDiagram
 
 ```mermaid
 classDiagram
-    direction LR
+    direction TB
 
     class Entity {
         <<abstract>>
@@ -663,9 +664,17 @@ classDiagram
         +void setTokenVersion(int tokenVersion)
     }
 
-    class Admin { +String getRole() }
-    class Seller { +String getRole() }
-    class Bidder { +String getRole() }
+    class Admin {
+        +String getRole()
+    }
+
+    class Seller {
+        +String getRole()
+    }
+
+    class Bidder {
+        +String getRole()
+    }
 
     class Item {
         <<abstract>>
@@ -681,9 +690,23 @@ classDiagram
         +void setStatus(String status)
     }
 
-    class Electronics { -String brand +String getCategory() +String getBrand() }
-    class Art { -String artist +String getCategory() +String getArtist() }
-    class Vehicle { -Integer year +String getCategory() +Integer getYear() }
+    class Electronics {
+        -String brand
+        +String getCategory()
+        +String getBrand()
+    }
+
+    class Art {
+        -String artist
+        +String getCategory()
+        +String getArtist()
+    }
+
+    class Vehicle {
+        -Integer year
+        +String getCategory()
+        +Integer getYear()
+    }
 
     class Auction {
         -Long itemId
@@ -760,9 +783,35 @@ classDiagram
         +void setStatus(String status)
     }
 
-    class AuctionStatus { <<enum>> OPEN RUNNING SETTLING FINISHED PAID CANCELED +from(String s) }
-    class AutoBidStatus { <<enum>> ACTIVE STOPPED EXHAUSTED FAILED +from(String value) }
-    class AutoBidFailureReason { <<enum>> MAX_PRICE_TOO_LOW INSUFFICIENT_BALANCE AUCTION_NOT_RUNNING BIDDER_ALREADY_HIGHEST ACTIVE_AUTOBID_EXISTS +from(String value) }
+    class AuctionStatus {
+        <<enum>>
+        OPEN
+        RUNNING
+        SETTLING
+        FINISHED
+        PAID
+        CANCELED
+        +from(String s)
+    }
+
+    class AutoBidStatus {
+        <<enum>>
+        ACTIVE
+        STOPPED
+        EXHAUSTED
+        FAILED
+        +from(String value)
+    }
+
+    class AutoBidFailureReason {
+        <<enum>>
+        MAX_PRICE_TOO_LOW
+        INSUFFICIENT_BALANCE
+        AUCTION_NOT_RUNNING
+        BIDDER_ALREADY_HIGHEST
+        ACTIVE_AUTOBID_EXISTS
+        +from(String value)
+    }
 
     Entity <|-- User
     User <|-- Admin
@@ -793,22 +842,113 @@ classDiagram
 
 ```mermaid
 classDiagram
-    direction LR
+    direction TB
 
-    class LoginRequest { -String username -String password +getUsername() +getPassword() }
-    class RegisterRequest { -String username -String email -String password -String role +getUsername() +getEmail() +getPassword() +getRole() }
-    class ForgotPasswordRequest { -String email +getEmail() }
-    class ChangePasswordRequest { -String currentPassword -String newPassword +getCurrentPassword() +getNewPassword() }
-    class DepositRequest { -BigDecimal amount +getAmount() }
-    class CreateItemRequest { -String name -String description -String category -String categoryDetail +getName() +getDescription() +getCategory() +getCategoryDetail() }
-    class CreateAuctionRequest { -Long itemId -BigDecimal startingPrice -LocalDateTime startTime -LocalDateTime endTime +getItemId() +getStartingPrice() +getStartTime() +getEndTime() }
-    class BidRequest { -BigDecimal amount +getAmount() }
-    class AutoBidRequest { -BigDecimal maxBid -BigDecimal increment +getMaxBid() +getIncrement() }
-    class PageRequest { -int page -int size -int offset +of(int page,int size) PageRequest +getLimit() int +getOffset() int }
+    class LoginRequest {
+        -String username
+        -String password
+        +getUsername()
+        +getPassword()
+    }
 
-    class UserResponse { -Long id -String username -String email -String role -BigDecimal balance -BigDecimal reservedBalance +from(User user) UserResponse }
-    class AuctionResponse { -Long id -String itemName -String itemCategory -BigDecimal startingPrice -BigDecimal currentPrice -String status -String leadingBidderUsername -long remainingTimeMs +from(Auction auction) AuctionResponse }
-    class ErrorResponse { -String code -String message +of(String code,String message) ErrorResponse }
+    class RegisterRequest {
+        -String username
+        -String email
+        -String password
+        -String role
+        +getUsername()
+        +getEmail()
+        +getPassword()
+        +getRole()
+    }
+
+    class ForgotPasswordRequest {
+        -String email
+        +getEmail()
+    }
+
+    class ChangePasswordRequest {
+        -String currentPassword
+        -String newPassword
+        +getCurrentPassword()
+        +getNewPassword()
+    }
+
+    class DepositRequest {
+        -BigDecimal amount
+        +getAmount()
+    }
+
+    class CreateItemRequest {
+        -String name
+        -String description
+        -String category
+        -String categoryDetail
+        +getName()
+        +getDescription()
+        +getCategory()
+        +getCategoryDetail()
+    }
+
+    class CreateAuctionRequest {
+        -Long itemId
+        -BigDecimal startingPrice
+        -LocalDateTime startTime
+        -LocalDateTime endTime
+        +getItemId()
+        +getStartingPrice()
+        +getStartTime()
+        +getEndTime()
+    }
+
+    class BidRequest {
+        -BigDecimal amount
+        +getAmount()
+    }
+
+    class AutoBidRequest {
+        -BigDecimal maxBid
+        -BigDecimal increment
+        +getMaxBid()
+        +getIncrement()
+    }
+
+    class PageRequest {
+        -int page
+        -int size
+        -int offset
+        +of(int page,int size) PageRequest
+        +getLimit() int
+        +getOffset() int
+    }
+
+    class UserResponse {
+        -Long id
+        -String username
+        -String email
+        -String role
+        -BigDecimal balance
+        -BigDecimal reservedBalance
+        +from(User user) UserResponse
+    }
+
+    class AuctionResponse {
+        -Long id
+        -String itemName
+        -String itemCategory
+        -BigDecimal startingPrice
+        -BigDecimal currentPrice
+        -String status
+        -String leadingBidderUsername
+        -long remainingTimeMs
+        +from(Auction auction) AuctionResponse
+    }
+
+    class ErrorResponse {
+        -String code
+        -String message
+        +of(String code,String message) ErrorResponse
+    }
 
     class BidUpdateMessage {
         +TYPE_BID_UPDATE
@@ -857,11 +997,20 @@ classDiagram
 
 ```mermaid
 classDiagram
-    direction LR
+    direction TB
 
-    class UserFactory { +create(String role) User }
-    class ItemFactory { +create(CreateItemRequest req, Long sellerId) Item -parseYear(String yearText) int }
-    class AuctionStateFactory { +create(String status) AuctionState }
+    class UserFactory {
+        +create(String role) User
+    }
+
+    class ItemFactory {
+        +create(CreateItemRequest req, Long sellerId) Item
+        -parseYear(String yearText) int
+    }
+
+    class AuctionStateFactory {
+        +create(String status) AuctionState
+    }
 
     class AuctionState {
         <<interface>>
@@ -871,7 +1020,15 @@ classDiagram
         +extend(Auction auction, long extraSeconds)
     }
 
-    class AuctionStates { +OPEN +RUNNING +SETTLING +FINISHED +PAID +CANCELED }
+    class AuctionStates {
+        +OPEN
+        +RUNNING
+        +SETTLING
+        +FINISHED
+        +PAID
+        +CANCELED
+    }
+
     class OpenState { +placeBid(...) +close(...) +edit(...) +extend(...) }
     class RunningState { +placeBid(...) +close(...) +edit(...) +extend(...) }
     class SettlingState { +placeBid(...) +close(...) +edit(...) +extend(...) }
@@ -879,13 +1036,47 @@ classDiagram
     class PaidState { +placeBid(...) +close(...) +edit(...) +extend(...) }
     class CanceledState { +placeBid(...) +close(...) +edit(...) +extend(...) }
 
-    class AuctionEventListener { <<interface>> +onBidUpdate(BidUpdateMessage msg) +onTimeExtended(BidUpdateMessage msg) +onAuctionEnd(BidUpdateMessage msg) }
-    class AuctionEventManager { -Map listeners +subscribe(Long auctionId,AuctionEventListener listener) +unsubscribe(Long auctionId,AuctionEventListener listener) +notifyBidUpdate(Long auctionId,BidUpdateMessage msg) +notifyTimeExtended(Long auctionId,BidUpdateMessage msg) +notifyAuctionEnd(Long auctionId,BidUpdateMessage msg) -notifyAll(...) }
-    class WebSocketObserver { -AuctionWebSocketHandler handler -Long auctionId +onBidUpdate(BidUpdateMessage msg) +onTimeExtended(BidUpdateMessage msg) +onAuctionEnd(BidUpdateMessage msg) }
+    class AuctionEventListener {
+        <<interface>>
+        +onBidUpdate(BidUpdateMessage msg)
+        +onTimeExtended(BidUpdateMessage msg)
+        +onAuctionEnd(BidUpdateMessage msg)
+    }
 
-    class AutoBidStrategy { -AutoBidConfigDao autoBidConfigDao -UserDao userDao +executeAll(Long auctionId,BigDecimal currentPriceAfterBid,Long initialLeaderId,AutoBidExecutor executor) +executeAllInTransaction(Handle handle,Long auctionId,BigDecimal currentPriceAfterBid,Long initialLeaderId,InTransactionBidExecutor executor) }
-    class AutoBidExecutor { <<interface>> +execute(Long auctionId,Long bidderId,BigDecimal amount) BidTransaction }
-    class InTransactionBidExecutor { <<interface>> +execute(Handle handle,Long auctionId,Long bidderId,BigDecimal amount) BidTransaction }
+    class AuctionEventManager {
+        -Map listeners
+        +subscribe(Long auctionId,AuctionEventListener listener)
+        +unsubscribe(Long auctionId,AuctionEventListener listener)
+        +notifyBidUpdate(Long auctionId,BidUpdateMessage msg)
+        +notifyTimeExtended(Long auctionId,BidUpdateMessage msg)
+        +notifyAuctionEnd(Long auctionId,BidUpdateMessage msg)
+        -notifyAll(...)
+    }
+
+    class WebSocketObserver {
+        -AuctionWebSocketHandler handler
+        -Long auctionId
+        +onBidUpdate(BidUpdateMessage msg)
+        +onTimeExtended(BidUpdateMessage msg)
+        +onAuctionEnd(BidUpdateMessage msg)
+    }
+
+    class AutoBidStrategy {
+        -AutoBidConfigDao autoBidConfigDao
+        -UserDao userDao
+        +executeAll(Long auctionId,BigDecimal currentPriceAfterBid,Long initialLeaderId,AutoBidExecutor executor)
+        +executeAllInTransaction(Handle handle,Long auctionId,BigDecimal currentPriceAfterBid,Long initialLeaderId,InTransactionBidExecutor executor)
+    }
+
+    class AutoBidExecutor {
+        <<interface>>
+        +execute(Long auctionId,Long bidderId,BigDecimal amount) BidTransaction
+    }
+
+    class InTransactionBidExecutor {
+        <<interface>>
+        +execute(Handle handle,Long auctionId,Long bidderId,BigDecimal amount) BidTransaction
+    }
 
     UserFactory ..> User
     ItemFactory ..> Item
@@ -1006,7 +1197,6 @@ classDiagram
     BackgroundBidWatcher --> NotificationStore
     UserBalanceWatcher --> WebSocketClient
     UserBalanceWatcher --> NotificationStore
-    NotificationStore --> NotificationItem
 ```
 
 ---
