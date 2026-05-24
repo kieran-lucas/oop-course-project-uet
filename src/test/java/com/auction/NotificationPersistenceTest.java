@@ -17,10 +17,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Integration tests verifying that notification read-state is persisted to the database and that
- * the server-side ownership guard prevents cross-user marking.
+ * Integration test kiểm tra rằng trạng thái đã đọc (read-state) của notification được ghi nhận vào
+ * database và guard phân quyền phía server ngăn người dùng khác đánh dấu thay.
  *
- * <p>These tests exercise the exact SQL statements used by the App.java notification endpoints:
+ * <p>Các test thực thi trực tiếp SQL giống với endpoint notification trong {@code App.java}:
  *
  * <ul>
  *   <li>{@code PATCH /api/notifications/{id}/read} → {@code UPDATE ... WHERE id=? AND user_id=?}
@@ -29,10 +29,9 @@ import org.junit.jupiter.api.Test;
  *   <li>{@code GET /api/notifications} → {@code SELECT ... WHERE user_id=?}
  * </ul>
  *
- * <p>Requires the embedded PostgreSQL started by {@link DatabaseConfig}. The suite is skipped
- * (ABORTED) when no database is available so it does not fail CI in offline environments.
+ * <p><b>Điều kiện tiên quyết:</b> PostgreSQL phải đang chạy; bị bỏ qua (ABORTED) nếu không có DB.
  */
-@DisplayName("Notification persistence — read-state survives server round-trip")
+@DisplayName("Notification persistence — trạng thái đọc tồn tại qua vòng server")
 class NotificationPersistenceTest {
 
   private static Jdbi jdbi;
@@ -109,7 +108,7 @@ class NotificationPersistenceTest {
   // ── tests ─────────────────────────────────────────────────────────────
 
   @Test
-  @DisplayName("Mark single notification read → is_read=true persists in DB")
+  @DisplayName("Đánh dấu đọc một notification → is_read=true được lưu vào DB")
   void markSingleReadPersistsToDb() {
     long notifId = insertNotification(USER_A_ID, "Bạn bị vượt giá phiên #1");
     assertFalse(isRead(notifId), "Precondition: notification starts unread");
@@ -120,7 +119,7 @@ class NotificationPersistenceTest {
   }
 
   @Test
-  @DisplayName("markAllRead → all user notifications are is_read=true in DB")
+  @DisplayName("markAllRead → tất cả notification của user được đánh dấu is_read=true trong DB")
   void markAllReadPersistsAllToDb() {
     long n1 = insertNotification(USER_A_ID, "Thông báo 1");
     long n2 = insertNotification(USER_A_ID, "Thông báo 2");
@@ -135,7 +134,7 @@ class NotificationPersistenceTest {
   }
 
   @Test
-  @DisplayName("User B cannot mark User A's notification — WHERE user_id guard")
+  @DisplayName("User B không thể đánh dấu notification của User A — guard WHERE user_id")
   void userBCannotMarkUserANotification() {
     long notifId = insertNotification(USER_A_ID, "Riêng của A");
     assertFalse(isRead(notifId), "Precondition: notification is unread");
@@ -146,7 +145,7 @@ class NotificationPersistenceTest {
   }
 
   @Test
-  @DisplayName("Refetch after markAllRead returns zero unread — logout/login regression")
+  @DisplayName("Refetch sau markAllRead trả về zero unread — regression logout/login")
   void refetchAfterMarkAllReadReturnsZeroUnread() {
     insertNotification(USER_A_ID, "Old notification 1");
     insertNotification(USER_A_ID, "Old notification 2");
@@ -164,7 +163,7 @@ class NotificationPersistenceTest {
   }
 
   @Test
-  @DisplayName("markAllRead for User A does not affect User B's notifications")
+  @DisplayName("markAllRead của User A không ảnh hưởng đến notification của User B")
   void markAllReadIsolatedToUser() {
     long notifA = insertNotification(USER_A_ID, "Của A");
     long notifB = insertNotification(USER_B_ID, "Của B");
@@ -177,7 +176,7 @@ class NotificationPersistenceTest {
   }
 
   @Test
-  @DisplayName("GET notifications returns only current user's latest notifications")
+  @DisplayName("GET notifications chỉ trả về notification của user hiện tại")
   void listNotificationsIsolatedToCurrentUser() {
     insertNotification(USER_A_ID, "A newest");
     insertNotification(USER_A_ID, "A older");

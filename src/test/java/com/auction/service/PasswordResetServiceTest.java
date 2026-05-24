@@ -26,9 +26,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+/**
+ * Unit test kiểm tra quy trình đặt lại mật khẩu của {@link PasswordResetService}.
+ *
+ * <p>Xác nhận: yêu cầu đặt lại tạo bản ghi PENDING; email không tồn tại / đã có yêu cầu pending đều
+ * bị từ chối; phê duyệt trả về mật khẩu tạm thời hợp lệ và chuyển trạng thái thành APPROVED; từ
+ * chối chuyển thành REJECTED. Jdbi.inTransaction và useTransaction được mock để chạy lambda.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("PasswordResetService — password reset workflow")
+@DisplayName("PasswordResetService — quy trình đặt lại mật khẩu")
 class PasswordResetServiceTest {
 
   @Mock private UserDao userDao;
@@ -80,7 +87,7 @@ class PasswordResetServiceTest {
   class RequestReset {
 
     @Test
-    @DisplayName("creates a PENDING reset record for an existing email")
+    @DisplayName("tạo bản ghi PENDING cho email tồn tại")
     void createsResetRecordForExistingEmail() {
       when(userDao.findByEmail(USER_EMAIL)).thenReturn(Optional.of(buildUser()));
       when(resetDao.hasPendingRequest(USER_ID)).thenReturn(false);
@@ -91,7 +98,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when email does not exist")
+    @DisplayName("ném NotFoundException khi email không tồn tại")
     void throwsNotFoundForUnknownEmail() {
       when(userDao.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
 
@@ -100,7 +107,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("throws DuplicateException when a PENDING request already exists")
+    @DisplayName("ném DuplicateException khi đã có yêu cầu PENDING")
     void throwsDuplicateWhenAlreadyPending() {
       when(userDao.findByEmail(USER_EMAIL)).thenReturn(Optional.of(buildUser()));
       when(resetDao.hasPendingRequest(USER_ID)).thenReturn(true);
@@ -110,7 +117,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("normalises email to lowercase before lookup")
+    @DisplayName("chuẩn hóa email thành chữ thường trước khi tìm kiếm")
     void normalisesEmailToLowercase() {
       when(userDao.findByEmail(USER_EMAIL)).thenReturn(Optional.of(buildUser()));
       when(resetDao.hasPendingRequest(USER_ID)).thenReturn(false);
@@ -121,7 +128,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("maps DB duplicate-key exception to DuplicateException")
+    @DisplayName("ánh xạ lỗi duplicate-key DB thành DuplicateException")
     void mapsDuplicateDbExceptionToDuplicateException() {
       when(userDao.findByEmail(USER_EMAIL)).thenReturn(Optional.of(buildUser()));
       when(resetDao.hasPendingRequest(USER_ID)).thenReturn(false);
@@ -141,7 +148,7 @@ class PasswordResetServiceTest {
   class GetPendingRequests {
 
     @Test
-    @DisplayName("returns list from DAO")
+    @DisplayName("trả về danh sách từ DAO")
     void returnsListFromDao() {
       PasswordResetRecord r1 = new PasswordResetRecord(1L);
       PasswordResetRecord r2 = new PasswordResetRecord(2L);
@@ -153,7 +160,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("returns empty list when no pending requests exist")
+    @DisplayName("trả về danh sách rỗng khi không có yêu cầu PENDING")
     void returnsEmptyListWhenNoPending() {
       when(resetDao.findByStatus("PENDING")).thenReturn(List.of());
 
@@ -168,7 +175,7 @@ class PasswordResetServiceTest {
   class ApproveReset {
 
     @Test
-    @DisplayName("returns a non-blank temporary password")
+    @DisplayName("trả về mật khẩu tạm thời không rỗng")
     void returnsNonBlankTempPassword() {
       PasswordResetRecord record = new PasswordResetRecord(USER_ID);
       record.setId(10L);
@@ -182,7 +189,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("temporary password length matches the configured constant")
+    @DisplayName("độ dài mật khẩu tạm thời đúng với hằng số cấu hình")
     void tempPasswordHasExpectedLength() {
       PasswordResetRecord record = new PasswordResetRecord(USER_ID);
       record.setId(10L);
@@ -195,7 +202,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("updates the user password hash inside the transaction")
+    @DisplayName("cập nhật hash mật khẩu user trong transaction")
     void updatesPasswordHashInTransaction() {
       PasswordResetRecord record = new PasswordResetRecord(USER_ID);
       record.setId(10L);
@@ -210,7 +217,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("transitions request status to APPROVED")
+    @DisplayName("chuyển trạng thái yêu cầu thành APPROVED")
     void transitionsRequestToApproved() {
       PasswordResetRecord record = new PasswordResetRecord(USER_ID);
       record.setId(10L);
@@ -223,7 +230,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when the request does not exist")
+    @DisplayName("ném NotFoundException khi yêu cầu không tồn tại")
     void throwsNotFoundForMissingRequest() {
       when(resetDao.findByIdForUpdate(handle, 99L)).thenReturn(Optional.empty());
 
@@ -231,7 +238,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("throws IllegalStateException when request is not PENDING")
+    @DisplayName("ném IllegalStateException khi yêu cầu không ở trạng thái PENDING")
     void throwsIllegalStateWhenAlreadyProcessed() {
       PasswordResetRecord record = new PasswordResetRecord(USER_ID);
       record.setId(10L);
@@ -249,7 +256,7 @@ class PasswordResetServiceTest {
   class RejectReset {
 
     @Test
-    @DisplayName("transitions request status to REJECTED")
+    @DisplayName("chuyển trạng thái yêu cầu thành REJECTED")
     void transitionsRequestToRejected() {
       PasswordResetRecord record = new PasswordResetRecord(USER_ID);
       record.setId(20L);
@@ -262,7 +269,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when the request does not exist")
+    @DisplayName("ném NotFoundException khi yêu cầu không tồn tại")
     void throwsNotFoundForMissingRequest() {
       when(resetDao.findByIdForUpdate(handle, 99L)).thenReturn(Optional.empty());
 
@@ -270,7 +277,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("throws IllegalStateException when request is not PENDING")
+    @DisplayName("ném IllegalStateException khi yêu cầu không ở trạng thái PENDING")
     void throwsIllegalStateWhenAlreadyProcessed() {
       PasswordResetRecord record = new PasswordResetRecord(USER_ID);
       record.setId(20L);

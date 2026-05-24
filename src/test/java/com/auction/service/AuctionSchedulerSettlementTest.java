@@ -27,6 +27,22 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Integration test kiểm tra logic thanh toán (settlement) của {@link AuctionScheduler}.
+ *
+ * <p>Các test gọi trực tiếp phương thức {@code settleAndClose()} qua reflection để kiểm soát chính
+ * xác thời điểm kết thúc phiên và xác nhận hành vi thanh toán trên DB thật.
+ *
+ * <p><b>Kịch bản kiểm tra:</b>
+ *
+ * <ul>
+ *   <li>Fallback khi số dư không đủ — chỉ release đúng reservation của phiên hiện tại.
+ *   <li>Dùng dữ liệu bidder mới nhất sau khi refetch trong transaction (stale snapshot safety).
+ *   <li>Không settle sớm khi anti-sniping đã gia hạn endTime.
+ * </ul>
+ *
+ * <p><b>Điều kiện tiên quyết:</b> PostgreSQL phải đang chạy; bị bỏ qua (ABORTED) nếu không có DB.
+ */
 class AuctionSchedulerSettlementTest {
 
   private static Jdbi jdbi;

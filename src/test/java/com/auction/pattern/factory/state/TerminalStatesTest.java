@@ -11,13 +11,17 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Covers the four states whose contract is "reject every action": FinishedState, SettlingState,
- * PaidState, CanceledState. Grouped into a single test class because each state's behaviour is
- * identical in shape and we only need to verify the right exception type is thrown.
+ * Kiểm thử bốn trạng thái từ chối mọi hành động: {@link FinishedState}, {@link SettlingState},
+ * {@link PaidState}, {@link CanceledState}.
+ *
+ * <p>Nhóm vào một lớp test duy nhất vì hành vi của chúng có cùng cấu trúc — chỉ cần xác nhận đúng
+ * loại exception được ném. Ngoại lệ: {@link FinishedState#close(Auction)} cho phép để chuyển sang
+ * PAID.
  */
-@DisplayName("Terminal & locked AuctionStates")
+@DisplayName("Trạng thái cuối và khóa (Terminal & locked AuctionStates)")
 class TerminalStatesTest {
 
+  /** Tạo phiên đấu giá đã hết giờ (startTime và endTime đều trong quá khứ). */
   private static Auction auction() {
     Auction auction =
         new Auction(
@@ -30,6 +34,7 @@ class TerminalStatesTest {
     return auction;
   }
 
+  /** Helper xác nhận tất cả hành động ngoại trừ close() đều bị từ chối. */
   private static void assertAllRejected(AuctionState state) {
     Auction a = auction();
     assertThrows(
@@ -44,7 +49,7 @@ class TerminalStatesTest {
     private final FinishedState state = new FinishedState();
 
     @Test
-    @DisplayName("rejects bid/edit/extend")
+    @DisplayName("từ chối placeBid/edit/extend — phiên đã kết thúc")
     void rejectsMostActions() {
       Auction a = auction();
       assertThrows(
@@ -54,7 +59,7 @@ class TerminalStatesTest {
     }
 
     @Test
-    @DisplayName("close() succeeds — allowed for PAID transition")
+    @DisplayName("close() thành công — cho phép chuyển sang PAID")
     void closeAllowed() {
       assertDoesNotThrow(() -> state.close(auction()));
     }
@@ -66,7 +71,7 @@ class TerminalStatesTest {
     private final SettlingState state = new SettlingState();
 
     @Test
-    @DisplayName("rejects every external action while settlement runs")
+    @DisplayName("từ chối mọi hành động trong lúc settlement đang chạy")
     void rejectsAll() {
       Auction a = auction();
       assertThrows(
@@ -78,12 +83,12 @@ class TerminalStatesTest {
   }
 
   @Nested
-  @DisplayName("PaidState (terminal positive)")
+  @DisplayName("PaidState (trạng thái cuối tích cực)")
   class Paid {
     private final PaidState state = new PaidState();
 
     @Test
-    @DisplayName("rejects every action — auction is closed permanently")
+    @DisplayName("từ chối mọi hành động — phiên đã thanh toán và đóng băng vĩnh viễn")
     void rejectsAll() {
       Auction a = auction();
       assertThrows(
@@ -95,12 +100,12 @@ class TerminalStatesTest {
   }
 
   @Nested
-  @DisplayName("CanceledState (terminal negative)")
+  @DisplayName("CanceledState (trạng thái cuối tiêu cực)")
   class Canceled {
     private final CanceledState state = new CanceledState();
 
     @Test
-    @DisplayName("rejects every action")
+    @DisplayName("từ chối mọi hành động — phiên đã bị hủy và đóng băng vĩnh viễn")
     void rejectsAll() {
       Auction a = auction();
       assertThrows(

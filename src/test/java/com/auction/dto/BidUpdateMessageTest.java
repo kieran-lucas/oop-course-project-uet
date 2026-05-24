@@ -8,15 +8,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Unit tests for the static factory methods on {@link BidUpdateMessage}. Each factory should set
- * the correct {@code type} discriminator and only populate the fields relevant to that message
- * type.
+ * Kiểm thử các static factory method của {@link BidUpdateMessage}.
+ *
+ * <p>Mỗi factory phải đặt đúng discriminator {@code type} và chỉ populate các trường liên quan đến
+ * loại thông điệp đó.
  */
 @DisplayName("BidUpdateMessage factories")
 class BidUpdateMessageTest {
 
   @Test
-  @DisplayName("bidUpdate() sets type=BID_UPDATE and all bid fields")
+  @DisplayName("bidUpdate() đặt type=BID_UPDATE v�� đầy đủ các trường bid")
   void bidUpdateFactory() {
     LocalDateTime end = LocalDateTime.now().plusMinutes(10);
     BidUpdateMessage msg =
@@ -33,7 +34,7 @@ class BidUpdateMessageTest {
   }
 
   @Test
-  @DisplayName("timeExtended() sets type=TIME_EXTENDED and new endTime only")
+  @DisplayName("timeExtended() đặt type=TIME_EXTENDED và chỉ có endTime mới")
   void timeExtendedFactory() {
     LocalDateTime end = LocalDateTime.now().plusMinutes(2);
     BidUpdateMessage msg = BidUpdateMessage.timeExtended(5L, end);
@@ -46,7 +47,7 @@ class BidUpdateMessageTest {
   }
 
   @Test
-  @DisplayName("auctionEnded() sets type=AUCTION_ENDED with final price + winner")
+  @DisplayName("auctionEnded() đặt type=AUCTION_ENDED với giá cuối và winner")
   void auctionEndedFactory() {
     BidUpdateMessage msg = BidUpdateMessage.auctionEnded(5L, new BigDecimal("999000"), 7L, "alice");
 
@@ -58,7 +59,7 @@ class BidUpdateMessageTest {
   }
 
   @Test
-  @DisplayName("auctionEnded() accepts a null winner for empty auctions")
+  @DisplayName("auctionEnded() chấp nhận winner null (phiên không có ai đặt giá)")
   void auctionEndedNoWinner() {
     BidUpdateMessage msg = BidUpdateMessage.auctionEnded(5L, new BigDecimal("0"), null, null);
 
@@ -68,14 +69,14 @@ class BidUpdateMessageTest {
   }
 
   @Test
-  @DisplayName("balanceUpdated() sets type=BALANCE_UPDATED and approval flag")
+  @DisplayName("balanceUpdated() đặt type=BALANCE_UPDATED và c�� approved")
   void balanceUpdatedFactory() {
     BidUpdateMessage msg =
         BidUpdateMessage.balanceUpdated(
             42L, new BigDecimal("1500000"), new BigDecimal("500000"), true);
 
     assertEquals(BidUpdateMessage.TYPE_BALANCE_UPDATED, msg.getType());
-    assertEquals(42L, msg.getAuctionId()); // doubles as userId — see Javadoc
+    assertEquals(42L, msg.getAuctionId()); // doubles as userId — xem Javadoc
     assertEquals(0, new BigDecimal("1500000").compareTo(msg.getNewBalance()));
     assertEquals(0, new BigDecimal("500000").compareTo(msg.getBalanceDelta()));
     assertTrue(msg.isApproved());

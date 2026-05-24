@@ -29,7 +29,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Wallet transaction ledger")
+/**
+ * Integration test kiểm tra tính toàn vẹn của sổ cái giao dịch ví ({@code wallet_transactions}).
+ *
+ * <p>Xác nhận rằng mỗi sự kiện tài chính — nạp tiền, đặt giá (freeze), bị vượt giá (release), hoàn
+ * tất đấu giá (win_consume + seller_payout) — tạo ra đúng số lượng bản ghi ledger với đúng loại
+ * ({@code kind}) và số tiền ({@code amount}). Nếu transaction rollback, không có bản ghi orphan nào
+ * được tạo ra.
+ *
+ * <p><b>Điều kiện tiên quyết:</b> PostgreSQL phải đang chạy; bị bỏ qua (ABORTED) nếu không có DB.
+ */
+@DisplayName("Sổ cái giao dịch ví — FREEZE / RELEASE / WIN_CONSUME / SELLER_PAYOUT")
 class WalletLedgerIntegrationTest {
 
   private static Jdbi jdbi;
@@ -97,7 +107,7 @@ class WalletLedgerIntegrationTest {
   }
 
   @Test
-  @DisplayName("Deposit approval creates DEPOSIT ledger row")
+  @DisplayName("Duyệt nạp tiền → tạo bản ghi DEPOSIT trong sổ cái")
   void depositApprovalCreatesLedger() {
     var request = userService.requestDeposit(bidderA.getId(), new BigDecimal("250000"));
 
@@ -108,7 +118,7 @@ class WalletLedgerIntegrationTest {
   }
 
   @Test
-  @DisplayName("Bid freeze and outbid release create ledger rows")
+  @DisplayName("Đặt giá → FREEZE; bị vượt giá → RELEASE — cả hai tạo bản ghi sổ cái")
   void bidFreezeAndOutbidReleaseCreateLedger() {
     Auction auction = createRunningAuction("Bid ledger item");
 
@@ -121,7 +131,7 @@ class WalletLedgerIntegrationTest {
   }
 
   @Test
-  @DisplayName("Failed bid transaction leaves no ledger rows")
+  @DisplayName("Transaction bid thất bại (rollback) → không để lại bản ghi orphan trong sổ cái")
   void failedBidRollbackLeavesNoLedgerRows() {
     Auction auction = createRunningAuction("Rollback ledger item");
 
@@ -145,7 +155,8 @@ class WalletLedgerIntegrationTest {
   }
 
   @Test
-  @DisplayName("Settlement creates WIN_CONSUME and SELLER_PAYOUT ledger rows")
+  @DisplayName(
+      "Hoàn tất đấu giá → tạo bản ghi WIN_CONSUME (người thắng) và SELLER_PAYOUT (người bán)")
   void settlementCreatesWinnerAndSellerLedgerRows() throws Exception {
     Auction auction = createRunningAuction("Settlement ledger item");
     bidService.placeBid(auction.getId(), bidderA.getId(), new BigDecimal("200000"), false);

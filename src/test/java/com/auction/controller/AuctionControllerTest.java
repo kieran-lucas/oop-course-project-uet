@@ -28,9 +28,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+/**
+ * Unit test kiểm tra các handler method của {@link AuctionController} qua reflection.
+ *
+ * <p>Xác nhận phân quyền role (chỉ SELLER được tạo/cập nhật; SELLER hoặc ADMIN được hủy), và đảm
+ * bảo service được gọi đúng với tham số đúng khi role hợp lệ.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("AuctionController — handler method coverage")
+@DisplayName("AuctionController — kiểm tra đầy đủ handler method")
 class AuctionControllerTest {
 
   @Mock(answer = Answers.RETURNS_SELF)
@@ -91,7 +97,7 @@ class AuctionControllerTest {
   class HandleGetById {
 
     @Test
-    @DisplayName("returns enriched auction response for existing auction")
+    @DisplayName("trả về AuctionResponse đầy đủ cho auction tồn tại")
     void returnsAuctionResponse() throws Exception {
       when(ctx.pathParam("id")).thenReturn("10");
       when(auctionService.getById(AUCTION_ID)).thenReturn(buildResponse());
@@ -111,7 +117,7 @@ class AuctionControllerTest {
   class HandleCreate {
 
     @Test
-    @DisplayName("SELLER can create an auction")
+    @DisplayName("SELLER được tạo phiên đấu giá")
     void sellerCanCreate() throws Exception {
       CreateAuctionRequest req = buildCreateRequest();
       when(ctx.attribute("role")).thenReturn("SELLER");
@@ -126,7 +132,7 @@ class AuctionControllerTest {
     }
 
     @Test
-    @DisplayName("non-SELLER role throws UnauthorizedException")
+    @DisplayName("role không phải SELLER — ném UnauthorizedException")
     void bidderCannotCreate() throws Exception {
       when(ctx.attribute("role")).thenReturn("BIDDER");
 
@@ -142,7 +148,7 @@ class AuctionControllerTest {
   class HandleDelete {
 
     @Test
-    @DisplayName("SELLER can cancel their auction")
+    @DisplayName("SELLER được hủy phiên của mình")
     void sellerCanDelete() throws Exception {
       when(ctx.attribute("role")).thenReturn("SELLER");
       when(ctx.attribute("userId")).thenReturn(SELLER_ID);
@@ -155,7 +161,7 @@ class AuctionControllerTest {
     }
 
     @Test
-    @DisplayName("ADMIN can cancel any auction")
+    @DisplayName("ADMIN được hủy bất kỳ phiên nào")
     void adminCanDelete() throws Exception {
       when(ctx.attribute("role")).thenReturn("ADMIN");
       when(ctx.attribute("userId")).thenReturn(99L);
@@ -167,7 +173,7 @@ class AuctionControllerTest {
     }
 
     @Test
-    @DisplayName("BIDDER role throws UnauthorizedException")
+    @DisplayName("role BIDDER — ném UnauthorizedException")
     void bidderCannotDelete() throws Exception {
       when(ctx.attribute("role")).thenReturn("BIDDER");
       when(ctx.attribute("userId")).thenReturn(SELLER_ID);
@@ -185,7 +191,7 @@ class AuctionControllerTest {
   class HandleUpdate {
 
     @Test
-    @DisplayName("SELLER can update an OPEN auction")
+    @DisplayName("SELLER được cập nhật phiên OPEN")
     void sellerCanUpdate() throws Exception {
       CreateAuctionRequest req = buildCreateRequest();
       when(ctx.attribute("role")).thenReturn("SELLER");
@@ -202,7 +208,7 @@ class AuctionControllerTest {
     }
 
     @Test
-    @DisplayName("non-SELLER role throws UnauthorizedException")
+    @DisplayName("role không phải SELLER — ném UnauthorizedException")
     void adminCannotUpdate() throws Exception {
       when(ctx.attribute("role")).thenReturn("ADMIN");
 

@@ -31,7 +31,26 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 
+/**
+ * Integration test kiểm tra tính đúng đắn của {@link BidService} dưới tải đồng thời trên DB thật.
+ *
+ * <p>Sử dụng {@code @TestInstance(PER_CLASS)} để tái dùng connection pool JDBI và service instances
+ * xuyên suốt các test, tránh khởi tạo lại chi phí cao.
+ *
+ * <p><b>Phạm vi kiểm tra:</b>
+ *
+ * <ul>
+ *   <li>10 bid đồng thời trên cùng auction → đúng 1 thành công (SELECT FOR UPDATE).
+ *   <li>Các bid tăng dần đồng thời → cuối cùng bid cao nhất thắng, người thua được release.
+ *   <li>Cùng bidder bid 2 auction cùng lúc → balance không bị overcommit.
+ *   <li>Outbid đồng thời → reservation trước được release, người thắng được freeze.
+ *   <li>Manual bid trigger auto-bid chain → balance freeze/release nhất quán.
+ * </ul>
+ *
+ * <p><b>Điều kiện tiên quyết:</b> PostgreSQL phải đang chạy; bị bỏ qua (ABORTED) nếu không có DB.
+ */
 @TestInstance(Lifecycle.PER_CLASS)
+@DisplayName("BidService — đặt giá đồng thời với DB thật (concurrency)")
 class BidServiceConcurrencyTest {
 
   private Jdbi jdbi;

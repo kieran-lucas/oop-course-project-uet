@@ -12,15 +12,20 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Model layer")
+/**
+ * Kiểm thử tầng Model — kế thừa, đa hình, đóng gói, logic nghiệp vụ cơ bản.
+ *
+ * <p>Không cần kết nối DB — tất cả test khởi tạo model trực tiếp (pure unit test).
+ */
+@DisplayName("Tầng Model")
 class ModelTest {
 
   @Nested
-  @DisplayName("Inheritance — Entity → User → Bidder/Seller/Admin")
+  @DisplayName("Kế thừa — Entity → User → Bidder/Seller/Admin")
   class UserHierarchy {
 
     @Test
-    @DisplayName("Bidder inherits id and createdAt from Entity")
+    @DisplayName("Bidder kế thừa id và createdAt từ Entity")
     void bidderInheritsEntity() {
       Bidder bidder = new Bidder("quan", "hash123", "quan@example.com");
       // createdAt được set tự động bởi Entity constructor
@@ -30,7 +35,7 @@ class ModelTest {
     }
 
     @Test
-    @DisplayName("Bidder inherits username and email from User")
+    @DisplayName("Bidder kế thừa username và email từ User")
     void bidderInheritsUser() {
       Bidder bidder = new Bidder("quan", "hash123", "quan@example.com");
       assertEquals("quan", bidder.getUsername());
@@ -39,11 +44,11 @@ class ModelTest {
   }
 
   @Nested
-  @DisplayName("Polymorphism — getRole() and getCategory()")
+  @DisplayName("Đa hình — getRole() và getCategory()")
   class Polymorphism {
 
     @Test
-    @DisplayName("Each User subclass returns different role")
+    @DisplayName("Mỗi subclass User trả về role khác nhau")
     void userRoles() {
       User bidder = new Bidder("a", "h", "a@x.com");
       User seller = new Seller("b", "h", "b@x.com");
@@ -55,7 +60,7 @@ class ModelTest {
     }
 
     @Test
-    @DisplayName("Can treat all Users polymorphically")
+    @DisplayName("Có thể xử lý tất cả User đa hình qua interface chung")
     void polymorphicList() {
       // Đây chính xác là cách DAO trả về danh sách users:
       // mỗi user có thể là Bidder, Seller, hoặc Admin
@@ -74,7 +79,7 @@ class ModelTest {
     }
 
     @Test
-    @DisplayName("Each Item subclass returns different category")
+    @DisplayName("Mỗi subclass Item trả về category khác nhau")
     void itemCategories() {
       Item electronics = new Electronics("iPhone", "Phone", 1L, "Apple");
       Item art = new Art("Mona Lisa", "Painting", 1L, "Da Vinci");
@@ -87,15 +92,13 @@ class ModelTest {
   }
 
   @Nested
-  @DisplayName("Encapsulation — private fields + getters/setters")
+  @DisplayName("Đóng gói — trường private + getter/setter")
   class Encapsulation {
 
     @Test
-    @DisplayName("Cannot access fields directly, must use getters")
+    @DisplayName("Không thể truy cập trực tiếp, phải dùng getter")
     void fieldsArePrivate() {
-      // Nếu ai đó đổi private thành public, test này vẫn pass
-      // nhưng checkstyle sẽ bắt lỗi.
-      // Test này kiểm tra getter/setter hoạt động đúng.
+      // Test này kiểm tra getter/setter hoạt động đúng
       Bidder bidder = new Bidder();
       bidder.setUsername("quan");
       bidder.setEmail("quan@example.com");
@@ -106,11 +109,11 @@ class ModelTest {
   }
 
   @Nested
-  @DisplayName("Auction — business logic")
+  @DisplayName("Auction — logic nghiệp vụ")
   class AuctionTests {
 
     @Test
-    @DisplayName("New auction has status OPEN and currentPrice = startingPrice")
+    @DisplayName("Phiên mới có status OPEN và currentPrice = startingPrice")
     void newAuctionDefaults() {
       Auction auction =
           new Auction(
@@ -122,38 +125,38 @@ class ModelTest {
     }
 
     @Test
-    @DisplayName("isExpired returns true after endTime")
+    @DisplayName("isExpired trả về true sau endTime")
     void expiredAuction() {
       Auction auction =
           new Auction(
               1L,
               new BigDecimal("100000"),
               LocalDateTime.now().minusHours(3),
-              LocalDateTime.now().minusHours(1)); // ended 1 hour ago
+              LocalDateTime.now().minusHours(1)); // đã kết thúc 1 giờ trước
 
       assertTrue(auction.isExpired());
     }
 
     @Test
-    @DisplayName("isExpired returns false before endTime")
+    @DisplayName("isExpired trả về false khi chưa đến endTime")
     void activeAuction() {
       Auction auction =
           new Auction(
               1L,
               new BigDecimal("100000"),
               LocalDateTime.now(),
-              LocalDateTime.now().plusHours(2)); // ends in 2 hours
+              LocalDateTime.now().plusHours(2)); // còn 2 giờ nữa mới kết thúc
 
       assertFalse(auction.isExpired());
     }
   }
 
   @Nested
-  @DisplayName("Item — lifecycle status")
+  @DisplayName("Item — trạng thái vòng đời")
   class ItemTests {
 
     @Test
-    @DisplayName("New item has status AVAILABLE")
+    @DisplayName("Item mới có status AVAILABLE mặc định")
     void newItemDefaultsToAvailable() {
       Item item = new Electronics("Phone", "New phone", 1L, "Apple");
 
@@ -162,11 +165,11 @@ class ModelTest {
   }
 
   @Nested
-  @DisplayName("AutoBidConfig — budget check")
+  @DisplayName("AutoBidConfig — kiểm tra ngân sách")
   class AutoBidTests {
 
     @Test
-    @DisplayName("canBidAt returns true when within budget")
+    @DisplayName("canBidAt trả về true khi còn trong ngân sách")
     void withinBudget() {
       AutoBidConfig config =
           new AutoBidConfig(
@@ -180,7 +183,7 @@ class ModelTest {
     }
 
     @Test
-    @DisplayName("canBidAt returns false when over budget")
+    @DisplayName("canBidAt trả về false khi vượt ngân sách")
     void overBudget() {
       AutoBidConfig config =
           new AutoBidConfig(
@@ -194,7 +197,7 @@ class ModelTest {
     }
 
     @Test
-    @DisplayName("getNextBidAmount calculates correctly")
+    @DisplayName("getNextBidAmount tính đúng currentPrice + increment")
     void nextBidAmount() {
       AutoBidConfig config =
           new AutoBidConfig(1L, 1L, new BigDecimal("1000000"), new BigDecimal("50000"));
@@ -205,20 +208,20 @@ class ModelTest {
   }
 
   @Nested
-  @DisplayName("Entity — equals and hashCode")
+  @DisplayName("Entity — equals và hashCode")
   class EqualityTests {
 
     @Test
-    @DisplayName("Two entities with same id are equal")
+    @DisplayName("Hai entity cùng id thì bằng nhau")
     void sameIdEquals() {
       Bidder a = new Bidder(1L, "quan", "h", "q@x.com", LocalDateTime.now());
       Bidder b = new Bidder(1L, "different", "h", "d@x.com", LocalDateTime.now());
 
-      assertEquals(a, b); // same id → equal, regardless of other fields
+      assertEquals(a, b); // cùng id → bằng nhau, bất kể trường khác
     }
 
     @Test
-    @DisplayName("Two entities with different id are not equal")
+    @DisplayName("Hai entity khác id thì không bằng nhau")
     void differentIdNotEquals() {
       Bidder a = new Bidder(1L, "quan", "h", "q@x.com", LocalDateTime.now());
       Bidder b = new Bidder(2L, "quan", "h", "q@x.com", LocalDateTime.now());

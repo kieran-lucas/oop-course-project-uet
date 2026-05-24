@@ -12,13 +12,19 @@ import com.auction.model.Vehicle;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Kiểm thử {@link ItemFactory} — factory tạo đúng kiểu con Item từ yêu cầu tạo sản phẩm.
+ *
+ * <p>Bao phủ ba loại sản phẩm hợp lệ (Electronics, Art, Vehicle) và trường hợp category không hợp
+ * lệ. Không cần kết nối DB — pure unit test.
+ */
 @DisplayName("ItemFactory")
 class ItemFactoryTest {
 
   private static final Long SELLER_ID = 42L;
 
   @Test
-  @DisplayName("Creates Electronics with brand")
+  @DisplayName("tạo Electronics với brand từ categoryDetail")
   void createsElectronics() {
     Item item = ItemFactory.create(request("Laptop", "Desc", "ELECTRONICS", "Dell"), SELLER_ID);
 
@@ -28,7 +34,7 @@ class ItemFactoryTest {
   }
 
   @Test
-  @DisplayName("Creates Art with artist")
+  @DisplayName("tạo Art với artist từ categoryDetail")
   void createsArt() {
     Item item = ItemFactory.create(request("Painting", "Desc", "ART", "Da Vinci"), SELLER_ID);
 
@@ -38,7 +44,7 @@ class ItemFactoryTest {
   }
 
   @Test
-  @DisplayName("Creates Vehicle with year")
+  @DisplayName("tạo Vehicle với year được parse từ categoryDetail")
   void createsVehicle() {
     Item item = ItemFactory.create(request("Car", "Desc", "VEHICLE", "2022"), SELLER_ID);
 
@@ -48,7 +54,7 @@ class ItemFactoryTest {
   }
 
   @Test
-  @DisplayName("Rejects unknown category")
+  @DisplayName("ném IllegalArgumentException khi category không hợp lệ")
   void rejectsUnknownCategory() {
     assertThrows(
         IllegalArgumentException.class,

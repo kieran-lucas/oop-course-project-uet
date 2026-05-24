@@ -9,8 +9,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Tests for the three domain enums: AuctionStatus, AutoBidStatus, AutoBidFailureReason. Each enum
- * exposes a {@code from(String)} parser that is exercised here.
+ * Kiểm thử ba enum nghiệp vụ: {@link AuctionStatus}, {@link AutoBidStatus}, {@link
+ * AutoBidFailureReason}. Mỗi enum cung cấp phương thức {@code from(String)} để parse từ chuỗi trong
+ * DB — được ki���m thử kỹ ở đây.
  */
 @DisplayName("Domain enums")
 class DomainEnumsTest {
@@ -21,15 +22,14 @@ class DomainEnumsTest {
 
     @ParameterizedTest(name = "[{index}] {0}")
     @ValueSource(strings = {"OPEN", "open", "Open", " OPEN "})
-    @DisplayName("parses OPEN case-insensitively (after trim where applicable)")
+    @DisplayName("parse OPEN không phân biệt hoa thường (sau khi trim)")
     void parsesOpen(String input) {
-      // Note: from() does not trim — call sites are expected to pass clean values.
-      // We trim here to align with the contract used by AuctionMapper.
+      // from() không tự trim — caller phải trim trước (như AuctionMapper làm)
       assertEquals(AuctionStatus.OPEN, AuctionStatus.from(input.trim()));
     }
 
     @Test
-    @DisplayName("parses every concrete value")
+    @DisplayName("parse được mọi giá trị enum")
     void parsesAllValues() {
       for (AuctionStatus expected : AuctionStatus.values()) {
         assertEquals(expected, AuctionStatus.from(expected.name()));
@@ -37,7 +37,7 @@ class DomainEnumsTest {
     }
 
     @Test
-    @DisplayName("rejects unknown value with IllegalArgumentException")
+    @DisplayName("ném IllegalArgumentException cho giá trị không biết")
     void rejectsUnknown() {
       assertThrows(IllegalArgumentException.class, () -> AuctionStatus.from("UNKNOWN"));
     }
@@ -48,7 +48,7 @@ class DomainEnumsTest {
   class AutoBidStatusTest {
 
     @Test
-    @DisplayName("returns ACTIVE for null and blank input")
+    @DisplayName("trả về ACTIVE cho null và chuỗi trống/blank")
     void defaultsToActive() {
       assertEquals(AutoBidStatus.ACTIVE, AutoBidStatus.from(null));
       assertEquals(AutoBidStatus.ACTIVE, AutoBidStatus.from(""));
@@ -56,7 +56,7 @@ class DomainEnumsTest {
     }
 
     @Test
-    @DisplayName("parses every concrete status")
+    @DisplayName("parse được mọi trạng thái")
     void parsesAll() {
       for (AutoBidStatus expected : AutoBidStatus.values()) {
         assertEquals(expected, AutoBidStatus.from(expected.name()));
@@ -64,7 +64,7 @@ class DomainEnumsTest {
     }
 
     @Test
-    @DisplayName("rejects unknown status")
+    @DisplayName("ném IllegalArgumentException cho trạng thái không biết")
     void rejectsUnknown() {
       assertThrows(IllegalArgumentException.class, () -> AutoBidStatus.from("RUNNING"));
     }
@@ -75,7 +75,7 @@ class DomainEnumsTest {
   class FailureReasonTest {
 
     @Test
-    @DisplayName("returns null for null and blank input")
+    @DisplayName("trả về null cho null và chuỗi trống/blank")
     void returnsNullForBlank() {
       assertNull(AutoBidFailureReason.from(null));
       assertNull(AutoBidFailureReason.from(""));
@@ -83,7 +83,7 @@ class DomainEnumsTest {
     }
 
     @Test
-    @DisplayName("parses every concrete reason")
+    @DisplayName("parse được mọi lý do thất bại")
     void parsesAll() {
       for (AutoBidFailureReason expected : AutoBidFailureReason.values()) {
         assertEquals(expected, AutoBidFailureReason.from(expected.name()));
@@ -91,7 +91,7 @@ class DomainEnumsTest {
     }
 
     @Test
-    @DisplayName("rejects unknown reason")
+    @DisplayName("ném IllegalArgumentException cho lý do không biết")
     void rejectsUnknown() {
       assertThrows(IllegalArgumentException.class, () -> AutoBidFailureReason.from("UNKNOWN"));
     }

@@ -10,11 +10,18 @@ import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("AuctionWebSocketHandler token expiration")
+/**
+ * Kiểm tra logic tính toán thời gian hết hạn token trong {@link AuctionWebSocketHandler}.
+ *
+ * <p>Phương thức {@code millisUntilExpiration()} quyết định khi nào đóng kết nối WebSocket sau khi
+ * token hết hạn. Test dùng mock {@link com.auth0.jwt.interfaces.DecodedJWT} để kiểm soát thời gian
+ * hết hạn mà không cần tạo token thật.
+ */
+@DisplayName("AuctionWebSocketHandler — tính toán thời gian hết hạn token")
 class AuctionWebSocketHandlerTest {
 
   @Test
-  @DisplayName("Expired token schedules immediate WebSocket close")
+  @DisplayName("Token đã hết hạn → lên lịch đóng WebSocket ngay lập tức (delay = 0)")
   void expiredTokenSchedulesImmediateClose() {
     Instant now = Instant.parse("2026-05-15T00:00:00Z");
     DecodedJWT decoded = mock(DecodedJWT.class);
@@ -26,7 +33,7 @@ class AuctionWebSocketHandlerTest {
   }
 
   @Test
-  @DisplayName("Future token schedules close at expiration")
+  @DisplayName("Token còn hạn → lên lịch đóng WebSocket đúng tại thời điểm hết hạn")
   void futureTokenSchedulesCloseAtExpiration() {
     Instant now = Instant.parse("2026-05-15T00:00:00Z");
     DecodedJWT decoded = mock(DecodedJWT.class);

@@ -8,30 +8,30 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Lightweight tests for the domain model classes — getRole() polymorphism, Item subclass category
- * dispatch, and Entity identity semantics. Pure unit tests, no database.
+ * Kiểm thử nhẹ cho các lớp domain model: đa hình {@code getRole()}, phân loại theo category của
+ * Item, và ngữ nghĩa identity của Entity. Không cần kết nối DB ��� pure unit test.
  */
 @DisplayName("Domain model")
 class DomainModelTest {
 
   @Nested
-  @DisplayName("User hierarchy")
+  @DisplayName("Cây kế thừa User")
   class UserHierarchy {
 
     @Test
-    @DisplayName("Bidder.getRole() returns BIDDER")
+    @DisplayName("Bidder.getRole() trả về BIDDER")
     void bidderRole() {
       assertEquals("BIDDER", new Bidder().getRole());
     }
 
     @Test
-    @DisplayName("Seller.getRole() returns SELLER")
+    @DisplayName("Seller.getRole() trả về SELLER")
     void sellerRole() {
       assertEquals("SELLER", new Seller().getRole());
     }
 
     @Test
-    @DisplayName("Admin.getRole() returns ADMIN")
+    @DisplayName("Admin.getRole() trả về ADMIN")
     void adminRole() {
       assertEquals("ADMIN", new Admin().getRole());
     }
@@ -47,7 +47,7 @@ class DomainModelTest {
     }
 
     @Test
-    @DisplayName("availableBalance treats null balance/reserved as zero")
+    @DisplayName("availableBalance coi null balance/reserved là 0")
     void availableBalanceHandlesNull() {
       User user = new Bidder();
       user.setBalance(null);
@@ -58,11 +58,11 @@ class DomainModelTest {
   }
 
   @Nested
-  @DisplayName("Item hierarchy")
+  @DisplayName("Cây kế thừa Item")
   class ItemHierarchy {
 
     @Test
-    @DisplayName("Electronics.getCategory() returns ELECTRONICS and exposes brand")
+    @DisplayName("Electronics.getCategory() trả về ELECTRONICS và có brand")
     void electronics() {
       Electronics e = new Electronics("Laptop", "Mỏng nhẹ", 1L, "Dell");
       assertEquals("ELECTRONICS", e.getCategory());
@@ -70,7 +70,7 @@ class DomainModelTest {
     }
 
     @Test
-    @DisplayName("Art.getCategory() returns ART and exposes artist")
+    @DisplayName("Art.getCategory() trả về ART và có artist")
     void art() {
       Art a = new Art("Mona Lisa", "Sơn dầu", 1L, "Da Vinci");
       assertEquals("ART", a.getCategory());
@@ -78,7 +78,7 @@ class DomainModelTest {
     }
 
     @Test
-    @DisplayName("Vehicle.getCategory() returns VEHICLE and exposes year")
+    @DisplayName("Vehicle.getCategory() trả về VEHICLE và có year")
     void vehicle() {
       Vehicle v = new Vehicle("Honda Civic", "Đời mới", 1L, 2024);
       assertEquals("VEHICLE", v.getCategory());
@@ -86,7 +86,7 @@ class DomainModelTest {
     }
 
     @Test
-    @DisplayName("Item.status defaults to AVAILABLE")
+    @DisplayName("Item.status mặc ��ịnh là AVAILABLE")
     void defaultStatus() {
       Item item = new Electronics("X", "Y", 1L, "Sony");
       assertEquals("AVAILABLE", item.getStatus());
@@ -98,7 +98,7 @@ class DomainModelTest {
   class EntityEquality {
 
     @Test
-    @DisplayName("two entities of the same class with the same id are equal")
+    @DisplayName("hai entity cùng lớp, cùng id thì bằng nhau")
     void sameIdEqual() {
       User a = new Bidder();
       a.setId(5L);
@@ -110,7 +110,7 @@ class DomainModelTest {
     }
 
     @Test
-    @DisplayName("different ids → not equal")
+    @DisplayName("khác id → không bằng nhau")
     void differentIdNotEqual() {
       User a = new Bidder();
       a.setId(1L);
@@ -121,7 +121,7 @@ class DomainModelTest {
     }
 
     @Test
-    @DisplayName("entity is not equal to null or a foreign type")
+    @DisplayName("entity không bằng null hay kiểu khác")
     void notEqualToNullOrOther() {
       User a = new Bidder();
       a.setId(1L);

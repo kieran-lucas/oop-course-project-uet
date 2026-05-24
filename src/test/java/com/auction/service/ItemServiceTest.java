@@ -20,8 +20,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+/**
+ * Unit test kiểm tra các thao tác CRUD item và kiểm soát quyền sở hữu của {@link ItemService}.
+ *
+ * <p>Xác nhận rằng: chỉ chủ sở hữu (sellerId khớp) mới được cập nhật/xóa item; ADMIN có thể xóa bất
+ * kỳ item nào; các thao tác ủy quyền đúng cho {@link ItemDao}.
+ */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ItemService — item CRUD and ownership enforcement")
+@DisplayName("ItemService — CRUD item và kiểm soát quyền sở hữu")
 class ItemServiceTest {
 
   @Mock private ItemDao itemDao;
@@ -59,7 +65,7 @@ class ItemServiceTest {
   class CreateItem {
 
     @Test
-    @DisplayName("inserts item and returns the persisted entity")
+    @DisplayName("tạo item và trả về bản ghi đã được lưu")
     void insertsAndReturnsItem() {
       Item persisted = buildItem(SELLER_ID);
       when(itemDao.insert(any(Item.class))).thenReturn(persisted);
@@ -79,7 +85,7 @@ class ItemServiceTest {
   class GetAll {
 
     @Test
-    @DisplayName("delegates to itemDao.findAll()")
+    @DisplayName("ủy quyền cho itemDao.findAll()")
     void returnsAllItems() {
       List<Item> items = List.of(buildItem(SELLER_ID), buildItem(OTHER_SELLER_ID));
       when(itemDao.findAll()).thenReturn(items);
@@ -88,7 +94,7 @@ class ItemServiceTest {
     }
 
     @Test
-    @DisplayName("returns empty list when no items exist")
+    @DisplayName("trả về danh sách rỗng khi không có item")
     void returnsEmptyList() {
       when(itemDao.findAll()).thenReturn(List.of());
 
@@ -103,7 +109,7 @@ class ItemServiceTest {
   class GetBySellerId {
 
     @Test
-    @DisplayName("returns only items belonging to the given seller")
+    @DisplayName("trả về chỉ item của seller được chỉ định")
     void returnsSellerItems() {
       when(itemDao.findBySellerId(SELLER_ID)).thenReturn(List.of(buildItem(SELLER_ID)));
 
@@ -121,7 +127,7 @@ class ItemServiceTest {
   class GetById {
 
     @Test
-    @DisplayName("returns the item when it exists")
+    @DisplayName("trả về item khi tồn tại")
     void returnsExistingItem() {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID)));
 
@@ -131,7 +137,7 @@ class ItemServiceTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when item does not exist")
+    @DisplayName("ném NotFoundException khi item không tồn tại")
     void throwsNotFoundWhenAbsent() {
       when(itemDao.findById(999L)).thenReturn(Optional.empty());
 
@@ -146,7 +152,7 @@ class ItemServiceTest {
   class UpdateItem {
 
     @Test
-    @DisplayName("owner can update their own item")
+    @DisplayName("chủ sở hữu được cập nhật item của mình")
     void ownerCanUpdate() {
       Item existing = buildItem(SELLER_ID);
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(existing));
@@ -158,7 +164,7 @@ class ItemServiceTest {
     }
 
     @Test
-    @DisplayName("non-owner cannot update — throws UnauthorizedException")
+    @DisplayName("người không sở hữu không được cập nhật — ném UnauthorizedException")
     void nonOwnerCannotUpdate() {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID)));
 
@@ -169,7 +175,7 @@ class ItemServiceTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when item does not exist")
+    @DisplayName("ném NotFoundException khi item không tồn tại")
     void throwsNotFoundWhenAbsent() {
       when(itemDao.findById(999L)).thenReturn(Optional.empty());
 
@@ -184,7 +190,7 @@ class ItemServiceTest {
   class DeleteItem {
 
     @Test
-    @DisplayName("owner can delete their own item")
+    @DisplayName("chủ sở hữu được xóa item của mình")
     void ownerCanDelete() {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID)));
 
@@ -193,7 +199,7 @@ class ItemServiceTest {
     }
 
     @Test
-    @DisplayName("admin can delete any item regardless of ownership")
+    @DisplayName("admin được xóa bất kỳ item nào không phân biệt chủ sở hữu")
     void adminCanDeleteAnyItem() {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID)));
 
@@ -202,7 +208,7 @@ class ItemServiceTest {
     }
 
     @Test
-    @DisplayName("non-owner seller cannot delete — throws UnauthorizedException")
+    @DisplayName("seller không sở hữu không được xóa — ném UnauthorizedException")
     void nonOwnerSellerCannotDelete() {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID)));
 
@@ -212,7 +218,7 @@ class ItemServiceTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when item does not exist")
+    @DisplayName("ném NotFoundException khi item không tồn tại")
     void throwsNotFoundWhenAbsent() {
       when(itemDao.findById(999L)).thenReturn(Optional.empty());
 

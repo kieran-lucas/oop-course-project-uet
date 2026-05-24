@@ -26,9 +26,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+/**
+ * Unit test kiểm tra các handler method của {@link ItemController} qua reflection.
+ *
+ * <p>Xác nhận phân quyền role (chỉ SELLER được tạo/cập nhật/xóa item; ADMIN có thể xóa), lọc theo
+ * {@code sellerId} query param, và đảm bảo service được gọi đúng tham số.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("ItemController — handler method coverage via reflection")
+@DisplayName("ItemController — kiểm tra handler method qua reflection")
 class ItemControllerTest {
 
   @Mock(answer = Answers.RETURNS_SELF)
@@ -75,7 +81,7 @@ class ItemControllerTest {
   class HandleGetAll {
 
     @Test
-    @DisplayName("returns all items when no sellerId param")
+    @DisplayName("trả về tất cả item khi không có param sellerId")
     void returnsAllItemsWithoutFilter() throws Exception {
       when(ctx.queryParam("sellerId")).thenReturn(null);
       when(itemService.getAll()).thenReturn(List.of(buildItem()));
@@ -88,7 +94,7 @@ class ItemControllerTest {
     }
 
     @Test
-    @DisplayName("filters by sellerId when param is present")
+    @DisplayName("lọc theo sellerId khi param có mặt")
     void filtersBySellerId() throws Exception {
       when(ctx.queryParam("sellerId")).thenReturn("1");
       when(itemService.getBySellerId(1L)).thenReturn(List.of(buildItem()));
@@ -107,7 +113,7 @@ class ItemControllerTest {
   class HandleGetById {
 
     @Test
-    @DisplayName("returns item when found")
+    @DisplayName("trả về item khi tìm thấy")
     void returnsFoundItem() throws Exception {
       when(ctx.pathParam("id")).thenReturn("10");
       when(itemService.getById(10L)).thenReturn(buildItem());
@@ -126,7 +132,7 @@ class ItemControllerTest {
   class HandleCreate {
 
     @Test
-    @DisplayName("SELLER role can create an item")
+    @DisplayName("role SELLER được tạo item")
     void sellerCanCreateItem() throws Exception {
       when(ctx.attribute("role")).thenReturn("SELLER");
       when(ctx.attribute("userId")).thenReturn(SELLER_ID);
@@ -140,7 +146,7 @@ class ItemControllerTest {
     }
 
     @Test
-    @DisplayName("non-SELLER role throws UnauthorizedException")
+    @DisplayName("role không phải SELLER — ném UnauthorizedException")
     void bidderCannotCreate() throws Exception {
       when(ctx.attribute("role")).thenReturn("BIDDER");
 
@@ -156,7 +162,7 @@ class ItemControllerTest {
   class HandleUpdate {
 
     @Test
-    @DisplayName("SELLER role can update their item")
+    @DisplayName("role SELLER được cập nhật item của mình")
     void sellerCanUpdate() throws Exception {
       when(ctx.attribute("role")).thenReturn("SELLER");
       when(ctx.attribute("userId")).thenReturn(SELLER_ID);
@@ -172,7 +178,7 @@ class ItemControllerTest {
     }
 
     @Test
-    @DisplayName("non-SELLER role throws UnauthorizedException")
+    @DisplayName("role không phải SELLER — ném UnauthorizedException")
     void adminCannotUpdate() throws Exception {
       when(ctx.attribute("role")).thenReturn("ADMIN");
 
@@ -188,7 +194,7 @@ class ItemControllerTest {
   class HandleDelete {
 
     @Test
-    @DisplayName("SELLER can delete their own item")
+    @DisplayName("SELLER được xóa item của mình")
     void sellerCanDelete() throws Exception {
       when(ctx.attribute("role")).thenReturn("SELLER");
       when(ctx.attribute("userId")).thenReturn(SELLER_ID);
@@ -201,7 +207,7 @@ class ItemControllerTest {
     }
 
     @Test
-    @DisplayName("ADMIN can delete any item")
+    @DisplayName("ADMIN được xóa bất kỳ item nào")
     void adminCanDelete() throws Exception {
       when(ctx.attribute("role")).thenReturn("ADMIN");
       when(ctx.attribute("userId")).thenReturn(99L);
@@ -213,7 +219,7 @@ class ItemControllerTest {
     }
 
     @Test
-    @DisplayName("BIDDER role throws UnauthorizedException")
+    @DisplayName("role BIDDER — ném UnauthorizedException")
     void bidderCannotDelete() throws Exception {
       when(ctx.attribute("role")).thenReturn("BIDDER");
       when(ctx.attribute("userId")).thenReturn(SELLER_ID);

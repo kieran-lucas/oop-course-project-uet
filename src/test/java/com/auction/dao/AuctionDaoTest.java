@@ -111,7 +111,7 @@ class AuctionDaoTest {
    * giá hiện tại bằng giá khởi điểm, và chưa có người dẫn đầu ({@code leadingBidderId} là null).
    */
   @Test
-  @DisplayName("Insert should create new auction")
+  @DisplayName("insert tạo auction mới với ID tự sinh và status OPEN")
   void testInsert() {
     Auction auction =
         new Auction(
@@ -130,7 +130,7 @@ class AuctionDaoTest {
 
   /** Kiểm tra findById: xác nhận auction vừa insert có thể tìm lại đúng ID và giá khởi điểm. */
   @Test
-  @DisplayName("FindById should return auction")
+  @DisplayName("findById trả về đúng auction theo ID")
   void testFindById() {
     Auction auction =
         new Auction(
@@ -152,7 +152,7 @@ class AuctionDaoTest {
    * reset trước mỗi test nên không có nguy cơ đếm dư dữ liệu cũ.
    */
   @Test
-  @DisplayName("FindAll should return all auctions")
+  @DisplayName("findAll trả về tất cả auction đã insert")
   void testFindAll() {
     auctionDao.insert(
         new Auction(
@@ -177,7 +177,7 @@ class AuctionDaoTest {
    * toàn bộ phần tử phải có status đúng bằng {@code OPEN}.
    */
   @Test
-  @DisplayName("FindByStatus should filter by status")
+  @DisplayName("findByStatus lọc đúng auction theo trạng thái")
   void testFindByStatus() {
     Auction open =
         new Auction(
@@ -195,7 +195,7 @@ class AuctionDaoTest {
 
   /** Kiểm tra findByItemId: auction được lấy về phải thuộc đúng {@code testItem}. */
   @Test
-  @DisplayName("FindByItemId should return auctions for specific item")
+  @DisplayName("findByItemId trả về auction gắn với item chỉ định")
   void testFindByItemId() {
     auctionDao.insert(
         new Auction(
@@ -215,7 +215,7 @@ class AuctionDaoTest {
    * status}, các giá trị mới phải được persist và đọc lại chính xác từ DB.
    */
   @Test
-  @DisplayName("Update should modify auction")
+  @DisplayName("update lưu đúng currentPrice, leadingBidderId và status mới")
   void testUpdate() {
     Auction auction =
         new Auction(
@@ -240,7 +240,7 @@ class AuctionDaoTest {
 
   /** Kiểm tra delete: auction bị xóa không còn tìm thấy qua findById. */
   @Test
-  @DisplayName("Delete should remove auction")
+  @DisplayName("delete xóa auction khỏi DB — findById trả về empty")
   void testDelete() {
     Auction auction =
         new Auction(
@@ -260,7 +260,7 @@ class AuctionDaoTest {
    * false}.
    */
   @Test
-  @DisplayName("ExistsById should return true for existing auction")
+  @DisplayName("existsById trả về true cho ID hợp lệ, false cho ID không tồn tại")
   void testExistsById() {
     Auction auction =
         new Auction(
@@ -280,7 +280,7 @@ class AuctionDaoTest {
    * BigDecimal}.
    */
   @Test
-  @DisplayName("GetCurrentPrice should return correct price")
+  @DisplayName("getCurrentPrice trả về đúng giá khởi điểm khi chưa có lượt đặt giá")
   void testGetCurrentPrice() {
     Auction auction =
         new Auction(

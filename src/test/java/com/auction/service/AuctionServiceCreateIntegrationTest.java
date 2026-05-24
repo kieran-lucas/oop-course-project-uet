@@ -35,6 +35,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Integration test kiểm tra logic tạo phiên đấu giá của {@link AuctionService#create}.
+ *
+ * <p>Xác nhận các quy tắc phòng trùng lặp: item đang trong phiên OPEN/RUNNING/SETTLING/PAID đều bị
+ * từ chối; chỉ item từ phiên CANCELED hoặc chưa có phiên mới được tạo lại. Ngoài ra kiểm tra tính
+ * đúng đắn khi có hai thread đồng thời tạo phiên cho cùng một item.
+ *
+ * <p><b>Điều kiện tiên quyết:</b> PostgreSQL phải đang chạy; bị bỏ qua (ABORTED) nếu không có DB.
+ */
+@DisplayName("AuctionService — tạo phiên đấu giá, kiểm tra trùng lặp và đồng thời")
 class AuctionServiceCreateIntegrationTest {
 
   private static Jdbi jdbi;
@@ -79,7 +89,7 @@ class AuctionServiceCreateIntegrationTest {
   }
 
   @Test
-  @DisplayName("Same item already RUNNING -> reject")
+  @DisplayName("Item đang ở phiên RUNNING → từ chối tạo mới")
   void sameItemRunningAuctionRejectsCreate() {
     createExistingAuction(AuctionStatus.RUNNING);
 
@@ -89,7 +99,7 @@ class AuctionServiceCreateIntegrationTest {
   }
 
   @Test
-  @DisplayName("Same item already OPEN -> reject")
+  @DisplayName("Item đang ở phiên OPEN → từ chối tạo mới")
   void sameItemOpenAuctionRejectsCreate() {
     createExistingAuction(AuctionStatus.OPEN);
 
@@ -99,7 +109,7 @@ class AuctionServiceCreateIntegrationTest {
   }
 
   @Test
-  @DisplayName("Same item already SETTLING -> reject")
+  @DisplayName("Item đang ở phiên SETTLING → từ chối tạo mới")
   void sameItemSettlingAuctionRejectsCreate() {
     createExistingAuction(AuctionStatus.SETTLING);
 
@@ -109,7 +119,7 @@ class AuctionServiceCreateIntegrationTest {
   }
 
   @Test
-  @DisplayName("Same item CANCELED and AVAILABLE -> allowed")
+  @DisplayName("Item từ phiên CANCELED và AVAILABLE → cho phép tạo mới")
   void sameItemCanceledAuctionAllowsCreate() {
     createExistingAuction(AuctionStatus.CANCELED);
 
@@ -121,7 +131,7 @@ class AuctionServiceCreateIntegrationTest {
   }
 
   @Test
-  @DisplayName("Same item PAID -> reject")
+  @DisplayName("Item từ phiên PAID → từ chối tạo mới")
   void sameItemPaidAuctionRejectsCreate() {
     createExistingAuction(AuctionStatus.PAID);
 
@@ -131,7 +141,7 @@ class AuctionServiceCreateIntegrationTest {
   }
 
   @Test
-  @DisplayName("Item SOLD -> reject")
+  @DisplayName("Item đã SOLD → từ chối tạo phiên mới")
   void soldItemRejectsCreate() {
     testItem.setStatus("SOLD");
     itemDao.update(testItem);
@@ -142,7 +152,7 @@ class AuctionServiceCreateIntegrationTest {
   }
 
   @Test
-  @DisplayName("Concurrent create same item creates only one auction")
+  @DisplayName("Tạo phiên đồng thời cho cùng một item — chỉ một phiên được tạo thành công")
   void concurrentCreateSameItemOnlyOneSucceeds() throws Exception {
     int threadCount = 2;
     ExecutorService pool = Executors.newFixedThreadPool(threadCount);

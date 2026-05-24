@@ -10,6 +10,12 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Kiểm thử {@link RunningState} — trạng thái phiên đang diễn ra và sẵn sàng nhận giá.
+ *
+ * <p>Hành động được cho phép: {@code placeBid()} (nếu hợp lệ), {@code close()}, {@code extend()}.
+ * Hành động bị từ ch���i: {@code edit()}, {@code placeBid()} khi vi phạm quy tắc.
+ */
 @DisplayName("RunningState")
 class RunningStateTest {
 
@@ -17,6 +23,7 @@ class RunningStateTest {
   private static final Long SELLER_ID = 99L;
   private static final Long BIDDER_ID = 7L;
 
+  /** Tạo phiên đấu giá đang chạy (startTime trong quá khứ, endTime trong tương lai). */
   private Auction runningAuction() {
     Auction auction =
         new Auction(
@@ -30,7 +37,7 @@ class RunningStateTest {
   }
 
   @Test
-  @DisplayName("placeBid() updates currentPrice and leadingBidderId when valid")
+  @DisplayName("placeBid() cập nhật currentPrice và leadingBidderId khi giá hợp lệ")
   void placeBidUpdatesAuction() {
     Auction auction = runningAuction();
 
@@ -41,7 +48,7 @@ class RunningStateTest {
   }
 
   @Test
-  @DisplayName("placeBid() rejects amount equal to current price")
+  @DisplayName("placeBid() từ chối giá bằng giá hiện tại")
   void rejectsEqualPrice() {
     Auction auction = runningAuction();
     assertThrows(
@@ -50,7 +57,7 @@ class RunningStateTest {
   }
 
   @Test
-  @DisplayName("placeBid() rejects amount lower than current price")
+  @DisplayName("placeBid() từ chối giá thấp hơn giá hiện tại")
   void rejectsLowerPrice() {
     Auction auction = runningAuction();
     assertThrows(
@@ -59,7 +66,7 @@ class RunningStateTest {
   }
 
   @Test
-  @DisplayName("placeBid() blocks the seller from bidding on own auction")
+  @DisplayName("placeBid() chặn seller tự đặt giá cho phiên của chính mình")
   void blocksSellerSelfBid() {
     Auction auction = runningAuction();
     InvalidBidException ex =
@@ -70,10 +77,10 @@ class RunningStateTest {
   }
 
   @Test
-  @DisplayName("placeBid() blocks the current leader from bidding again")
+  @DisplayName("placeBid() chặn người đang dẫn đầu tự đặt giá lại")
   void blocksCurrentLeader() {
     Auction auction = runningAuction();
-    state.placeBid(auction, new BigDecimal("150000"), BIDDER_ID); // becomes leader
+    state.placeBid(auction, new BigDecimal("150000"), BIDDER_ID); // trở thành leader
 
     assertThrows(
         InvalidBidException.class,
@@ -81,13 +88,13 @@ class RunningStateTest {
   }
 
   @Test
-  @DisplayName("close() succeeds")
+  @DisplayName("close() thành công — admin hoặc scheduler có thể đóng phiên")
   void closeAllowed() {
     assertDoesNotThrow(() -> state.close(runningAuction()));
   }
 
   @Test
-  @DisplayName("edit() rejects — cannot modify a running auction")
+  @DisplayName("edit() từ chối — không được sửa phiên đang chạy")
   void editRejected() {
     AuctionClosedException ex =
         assertThrows(AuctionClosedException.class, () -> state.edit(runningAuction()));
@@ -95,7 +102,7 @@ class RunningStateTest {
   }
 
   @Test
-  @DisplayName("extend() pushes endTime forward by the requested seconds")
+  @DisplayName("extend() đẩy endTime lên thêm số giây được chỉ định")
   void extendPushesEndTime() {
     Auction auction = runningAuction();
     LocalDateTime before = auction.getEndTime();

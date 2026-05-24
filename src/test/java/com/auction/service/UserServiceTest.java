@@ -27,9 +27,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+/**
+ * Unit test kiểm tra luồng đăng ký, đăng nhập và quản lý tài khoản của {@link UserService}.
+ *
+ * <p>Sử dụng BCrypt thật (không mock) để xác minh tính đúng đắn của quá trình hash và verify mật
+ * khẩu. Kiểm tra các kịch bản: đăng ký thành công/thất bại (trùng username/email), đăng nhập
+ * đúng/sai mật khẩu, đổi mật khẩu tăng tokenVersion, xóa user.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@DisplayName("UserService — đăng ký, đăng nhập và quản lý tài khoản")
 class UserServiceTest {
 
   @Mock private UserDao userDao;
@@ -121,7 +129,8 @@ class UserServiceTest {
 
   @Test
   @Order(5)
-  @DisplayName("testRegisterGenericDbError() - Khong doi loi DB thuong thanh trung email")
+  @DisplayName(
+      "testRegisterGenericDbError() — lỗi DB thông thường không bị chuyển thành lỗi trùng email")
   void testRegisterGenericDbError() {
     when(userDao.insert(any(User.class)))
         .thenThrow(
@@ -198,7 +207,7 @@ class UserServiceTest {
 
   @Test
   @Order(10)
-  @DisplayName("changePassword() rehashes password and increments tokenVersion")
+  @DisplayName("changePassword() — hash lại mật khẩu và tăng tokenVersion")
   void changePasswordIncrementsTokenVersion() {
     mockUser.setTokenVersion(4);
     when(userDao.findById(1L)).thenReturn(Optional.of(mockUser));
@@ -220,7 +229,7 @@ class UserServiceTest {
 
   @Test
   @Order(11)
-  @DisplayName("delete() hard-deletes user without history")
+  @DisplayName("delete() — xóa cứng user không có lịch sử giao dịch")
   void deleteUserWithoutHistorySucceeds() {
     when(userDao.findById(1L)).thenReturn(Optional.of(mockUser));
     when(userDao.hasDeleteBlockingReferences(1L)).thenReturn(false);
@@ -233,7 +242,7 @@ class UserServiceTest {
 
   @Test
   @Order(12)
-  @DisplayName("delete() rejects user with business history before FK violation")
+  @DisplayName("delete() — từ chối xóa user có lịch sử giao dịch")
   void deleteUserWithHistoryThrowsConflictState() {
     when(userDao.findById(1L)).thenReturn(Optional.of(mockUser));
     when(userDao.hasDeleteBlockingReferences(1L)).thenReturn(true);
@@ -247,7 +256,7 @@ class UserServiceTest {
 
   @Test
   @Order(13)
-  @DisplayName("requestDeposit() rejects decimal VND before creating deposit record")
+  @DisplayName("requestDeposit() — từ chối số tiền có phần thập phân")
   void requestDepositRejectsDecimalAmount() {
     assertThrows(
         IllegalArgumentException.class,

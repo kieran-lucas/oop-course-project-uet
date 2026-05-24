@@ -32,6 +32,20 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Integration test kiểm tra đầu cuối (end-to-end) cho API notification thông qua HTTP thực sự.
+ *
+ * <p>Khởi động một Javalin server thật với đủ bộ stack (JWT middleware, NotificationController,
+ * JDBI → PostgreSQL), sau đó gửi HTTP request và xác nhận kết quả persist trong DB.
+ *
+ * <p><b>Kịch bản kiểm tra:</b>
+ *
+ * <ul>
+ *   <li>PATCH mark-read persist trạng thái qua vòng PATCH → GET.
+ *   <li>User B không thể mark-read notification của User A (cross-user guard).
+ *   <li>PATCH mark-all-read persist tất cả unread của user — không ảnh hưởng user khác.
+ * </ul>
+ */
 class NotificationApiPersistenceTest {
 
   private static final long USER_A_ID = 201L;

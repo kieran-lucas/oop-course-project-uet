@@ -48,6 +48,23 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Integration test kiểm tra phân quyền HTTP đầu cuối (end-to-end) cho toàn bộ ứng dụng.
+ *
+ * <p>Khởi động Javalin server thật với đầy đủ stack (JWT middleware, tất cả controller, JDBI), sau
+ * đó gửi HTTP request với các role khác nhau và kiểm tra quyền truy cập đúng với từng endpoint.
+ *
+ * <p><b>Kịch bản kiểm tra:</b>
+ *
+ * <ul>
+ *   <li>SELLER và ADMIN không được đặt giá (chỉ BIDDER mới được phép).
+ *   <li>BIDDER không được tạo item/auction (chỉ SELLER mới được phép).
+ *   <li>SELLER B không được cập nhật/hủy auction của SELLER A.
+ *   <li>BIDDER A không thể dừng auto-bid của BIDDER B.
+ *   <li>User A không thể mark-read notification của User B.
+ *   <li>Non-ADMIN không được truy cập route admin.
+ * </ul>
+ */
 class HttpAuthorizationIntegrationTest {
 
   private static final long ADMIN_ID = 1L;

@@ -6,11 +6,22 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Kiểm thử {@link NotificationItem} — value object đại diện cho một thông báo trong store client.
+ *
+ * <p>Các trường hợp kiểm thử:
+ *
+ * <ul>
+ *   <li>Constructor đầy đủ lưu đúng tất cả trường.
+ *   <li>Trường {@code read} có thể thay đổi qua {@code setRead()}.
+ *   <li>Factory {@code clientOnly()} tạo thông báo không có id, chưa đọc, timestamp là now.
+ * </ul>
+ */
 @DisplayName("NotificationItem")
 class NotificationItemTest {
 
   @Test
-  @DisplayName("stores all fields supplied to the constructor")
+  @DisplayName("constructor lưu đúng tất cả trường")
   void storesFields() {
     LocalDateTime now = LocalDateTime.now();
     NotificationItem item = new NotificationItem(10L, "Bid placed", "BID_UPDATE", false, now);
@@ -23,7 +34,7 @@ class NotificationItemTest {
   }
 
   @Test
-  @DisplayName("read flag is mutable via setRead()")
+  @DisplayName("trường read có thể thay đổi qua setRead()")
   void readFlagMutable() {
     NotificationItem item = new NotificationItem(1L, "msg", "T", false, LocalDateTime.now());
 
@@ -33,7 +44,7 @@ class NotificationItemTest {
   }
 
   @Test
-  @DisplayName("clientOnly() factory produces unread item with null id and current timestamp")
+  @DisplayName("clientOnly() tạo thông báo chưa đọc, id null, timestamp là now")
   void clientOnlyFactory() {
     LocalDateTime before = LocalDateTime.now();
     NotificationItem item = NotificationItem.clientOnly("Bạn bị vượt giá");
@@ -43,6 +54,7 @@ class NotificationItemTest {
     assertEquals("Bạn bị vượt giá", item.getMessage());
     assertNull(item.getType());
     assertFalse(item.isRead());
+    // createdAt phải nằm trong khoảng [before, after]
     assertFalse(item.getCreatedAt().isBefore(before));
     assertFalse(item.getCreatedAt().isAfter(after));
   }

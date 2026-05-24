@@ -5,29 +5,23 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
 /**
- * Test suite verifying the contract of {@link NotFoundException} — thrown when a requested resource
- * (user, item, auction, etc.) does not exist in the system, typically mapping to an HTTP 404
- * response at the API layer.
+ * Kiểm thử hợp đồng của {@link NotFoundException} — ném ra khi tài nguyên được yêu cầu (user, item,
+ * auction...) không tồn tại trong hệ thống; thường ánh xạ thành HTTP 404 ở tầng API.
  *
- * <p><b>Contract under test:</b>
+ * <p><b>Hợp đồng được kiểm thử:</b>
  *
  * <ul>
- *   <li>Both constructors (message-only and message + cause) propagate their arguments correctly.
- *   <li>The class sits in the right place in the exception hierarchy: {@code NotFoundException →
- *       AuctionException → RuntimeException}.
- *   <li>{@code toString()} includes both the class name and the message, which matters for log
- *       readability when the full stack trace is not printed.
+ *   <li>Cả hai constructor (chỉ message và message + cause) truyền đúng tham số.
+ *   <li>Lớp nằm đúng vị trí trong cây exception: {@code NotFoundException → AuctionException →
+ *       RuntimeException}.
+ *   <li>{@code toString()} chứa cả tên lớp lẫn message — quan trọng khi log không in stack trace.
  * </ul>
  *
- * <p>No external dependencies or DB connection required — all tests are pure unit tests that
- * instantiate the exception directly.
+ * <p>Không cần kết nối DB — tất cả test khởi tạo exception trực tiếp (pure unit test).
  */
 class NotFoundExceptionTest {
 
-  /**
-   * Verifies that the single-argument constructor stores the message and makes it retrievable via
-   * {@link Throwable#getMessage()}.
-   */
+  /** Kiểm tra constructor một tham số lưu đúng message và trả về qua {@code getMessage()}. */
   @Test
   void shouldCarryMessage() {
     NotFoundException ex = new NotFoundException("user 42 not found");
@@ -35,13 +29,11 @@ class NotFoundExceptionTest {
   }
 
   /**
-   * Verifies the two-argument constructor: the cause must be the exact object passed in (identity
-   * check via {@code assertSame}, not just equality), and the message must be preserved
-   * independently of the cause.
+   * Kiểm tra constructor hai tham số: cause phải là chính xác object được truyền vào (identity
+   * check qua {@code assertSame}), và message phải được bảo toàn độc lập.
    *
-   * <p>Cause chaining matters here because a {@link NotFoundException} can originate from a failed
-   * DB lookup (e.g., connection loss) rather than a genuinely missing entity. Preserving the root
-   * cause lets upper layers distinguish the two scenarios.
+   * <p>Cause chaining quan trọng vì {@link NotFoundException} có thể bắt nguồn từ lỗi kết nối DB
+   * chứ không phải entity thực sự không tồn tại — bảo toàn exception gốc giúp tầng trên phân biệt.
    */
   @Test
   void shouldChainCause() {
@@ -52,9 +44,8 @@ class NotFoundExceptionTest {
   }
 
   /**
-   * Verifies that {@link NotFoundException} is a subtype of {@link AuctionException}, allowing
-   * callers to catch all domain exceptions with a single {@code catch (AuctionException e)} block
-   * without needing to enumerate each specific type.
+   * Kiểm tra {@link NotFoundException} là subtype của {@link AuctionException}, cho phép bắt tất cả
+   * exception nghiệp vụ bằng một khối {@code catch (AuctionException e)}.
    */
   @Test
   void shouldBeAnAuctionException() {
@@ -63,9 +54,8 @@ class NotFoundExceptionTest {
   }
 
   /**
-   * Verifies that {@link NotFoundException} extends {@link RuntimeException}, meaning callers are
-   * not forced to declare it in {@code throws} clauses. This is the intended design for domain
-   * exceptions in this system.
+   * Kiểm tra {@link NotFoundException} kế thừa {@link RuntimeException} — caller không bị buộc khai
+   * báo trong {@code throws}. Đây là thiết kế có chủ ý cho exception nghiệp vụ.
    */
   @Test
   void shouldBeARuntimeException() {
@@ -74,9 +64,8 @@ class NotFoundExceptionTest {
   }
 
   /**
-   * Verifies that {@code toString()} contains both the fully-qualified class name and the message.
-   * This guards against accidental overrides of {@code toString()} that might drop either piece of
-   * information, which would make log-only error reports harder to diagnose.
+   * Kiểm tra {@code toString()} chứa cả tên lớp đầy đủ lẫn message — bảo vệ khỏi việc override
+   * {@code toString()} vô tình làm mất thông tin khi log không in stack trace.
    */
   @Test
   void toStringShouldIncludeClassName() {

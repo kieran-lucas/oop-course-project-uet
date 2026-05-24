@@ -25,7 +25,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Auction cancellation notification transaction")
+/**
+ * Integration test kiểm tra tính toàn vẹn transaction khi hủy phiên đấu giá ({@link
+ * AuctionService#delete}).
+ *
+ * <p>Xác nhận rằng ba tác động xảy ra trong cùng một transaction: cập nhật trạng thái auction thành
+ * CANCELED, giải phóng reserved_balance của người đang thắng, và tạo notification cho họ. Nếu
+ * transaction rollback, không có tác động nào được persist.
+ *
+ * <p><b>Điều kiện tiên quyết:</b> PostgreSQL phải đang chạy; bị bỏ qua (ABORTED) nếu không có DB.
+ */
+@DisplayName("Hủy phiên đấu giá — tính toàn vẹn transaction thông báo")
 class AuctionCancellationNotificationIntegrationTest {
 
   private static Jdbi jdbi;
@@ -64,7 +74,7 @@ class AuctionCancellationNotificationIntegrationTest {
   }
 
   @Test
-  @DisplayName("Cancel RUNNING auction persists status, release, and notification together")
+  @DisplayName("Hủy auction RUNNING — commit trạng thái, release balance và notification cùng nhau")
   void cancelRunningAuctionCommitsNotificationWithState() {
     long sellerId = insertUser("cancel_seller", "SELLER", "seller@test.com", "0", "0");
     long bidderId = insertUser("cancel_bidder", "BIDDER", "bidder@test.com", "1000", "250");
@@ -80,7 +90,7 @@ class AuctionCancellationNotificationIntegrationTest {
   }
 
   @Test
-  @DisplayName("Rollback leaves no cancellation notification")
+  @DisplayName("Rollback không để lại bản ghi notification orphan")
   void rollbackDoesNotLeaveOrphanCancellationNotification() {
     long sellerId = insertUser("rollback_seller", "SELLER", "rollback-seller@test.com", "0", "0");
     long bidderId =
@@ -98,7 +108,7 @@ class AuctionCancellationNotificationIntegrationTest {
   }
 
   @Test
-  @DisplayName("Canceling an already canceled auction is rejected — no duplicate notification")
+  @DisplayName("Hủy auction đã CANCELED → bị từ chối, không tạo notification trùng lặp")
   void alreadyCanceledAuctionDoesNotDuplicateNotification() {
     long sellerId = insertUser("duplicate_seller", "SELLER", "duplicate-seller@test.com", "0", "0");
     long bidderId =

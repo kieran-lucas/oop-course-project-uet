@@ -13,8 +13,21 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+/**
+ * Kiểm thử {@link AuctionEventManager} — quản lý đăng ký và thông báo sự kiện đấu giá theo Observer
+ * Pattern.
+ *
+ * <p>Hai nhóm test:
+ *
+ * <ul>
+ *   <li>{@code subscribe()/unsubscribe()} — đăng ký, hủy đăng ký, cách ly theo auctionId
+ *   <li>Các phương thức {@code notify*()} — gửi đúng loại sự kiện đến đúng listener
+ * </ul>
+ *
+ * <p>Dùng Mockito để mock {@link AuctionEventListener} — không cần WebSocket thực.
+ */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AuctionEventManager — observer subscribe / notify")
+@DisplayName("AuctionEventManager — đăng ký và thông báo observer")
 class AuctionEventManagerTest {
 
   private AuctionEventManager manager;
@@ -47,14 +60,12 @@ class AuctionEventManagerTest {
     return BidUpdateMessage.auctionEnded(AUCTION_ID, new BigDecimal("2000000"), 99L, "alice");
   }
 
-  // ── subscribe / unsubscribe ───────────────────────────────
-
   @Nested
-  @DisplayName("subscribe() and unsubscribe()")
+  @DisplayName("subscribe() và unsubscribe()")
   class SubscribeUnsubscribe {
 
     @Test
-    @DisplayName("subscribed listener receives notifyBidUpdate")
+    @DisplayName("listener đã đăng ký nhận được notifyBidUpdate")
     void subscribedListenerReceivesNotification() {
       manager.subscribe(AUCTION_ID, listener1);
       BidUpdateMessage msg = bidMsg();
@@ -65,7 +76,7 @@ class AuctionEventManagerTest {
     }
 
     @Test
-    @DisplayName("unsubscribed listener no longer receives events")
+    @DisplayName("listener sau khi hủy đăng ký không còn nhận sự kiện")
     void unsubscribedListenerReceivesNoEvents() {
       manager.subscribe(AUCTION_ID, listener1);
       manager.unsubscribe(AUCTION_ID, listener1);
@@ -76,7 +87,7 @@ class AuctionEventManagerTest {
     }
 
     @Test
-    @DisplayName("multiple listeners all receive the event")
+    @DisplayName("nhiều listener cùng nhận sự kiện")
     void multipleListenersAllNotified() {
       manager.subscribe(AUCTION_ID, listener1);
       manager.subscribe(AUCTION_ID, listener2);
@@ -89,13 +100,13 @@ class AuctionEventManagerTest {
     }
 
     @Test
-    @DisplayName("unsubscribe on unknown auction ID does not throw")
+    @DisplayName("unsubscribe với auctionId kh��ng tồn tại không ném exception")
     void unsubscribeUnknownAuctionIdDoesNotThrow() {
       assertDoesNotThrow(() -> manager.unsubscribe(999L, listener1));
     }
 
     @Test
-    @DisplayName("listeners of different auctions are isolated")
+    @DisplayName("listener của các phiên khác nhau được cách ly — không nhận sự kiện chéo")
     void listenersIsolatedByAuction() {
       manager.subscribe(AUCTION_ID, listener1);
       manager.subscribe(AUCTION_ID + 1, listener2);
@@ -107,10 +118,8 @@ class AuctionEventManagerTest {
     }
   }
 
-  // ── notify methods ────────────────────────────────────────
-
   @Nested
-  @DisplayName("notify methods")
+  @DisplayName("các phương thức notify*()")
   class NotifyMethods {
 
     @BeforeEach
@@ -119,7 +128,7 @@ class AuctionEventManagerTest {
     }
 
     @Test
-    @DisplayName("notifyBidUpdate calls onBidUpdate on all listeners")
+    @DisplayName("notifyBidUpdate gọi onBidUpdate trên tất cả listener")
     void notifyBidUpdate() {
       BidUpdateMessage msg = bidMsg();
       manager.notifyBidUpdate(AUCTION_ID, msg);
@@ -127,7 +136,7 @@ class AuctionEventManagerTest {
     }
 
     @Test
-    @DisplayName("notifyTimeExtended calls onTimeExtended on all listeners")
+    @DisplayName("notifyTimeExtended gọi onTimeExtended trên tất cả listener")
     void notifyTimeExtended() {
       BidUpdateMessage msg = timeMsg();
       manager.notifyTimeExtended(AUCTION_ID, msg);
@@ -135,7 +144,7 @@ class AuctionEventManagerTest {
     }
 
     @Test
-    @DisplayName("notifyAuctionEnd calls onAuctionEnd on all listeners")
+    @DisplayName("notifyAuctionEnd gọi onAuctionEnd trên tất cả listener")
     void notifyAuctionEnd() {
       BidUpdateMessage msg = endMsg();
       manager.notifyAuctionEnd(AUCTION_ID, msg);
@@ -143,22 +152,22 @@ class AuctionEventManagerTest {
     }
 
     @Test
-    @DisplayName("no-op when no listeners are subscribed for the auction")
+    @DisplayName("không làm gì khi không có listener nào đăng ký cho phiên")
     void noOpWhenNoListeners() {
       assertDoesNotThrow(() -> manager.notifyBidUpdate(999L, bidMsg()));
     }
 
     @Test
-    @DisplayName("exception in one listener does not prevent others from being notified")
+    @DisplayName("exception trong một listener không ngăn các listener khác nhận sự kiện")
     void exceptionInOneListenerDoesNotBlockOthers() {
       manager.subscribe(AUCTION_ID, listener2);
       doThrow(new RuntimeException("simulated WS error")).when(listener1).onBidUpdate(any());
 
       BidUpdateMessage msg = bidMsg();
-      // Must not propagate
+      // Không được ném exception ra ngoài
       assertDoesNotThrow(() -> manager.notifyBidUpdate(AUCTION_ID, msg));
 
-      // listener2 must still be called
+      // listener2 vẫn phải được gọi
       verify(listener2).onBidUpdate(msg);
     }
   }

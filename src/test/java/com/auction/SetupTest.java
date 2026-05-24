@@ -6,17 +6,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Project setup verification")
+/**
+ * Kiểm tra môi trường dự án sau khi thiết lập: JUnit 5 hoạt động và các tính năng Java 21 khả dụng.
+ *
+ * <p>Đây là "smoke test" cơ sở — nếu class này thất bại, môi trường build/test chưa được cấu hình
+ * đúng.
+ */
+@DisplayName("Kiểm tra môi trường dự án — JUnit 5 và Java 21")
 class SetupTest {
 
   @Test
-  @DisplayName("JUnit 5 is working")
+  @DisplayName("JUnit 5 hoạt động đúng — framework test đã được cấu hình")
   void junitWorks() {
     assertTrue(true, "JUnit 5 should be configured correctly");
   }
 
   @Test
-  @DisplayName("Java 21 features are available")
+  @DisplayName("Tính năng Java 21 khả dụng — text block và pattern matching switch")
   void java21Works() {
     // Text block (Java 15+)
     String json =
@@ -39,7 +45,7 @@ class SetupTest {
     assertEquals("HELLO", result);
   }
 
-  /** Returns a value whose runtime type is intentionally opaque to static analysis. */
+  /** Trả về giá trị có kiểu runtime cố tình không rõ với static analysis. */
   private Object getTestValue() {
     return "hello";
   }

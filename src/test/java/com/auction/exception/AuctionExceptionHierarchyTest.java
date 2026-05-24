@@ -6,15 +6,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies that every concrete custom exception extends {@link AuctionException}, and that the
- * shared message-and-cause constructors propagate values correctly. The per-exception test classes
- * already cover their own message/HTTP mapping; this class focuses on the hierarchy contract.
+ * Kiểm thử rằng mọi exception cụ thể trong domain đều kế thừa {@link AuctionException}, và các
+ * constructor message + cause truyền đúng giá trị. Các lớp test riêng lẻ đã kiểm tra chi tiết từng
+ * exception; lớp này tập trung vào hợp đồng cây kế thừa.
  */
-@DisplayName("AuctionException hierarchy")
+@DisplayName("Cây kế thừa AuctionException")
 class AuctionExceptionHierarchyTest {
 
   @Test
-  @DisplayName("InvalidBidException is an AuctionException and a RuntimeException")
+  @DisplayName("InvalidBidException là AuctionException và RuntimeException")
   void invalidBidExtendsAuctionException() {
     InvalidBidException ex = new InvalidBidException("low");
     assertInstanceOf(AuctionException.class, ex);
@@ -23,7 +23,7 @@ class AuctionExceptionHierarchyTest {
   }
 
   @Test
-  @DisplayName("AuctionClosedException carries its message")
+  @DisplayName("AuctionClosedException mang đúng message")
   void auctionClosedCarriesMessage() {
     AuctionClosedException ex = new AuctionClosedException("closed");
     assertEquals("closed", ex.getMessage());
@@ -31,25 +31,25 @@ class AuctionExceptionHierarchyTest {
   }
 
   @Test
-  @DisplayName("UnauthorizedException is an AuctionException")
+  @DisplayName("UnauthorizedException là AuctionException")
   void unauthorizedExtendsAuctionException() {
     assertInstanceOf(AuctionException.class, new UnauthorizedException("nope"));
   }
 
   @Test
-  @DisplayName("NotFoundException is an AuctionException")
+  @DisplayName("NotFoundException là AuctionException")
   void notFoundExtendsAuctionException() {
     assertInstanceOf(AuctionException.class, new NotFoundException("missing"));
   }
 
   @Test
-  @DisplayName("DuplicateException is an AuctionException")
+  @DisplayName("DuplicateException là AuctionException")
   void duplicateExtendsAuctionException() {
     assertInstanceOf(AuctionException.class, new DuplicateException("dup"));
   }
 
   @Test
-  @DisplayName("a single catch on AuctionException catches every subtype")
+  @DisplayName("một khối catch (AuctionException) bắt được mọi subtype")
   void singleCatchCatchesAll() {
     AuctionException[] all = {
       new InvalidBidException("a"),

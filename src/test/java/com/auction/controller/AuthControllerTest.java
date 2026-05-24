@@ -25,9 +25,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+/**
+ * Unit test kiểm tra các handler method của {@link AuthController} qua reflection.
+ *
+ * <p>Vì các handler là private static method, test dùng reflection để gọi trực tiếp và kiểm tra
+ * tương tác với mock {@link UserService} / {@link PasswordResetService}. Các kịch bản: đăng ký
+ * thành công, đăng nhập thành công, xử lý yêu cầu đặt lại mật khẩu với email hợp lệ và không hợp lệ
+ * (null/blank).
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("AuthController — handler method coverage")
+@DisplayName("AuthController — kiểm tra đầy đủ handler method")
 class AuthControllerTest {
 
   @Mock(answer = Answers.RETURNS_SELF)
@@ -90,7 +98,7 @@ class AuthControllerTest {
   class HandleRegister {
 
     @Test
-    @DisplayName("successful registration returns 201 with token and user info")
+    @DisplayName("đăng ký thành công — trả về 201 với token và thông tin user")
     void successfulRegistration() throws Exception {
       RegisterRequest req = new RegisterRequest("alice", "pass123", "alice@ex.com", "BIDDER");
       User newUser = new Bidder("alice", "hash", "alice@ex.com");
@@ -115,7 +123,7 @@ class AuthControllerTest {
   class HandleLogin {
 
     @Test
-    @DisplayName("successful login returns 200 with token and role")
+    @DisplayName("đăng nhập thành công — trả về 200 với token và role")
     void successfulLogin() throws Exception {
       LoginRequest req = new LoginRequest("alice", "pass123");
       String token = JwtUtil.createToken(1L, "alice", "BIDDER", 0);
@@ -140,7 +148,7 @@ class AuthControllerTest {
   class HandleForgotPassword {
 
     @Test
-    @DisplayName("valid email delegates to resetService and returns 200")
+    @DisplayName("email hợp lệ — gọi resetService và trả về 200")
     void validEmailReturns200() throws Exception {
       ForgotPasswordRequest req = new ForgotPasswordRequest();
       req.setEmail("alice@ex.com");
@@ -154,7 +162,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("null email returns 400 without calling resetService")
+    @DisplayName("email null — trả về 400 không gọi resetService")
     void nullEmailReturns400() throws Exception {
       ForgotPasswordRequest req = new ForgotPasswordRequest();
       req.setEmail(null);
@@ -168,7 +176,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("blank email returns 400 without calling resetService")
+    @DisplayName("email rỗng — trả về 400 không gọi resetService")
     void blankEmailReturns400() throws Exception {
       ForgotPasswordRequest req = new ForgotPasswordRequest();
       req.setEmail("   ");

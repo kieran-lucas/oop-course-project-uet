@@ -23,9 +23,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+/**
+ * Unit test kiểm tra logic phân loại route và xác thực token của {@link JwtMiddleware}.
+ *
+ * <p>Middleware chia route thành ba nhóm: <em>public</em> (không cần token), <em>semi-public</em>
+ * (GET với token tùy chọn — nếu có token hợp lệ thì gắn claims, nếu không thì đi qua), và
+ * <em>protected</em> (bắt buộc phải có token hợp lệ và đúng {@code token_version}).
+ *
+ * <p>Cơ chế {@code token_version} cho phép vô hiệu hóa tất cả token cũ khi user đổi mật khẩu: token
+ * với {@code version} nhỏ hơn giá trị hiện tại trong DB sẽ bị từ chối.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("JWT middleware — route classification and token validation")
+@DisplayName("JWT middleware — phân loại route và xác thực token")
 class JwtMiddlewareTest {
 
   @Mock private UserDao userDao;
@@ -39,11 +49,11 @@ class JwtMiddlewareTest {
   // ── Public routes — no auth required ────────────────────
 
   @Nested
-  @DisplayName("Public routes")
+  @DisplayName("Route công khai")
   class PublicRoutes {
 
     @Test
-    @DisplayName("POST /api/auth/login passes through without any token check")
+    @DisplayName("POST /api/auth/login không cần token — được đi qua")
     void loginIsPublic() {
       when(ctx.path()).thenReturn("/api/auth/login");
       when(ctx.method()).thenReturn(HandlerType.POST);
@@ -52,7 +62,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("POST /api/auth/register passes through without any token check")
+    @DisplayName("POST /api/auth/register không cần token — được đi qua")
     void registerIsPublic() {
       when(ctx.path()).thenReturn("/api/auth/register");
       when(ctx.method()).thenReturn(HandlerType.POST);
@@ -61,7 +71,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("POST /api/auth/forgot-password passes through without any token check")
+    @DisplayName("POST /api/auth/forgot-password không cần token — được đi qua")
     void forgotPasswordIsPublic() {
       when(ctx.path()).thenReturn("/api/auth/forgot-password");
       when(ctx.method()).thenReturn(HandlerType.POST);
@@ -70,7 +80,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("GET /api/health passes through without any token check")
+    @DisplayName("GET /api/health không cần token — được đi qua")
     void healthIsPublic() {
       when(ctx.path()).thenReturn("/api/health");
       when(ctx.method()).thenReturn(HandlerType.GET);
@@ -82,11 +92,11 @@ class JwtMiddlewareTest {
   // ── Semi-public GET routes ───────────────────────────────
 
   @Nested
-  @DisplayName("Semi-public GET routes")
+  @DisplayName("Route GET nửa công khai")
   class SemiPublicRoutes {
 
     @Test
-    @DisplayName("GET /api/items without Authorization header passes through")
+    @DisplayName("GET /api/items không có header Authorization — được đi qua")
     void getItemsWithoutTokenPassesThrough() {
       when(ctx.path()).thenReturn("/api/items");
       when(ctx.method()).thenReturn(HandlerType.GET);
@@ -96,7 +106,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("GET /api/auctions without Authorization header passes through")
+    @DisplayName("GET /api/auctions không có header Authorization — được đi qua")
     void getAuctionsWithoutTokenPassesThrough() {
       when(ctx.path()).thenReturn("/api/auctions");
       when(ctx.method()).thenReturn(HandlerType.GET);
@@ -106,7 +116,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("GET /api/auctions with valid Bearer token attaches user claims")
+    @DisplayName("GET /api/auctions với token hợp lệ — gắn thông tin user vào context")
     void getAuctionsWithValidTokenAttachesClaims() {
       User user = userWithTokenVersion(0);
       String token = JwtUtil.createToken(1L, "alice", "BIDDER", 0);
@@ -124,7 +134,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("GET /api/items with invalid Bearer token passes through silently")
+    @DisplayName("GET /api/items với token không hợp lệ — đi qua silently, không throw")
     void getItemsWithInvalidTokenPassesThroughSilently() {
       when(ctx.path()).thenReturn("/api/items");
       when(ctx.method()).thenReturn(HandlerType.GET);
@@ -139,11 +149,11 @@ class JwtMiddlewareTest {
   // ── Protected routes — token required ───────────────────
 
   @Nested
-  @DisplayName("Protected routes")
+  @DisplayName("Route được bảo vệ")
   class ProtectedRoutes {
 
     @Test
-    @DisplayName("Missing Authorization header throws UnauthorizedException")
+    @DisplayName("Thiếu header Authorization — ném UnauthorizedException")
     void missingHeaderThrows() {
       when(ctx.path()).thenReturn("/api/users/me");
       when(ctx.method()).thenReturn(HandlerType.GET);
@@ -153,7 +163,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("Non-Bearer scheme throws UnauthorizedException")
+    @DisplayName("Scheme không phải Bearer — ném UnauthorizedException")
     void nonBearerSchemeThrows() {
       when(ctx.path()).thenReturn("/api/users/me");
       when(ctx.method()).thenReturn(HandlerType.GET);
@@ -163,7 +173,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("Protected request rejects token issued before password change")
+    @DisplayName("Request protected từ chối token phát hành trước khi đổi mật khẩu")
     void rejectsOldTokenVersion() {
       User currentUser = userWithTokenVersion(2);
       String oldToken = JwtUtil.createToken(1L, "alice", "BIDDER", 1);
@@ -177,7 +187,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("Protected request accepts current tokenVersion and attaches claims")
+    @DisplayName("Request protected chấp nhận tokenVersion hiện tại và gắn claims")
     void acceptsCurrentTokenVersion() {
       User currentUser = userWithTokenVersion(2);
       String currentToken = JwtUtil.createToken(1L, "alice", "BIDDER", 2);
@@ -195,7 +205,7 @@ class JwtMiddlewareTest {
     }
 
     @Test
-    @DisplayName("Token for non-existent user throws UnauthorizedException")
+    @DisplayName("Token của user không tồn tại — ném UnauthorizedException")
     void tokenForDeletedUserThrows() {
       String token = JwtUtil.createToken(99L, "ghost", "BIDDER", 0);
       JwtMiddleware.configure(userDao);

@@ -5,28 +5,23 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
 /**
- * Test suite verifying the contract of {@link AuctionClosedException} — thrown when a bid is placed
- * on an auction that has already ended or been closed by the scheduler.
+ * Kiểm thử hợp đồng của {@link AuctionClosedException} — ném ra khi đặt giá vào phiên đã kết thúc
+ * hoặc bị đóng bởi scheduler.
  *
- * <p><b>Contract under test:</b>
+ * <p><b>Hợp đồng được kiểm thử:</b>
  *
  * <ul>
- *   <li>Both constructors (message-only and message + cause) propagate their arguments correctly.
- *   <li>The class sits in the right place in the exception hierarchy: {@code AuctionClosedException
- *       → AuctionException → RuntimeException}.
- *   <li>{@code toString()} includes both the class name and the message, which matters for log
- *       readability when the full stack trace is not printed.
+ *   <li>Cả hai constructor (chỉ message và message + cause) truyền đúng tham số.
+ *   <li>Lớp nằm đúng vị trí trong cây exception: {@code AuctionClosedException → AuctionException →
+ *       RuntimeException}.
+ *   <li>{@code toString()} chứa cả tên lớp lẫn message — quan trọng khi log không in stack trace.
  * </ul>
  *
- * <p>No external dependencies or DB connection required — all tests are pure unit tests that
- * instantiate the exception directly.
+ * <p>Không cần kết nối DB — tất cả test khởi tạo exception trực tiếp (pure unit test).
  */
 class AuctionClosedExceptionTest {
 
-  /**
-   * Verifies that the single-argument constructor stores the message and makes it retrievable via
-   * {@link Throwable#getMessage()}.
-   */
+  /** Kiểm tra constructor một tham số lưu đúng message và trả về qua {@code getMessage()}. */
   @Test
   void shouldCarryMessage() {
     AuctionClosedException ex = new AuctionClosedException("auction 1 closed");
@@ -34,12 +29,11 @@ class AuctionClosedExceptionTest {
   }
 
   /**
-   * Verifies the two-argument constructor: the cause must be the exact object passed in (identity
-   * check via {@code assertSame}, not just equality), and the message must be preserved
-   * independently of the cause.
+   * Kiểm tra constructor hai tham số: cause phải là chính xác object được truyền vào (identity
+   * check qua {@code assertSame}), và message phải được bảo toàn độc lập với cause.
    *
-   * <p>Cause chaining is critical for debugging — without it, the original scheduler error would be
-   * silently swallowed when {@code AuctionClosedException} is caught upstream.
+   * <p>Cause chaining quan trọng vì nếu không có nó, lỗi gốc từ scheduler sẽ bị nuốt mất khi {@code
+   * AuctionClosedException} được bắt ở tầng trên.
    */
   @Test
   void shouldChainCause() {
@@ -50,9 +44,8 @@ class AuctionClosedExceptionTest {
   }
 
   /**
-   * Verifies that {@link AuctionClosedException} is a subtype of {@link AuctionException}, allowing
-   * callers to catch all domain exceptions with a single {@code catch (AuctionException e)} block
-   * without needing to enumerate each specific type.
+   * Kiểm tra {@link AuctionClosedException} là subtype của {@link AuctionException}, cho phép bắt
+   * tất cả exception nghiệp vụ bằng một khối {@code catch (AuctionException e)}.
    */
   @Test
   void shouldBeAnAuctionException() {
@@ -61,9 +54,8 @@ class AuctionClosedExceptionTest {
   }
 
   /**
-   * Verifies that {@link AuctionClosedException} extends {@link RuntimeException}, meaning callers
-   * are not forced to declare it in {@code throws} clauses. This is the intended design for domain
-   * exceptions in this system.
+   * Kiểm tra {@link AuctionClosedException} kế thừa {@link RuntimeException} — caller không bị buộc
+   * khai báo trong {@code throws}. Đây là thiết kế có chủ ý cho exception nghiệp vụ.
    */
   @Test
   void shouldBeARuntimeException() {
@@ -72,9 +64,8 @@ class AuctionClosedExceptionTest {
   }
 
   /**
-   * Verifies that {@code toString()} contains both the fully-qualified class name and the message.
-   * This guards against accidental overrides of {@code toString()} that might drop either piece of
-   * information, which would make log-only error reports harder to diagnose.
+   * Kiểm tra {@code toString()} chứa cả tên lớp đầy đủ lẫn message — bảo vệ khỏi việc override
+   * {@code toString()} vô tình làm mất thông tin khi log không in stack trace.
    */
   @Test
   void toStringShouldIncludeClassName() {

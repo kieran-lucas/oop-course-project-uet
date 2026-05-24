@@ -14,8 +14,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+/**
+ * Unit test kiểm tra các thao tác đọc trạng thái notification của {@link NotificationService}.
+ *
+ * <p>Xác nhận rằng service ủy quyền đúng cho {@link NotificationDao} và truyền đúng tham số cho các
+ * phương thức: lấy danh sách, đánh dấu đọc một notification, đánh dấu tất cả đã đọc.
+ */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("NotificationService — read-state operations")
+@DisplayName("NotificationService — thao tác trạng thái đọc notification")
 class NotificationServiceTest {
 
   @Mock private NotificationDao notificationDao;
@@ -28,7 +34,7 @@ class NotificationServiceTest {
   }
 
   @Test
-  @DisplayName("getRecentNotifications() delegates to DAO")
+  @DisplayName("getRecentNotifications() ủy quyền cho DAO")
   void getRecentDelegatesToDao() {
     List<Map<String, Object>> notifications =
         List.of(
@@ -43,7 +49,7 @@ class NotificationServiceTest {
   }
 
   @Test
-  @DisplayName("getRecentNotifications() returns empty list when none exist")
+  @DisplayName("getRecentNotifications() trả về danh sách rỗng khi không có notification")
   void getRecentReturnsEmptyList() {
     when(notificationDao.findRecentByUserId(1L)).thenReturn(List.of());
 
@@ -51,7 +57,7 @@ class NotificationServiceTest {
   }
 
   @Test
-  @DisplayName("markRead() delegates to DAO with correct arguments")
+  @DisplayName("markRead() ủy quyền cho DAO với đúng tham số")
   void markReadDelegatesToDao() {
     service.markRead(7L, 42L);
 
@@ -59,7 +65,7 @@ class NotificationServiceTest {
   }
 
   @Test
-  @DisplayName("markAllRead() returns count from DAO")
+  @DisplayName("markAllRead() trả về số bản ghi từ DAO")
   void markAllReadReturnsDaoCount() {
     when(notificationDao.markAllRead(42L)).thenReturn(5);
 
@@ -70,7 +76,7 @@ class NotificationServiceTest {
   }
 
   @Test
-  @DisplayName("markAllRead() returns 0 when no unread notifications exist")
+  @DisplayName("markAllRead() trả về 0 khi không có notification chưa đọc")
   void markAllReadReturnsZeroWhenNoneUnread() {
     when(notificationDao.markAllRead(42L)).thenReturn(0);
 

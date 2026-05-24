@@ -29,9 +29,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+/**
+ * Unit test bổ sung cho {@link UserService} — kiểm tra validation đầu vào và các luồng mở rộng.
+ *
+ * <p>Kiểm tra validation trong register() (null/blank username, email không hợp lệ, mật khẩu ngắn,
+ * role ADMIN bị từ chối), login() (null/blank input), changePassword() (mật khẩu mới không hợp lệ),
+ * và các phương thức tra cứu: getRoleByUsername(), findById(), requestDeposit(), getAll(),
+ * delete().
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("UserService — extended paths")
+@DisplayName("UserService — validation đầu vào và các trường hợp mở rộng")
 class UserServiceExtendedTest {
 
   @Mock private UserDao userDao;
@@ -54,67 +62,67 @@ class UserServiceExtendedTest {
   // ── register() validation edge cases ─────────────────────
 
   @Nested
-  @DisplayName("register() — input validation")
+  @DisplayName("register() — kiểm tra đầu vào")
   class RegisterValidation {
 
     @Test
-    @DisplayName("null username throws IllegalArgumentException")
+    @DisplayName("username null — ném IllegalArgumentException")
     void nullUsernameThrows() {
       RegisterRequest req = new RegisterRequest(null, "pass123", "a@b.com", "BIDDER");
       assertThrows(java.lang.IllegalArgumentException.class, () -> service.register(req));
     }
 
     @Test
-    @DisplayName("blank username throws IllegalArgumentException")
+    @DisplayName("username rỗng — ném IllegalArgumentException")
     void blankUsernameThrows() {
       RegisterRequest req = new RegisterRequest("  ", "pass123", "a@b.com", "BIDDER");
       assertThrows(java.lang.IllegalArgumentException.class, () -> service.register(req));
     }
 
     @Test
-    @DisplayName("invalid email format throws IllegalArgumentException")
+    @DisplayName("email không đúng định dạng — ném IllegalArgumentException")
     void invalidEmailThrows() {
       RegisterRequest req = new RegisterRequest("alice", "pass123", "not-an-email", "BIDDER");
       assertThrows(java.lang.IllegalArgumentException.class, () -> service.register(req));
     }
 
     @Test
-    @DisplayName("null email throws IllegalArgumentException")
+    @DisplayName("email null — ném IllegalArgumentException")
     void nullEmailThrows() {
       RegisterRequest req = new RegisterRequest("alice", "pass123", null, "BIDDER");
       assertThrows(java.lang.IllegalArgumentException.class, () -> service.register(req));
     }
 
     @Test
-    @DisplayName("password shorter than 6 chars throws IllegalArgumentException")
+    @DisplayName("mật khẩu ngắn hơn 6 ký tự — ném IllegalArgumentException")
     void shortPasswordThrows() {
       RegisterRequest req = new RegisterRequest("alice", "abc", "a@b.com", "BIDDER");
       assertThrows(java.lang.IllegalArgumentException.class, () -> service.register(req));
     }
 
     @Test
-    @DisplayName("null password throws IllegalArgumentException")
+    @DisplayName("mật khẩu null — ném IllegalArgumentException")
     void nullPasswordThrows() {
       RegisterRequest req = new RegisterRequest("alice", null, "a@b.com", "BIDDER");
       assertThrows(java.lang.IllegalArgumentException.class, () -> service.register(req));
     }
 
     @Test
-    @DisplayName("null role throws IllegalArgumentException")
+    @DisplayName("role null — ném IllegalArgumentException")
     void nullRoleThrows() {
       RegisterRequest req = new RegisterRequest("alice", "pass123", "a@b.com", null);
       assertThrows(java.lang.IllegalArgumentException.class, () -> service.register(req));
     }
 
     @Test
-    @DisplayName("ADMIN role is rejected — cannot register as admin")
+    @DisplayName("role ADMIN bị từ chối — không được đăng ký làm admin")
     void adminRoleRejected() {
       RegisterRequest req = new RegisterRequest("alice", "pass123", "a@b.com", "ADMIN");
       assertThrows(java.lang.IllegalArgumentException.class, () -> service.register(req));
     }
 
     @Test
-    @DisplayName("SELLER role succeeds when no duplicates exist")
+    @DisplayName("role SELLER thành công khi không trùng lặp")
     void sellerRoleSucceeds() {
       when(userDao.insert(any(User.class)))
           .thenAnswer(
@@ -134,11 +142,11 @@ class UserServiceExtendedTest {
   // ── login() validation ────────────────────────────────────
 
   @Nested
-  @DisplayName("login() — input validation")
+  @DisplayName("login() — kiểm tra đầu vào")
   class LoginValidation {
 
     @Test
-    @DisplayName("null username throws IllegalArgumentException")
+    @DisplayName("username null — ném IllegalArgumentException")
     void nullUsernameThrows() {
       assertThrows(
           java.lang.IllegalArgumentException.class,
@@ -146,7 +154,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("blank username throws IllegalArgumentException")
+    @DisplayName("username rỗng — ném IllegalArgumentException")
     void blankUsernameThrows() {
       assertThrows(
           java.lang.IllegalArgumentException.class,
@@ -154,7 +162,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("null password throws IllegalArgumentException")
+    @DisplayName("mật khẩu null — ném IllegalArgumentException")
     void nullPasswordThrows() {
       assertThrows(
           java.lang.IllegalArgumentException.class,
@@ -162,7 +170,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("empty password throws IllegalArgumentException")
+    @DisplayName("mật khẩu rỗng — ném IllegalArgumentException")
     void emptyPasswordThrows() {
       assertThrows(
           java.lang.IllegalArgumentException.class,
@@ -173,11 +181,11 @@ class UserServiceExtendedTest {
   // ── changePassword() validation ───────────────────────────
 
   @Nested
-  @DisplayName("changePassword() — validation")
+  @DisplayName("changePassword() — kiểm tra đầu vào")
   class ChangePasswordValidation {
 
     @Test
-    @DisplayName("short new password throws IllegalArgumentException")
+    @DisplayName("mật khẩu mới quá ngắn — ném IllegalArgumentException")
     void shortNewPasswordThrows() {
       ChangePasswordRequest req = new ChangePasswordRequest();
       req.setCurrentPassword("oldPass");
@@ -187,7 +195,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("null new password throws IllegalArgumentException")
+    @DisplayName("mật khẩu mới null — ném IllegalArgumentException")
     void nullNewPasswordThrows() {
       ChangePasswordRequest req = new ChangePasswordRequest();
       req.setCurrentPassword("oldPass");
@@ -197,7 +205,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("user not found throws NotFoundException")
+    @DisplayName("user không tồn tại — ném NotFoundException")
     void userNotFoundThrows() {
       when(userDao.findById(99L)).thenReturn(Optional.empty());
       ChangePasswordRequest req = new ChangePasswordRequest();
@@ -215,7 +223,7 @@ class UserServiceExtendedTest {
   class GetRoleByUsername {
 
     @Test
-    @DisplayName("returns role for existing user")
+    @DisplayName("trả về role cho user tồn tại")
     void returnsRoleForExistingUser() {
       Bidder user = buildBidder("alice", "hash");
       when(userDao.findByUsername("alice")).thenReturn(Optional.of(user));
@@ -224,7 +232,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException for unknown user")
+    @DisplayName("ném NotFoundException cho user không tồn tại")
     void throwsNotFoundForUnknownUser() {
       when(userDao.findByUsername("ghost")).thenReturn(Optional.empty());
 
@@ -232,7 +240,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("normalises whitespace from username")
+    @DisplayName("chuẩn hóa khoảng trắng trong username")
     void normalisesUsername() {
       Bidder user = buildBidder("alice", "hash");
       when(userDao.findByUsername("alice")).thenReturn(Optional.of(user));
@@ -248,7 +256,7 @@ class UserServiceExtendedTest {
   class FindById {
 
     @Test
-    @DisplayName("returns UserResponse for existing user")
+    @DisplayName("trả về UserResponse cho user tồn tại")
     void returnsUserResponse() {
       Bidder user = buildBidder("alice", "hash");
       when(userDao.findById(1L)).thenReturn(Optional.of(user));
@@ -259,7 +267,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException for missing user")
+    @DisplayName("ném NotFoundException khi user không tồn tại")
     void throwsNotFoundForMissingUser() {
       when(userDao.findById(99L)).thenReturn(Optional.empty());
 
@@ -274,7 +282,7 @@ class UserServiceExtendedTest {
   class RequestDeposit {
 
     @Test
-    @DisplayName("creates PENDING deposit record for valid amount")
+    @DisplayName("tạo bản ghi PENDING cho số tiền hợp lệ")
     void createsPendingDepositRecord() {
       Bidder user = buildBidder("alice", "hash");
       when(userDao.findById(1L)).thenReturn(Optional.of(user));
@@ -288,7 +296,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("rejects zero amount")
+    @DisplayName("từ chối số tiền bằng 0")
     void rejectsZeroAmount() {
       assertThrows(
           java.lang.IllegalArgumentException.class,
@@ -296,7 +304,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("rejects negative amount")
+    @DisplayName("từ chối số tiền âm")
     void rejectsNegativeAmount() {
       assertThrows(
           java.lang.IllegalArgumentException.class,
@@ -304,7 +312,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when user does not exist")
+    @DisplayName("ném NotFoundException khi user không tồn tại")
     void throwsNotFoundForMissingUser() {
       when(userDao.findById(99L)).thenReturn(Optional.empty());
 
@@ -320,7 +328,7 @@ class UserServiceExtendedTest {
   class GetPendingDeposits {
 
     @Test
-    @DisplayName("returns list from DAO")
+    @DisplayName("trả về danh sách từ DAO")
     void returnsListFromDao() {
       DepositRecord r1 = new DepositRecord(1L, new BigDecimal("100000"));
       when(depositRequestDao.findByStatus("PENDING")).thenReturn(List.of(r1));
@@ -336,7 +344,7 @@ class UserServiceExtendedTest {
   class GetAll {
 
     @Test
-    @DisplayName("returns all users as UserResponse DTOs")
+    @DisplayName("trả về tất cả user dưới dạng UserResponse DTO")
     void returnsAllUsers() {
       Bidder u1 = buildBidder("alice", "hash1");
       Seller u2 = new Seller("bob", "hash2", "bob@ex.com");
@@ -349,7 +357,7 @@ class UserServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("returns empty list when no users exist")
+    @DisplayName("trả về danh sách rỗng khi không có user")
     void returnsEmptyList() {
       when(userDao.findAll()).thenReturn(List.of());
 
@@ -360,11 +368,11 @@ class UserServiceExtendedTest {
   // ── delete() ─────────────────────────────────────────────
 
   @Nested
-  @DisplayName("delete() — user not found")
+  @DisplayName("delete() — user không tồn tại")
   class DeleteEdgeCases {
 
     @Test
-    @DisplayName("throws NotFoundException when user does not exist (for second not-found)")
+    @DisplayName("ném NotFoundException khi user biến mất giữa kiểm tra và xóa")
     void throwsNotFoundWhenDeleteReturnsfalse() {
       Bidder user = buildBidder("alice", "hash");
       when(userDao.findById(1L)).thenReturn(Optional.of(user));

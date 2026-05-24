@@ -30,7 +30,36 @@ import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Service xử lý logic nghiệp vụ cho Auction (phiên đấu giá). */
+/**
+ * Service xử lý toàn bộ logic nghiệp vụ cho phiên đấu giá (Auction).
+ *
+ * <p>Lớp này là tầng trung gian chính giữa Controller và các DAO, kết hợp nhiều pattern:
+ *
+ * <ul>
+ *   <li><b>State Pattern</b> — ủy quyền kiểm tra tính hợp lệ của hành động cho {@code AuctionState}
+ *       (đặt giá, đóng, chỉnh sửa, gia hạn) thay vì dùng if/switch trên trường status.
+ *   <li><b>Observer Pattern</b> — phát sự kiện real-time qua {@code AuctionEventManager} đến
+ *       WebSocket clients khi có bid mới, gia hạn, hoặc kết thúc phiên.
+ *   <li><b>Transaction</b> — dùng {@code jdbi.inTransaction()} khi cần tính nhất quán nhiều bảng
+ *       (ví dụ: tạo phiên + khóa item, hủy phiên + hoàn tiền + ghi notification).
+ * </ul>
+ *
+ * <p><b>Hai constructor chính:</b>
+ *
+ * <ul>
+ *   <li>6-arg (legacy, {@link Deprecated}) — dùng trong test cũ, không có WebSocket handler.
+ *   <li>7-arg (đầy đủ) — dùng bởi {@code App.java} trong runtime thực tế với WebSocket handler.
+ * </ul>
+ *
+ * <p><b>Luồng hủy phiên (soft-cancel vs hard-delete):</b>
+ *
+ * <ul>
+ *   <li>{@link #delete(Long, Long, String)} — soft-cancel: đổi status sang CANCELED, hoàn tiền cho
+ *       leading bidder, gửi thông báo. Chỉ áp dụng cho phiên OPEN/RUNNING.
+ *   <li>{@link #hardDelete(Long)} — xóa toàn bộ bản ghi khỏi DB (cascade). Dành cho ADMIN muốn xóa
+ *       sạch lịch sử.
+ * </ul>
+ */
 public class AuctionService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuctionService.class);
@@ -44,9 +73,11 @@ public class AuctionService {
   private final AuctionWebSocketHandler wsHandler;
 
   /**
-   * Backward-compatible 6-arg constructor used by existing tests. Live per-user pushes for cancel /
-   * hardDelete are disabled when wsHandler is null — DB notifications are still persisted, the bell
-   * panel just won't toast in real time. App.java should always use the 7-arg constructor below.
+   * Constructor tương thích ngược 6 tham số — dùng trong test cũ.
+   *
+   * <p>Khi {@code wsHandler} là null, các thông báo real-time qua WebSocket bị tắt (push live đến
+   * bell panel không hoạt động), nhưng dữ liệu thông báo vẫn được persist xuống DB. {@code
+   * App.java} trong runtime thực tế luôn dùng constructor 7 tham số bên dưới.
    */
   public AuctionService(
       AuctionDao auctionDao,
@@ -75,7 +106,7 @@ public class AuctionService {
     this.wsHandler = wsHandler;
   }
 
-  /** For unit tests that don't need notification. */
+  /** Constructor tối giản cho unit test không cần thông báo hay transaction. */
   AuctionService(AuctionDao auctionDao, ItemDao itemDao, UserDao userDao) {
     this(auctionDao, itemDao, userDao, null, null, null, null);
   }

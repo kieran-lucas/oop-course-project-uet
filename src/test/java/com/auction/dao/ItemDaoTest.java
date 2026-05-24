@@ -48,7 +48,7 @@ class ItemDaoTest {
   }
 
   @Test
-  @DisplayName("Insert Item should work")
+  @DisplayName("Insert item — được lưu với đúng category và thông tin")
   void testInsertItem() {
     Item item = new Electronics("iPhone 15", "New phone", testSeller.getId(), "Apple");
 
@@ -62,7 +62,7 @@ class ItemDaoTest {
   }
 
   @Test
-  @DisplayName("FindById should return correct item")
+  @DisplayName("FindById — tìm thấy đúng item theo ID")
   void testFindById() {
     Item item = new Electronics("Test Laptop", "Gaming laptop", testSeller.getId(), "Dell");
     Item saved = itemDao.insert(item);
@@ -77,7 +77,7 @@ class ItemDaoTest {
   }
 
   @Test
-  @DisplayName("Item status should round-trip through DAO")
+  @DisplayName("Status item được ghi và đọc lại đúng qua DAO")
   void testItemStatusRoundTrip() {
     Item item = new Art("Painting", "Art", testSeller.getId(), "Unknown");
     item.setStatus("IN_AUCTION");
@@ -90,7 +90,7 @@ class ItemDaoTest {
   }
 
   @Test
-  @DisplayName("FindBySellerId should return all items of a seller")
+  @DisplayName("FindBySellerId — trả về tất cả item của seller")
   void testFindBySellerId() {
     itemDao.insert(new Electronics("Laptop", "Dell", testSeller.getId(), "Dell"));
     itemDao.insert(new Art("Painting", "Art", testSeller.getId(), "Artist"));
@@ -101,7 +101,7 @@ class ItemDaoTest {
   }
 
   @Test
-  @DisplayName("FindByCategory should filter by category")
+  @DisplayName("FindByCategory — lọc đúng theo danh mục")
   void testFindByCategory() {
     itemDao.insert(new Electronics("Phone", "Smartphone", testSeller.getId(), "Apple"));
     itemDao.insert(new Art("Sculpture", "Art", testSeller.getId(), "Artist"));
@@ -114,7 +114,7 @@ class ItemDaoTest {
   }
 
   @Test
-  @DisplayName("Update should modify item details")
+  @DisplayName("Update — cập nhật đúng tên, thương hiệu và trạng thái")
   void testUpdate() {
     Item item = new Electronics("Old Name", "Old desc", testSeller.getId(), "Old Brand");
     Item saved = itemDao.insert(item);
@@ -136,7 +136,7 @@ class ItemDaoTest {
   }
 
   @Test
-  @DisplayName("Delete should mark item as REMOVED")
+  @DisplayName("Delete — đánh dấu item thành REMOVED")
   void testDeleteMarksItemRemoved() {
     Item item = new Electronics("To Delete", "Temp", testSeller.getId(), "Brand");
     Item saved = itemDao.insert(item);

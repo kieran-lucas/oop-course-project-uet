@@ -19,7 +19,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+/**
+ * Kiểm tra {@link BidController} — phân quyền role và luồng đặt giá thủ công.
+ *
+ * <p>Chỉ role BIDDER được phép gọi endpoint đặt giá; SELLER và ADMIN bị từ chối bằng {@link
+ * com.auction.exception.UnauthorizedException}. Mọi phụ thuộc service được mock.
+ */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("BidController — phân quyền role và đặt giá thủ công")
 class BidControllerTest {
 
   private static final Long AUCTION_ID = 10L;
@@ -37,7 +44,7 @@ class BidControllerTest {
   }
 
   @Test
-  @DisplayName("SELLER role is rejected for manual bid endpoint")
+  @DisplayName("Role SELLER bị từ chối ở endpoint đặt giá thủ công")
   void sellerCannotPlaceManualBid() {
     when(ctx.attribute("role")).thenReturn("SELLER");
 
@@ -47,7 +54,7 @@ class BidControllerTest {
   }
 
   @Test
-  @DisplayName("ADMIN role is rejected for manual bid endpoint")
+  @DisplayName("Role ADMIN bị từ chối ở endpoint đặt giá thủ công")
   void adminCannotPlaceManualBid() {
     when(ctx.attribute("role")).thenReturn("ADMIN");
 
@@ -57,7 +64,7 @@ class BidControllerTest {
   }
 
   @Test
-  @DisplayName("BIDDER role can place manual bid")
+  @DisplayName("Role BIDDER được phép đặt giá thủ công và nhận phản hồi 201")
   void bidderCanPlaceManualBid() {
     BidRequest request = new BidRequest(BID_AMOUNT);
     BidTransaction bid = new BidTransaction(AUCTION_ID, USER_ID, BID_AMOUNT, false);

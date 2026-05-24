@@ -9,6 +9,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+/**
+ * Kiểm thử {@link MoneyValidator} — tiện ích xác thực số tiền VND là số nguyên dương.
+ *
+ * <p>Ba nhóm test tương ứng ba phương thức public:
+ *
+ * <ul>
+ *   <li>{@code requirePositiveIntegerVnd()} — ném exception nếu vi phạm
+ *   <li>{@code isIntegerVnd()} — kiểm tra boolean
+ *   <li>{@code toIntegerVndExact()} — chuyển đổi chính xác sang long
+ * </ul>
+ */
 @DisplayName("MoneyValidator")
 class MoneyValidatorTest {
 
@@ -17,14 +28,14 @@ class MoneyValidatorTest {
   class RequirePositiveIntegerVnd {
 
     @Test
-    @DisplayName("accepts a positive integer amount")
+    @DisplayName("chấp nhận số tiền nguyên dương")
     void acceptsPositiveInteger() {
       assertDoesNotThrow(
           () -> MoneyValidator.requirePositiveIntegerVnd(new BigDecimal("100000"), "Amount"));
     }
 
     @Test
-    @DisplayName("rejects null amount with field name in message")
+    @DisplayName("từ chối null — message chứa tên trường")
     void rejectsNull() {
       IllegalArgumentException ex =
           assertThrows(
@@ -34,7 +45,7 @@ class MoneyValidatorTest {
     }
 
     @Test
-    @DisplayName("rejects zero amount")
+    @DisplayName("từ chối số 0")
     void rejectsZero() {
       assertThrows(
           IllegalArgumentException.class,
@@ -42,7 +53,7 @@ class MoneyValidatorTest {
     }
 
     @Test
-    @DisplayName("rejects negative amount")
+    @DisplayName("từ chối số âm")
     void rejectsNegative() {
       assertThrows(
           IllegalArgumentException.class,
@@ -50,7 +61,7 @@ class MoneyValidatorTest {
     }
 
     @Test
-    @DisplayName("rejects fractional amount (1000.5)")
+    @DisplayName("từ chối số có phần thập phân (1000.5)")
     void rejectsFractional() {
       assertThrows(
           IllegalArgumentException.class,
@@ -58,7 +69,7 @@ class MoneyValidatorTest {
     }
 
     @Test
-    @DisplayName("accepts integer expressed with trailing zeros (100000.00)")
+    @DisplayName("chấp nhận số nguyên biểu diễn với trailing zero (100000.00)")
     void acceptsIntegerWithTrailingZeros() {
       assertDoesNotThrow(
           () -> MoneyValidator.requirePositiveIntegerVnd(new BigDecimal("100000.00"), "Amount"));
@@ -70,21 +81,21 @@ class MoneyValidatorTest {
   class IsIntegerVnd {
 
     @Test
-    @DisplayName("returns false for null")
+    @DisplayName("trả về false cho null")
     void rejectsNull() {
       assertFalse(MoneyValidator.isIntegerVnd(null));
     }
 
     @ParameterizedTest(name = "[{index}] {0}")
     @ValueSource(strings = {"1", "100", "1000000", "100.00", "0", "-5"})
-    @DisplayName("returns true for integer-valued amounts")
+    @DisplayName("trả về true cho số nguyên (kể cả 0 và âm)")
     void acceptsInteger(String value) {
       assertTrue(MoneyValidator.isIntegerVnd(new BigDecimal(value)));
     }
 
     @ParameterizedTest(name = "[{index}] {0}")
     @ValueSource(strings = {"0.5", "1000.50", "0.0001"})
-    @DisplayName("returns false for fractional amounts")
+    @DisplayName("trả về false cho số có phần lẻ")
     void rejectsFractional(String value) {
       assertFalse(MoneyValidator.isIntegerVnd(new BigDecimal(value)));
     }
@@ -95,20 +106,20 @@ class MoneyValidatorTest {
   class ToIntegerVndExact {
 
     @Test
-    @DisplayName("converts integer amount to long")
+    @DisplayName("chuyển đổi số nguyên sang long chính xác")
     void convertsToLong() {
       assertEquals(500_000L, MoneyValidator.toIntegerVndExact(new BigDecimal("500000"), "Amount"));
     }
 
     @Test
-    @DisplayName("rejects null")
+    @DisplayName("từ chối null")
     void rejectsNull() {
       assertThrows(
           IllegalArgumentException.class, () -> MoneyValidator.toIntegerVndExact(null, "Amount"));
     }
 
     @Test
-    @DisplayName("rejects fractional amount")
+    @DisplayName("từ chối số có phần lẻ")
     void rejectsFractional() {
       assertThrows(
           IllegalArgumentException.class,

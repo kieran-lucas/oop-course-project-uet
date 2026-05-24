@@ -5,30 +5,24 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
 /**
- * Test suite verifying the contract of {@link UnauthorizedException} — thrown when a caller lacks
- * the required permissions to perform an action, such as bidding under another user's identity,
- * modifying an item they do not own, or presenting an expired/invalid JWT token. Typically maps to
- * an HTTP 401 or 403 response at the API layer.
+ * Kiểm thử hợp đồng của {@link UnauthorizedException} — ném ra khi caller không có quyền thực hiện
+ * hành động, ví dụ đặt giá dưới danh tính người khác, sửa item không thuộc quyền sở hữu, hoặc trình
+ * JWT hết hạn/không hợp lệ. Thường ánh xạ thành HTTP 401 hoặc 403 ở tầng API.
  *
- * <p><b>Contract under test:</b>
+ * <p><b>Hợp đồng được kiểm thử:</b>
  *
  * <ul>
- *   <li>Both constructors (message-only and message + cause) propagate their arguments correctly.
- *   <li>The class sits in the right place in the exception hierarchy: {@code UnauthorizedException
- *       → AuctionException → RuntimeException}.
- *   <li>{@code toString()} includes both the class name and the message, which matters for log
- *       readability when the full stack trace is not printed.
+ *   <li>Cả hai constructor (chỉ message và message + cause) truyền đúng tham số.
+ *   <li>Lớp nằm đúng vị trí trong cây exception: {@code UnauthorizedException → AuctionException →
+ *       RuntimeException}.
+ *   <li>{@code toString()} chứa cả tên lớp lẫn message — quan trọng khi log không in stack trace.
  * </ul>
  *
- * <p>No external dependencies or DB connection required — all tests are pure unit tests that
- * instantiate the exception directly.
+ * <p>Không cần kết nối DB — tất cả test khởi tạo exception trực tiếp (pure unit test).
  */
 class UnauthorizedExceptionTest {
 
-  /**
-   * Verifies that the single-argument constructor stores the message and makes it retrievable via
-   * {@link Throwable#getMessage()}.
-   */
+  /** Kiểm tra constructor một tham số lưu đúng message và trả về qua {@code getMessage()}. */
   @Test
   void shouldCarryMessage() {
     UnauthorizedException ex = new UnauthorizedException("forbidden");
@@ -36,14 +30,12 @@ class UnauthorizedExceptionTest {
   }
 
   /**
-   * Verifies the two-argument constructor: the cause must be the exact object passed in (identity
-   * check via {@code assertSame}, not just equality), and the message must be preserved
-   * independently of the cause.
+   * Kiểm tra constructor hai tham số: cause phải là chính xác object được truyền vào (identity
+   * check qua {@code assertSame}), và message phải được bảo toàn độc lập.
    *
-   * <p>Cause chaining is particularly relevant here because {@link UnauthorizedException} is often
-   * raised in response to a JWT verification failure (e.g., {@link SecurityException} from the
-   * token library). Wrapping the original exception preserves the authentication context for
-   * security auditing.
+   * <p>Cause chaining đặc biệt liên quan ở đây vì {@link UnauthorizedException} thường phát sinh từ
+   * lỗi xác thực JWT ({@link SecurityException} từ thư viện token) — bọc exception gốc giúp audit
+   * bảo mật có thể truy ngược về nguồn gốc thực sự.
    */
   @Test
   void shouldChainCause() {
@@ -54,9 +46,8 @@ class UnauthorizedExceptionTest {
   }
 
   /**
-   * Verifies that {@link UnauthorizedException} is a subtype of {@link AuctionException}, allowing
-   * callers to catch all domain exceptions with a single {@code catch (AuctionException e)} block
-   * without needing to enumerate each specific type.
+   * Kiểm tra {@link UnauthorizedException} là subtype của {@link AuctionException}, cho phép bắt
+   * tất cả exception nghiệp vụ bằng một khối {@code catch (AuctionException e)}.
    */
   @Test
   void shouldBeAnAuctionException() {
@@ -65,9 +56,8 @@ class UnauthorizedExceptionTest {
   }
 
   /**
-   * Verifies that {@link UnauthorizedException} extends {@link RuntimeException}, meaning callers
-   * are not forced to declare it in {@code throws} clauses. This is the intended design for domain
-   * exceptions in this system.
+   * Kiểm tra {@link UnauthorizedException} kế thừa {@link RuntimeException} — caller không bị buộc
+   * khai báo trong {@code throws}. Đây là thiết kế có chủ ý cho exception nghiệp vụ.
    */
   @Test
   void shouldBeARuntimeException() {
@@ -76,9 +66,8 @@ class UnauthorizedExceptionTest {
   }
 
   /**
-   * Verifies that {@code toString()} contains both the fully-qualified class name and the message.
-   * This guards against accidental overrides of {@code toString()} that might drop either piece of
-   * information, which would make log-only error reports harder to diagnose.
+   * Kiểm tra {@code toString()} chứa cả tên lớp đầy đủ lẫn message — bảo vệ khỏi việc override
+   * {@code toString()} vô tình làm mất thông tin khi log không in stack trace.
    */
   @Test
   void toStringShouldIncludeClassName() {

@@ -11,17 +11,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("DTO completeness — getters, setters, factory methods")
+/**
+ * Kiểm thử tính đầy đủ của các DTO: constructor, getter, setter và factory method.
+ *
+ * <p>Bao phủ toàn bộ DTO request/response trong hệ thống để đảm bảo không có trường nào bị bỏ sót
+ * hoặc ánh xạ sai. Không cần kết nối DB — pure unit test.
+ */
+@DisplayName("Độ đầy đủ DTO — getter, setter, factory method")
 class DtoCompletenessTest {
-
-  // ── LoginRequest ──────────────────────────────────────────
 
   @Nested
   @DisplayName("LoginRequest")
   class LoginRequestTest {
 
     @Test
-    @DisplayName("all-args constructor sets fields correctly")
+    @DisplayName("constructor đầy đủ tham số set đúng trường")
     void allArgsConstructor() {
       LoginRequest r = new LoginRequest("alice", "secret");
       assertEquals("alice", r.getUsername());
@@ -29,7 +33,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("setters mutate fields")
+    @DisplayName("setter thay đổi giá trị trường")
     void setters() {
       LoginRequest r = new LoginRequest();
       r.setUsername("bob");
@@ -39,7 +43,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("no-arg constructor produces null fields")
+    @DisplayName("constructor mặc định trả về null ở mọi trường")
     void noArgConstructor() {
       LoginRequest r = new LoginRequest();
       assertNull(r.getUsername());
@@ -47,14 +51,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── RegisterRequest ───────────────────────────────────────
-
   @Nested
   @DisplayName("RegisterRequest")
   class RegisterRequestTest {
 
     @Test
-    @DisplayName("all-args constructor")
+    @DisplayName("constructor đầy đủ tham số")
     void allArgsConstructor() {
       RegisterRequest r = new RegisterRequest("alice", "pass123", "alice@ex.com", "BIDDER");
       assertEquals("alice", r.getUsername());
@@ -64,7 +66,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("setters roundtrip")
+    @DisplayName("setter/getter roundtrip")
     void settersRoundtrip() {
       RegisterRequest r = new RegisterRequest();
       r.setUsername("bob");
@@ -78,21 +80,19 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── BidRequest ────────────────────────────────────────────
-
   @Nested
   @DisplayName("BidRequest")
   class BidRequestTest {
 
     @Test
-    @DisplayName("all-args constructor")
+    @DisplayName("constructor đầy đủ tham số")
     void allArgsConstructor() {
       BidRequest r = new BidRequest(new BigDecimal("1500000"));
       assertEquals(0, new BigDecimal("1500000").compareTo(r.getAmount()));
     }
 
     @Test
-    @DisplayName("setter mutates amount")
+    @DisplayName("setter thay đổi amount")
     void setter() {
       BidRequest r = new BidRequest();
       r.setAmount(new BigDecimal("2000000"));
@@ -100,14 +100,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── ChangePasswordRequest ─────────────────────────────────
-
   @Nested
   @DisplayName("ChangePasswordRequest")
   class ChangePasswordRequestTest {
 
     @Test
-    @DisplayName("setters and getters roundtrip")
+    @DisplayName("setter/getter roundtrip cho cả hai mật khẩu")
     void settersGetters() {
       ChangePasswordRequest r = new ChangePasswordRequest();
       r.setCurrentPassword("old");
@@ -117,14 +115,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── DepositRequest ────────────────────────────────────────
-
   @Nested
   @DisplayName("DepositRequest")
   class DepositRequestTest {
 
     @Test
-    @DisplayName("setter and getter for amount")
+    @DisplayName("setter và getter cho amount")
     void setterGetter() {
       DepositRequest r = new DepositRequest();
       r.setAmount(new BigDecimal("500000"));
@@ -132,14 +128,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── ForgotPasswordRequest ─────────────────────────────────
-
   @Nested
   @DisplayName("ForgotPasswordRequest")
   class ForgotPasswordRequestTest {
 
     @Test
-    @DisplayName("setter and getter for email")
+    @DisplayName("setter và getter cho email")
     void setterGetter() {
       ForgotPasswordRequest r = new ForgotPasswordRequest();
       r.setEmail("alice@ex.com");
@@ -147,14 +141,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── AutoBidRequest ────────────────────────────────────────
-
   @Nested
   @DisplayName("AutoBidRequest")
   class AutoBidRequestTest {
 
     @Test
-    @DisplayName("all-args constructor")
+    @DisplayName("constructor đầy đủ tham số")
     void allArgsConstructor() {
       AutoBidRequest r = new AutoBidRequest(new BigDecimal("5000000"), new BigDecimal("100000"));
       assertEquals(0, new BigDecimal("5000000").compareTo(r.getMaxBid()));
@@ -162,7 +154,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("setters roundtrip")
+    @DisplayName("setter/getter roundtrip")
     void setters() {
       AutoBidRequest r = new AutoBidRequest();
       r.setMaxBid(new BigDecimal("3000000"));
@@ -172,14 +164,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── CreateItemRequest ─────────────────────────────────────
-
   @Nested
   @DisplayName("CreateItemRequest")
   class CreateItemRequestTest {
 
     @Test
-    @DisplayName("all-args constructor")
+    @DisplayName("constructor đầy đủ tham số")
     void allArgsConstructor() {
       CreateItemRequest r = new CreateItemRequest("Laptop", "Fast", "ELECTRONICS", "Dell");
       assertEquals("Laptop", r.getName());
@@ -189,7 +179,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("setters roundtrip")
+    @DisplayName("setter/getter roundtrip")
     void setters() {
       CreateItemRequest r = new CreateItemRequest();
       r.setName("Painting");
@@ -203,14 +193,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── CreateAuctionRequest ──────────────────────────────────
-
   @Nested
   @DisplayName("CreateAuctionRequest")
   class CreateAuctionRequestTest {
 
     @Test
-    @DisplayName("all-args constructor")
+    @DisplayName("constructor đầy đủ tham số")
     void allArgsConstructor() {
       LocalDateTime start = LocalDateTime.now().plusHours(1);
       LocalDateTime end = LocalDateTime.now().plusHours(3);
@@ -222,7 +210,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("setters roundtrip")
+    @DisplayName("setter/getter roundtrip")
     void setters() {
       CreateAuctionRequest r = new CreateAuctionRequest();
       LocalDateTime start = LocalDateTime.now().plusHours(2);
@@ -238,14 +226,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── PageRequest ───────────────────────────────────────────
-
   @Nested
   @DisplayName("PageRequest")
   class PageRequestTest {
 
     @Test
-    @DisplayName("offset() computes page * size")
+    @DisplayName("offset() tính đúng page * size")
     void offsetComputation() {
       PageRequest r = new PageRequest(2, 10);
       assertEquals(20, r.offset());
@@ -261,13 +247,11 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("page 0 offset is 0")
+    @DisplayName("trang đầu (page 0) có offset = 0")
     void firstPageOffset() {
       assertEquals(0, new PageRequest(0, 15).offset());
     }
   }
-
-  // ── AuctionResponse ───────────────────────────────────────
 
   @Nested
   @DisplayName("AuctionResponse")
@@ -288,7 +272,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("fromAuction maps all fields from the Auction model")
+    @DisplayName("fromAuction ánh xạ đầy đủ trường từ Auction model")
     void fromAuctionMapsFields() {
       Auction a = buildAuction();
       AuctionResponse r = AuctionResponse.fromAuction(a);
@@ -302,7 +286,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("all setters roundtrip correctly")
+    @DisplayName("tất cả setter/getter roundtrip đúng")
     void settersRoundtrip() {
       AuctionResponse r = new AuctionResponse();
       r.setId(1L);
@@ -326,14 +310,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── UserResponse ──────────────────────────────────────────
-
   @Nested
   @DisplayName("UserResponse")
   class UserResponseTest {
 
     @Test
-    @DisplayName("from() factory maps all User fields")
+    @DisplayName("from() factory ánh xạ đúng tất cả trường User")
     void fromFactoryMapsFields() {
       Bidder user = new Bidder("alice", "hash", "alice@ex.com");
       user.setId(42L);
@@ -349,7 +331,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("setters mutate all fields")
+    @DisplayName("tất cả setter thay đổi đúng trường")
     void setters() {
       UserResponse r = new UserResponse();
       LocalDateTime now = LocalDateTime.now();
@@ -370,14 +352,12 @@ class DtoCompletenessTest {
     }
   }
 
-  // ── ErrorResponse ─────────────────────────────────────────
-
   @Nested
   @DisplayName("ErrorResponse")
   class ErrorResponseTest {
 
     @Test
-    @DisplayName("of() factory sets error code and message")
+    @DisplayName("factory of() đặt đúng error code và message")
     void ofFactory() {
       ErrorResponse r = ErrorResponse.of("NOT_FOUND", "Item not found");
       assertEquals("NOT_FOUND", r.getError());
@@ -386,7 +366,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("setters mutate error, message, and timestamp")
+    @DisplayName("setter thay đổi error, message và timestamp")
     void setters() {
       ErrorResponse r = new ErrorResponse();
       LocalDateTime ts = LocalDateTime.now();
@@ -399,7 +379,7 @@ class DtoCompletenessTest {
     }
 
     @Test
-    @DisplayName("toString includes error code")
+    @DisplayName("toString chứa error code")
     void toStringContainsErrorCode() {
       ErrorResponse r = ErrorResponse.of("INVALID_BID", "Too low");
       assertTrue(r.toString().contains("INVALID_BID"));

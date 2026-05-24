@@ -34,9 +34,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+/**
+ * Unit test bổ sung cho {@link AuctionService} — kiểm tra luồng đọc, làm giàu dữ liệu và cập nhật.
+ *
+ * <p>Kiểm tra phương thức {@code getAll()}, {@code getAuctionById()}, {@code
+ * enrichAuctionResponse()} (làm giàu theo loại item: Electronics/Art/Vehicle và gán username người
+ * dẫn đầu), và {@code update()} với các kịch bản quyền sở hữu, trạng thái phiên, và null-field
+ * handling.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("AuctionService — extended read/enrich/update paths")
+@DisplayName("AuctionService — đọc, làm giàu dữ liệu và cập nhật phiên")
 class AuctionServiceExtendedTest {
 
   @Mock private AuctionDao auctionDao;
@@ -83,7 +91,7 @@ class AuctionServiceExtendedTest {
   class GetAll {
 
     @Test
-    @DisplayName("returns enriched list when status filter is null")
+    @DisplayName("trả về danh sách đầy đủ khi không lọc status")
     void returnsAllAuctionsWhenNoFilter() {
       Auction a = buildAuction();
       Electronics item = new Electronics("Laptop", "desc", SELLER_ID, "Dell");
@@ -99,7 +107,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("returns filtered list when status is provided")
+    @DisplayName("trả về danh sách lọc khi có status")
     void returnsFilteredByStatus() {
       Auction a = buildAuction();
       when(auctionDao.findByStatus(eq("RUNNING"), any(PageRequest.class))).thenReturn(List.of(a));
@@ -113,7 +121,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("returns empty list when no auctions match")
+    @DisplayName("trả về danh sách rỗng khi không có kết quả")
     void returnsEmptyList() {
       when(auctionDao.findAll(any(PageRequest.class))).thenReturn(List.of());
 
@@ -121,7 +129,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("respects custom PageRequest when provided")
+    @DisplayName("dùng PageRequest tuỳ chỉnh khi được truyền vào")
     void respectsCustomPageRequest() {
       PageRequest page = PageRequest.of(1, 5);
       when(auctionDao.findAll(eq(page))).thenReturn(List.of());
@@ -132,7 +140,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("uses default page when PageRequest is null")
+    @DisplayName("dùng page mặc định khi PageRequest là null")
     void usesDefaultPageWhenNull() {
       when(auctionDao.findAll(any(PageRequest.class))).thenReturn(List.of());
 
@@ -149,7 +157,7 @@ class AuctionServiceExtendedTest {
   class GetAuctionById {
 
     @Test
-    @DisplayName("returns enriched response for existing auction")
+    @DisplayName("trả về response đầy đủ cho auction tồn tại")
     void returnsEnrichedResponse() {
       Auction a = buildOpenAuction();
       when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(a));
@@ -162,7 +170,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when auction does not exist")
+    @DisplayName("ném NotFoundException khi auction không tồn tại")
     void throwsNotFoundForMissingAuction() {
       when(auctionDao.findById(999L)).thenReturn(Optional.empty());
 
@@ -170,7 +178,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("getById delegates to getAuctionById")
+    @DisplayName("getById ủy quyền cho getAuctionById")
     void getByIdDelegatesToGetAuctionById() {
       Auction a = buildOpenAuction();
       when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(a));
@@ -185,11 +193,11 @@ class AuctionServiceExtendedTest {
   // ── enrichAuctionResponse() — tested via getAll / getAuctionById ─
 
   @Nested
-  @DisplayName("enrichAuctionResponse() — item type enrichment")
+  @DisplayName("enrichAuctionResponse() — làm giàu theo loại item")
   class EnrichAuctionResponse {
 
     @Test
-    @DisplayName("sets itemBrand when item is Electronics")
+    @DisplayName("gán itemBrand khi item là Electronics")
     void setsItemBrandForElectronics() {
       Auction a = buildOpenAuction();
       Electronics item = new Electronics("Phone", "desc", SELLER_ID, "Samsung");
@@ -204,7 +212,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("sets itemArtist when item is Art")
+    @DisplayName("gán itemArtist khi item là Art")
     void setsItemArtistForArt() {
       Auction a = buildOpenAuction();
       Art item = new Art("Portrait", "oil painting", SELLER_ID, "Van Gogh");
@@ -219,7 +227,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("sets itemYear when item is Vehicle")
+    @DisplayName("gán itemYear khi item là Vehicle")
     void setsItemYearForVehicle() {
       Auction a = buildOpenAuction();
       Vehicle item = new Vehicle("Toyota", "sedan", SELLER_ID, 2020);
@@ -234,7 +242,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("leaves item fields null when item is not found")
+    @DisplayName("để item fields là null khi không tìm thấy item")
     void leavesItemFieldsNullWhenItemMissing() {
       Auction a = buildOpenAuction();
       when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(a));
@@ -246,7 +254,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("sets leadingBidderUsername when leadingBidderId is present")
+    @DisplayName("gán leadingBidderUsername khi leadingBidderId có giá trị")
     void setsLeadingBidderUsername() {
       Auction a = buildAuction(); // leadingBidderId = BIDDER_ID
       User bidder = new Bidder("bob", "hash", "bob@ex.com");
@@ -261,7 +269,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("skips leadingBidderUsername lookup when leadingBidderId is null")
+    @DisplayName("bỏ qua lookup leadingBidder khi leadingBidderId là null")
     void skipsLeadingBidderLookupWhenNull() {
       Auction a = buildOpenAuction(); // leadingBidderId = null
       when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(a));
@@ -288,7 +296,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("owner can update an OPEN auction")
+    @DisplayName("chủ sở hữu được cập nhật phiên OPEN")
     void ownerCanUpdateOpenAuction() {
       Auction a = buildOpenAuction();
       Electronics item = new Electronics("Laptop", "desc", SELLER_ID, "Dell");
@@ -303,7 +311,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("throws IllegalStateException when auction is not OPEN")
+    @DisplayName("ném IllegalStateException khi phiên không ở trạng thái OPEN")
     void throwsWhenAuctionNotOpen() {
       Auction a = buildAuction(); // RUNNING
       when(auctionDao.findById(AUCTION_ID)).thenReturn(Optional.of(a));
@@ -314,7 +322,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("throws UnauthorizedException when non-owner tries to update")
+    @DisplayName("ném UnauthorizedException khi người dùng không phải chủ sở hữu")
     void throwsWhenNotOwner() {
       Auction a = buildOpenAuction();
       Electronics item = new Electronics("Laptop", "desc", SELLER_ID, "Dell");
@@ -328,7 +336,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("throws NotFoundException when auction does not exist")
+    @DisplayName("ném NotFoundException khi auction không tồn tại")
     void throwsNotFoundWhenMissing() {
       when(auctionDao.findById(999L)).thenReturn(Optional.empty());
 
@@ -336,7 +344,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("only updates non-null fields in request")
+    @DisplayName("chỉ cập nhật các field không null trong request")
     void onlyUpdatesNonNullFields() {
       Auction a = buildOpenAuction();
       a.setStartingPrice(new BigDecimal("1000000"));
@@ -360,11 +368,11 @@ class AuctionServiceExtendedTest {
   // ── getAllAuctions() (deprecated wrapper) ─────────────────
 
   @Nested
-  @DisplayName("getAllAuctions() — deprecated alias")
+  @DisplayName("getAllAuctions() — alias cũ (deprecated)")
   class GetAllAuctions {
 
     @Test
-    @DisplayName("returns list of Auction models (not AuctionResponse)")
+    @DisplayName("trả về danh sách Auction model (không phải AuctionResponse)")
     void returnsAuctionList() {
       Auction a = buildOpenAuction();
       when(auctionDao.findAll(any(PageRequest.class))).thenReturn(List.of(a));
@@ -377,7 +385,7 @@ class AuctionServiceExtendedTest {
     }
 
     @Test
-    @DisplayName("filters by status when provided")
+    @DisplayName("lọc theo status khi được truyền")
     void filtersAuctionsByStatus() {
       Auction a = buildOpenAuction();
       when(auctionDao.findByStatus(eq("OPEN"), any(PageRequest.class))).thenReturn(List.of(a));
