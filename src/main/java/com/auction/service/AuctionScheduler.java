@@ -404,6 +404,7 @@ public class AuctionScheduler {
               finalItemStatus = "AVAILABLE";
             }
 
+            deactivateActiveAutoBidsInTransaction(handle, auction.getId());
             updateItemStatusInSettlement(handle, auction, finalItemStatus);
             auctionDao.updateInTransaction(handle, auction);
             settledAuction[0] = auction;
@@ -422,6 +423,20 @@ public class AuctionScheduler {
     } finally {
       MDC.remove("auctionId");
     }
+  }
+
+  private void deactivateActiveAutoBidsInTransaction(Handle handle, Long auctionId) {
+    handle
+        .createUpdate(
+            """
+            UPDATE auto_bid_configs
+            SET active = false,
+                status = 'STOPPED',
+                failure_reason = NULL
+            WHERE auction_id = :auctionId AND status = 'ACTIVE'
+            """)
+        .bind("auctionId", auctionId)
+        .execute();
   }
 
   private void updateItemStatusInSettlement(Handle handle, Auction auction, String status) {
