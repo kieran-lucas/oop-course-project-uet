@@ -166,8 +166,8 @@ Endpoint paths are kept in Markdown tables, not inside Mermaid `classDiagram` bo
 | `service` | `UserService`, `PasswordResetService`, `ItemService`, `AuctionService`, `BidService`, `NotificationService`, `AuctionScheduler` |
 | `dao` | `UserDao`, `ItemDao`, `AuctionDao`, `BidTransactionDao`, `AutoBidConfigDao`, `DepositRequestDao`, `PasswordResetRequestDao`, `NotificationDao`, `WalletTransactionDao` |
 | `model` | `Entity`, `User`, `Admin`, `Seller`, `Bidder`, `Item`, `Electronics`, `Art`, `Vehicle`, `Auction`, `AuctionStatus`, `BidTransaction`, `AutoBidConfig`, `AutoBidStatus`, `AutoBidFailureReason`, `DepositRecord`, `PasswordResetRecord` |
-| `dto` | request DTOs, response DTOs, `BidUpdateMessage`, `ErrorResponse` |
-| `exception` | `InvalidBidException`, `AuctionClosedException`, `UnauthorizedException`, `NotFoundException`, `DuplicateException` |
+| `dto` | request DTOs, response DTOs, `BidUpdateMessage`, `ErrorResponse`, `PageRequest` |
+| `exception` | `AuctionException`, `InvalidBidException`, `AuctionClosedException`, `UnauthorizedException`, `NotFoundException`, `DuplicateException` |
 | `pattern` | Factory, State, Observer, and Strategy implementations |
 | `util` | `MoneyValidator`, `NotificationFormat`, `RestClient`, `WebSocketClient`, notification utilities |
 | `ui.controller` / `ui.util` | JavaFX controllers, `SceneManager`, `Navigable` |
@@ -189,8 +189,8 @@ Endpoint paths are kept in Markdown tables, not inside Mermaid `classDiagram` bo
 
 - Arrows represent **source-code dependency or stored foreign-key reference** when possible, not only conceptual ownership.
 - Mermaid `classDiagram` creates empty boxes for any relation endpoint that is not declared inside the same diagram block. Therefore every class referenced by a relation below has a local declaration with at least one real field or method.
-- `Auction --> Item` and `Auction --> Seller` are used because `Auction` stores `itemId` and `sellerId`.
-- `BidTransaction --> Auction/Bidder` and `AutoBidConfig --> Auction/Bidder` are used because those records store the corresponding IDs.
+- Foreign-key-like fields are drawn toward `User`, `Item`, or `Auction` when the source stores only IDs such as `userId`, `sellerId`, `bidderId`, `itemId`, or `auctionId`.
+- `ErrorResponse` does not import exception classes; exception inheritance is represented through `AuctionException <|-- ...`, while error mapping is handled by `App.java` exception handlers.
 - `AuctionWebSocketHandler` creates/stores `WebSocketObserver`, while `WebSocketObserver` calls `AuctionWebSocketHandler.broadcast(...)`, so the Observer/WebSocket link is intentionally bidirectional.
 
 ---
@@ -645,10 +645,12 @@ classDiagram
     }
 
     class WalletTransactionDao {
+        -WalletTransactionDao()
         +insert()
     }
 
     class ItemFactory {
+        -ItemFactory()
         +create()
         -parseYear()
     }
@@ -666,6 +668,7 @@ classDiagram
     }
 
     class AuctionStates {
+        -AuctionStates()
         +OPEN
         +RUNNING
         +FINISHED
@@ -839,6 +842,7 @@ classDiagram
         +isActive()
         +canBidAt()
         +getNextBidAmount()
+        +setActive()
         +setStatus()
         +setFailureReason()
     }
@@ -912,17 +916,17 @@ classDiagram
     Entity <|-- Auction
     Entity <|-- BidTransaction
     Entity <|-- AutoBidConfig
-    Item --> Seller
+    Item --> User
     Auction --> Item
-    Auction --> Seller
+    Auction --> User
     Auction --> AuctionStatus
     BidTransaction --> Auction
-    BidTransaction --> Bidder
+    BidTransaction --> User
     AutoBidConfig --> Auction
-    AutoBidConfig --> Bidder
+    AutoBidConfig --> User
     AutoBidConfig --> AutoBidStatus
     AutoBidConfig --> AutoBidFailureReason
-    DepositRecord --> Bidder
+    DepositRecord --> User
     PasswordResetRecord --> User
 ```
 
@@ -936,7 +940,9 @@ classDiagram
         -username
         -password
         +getUsername()
+        +setUsername()
         +getPassword()
+        +setPassword()
     }
 
     class RegisterRequest {
@@ -959,7 +965,9 @@ classDiagram
         -currentPassword
         -newPassword
         +getCurrentPassword()
+        +setCurrentPassword()
         +getNewPassword()
+        +setNewPassword()
     }
 
     class DepositRequest {
@@ -1002,12 +1010,11 @@ classDiagram
     }
 
     class PageRequest {
+        <<record>>
         -page
         -size
-        -offset
+        +offset()
         +of()
-        +getLimit()
-        +getOffset()
     }
 
     class UserResponse {
@@ -1016,26 +1023,38 @@ classDiagram
         -email
         -role
         -balance
-        -reservedBalance
+        -availableBalance
+        -createdAt
         +from()
     }
 
     class AuctionResponse {
         -id
+        -itemId
+        -sellerId
         -itemName
         -itemCategory
+        -itemDescription
+        -itemBrand
+        -itemArtist
+        -itemYear
         -startingPrice
         -currentPrice
-        -status
+        -leadingBidderId
         -leadingBidderUsername
+        -startTime
+        -endTime
+        -status
         -remainingTimeMs
-        +from()
+        +fromAuction()
     }
 
     class ErrorResponse {
-        -code
+        -error
         -message
+        -timestamp
         +of()
+        +toString()
     }
 
     class BidUpdateMessage {
@@ -1073,34 +1092,44 @@ classDiagram
         +isActive()
     }
 
+    class AuctionException {
+        <<abstract>>
+        -serialVersionUID
+        +toString()
+    }
+
     class InvalidBidException {
-        +InvalidBidException()
+        +InvalidBidException(message)
+        +InvalidBidException(message,cause)
     }
 
     class AuctionClosedException {
-        +AuctionClosedException()
+        +AuctionClosedException(message)
+        +AuctionClosedException(message,cause)
     }
 
     class UnauthorizedException {
-        +UnauthorizedException()
+        +UnauthorizedException(message)
+        +UnauthorizedException(message,cause)
     }
 
     class NotFoundException {
-        +NotFoundException()
+        +NotFoundException(message)
+        +NotFoundException(message,cause)
     }
 
     class DuplicateException {
-        +DuplicateException()
+        +DuplicateException(message)
+        +DuplicateException(message,cause)
     }
 
     UserResponse --> User
     AuctionResponse --> Auction
-    BidUpdateMessage --> Auction
-    ErrorResponse --> InvalidBidException
-    ErrorResponse --> AuctionClosedException
-    ErrorResponse --> UnauthorizedException
-    ErrorResponse --> NotFoundException
-    ErrorResponse --> DuplicateException
+    AuctionException <|-- InvalidBidException
+    AuctionException <|-- AuctionClosedException
+    AuctionException <|-- UnauthorizedException
+    AuctionException <|-- NotFoundException
+    AuctionException <|-- DuplicateException
 ```
 
 ### 5. Design Patterns and Realtime Collaboration
@@ -1110,10 +1139,12 @@ classDiagram
     direction LR
 
     class UserFactory {
+        -UserFactory()
         +create()
     }
 
     class ItemFactory {
+        -ItemFactory()
         +create()
         -parseYear()
     }
