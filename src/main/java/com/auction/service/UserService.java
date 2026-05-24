@@ -53,7 +53,7 @@ public class UserService {
    */
   public User register(RegisterRequest req) {
     String username = req.getUsername() != null ? req.getUsername().trim() : null;
-    String email = req.getEmail() != null ? req.getEmail().trim() : null;
+    String email = req.getEmail() != null ? req.getEmail().trim().toLowerCase() : null;
     String role = req.getRole() != null ? req.getRole().trim() : null;
 
     if (username == null || username.isEmpty()) {
@@ -184,7 +184,6 @@ public class UserService {
 
   /**
    * Đổi mật khẩu — xác minh mật khẩu cũ trước khi cập nhật.
-   *
    * @param userId ID người dùng lấy từ JWT
    * @param req request chứa {@code currentPassword} và {@code newPassword}
    * @throws NotFoundException nếu user không tồn tại
