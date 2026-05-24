@@ -49,6 +49,12 @@ class ItemServiceTest {
     return item;
   }
 
+  private Item buildItem(Long sellerId, String status) {
+    Item item = buildItem(sellerId);
+    item.setStatus(status);
+    return item;
+  }
+
   private CreateItemRequest buildRequest() {
     CreateItemRequest req = new CreateItemRequest();
     req.setName("Laptop Dell");
@@ -175,6 +181,34 @@ class ItemServiceTest {
     }
 
     @Test
+    @DisplayName("không được cập nhật item đang trong phiên đấu giá")
+    void cannotUpdateItemInAuction() {
+      when(itemDao.findById(ITEM_ID))
+          .thenReturn(Optional.of(buildItem(SELLER_ID, "IN_AUCTION")));
+
+      assertThrows(IllegalStateException.class, () -> service.update(ITEM_ID, buildRequest(), SELLER_ID));
+      verify(itemDao, never()).update(any());
+    }
+
+    @Test
+    @DisplayName("không được cập nhật item đã bán")
+    void cannotUpdateSoldItem() {
+      when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID, "SOLD")));
+
+      assertThrows(IllegalStateException.class, () -> service.update(ITEM_ID, buildRequest(), SELLER_ID));
+      verify(itemDao, never()).update(any());
+    }
+
+    @Test
+    @DisplayName("không được cập nhật item đã bị xóa mềm")
+    void cannotUpdateRemovedItem() {
+      when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID, "REMOVED")));
+
+      assertThrows(IllegalStateException.class, () -> service.update(ITEM_ID, buildRequest(), SELLER_ID));
+      verify(itemDao, never()).update(any());
+    }
+
+    @Test
     @DisplayName("ném NotFoundException khi item không tồn tại")
     void throwsNotFoundWhenAbsent() {
       when(itemDao.findById(999L)).thenReturn(Optional.empty());
@@ -214,6 +248,34 @@ class ItemServiceTest {
 
       assertThrows(
           UnauthorizedException.class, () -> service.delete(ITEM_ID, OTHER_SELLER_ID, "SELLER"));
+      verify(itemDao, never()).delete(anyLong());
+    }
+
+    @Test
+    @DisplayName("không được xóa item đang trong phiên đấu giá")
+    void cannotDeleteItemInAuction() {
+      when(itemDao.findById(ITEM_ID))
+          .thenReturn(Optional.of(buildItem(SELLER_ID, "IN_AUCTION")));
+
+      assertThrows(IllegalStateException.class, () -> service.delete(ITEM_ID, SELLER_ID, "SELLER"));
+      verify(itemDao, never()).delete(anyLong());
+    }
+
+    @Test
+    @DisplayName("không được xóa item đã bán")
+    void cannotDeleteSoldItem() {
+      when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID, "SOLD")));
+
+      assertThrows(IllegalStateException.class, () -> service.delete(ITEM_ID, SELLER_ID, "SELLER"));
+      verify(itemDao, never()).delete(anyLong());
+    }
+
+    @Test
+    @DisplayName("không được xóa item đã bị xóa mềm")
+    void cannotDeleteRemovedItem() {
+      when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID, "REMOVED")));
+
+      assertThrows(IllegalStateException.class, () -> service.delete(ITEM_ID, SELLER_ID, "SELLER"));
       verify(itemDao, never()).delete(anyLong());
     }
 
