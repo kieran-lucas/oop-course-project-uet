@@ -434,8 +434,8 @@ public class App {
                   cors.addRule(
                       it -> {
                         it.allowHost("localhost:8080");
-                        // TODO: set allowed origin via APP_CORS_ORIGIN env var before production
-                        // deployment
+                        // Production note: replace this fixed local origin with an
+                        // APP_CORS_ORIGIN-driven allow-list before external deployment.
                       }));
         });
   }
