@@ -101,7 +101,13 @@ public class PasswordResetService {
           String resetPassword = generateTempPassword();
           String hash = BCrypt.withDefaults().hashToString(12, resetPassword.toCharArray());
           handle
-              .createUpdate("UPDATE users SET password_hash = :h WHERE id = :id")
+              .createUpdate(
+                  """
+                  UPDATE users
+                  SET password_hash = :h,
+                      token_version = token_version + 1
+                  WHERE id = :id
+                  """)
               .bind("h", hash)
               .bind("id", record.getUserId())
               .execute();
