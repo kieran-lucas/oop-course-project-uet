@@ -4,12 +4,15 @@
 
 # Online Auction System
 
-*A real-time desktop auction platform — JavaFX client · Javalin server · PostgreSQL · WebSocket*
+*A real-time desktop auction platform — JavaFX client · Javalin server · Embedded PostgreSQL · HikariCP · Flyway · JDBI · WebSocket*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/kieran-labs/oop-course-project-uet/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/Java-21-E76F00?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![Javalin](https://img.shields.io/badge/Javalin-6.4.0-111827?style=for-the-badge)](https://javalin.io)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Embedded%20%2F%20CI%2016-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![HikariCP](https://img.shields.io/badge/HikariCP-Connection%20Pool-0EA5E9?style=for-the-badge)](https://github.com/brettwooldridge/HikariCP)
+[![Flyway](https://img.shields.io/badge/Flyway-Migrations-CC0200?style=for-the-badge)](https://flywaydb.org/)
+[![JDBI](https://img.shields.io/badge/JDBI-DAO%20Layer-7C3AED?style=for-the-badge)](https://jdbi.org/)
 [![Gradle](https://img.shields.io/badge/Gradle-Kotlin%20DSL-02303A?style=for-the-badge&logo=gradle&logoColor=white)](https://gradle.org/)
 [![License](https://img.shields.io/badge/License-MIT-2563EB?style=for-the-badge)](LICENSE)
 
@@ -21,7 +24,7 @@
 ![Recommended](https://img.shields.io/badge/Recommended-Use%20Prebuilt%20JARs-0EA5E9?style=for-the-badge)
 ![Copy And Run](https://img.shields.io/badge/No%20Manual%20Config-Copy%20%26%20Run-10B981?style=for-the-badge)
 
-**[Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)** · **[Setup](docs/SETUP.md)** · **[Schema](docs/SCHEMA.md)** · **[UML Source Audit](docs/UML_SOURCE_AUDIT.md)** · **[CI](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml)**
+**[Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0)** · **[Setup](docs/SETUP.md)** · **[Schema](docs/SCHEMA.md)** · **[Business Rules](docs/BUSINESS_RULES.md)** · **[UML Source Audit](docs/UML_SOURCE_AUDIT.md)** · **[CI](https://github.com/kieran-labs/oop-course-project-uet/actions/workflows/ci.yml)**
 
 </div>
 
@@ -40,8 +43,8 @@
 | **Release page** | [Release v1.0.0](https://github.com/kieran-labs/oop-course-project-uet/releases/tag/v1.0.0) |
 | **Server JAR** | [Download server executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
 | **Client JAR** | [Download client executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
-| **Report PDF** | `Pending final report link` |
-| **Demo video** | `Pending demo video link` |
+| **📄 Report PDF** | ![Report PDF Pending](https://img.shields.io/badge/Report%20PDF-Pending%20final%20link-F59E0B?style=for-the-badge&logo=adobeacrobatreader&logoColor=white) |
+| **🎥 Demo video** | ![Demo Video Pending](https://img.shields.io/badge/Demo%20Video-Pending%20final%20link-EA580C?style=for-the-badge&logo=youtube&logoColor=white) |
 
 ### ⚡ Quick Download
 
@@ -51,26 +54,27 @@
 | `auction-server-1.0.0.jar` | `auction-client-1.0.0.jar` |
 
 > [!WARNING]
-> Before final submission, replace the pending report PDF and demo video entries with the final links.
+> **Before final submission, replace the two highlighted entries above with the final Report PDF link and Demo video link.** These two links are official submission requirements and should be immediately visible to the evaluator.
 
 ---
 
 ## 1. Problem Description and System Scope
 
-This project implements an **online auction system** where sellers can list items, create auctions, and bidders can join auctions, place bids, configure auto-bidding, and receive real-time updates. The system is built as a desktop client-server application: a JavaFX client communicates with a Javalin backend through REST APIs and WebSocket channels, while the backend persists data in PostgreSQL.
+This project implements an **online auction system** where sellers can list items, create auctions, and bidders can join auctions, place bids, configure auto-bidding, and receive real-time updates. The system is built as a desktop client-server application: a JavaFX client communicates with a Javalin backend through REST APIs and WebSocket channels. The backend persists data through **Embedded PostgreSQL / external PostgreSQL**, **PostgreSQL JDBC**, **HikariCP**, **Flyway**, and **JDBI**.
 
 **System scope:**
 
 | Area | Included scope |
 |---|---|
-| User management | Register, login, role-based access for `ADMIN`, `SELLER`, and `BIDDER` |
-| Item management | Sellers create, view, edit, and delete their own items by category |
-| Auction management | Sellers create auctions; the system manages lifecycle transitions and settlement |
-| Bidding | Manual bidding, auto-bidding, bid history, validation, and wallet reservation |
-| Realtime update | WebSocket notifications for bid updates, time extension, auction ending, and balance changes |
-| Admin workflow | Deposit approval/rejection, password-reset approval/rejection, user and auction moderation |
-| Persistence | PostgreSQL schema migration and persistent auction/user/bid/wallet data |
-| Quality | Unit/integration tests, CI, static analysis, coverage, and formatted build pipeline |
+| User management | Register, login, JWT authentication, BCrypt password hashing, token-version invalidation, and role-based access for `ADMIN`, `SELLER`, and `BIDDER` |
+| Item management | Sellers create, view, edit, and delete their own items by category; item state is tracked with `AVAILABLE`, `IN_AUCTION`, `SOLD`, and `REMOVED` |
+| Auction management | Sellers create auctions; the scheduler manages lifecycle transitions and settlement through `OPEN`, `RUNNING`, `SETTLING`, `FINISHED`, `PAID`, and `CANCELED` |
+| Bidding | Manual bidding, auto-bidding, bid history, validation, row-level locking, reserved balance, and wallet ledger |
+| Realtime update | WebSocket notifications for bid updates, time extension, auction ending, user notifications, and balance changes |
+| Admin workflow | Deposit approval/rejection, password-reset approval/rejection, user management, and auction moderation |
+| Database infrastructure | Embedded PostgreSQL runtime, optional external PostgreSQL, PostgreSQL JDBC, HikariCP connection pooling, Flyway migrations, and JDBI DAO access |
+| Persistence | Persistent user, item, auction, bid, auto-bid, deposit, password-reset request, notification, balance, reserved-balance, and wallet-ledger data |
+| Quality | Unit/integration tests, CI, static analysis, coverage, formatting, and executable fat-JAR build pipeline |
 
 ---
 
@@ -79,12 +83,18 @@ This project implements an **online auction system** where sellers can list item
 | Category | Technology / Requirement |
 |---|---|
 | Language | Java **21** |
-| Client UI | JavaFX + FXML + CSS |
-| Backend | Javalin REST API + WebSocket |
-| Database | Embedded PostgreSQL for local evaluation; PostgreSQL-compatible schema with Flyway migrations |
-| Persistence Access | JDBI |
-| Authentication | JWT + BCrypt password hashing |
+| Client UI | JavaFX **21** modules: `javafx.controls`, `javafx.fxml`, `javafx.web`; FXML + CSS + bundled Lexend fonts |
+| Backend | Javalin **6.4.0** REST API + WebSocket |
+| JSON Serialization | Jackson Databind + Jackson JSR310 module for Java time objects |
+| Database Runtime | Embedded PostgreSQL for local evaluation; optional external PostgreSQL through `DB_URL`, `DB_USER`, and `DB_PASSWORD` |
+| JDBC Driver | PostgreSQL JDBC driver |
+| Connection Pool | HikariCP connection pool through `HikariDataSource` |
+| Database Migration | Flyway Core + Flyway PostgreSQL migrations from `src/main/resources/db/migration` |
+| Persistence Access | JDBI Core / SQL Object / PostgreSQL support |
+| Authentication | JWT using HMAC-256 + BCrypt password hashing |
+| Logging / Environment | SLF4J + Logback; dotenv-java + environment variables such as `JWT_SECRET` |
 | Build Tool | Gradle Kotlin DSL |
+| Fat JAR Packaging | ShadowJar tasks: `shadowJar`, `shadowClient`, `buildJars` |
 | Testing / Quality | JUnit 5, Mockito, JaCoCo, Checkstyle, SpotBugs, Spotless, GitHub Actions |
 | Operating System | Windows 10+ / macOS / Linux with JDK 21+ |
 | Required Port | `8080` must be free before starting the server |
@@ -98,7 +108,7 @@ This project implements an **online auction system** where sellers can list item
 java -version
 ```
 
-3. No separate PostgreSQL installation is required for normal evaluation because the server starts embedded PostgreSQL automatically.
+3. No separate PostgreSQL installation is required for normal evaluation because the server starts Embedded PostgreSQL automatically.
 4. For grading/evaluation, prefer the **prebuilt release JARs**. They provide the cleanest path because dependencies are already packaged and the run commands below include the required `JWT_SECRET`.
 
 ---
@@ -107,6 +117,9 @@ java -version
 
 > [!IMPORTANT]
 > **Use this method for grading.** Download the two JAR files below, put them in the same folder, then follow Section 4 exactly. Do **not** use the source-build section unless you are a developer regenerating the executable artifacts.
+
+> [!NOTE]
+> The server starts Embedded PostgreSQL automatically. No separate PostgreSQL installation is required for normal evaluation. On first run, the embedded PostgreSQL library may download/cache the OS-specific PostgreSQL binary before the server finishes startup.
 
 ### Step 0 — Download these two files
 
@@ -194,16 +207,29 @@ To demonstrate multiple clients, open more terminals in the same folder and run 
 6. Seller creates an item and an auction.
 7. Bidders join the same auction and place bids.
 8. Configure auto-bid for one bidder.
-9. Observe realtime bid updates, chart updates, notifications, and anti-sniping extension.
+9. Observe realtime bid updates, chart updates, notifications, balance updates, and anti-sniping extension.
 
 ---
 
 ## 5. Main Project Modules and Directory Structure
 
 ```text
+Root / build / tooling
+  ├─ build.gradle.kts          # Gradle Kotlin DSL, dependencies, quality gates, ShadowJar packaging
+  ├─ settings.gradle.kts       # Gradle project name
+  ├─ gradlew, gradlew.bat      # Gradle wrapper
+  ├─ build/libs/               # Generated executable fat JARs
+  ├─ .github/workflows/ci.yml  # GitHub Actions CI pipeline
+  ├─ config/checkstyle/        # Checkstyle rules
+  ├─ assets/                   # README screenshots and grading images
+  ├─ server-start.bat          # Windows helper: start server
+  ├─ server-stop.bat           # Windows helper: stop server
+  ├─ server-status.bat         # Windows helper: check server status
+  └─ db-reset.bat              # Windows helper: reset local generated database/log state
+
 src/main/java/com/auction
   ├─ App.java, AdminSeeder.java, ClientApp.java, Launcher.java
-  ├─ config/             # DatabaseConfig, JwtUtil
+  ├─ config/             # DatabaseConfig: Embedded PostgreSQL + HikariCP + Flyway + JDBI; JwtUtil
   ├─ middleware/         # JwtMiddleware
   ├─ controller/         # REST controllers + AuctionWebSocketHandler
   ├─ service/            # business services + AuctionScheduler
@@ -216,7 +242,7 @@ src/main/java/com/auction
   └─ ui/                 # JavaFX controllers and navigation utilities
 
 src/main/resources
-  ├─ db/migration/       # Flyway database migrations
+  ├─ db/migration/       # Flyway database migrations V1 through V17
   ├─ ui/fxml/            # JavaFX screen layouts
   ├─ css/                # JavaFX styling
   ├─ fonts/              # bundled Lexend font files
@@ -238,25 +264,26 @@ docs/
 
 | Rubric area | Completed functionality | Concrete implementation evidence |
 |---|---|---|
-| User management and authentication | Register, login, JWT authentication, BCrypt password hashing, role-based authorization for `ADMIN`, `SELLER`, and `BIDDER` | `AuthController`, `UserService`, `UserDao`, `JwtUtil`, `JwtMiddleware`, `UserFactory`, `Admin`, `Seller`, `Bidder` |
-| Product / item management | Sellers can create, view, edit, and delete their own items by category | `ItemController`, `ItemService`, `ItemDao`, `ItemFactory`, `Item`, `Electronics`, `Art`, `Vehicle` |
-| Auction management | Sellers create auctions for their own available items; the system validates ownership and item availability | `AuctionController`, `AuctionService`, `AuctionDao`, `CreateAuctionRequest`, `AuctionResponse` |
+| User management and authentication | Register, login, JWT authentication, BCrypt password hashing, token-version invalidation, role-based authorization for `ADMIN`, `SELLER`, and `BIDDER` | `AuthController`, `UserService`, `UserDao`, `JwtUtil`, `JwtMiddleware`, `UserFactory`, `Admin`, `Seller`, `Bidder`, `users.token_version` |
+| Product / item management | Sellers can create, view, edit, and delete their own items by category and item status | `ItemController`, `ItemService`, `ItemDao`, `ItemFactory`, `Item`, `Electronics`, `Art`, `Vehicle`, `items.status` |
+| Auction management | Sellers create auctions for their own available items; the system validates ownership and item availability | `AuctionController`, `AuctionService`, `AuctionDao`, `CreateAuctionRequest`, `AuctionResponse`, `auctions.seller_id` |
 | Auction lifecycle | Auctions move through `OPEN → RUNNING → SETTLING → FINISHED / PAID / CANCELED` with scheduler-driven transitions and settlement logic | `AuctionStatus`, `AuctionScheduler`, `AuctionStateFactory`, `AuctionStates`, `OpenState`, `RunningState`, `SettlingState`, `FinishedState`, `PaidState`, `CanceledState` |
 | Manual bidding | Bidders can join auctions and place valid manual bids with bid history and highest-price tracking | `BidController`, `BidService`, `BidTransactionDao`, `BidTransaction`, `BidRequest`, `BidUpdateMessage` |
 | Concurrent bidding | Bid placement is transaction-protected and uses row-level locking to avoid race conditions | `BidService.placeBid(...)`, `jdbi.inTransaction(...)`, `AuctionDao.findByIdForUpdate(...)`, `UserDao.findByIdForUpdate(...)` |
-| Wallet and deposit workflow | Bidders submit deposits; admin approves/rejects; wallet balance and reserved balance are updated consistently | `DepositRequestDao`, `DepositRecord`, `UserService.approveDeposit(...)`, `WalletTransactionDao`, `User.balance`, `User.reservedBalance` |
+| Wallet and deposit workflow | Bidders submit deposits; admin approves/rejects; wallet balance and reserved balance are updated consistently | `DepositRequestDao`, `DepositRecord`, `UserService.approveDeposit(...)`, `WalletTransactionDao`, `User.balance`, `User.reservedBalance`, `wallet_transactions` |
 | Admin functions | Admin can manage users, approve/reject deposits, approve/reject password reset requests, and moderate auctions | `AdminPanelController`, admin routes in `App.java`, `UserService`, `PasswordResetService`, `DepositRequestDao`, `PasswordResetRequestDao` |
 | Error handling | Domain errors are represented by a custom exception hierarchy and mapped to HTTP/API errors | `AuctionException`, `InvalidBidException`, `AuctionClosedException`, `UnauthorizedException`, `NotFoundException`, `DuplicateException`, `ErrorResponse` |
 | Realtime update | Bid updates, time extension updates, auction-ended events, user notifications, and balance updates are pushed through WebSocket | `AuctionWebSocketHandler`, `AuctionEventManager`, `AuctionEventListener`, `WebSocketObserver`, `WebSocketClient`, `BidUpdateMessage` |
-| Advanced feature: auto-bidding | Users can configure auto-bidding with maximum bid, increment, active-status detection, and chained execution | `AutoBidStrategy`, `AutoBidConfig`, `AutoBidConfigDao`, `AutoBidRequest`, `AutoBidStatus`, `AutoBidFailureReason` |
+| Advanced feature: auto-bidding | Users can configure auto-bidding with maximum bid, increment, status detection, failure reasons, and chained execution | `AutoBidStrategy`, `AutoBidConfig`, `AutoBidConfigDao`, `AutoBidRequest`, `AutoBidStatus`, `AutoBidFailureReason` |
 | Advanced feature: anti-sniping | Late bids automatically extend auction end time to reduce last-second unfair wins | `BidService`, `ANTI_SNIPE_THRESHOLD_MS`, `ANTI_SNIPE_EXTENSION_SECONDS`, `BidUpdateMessage.timeExtended(...)` |
 | Client-server architecture | JavaFX desktop client communicates with a Javalin backend through REST APIs and WebSocket channels | JavaFX controllers, `RestClient`, `WebSocketClient`, REST controllers, `AuctionWebSocketHandler` |
 | MVC / layered architecture | UI, controller, service, DAO, model, DTO, and database migration responsibilities are separated | `ui/controller`, `controller`, `service`, `dao`, `model`, `dto`, `db/migration` |
 | OOP principles | Encapsulation, inheritance, polymorphism, abstraction, interfaces, and role/category specialization are used in the domain model and patterns | `Entity`, `User → Admin/Seller/Bidder`, `Item → Electronics/Art/Vehicle`, `AuctionState`, `AuctionEventListener`, factories and strategies |
 | Design patterns | Factory, State, Observer, Strategy, and DAO patterns are implemented explicitly | `pattern/factory`, `pattern/state`, `pattern/observer`, `pattern/strategy`, `dao` package |
 | JavaFX client functionality | Client includes login/register/profile/admin screens, auction list/detail, bid chart, notifications, wallet/deposit screens, and custom styling | `ClientApp`, `Launcher`, `SceneManager`, JavaFX controllers, FXML files, CSS, screenshots |
-| Persistence and migrations | PostgreSQL schema is versioned and data is persisted across users, items, auctions, bids, deposits, notifications, and wallet records | Flyway migrations in `src/main/resources/db/migration`, `DatabaseConfig`, DAOs |
-| Build, testing, and quality | Project includes Gradle build, executable fat JARs, unit/integration tests, formatting/static checks, coverage, and CI | `build.gradle.kts`, `build/libs/*.jar`, JUnit tests, Checkstyle, SpotBugs, Spotless, JaCoCo, GitHub Actions |
+| Database infrastructure | Server starts Embedded PostgreSQL, configures HikariCP connection pooling, runs Flyway migrations, then exposes JDBI DAOs to the service layer | `DatabaseConfig`, `HikariConfig`, `HikariDataSource`, `EmbeddedPostgres`, `Flyway`, `Jdbi`, `buildHikariConfig(...)`, `src/main/resources/db/migration` |
+| Persistence and migrations | PostgreSQL schema is versioned and data is persisted across users, items, auctions, bids, deposits, password reset requests, notifications, and wallet ledger records | Flyway migrations in `src/main/resources/db/migration`, `DatabaseConfig`, `HikariDataSource`, `Jdbi`, DAOs, `WalletTransactionDao` |
+| Build, testing, and quality | Project includes Gradle build, server/client executable fat JARs, unit/integration tests, formatting/static checks, coverage, and CI | `build.gradle.kts`, `shadowJar`, `shadowClient`, `buildJars`, `build/libs/*.jar`, JUnit tests, Checkstyle, SpotBugs, Spotless, JaCoCo, GitHub Actions |
 
 ---
 
@@ -274,7 +301,7 @@ docs/
 
 ## Architecture
 
-The architecture flowchart below is a **runtime communication/data-flow view**, not a strict Java import graph. It shows how the JavaFX client talks to server routes and WebSocket endpoints, then how server requests move through controllers, services, DAOs, patterns, and PostgreSQL.
+The architecture flowchart below is a **runtime communication/data-flow view**, not a strict Java import graph. It shows how the JavaFX client talks to server routes and WebSocket endpoints, then how server requests move through controllers, services, DAOs, design patterns, HikariCP, PostgreSQL JDBC, Flyway migrations, and PostgreSQL.
 
 ```mermaid
 flowchart LR
@@ -293,13 +320,19 @@ flowchart LR
     App --> WsHandler
     App --> Services[Services]
     App --> Scheduler[AuctionScheduler]
+    App --> DatabaseConfig[DatabaseConfig]
 
     JwtMiddleware --> Controllers
     Controllers --> Services
     Scheduler --> Services
     Services --> Patterns[Design Patterns]
-    Services --> Daos[DAOs]
-    Daos --> Database[(PostgreSQL + Flyway)]
+    Services --> Daos[JDBI DAOs]
+    Daos --> Pool[HikariCP / HikariDataSource]
+    Pool --> Driver[PostgreSQL JDBC]
+    Driver --> Database[(Embedded PostgreSQL or external PostgreSQL)]
+    DatabaseConfig --> Pool
+    DatabaseConfig --> Flyway[Flyway migrations]
+    Flyway --> Database
 ```
 
 ---
@@ -1753,8 +1786,9 @@ The completed-feature table above is the primary rubric map. This cross-check re
 | Concurrent bidding | Transactional bid placement and row-level locking via `findByIdForUpdate` methods |
 | Realtime update | WebSocket bid updates, auction end events, time extension events, notification pushes, balance updates |
 | Client-server | JavaFX client communicates with Javalin server through REST and WebSocket |
-| MVC / layering | FXML + JavaFX controllers; server Controller → Service → DAO → PostgreSQL |
-| Build and conventions | Gradle Kotlin DSL, fat JAR tasks, Checkstyle, Spotless, SpotBugs |
+| MVC / layering | FXML + JavaFX controllers; server Controller → Service → DAO → HikariCP → PostgreSQL |
+| Database infrastructure | Embedded PostgreSQL, PostgreSQL JDBC, HikariCP connection pooling, Flyway migrations, and JDBI DAO access |
+| Build and conventions | Gradle Kotlin DSL, ShadowJar fat-JAR tasks, Checkstyle, Spotless, SpotBugs |
 | Unit/integration tests | JUnit 5 / Mockito / PostgreSQL integration tests across config, controller, DAO, service, model, pattern, util packages |
 | CI/CD | GitHub Actions workflow for formatting, tests, static analysis, coverage, and build verification |
 | Advanced features | Auto-bidding, anti-sniping, realtime bid chart, wallet reservation, persistent notifications |
