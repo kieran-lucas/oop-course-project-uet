@@ -440,6 +440,24 @@ classDiagram
         +saveNotificationToDatabase()
     }
 
+    class AuctionEventManager {
+        -listeners
+        +subscribe()
+        +unsubscribe()
+        +notifyBidUpdate()
+        +notifyTimeExtended()
+        +notifyAuctionEnd()
+    }
+
+    class WebSocketObserver {
+        -handler
+        -auctionId
+        +onBidUpdate()
+        +onTimeExtended()
+        +onAuctionEnd()
+        +getAuctionId()
+    }
+
     class AuthController {
         +register()
         +registerPasswordReset()
@@ -674,6 +692,13 @@ classDiagram
 
     class WalletTransactionDao {
         +insert()
+    }
+
+    class AutoBidStrategy {
+        -autoBidConfigDao
+        -userDao
+        +executeAll()
+        +executeAllInTransaction()
     }
 
     UserService --> UserDao
@@ -1023,6 +1048,25 @@ classDiagram
         +userNotification()
     }
 
+    class User {
+        -username
+        -email
+        -balance
+        -reservedBalance
+        +getRole()
+        +getAvailableBalance()
+    }
+
+    class Auction {
+        -itemId
+        -sellerId
+        -currentPrice
+        -leadingBidderId
+        -status
+        +isActive()
+        +getRemainingTimeMs()
+    }
+
     class AuctionException {
         +toString()
     }
@@ -1067,9 +1111,42 @@ classDiagram
         +create()
     }
 
+    class Admin {
+        +getRole()
+    }
+
+    class Seller {
+        +getRole()
+    }
+
+    class Bidder {
+        +getRole()
+    }
+
     class ItemFactory {
         +create()
         -parseYear()
+    }
+
+    class Electronics {
+        -brand
+        +getCategory()
+        +getBrand()
+        +setBrand()
+    }
+
+    class Art {
+        -artist
+        +getCategory()
+        +getArtist()
+        +setArtist()
+    }
+
+    class Vehicle {
+        -year
+        +getCategory()
+        +getYear()
+        +setYear()
     }
 
     class AuctionStateFactory {
@@ -1158,11 +1235,51 @@ classDiagram
         +getAuctionId()
     }
 
+    class AuctionWebSocketHandler {
+        -connections
+        -userConnections
+        -observers
+        +broadcast()
+        +pushUserNotification()
+        +notifyBalanceUpdate()
+        +notifyBalanceChange()
+    }
+
     class AutoBidStrategy {
         -autoBidConfigDao
         -userDao
         +executeAll()
         +executeAllInTransaction()
+    }
+
+    class AutoBidConfigDao {
+        -jdbi
+        +findActiveByAuctionId()
+        +findByAuctionAndBidder()
+        +hasActiveConfig()
+        +upsertInTransaction()
+        +update()
+    }
+
+    class UserDao {
+        -jdbi
+        +findByIdForUpdate()
+        +updateReservedBalanceInTransaction()
+        +releaseReservedBalanceInTransaction()
+    }
+
+    class AutoBidConfig {
+        -auctionId
+        -bidderId
+        -maxBid
+        -increment
+        -status
+        -failureReason
+        +isActive()
+        +canBidAt()
+        +getNextBidAmount()
+        +setStatus()
+        +setFailureReason()
     }
 
     class AutoBidExecutor {
