@@ -2,8 +2,23 @@
 setlocal
 cd /d "%~dp0"
 
+if "%JWT_SECRET%"=="" (
+  echo ERROR: JWT_SECRET is required before starting the server.
+  echo.
+  echo Example for cmd.exe:
+  echo   set JWT_SECRET=replace-with-a-random-secret-of-at-least-32-bytes
+  echo   server-start.bat
+  echo.
+  echo Example for PowerShell:
+  echo   $env:JWT_SECRET = "replace-with-a-random-secret-of-at-least-32-bytes"
+  echo   .\server-start.bat
+  exit /b 1
+)
+
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference = 'Stop';" ^
+  "$secret = [Environment]::GetEnvironmentVariable('JWT_SECRET');" ^
+  "if ([Text.Encoding]::UTF8.GetByteCount($secret) -lt 32) { Write-Host 'ERROR: JWT_SECRET must be at least 32 bytes long when encoded as UTF-8.'; exit 1 }" ^
   "$port = 8080;" ^
   "$root = (Resolve-Path .).Path;" ^
   "$health = $null;" ^

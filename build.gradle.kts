@@ -396,15 +396,12 @@ tasks.compileJava {
 
 tasks.register("installGitHooks") {
     description = "Configure git to use .githooks directory"
+    onlyIf { file(".git").exists() }
     doLast {
         exec {
             commandLine("git", "config", "core.hooksPath", ".githooks")
         }
     }
-}
-
-tasks.named("build") {
-    dependsOn("installGitHooks")
 }
 
 // ============================================================================
@@ -422,7 +419,7 @@ tasks.named("build") {
 // Embedded PostgreSQL luôn tự khởi động và lưu dữ liệu tại data/postgres.
 //
 // Cách dùng:
-//   java -jar build/libs/auction-server.jar
+//   java -jar build/libs/auction-server-1.0.0.jar
 tasks.shadowJar {
     archiveBaseName.set("auction-server")
     archiveVersion.set("1.0.0")
@@ -468,7 +465,7 @@ tasks.shadowJar {
 // Lưu ý: Server phải đang chạy trước khi khởi động client.
 //
 // Cách dùng:
-//   java -jar build/libs/auction-client.jar
+//   java -jar build/libs/auction-client-1.0.0.jar
 tasks.register<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowClient") {
     archiveBaseName.set("auction-client")
     archiveVersion.set("1.0.0")
@@ -513,7 +510,7 @@ tasks.register("buildJars") {
     dependsOn("shadowJar", "shadowClient")
     doLast {
         println("\nBuild hoan tat! Cac file JAR nam trong build/libs/:")
-        println("   auction-server.jar <-- Chay server truoc : java -jar build/libs/auction-server.jar")
-        println("   auction-client.jar <-- Roi chay client   : java -jar build/libs/auction-client.jar")
+        println("   auction-server-1.0.0.jar <-- Chay server truoc: java -jar build/libs/auction-server-1.0.0.jar")
+        println("   auction-client-1.0.0.jar <-- Roi chay client:  java -jar build/libs/auction-client-1.0.0.jar")
     }
 }
