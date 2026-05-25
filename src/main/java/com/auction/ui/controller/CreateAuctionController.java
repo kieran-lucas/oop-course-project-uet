@@ -423,8 +423,8 @@ public class CreateAuctionController implements Navigable {
       // setEffect is never called again, so neighboring cells never see a bounds invalidation when
       // hover crosses cell boundaries (which previously caused the popup to jump).
       shadow.setColor(Color.TRANSPARENT);
-      shadow.setRadius(14);
-      shadow.setOffsetY(1.2);
+      shadow.setRadius(0);
+      shadow.setOffsetY(0);
       setEffect(shadow);
 
       hoverProperty()
