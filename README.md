@@ -218,7 +218,7 @@ To demonstrate multiple clients, open more terminals in the same folder and run 
 6. Seller creates an item and an auction.
 7. Bidders join the same auction and place bids.
 8. Configure auto-bid for one bidder.
-9. Observe realtime bid updates, chart updates, notifications, balance updates, and anti-sniping extension.
+9. Observe realtime bid updates, chained auto-bid playback, terminal auto-bid states, chart updates, notifications, balance updates, and anti-sniping extension.
 
 ---
 
@@ -253,7 +253,7 @@ src/main/java/com/auction
   └─ ui/                 # JavaFX controllers and navigation utilities
 
 src/main/resources
-  ├─ db/migration/       # Flyway database migrations V1 through V17
+  ├─ db/migration/       # Versioned Flyway database migrations
   ├─ ui/fxml/            # JavaFX screen layouts
   ├─ css/                # JavaFX styling
   ├─ fonts/              # bundled Lexend font files
@@ -285,7 +285,7 @@ docs/
 | Admin functions | Admin can manage users, approve/reject deposits, approve/reject password reset requests, and moderate auctions | `AdminPanelController`, admin routes in `App.java`, `UserService`, `PasswordResetService`, `DepositRequestDao`, `PasswordResetRequestDao` |
 | Error handling | Domain errors are represented by a custom exception hierarchy and mapped to HTTP/API errors | `AuctionException`, `InvalidBidException`, `AuctionClosedException`, `UnauthorizedException`, `NotFoundException`, `DuplicateException`, `ErrorResponse` |
 | Realtime update | Bid updates, time extension updates, auction-ended events, user notifications, and balance updates are pushed through WebSocket | `AuctionWebSocketHandler`, `AuctionEventManager`, `AuctionEventListener`, `WebSocketObserver`, `WebSocketClient`, `BidUpdateMessage` |
-| Advanced feature: auto-bidding | Users can configure auto-bidding with maximum bid, increment, status detection, failure reasons, chained execution, and automatic cleanup when auctions are canceled or settled | `AutoBidStrategy`, `AutoBidConfig`, `AutoBidConfigDao`, `AutoBidRequest`, `AutoBidStatus`, `AutoBidFailureReason` |
+| Advanced feature: auto-bidding | Users can configure auto-bidding with maximum bid, increment, status detection, persisted failure reasons, chained execution, 100-step chain guard, terminal-state recovery, and automatic cleanup when auctions are canceled or settled | `AutoBidStrategy`, `AutoBidConfig`, `AutoBidConfigDao`, `AutoBidRequest`, `AutoBidStatus`, `AutoBidFailureReason`, `CHAIN_LIMIT_REACHED`, `AuctionDetailController` |
 | Advanced feature: anti-sniping | Late bids automatically extend auction end time to reduce last-second unfair wins | `BidService`, `ANTI_SNIPE_THRESHOLD_MS`, `ANTI_SNIPE_EXTENSION_SECONDS`, `BidUpdateMessage.timeExtended(...)` |
 | Client-server architecture | JavaFX desktop client communicates with a Javalin backend through REST APIs and WebSocket channels | JavaFX controllers, `RestClient`, `WebSocketClient`, REST controllers, `AuctionWebSocketHandler` |
 | MVC / layered architecture | UI, controller, service, DAO, model, DTO, and database migration responsibilities are separated | `ui/controller`, `controller`, `service`, `dao`, `model`, `dto`, `db/migration` |
@@ -294,7 +294,7 @@ docs/
 | JavaFX client functionality | Client includes login/register/profile/admin screens, auction list/detail, bid chart, notifications, wallet/deposit screens, and custom styling | `ClientApp`, `Launcher`, `SceneManager`, JavaFX controllers, FXML files, CSS, screenshots |
 | Database infrastructure | Server starts Embedded PostgreSQL, configures HikariCP connection pooling, runs Flyway migrations, then exposes JDBI DAOs to the service layer | `DatabaseConfig`, `HikariConfig`, `HikariDataSource`, `EmbeddedPostgres`, `Flyway`, `Jdbi`, `buildHikariConfig(...)`, `src/main/resources/db/migration` |
 | Persistence and migrations | PostgreSQL schema is versioned and data is persisted across users, items, auctions, bids, deposits, password reset requests, notifications, and wallet ledger records | Flyway migrations in `src/main/resources/db/migration`, `DatabaseConfig`, `HikariDataSource`, `Jdbi`, DAOs, `WalletTransactionDao` |
-| Build, testing, and quality | Project includes Gradle build, server/client executable fat JARs, unit/integration tests, formatting/static checks, coverage, and CI | `build.gradle.kts`, `shadowJar`, `shadowClient`, `buildJars`, `build/libs/*.jar`, JUnit tests, Checkstyle, SpotBugs, Spotless, JaCoCo, GitHub Actions |
+| Build, testing, and quality | Project includes Gradle build, server/client executable fat JARs, unit/integration tests, formatting/static checks, coverage, and CI | `build.gradle.kts`, `shadowJar`, `shadowClient`, `buildJars`, `build/libs/*.jar`, JUnit tests including auto-bid terminal-state and chain-limit tests, Checkstyle, SpotBugs, Spotless, JaCoCo, GitHub Actions |
 
 ---
 
@@ -365,7 +365,7 @@ The diagrams below are intentionally split into smaller GitHub-safe Mermaid bloc
 | `pattern` | Factory, State, Observer, and Strategy implementations |
 | `util` | `MoneyValidator`, `NotificationFormat`, `RestClient`, `WebSocketClient`, notification utilities |
 | `ui.controller` / `ui.util` | JavaFX controllers, `SceneManager`, `Navigable` |
-| nested source-level helpers | DAO row mappers, `BidHistoryEntry`, scheduler records, `ResizeDirection`, `BalanceDisplay`, date-picker helper classes |
+| nested source-level helpers | DAO row mappers, `BidHistoryEntry`, scheduler records, `AutoBidUiState`, `ResizeDirection`, `BalanceDisplay`, date-picker helper classes |
 
 ### Inline Routes in `App.java`
 
@@ -704,9 +704,15 @@ classDiagram
         +findById()
         +findByAuctionAndBidder()
         +findActiveByAuctionId()
+        +findActiveByAuctionIdInTransaction()
+        +findByIdInTransaction()
         +hasActiveConfig()
         +upsertInTransaction()
         +update()
+        +updateStatusInTransaction()
+        +deactivate()
+        +deactivateAllByAuctionId()
+        +countActiveByAuctionId()
     }
 
     class DepositRequestDao {
@@ -933,6 +939,7 @@ classDiagram
     class AutoBidFailureReason {
         MAX_PRICE_TOO_LOW
         INSUFFICIENT_BALANCE
+        CHAIN_LIMIT_REACHED
         AUCTION_NOT_RUNNING
         BIDDER_ALREADY_HIGHEST
         ACTIVE_AUTOBID_EXISTS
@@ -1300,10 +1307,13 @@ classDiagram
     class AutoBidConfigDao {
         -jdbi
         +findActiveByAuctionId()
+        +findActiveByAuctionIdInTransaction()
         +findByAuctionAndBidder()
+        +findByIdInTransaction()
         +hasActiveConfig()
         +upsertInTransaction()
         +update()
+        +updateStatusInTransaction()
     }
 
     class UserDao {
@@ -1550,6 +1560,7 @@ classDiagram
     class AutoBidConfigDao {
         +findActiveByAuctionId()
         +upsertInTransaction()
+        +updateStatusInTransaction()
     }
 
     class AutoBidConfigMapper {
@@ -1645,6 +1656,17 @@ classDiagram
         +execute()
     }
 
+    class AuctionDetailController {
+        -deferredAutoBidTerminalState
+    }
+
+    class AutoBidUiState {
+        -status
+        -reason
+        -maxBid
+        -increment
+    }
+
     class SceneManager {
         +init()
         +navigateTo()
@@ -1705,6 +1727,7 @@ classDiagram
     SchedulerSettlementResult --> SchedulerBalanceChange
     AutoBidStrategy *-- AutoBidExecutor
     AutoBidStrategy *-- InTransactionBidExecutor
+    AuctionDetailController *-- AutoBidUiState
     SceneManager *-- ResizeDirection
     AuctionListController *-- BalanceDisplay
     CreateAuctionController *-- GlassDateCell
@@ -1803,7 +1826,7 @@ The completed-feature table above is the primary rubric map. This cross-check re
 | Build and conventions | Gradle Kotlin DSL, ShadowJar fat-JAR tasks, Checkstyle, Spotless, SpotBugs |
 | Unit/integration tests | JUnit 5 / Mockito / PostgreSQL integration tests across config, controller, DAO, service, model, pattern, util packages |
 | CI/CD | GitHub Actions workflow for formatting, tests, static analysis, coverage, and build verification |
-| Advanced features | Auto-bidding, anti-sniping, realtime bid chart, wallet reservation, persistent notifications |
+| Advanced features | Auto-bidding with persisted terminal failure reasons, 100-step chain guard, anti-sniping, realtime bid chart, wallet reservation, persistent notifications |
 
 ---
 
