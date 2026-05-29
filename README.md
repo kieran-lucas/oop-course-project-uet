@@ -34,7 +34,7 @@
 
 > [!IMPORTANT]
 > **For grading/evaluation, use the prebuilt JAR method below.** Do **not** build from source unless you are regenerating artifacts as a developer. The server commands below already include the required `JWT_SECRET`, so the evaluator only needs to copy and run them.
-```md
+
 | Required item | Value |
 |---|---|
 | **GitHub repository** | [Project repository](https://github.com/kieran-labs/oop-course-project-uet) |
@@ -45,7 +45,7 @@
 | **Client JAR** | [Download client executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
 | **📄 Report PDF** | [![Report PDF](https://img.shields.io/badge/Report%20PDF-Final%20PDF-F59E0B?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](https://drive.google.com/file/d/1tma9vZBT1YerlTCyiguBYfJj-S69wJ7R/view) |
 | **🎥 Demo video** | ![Demo Video Pending](https://img.shields.io/badge/Demo%20Video-Pending%20final%20link-EA580C?style=for-the-badge&logo=youtube&logoColor=white) |
-```
+
 
 
 ### ⚡ Quick Download
