@@ -84,6 +84,11 @@ public class AuctionDao {
       "id, item_id, starting_price, current_price, leading_bidder_id, seller_id, "
           + "start_time, end_time, status, created_at, updated_at";
 
+  private static final String DISPLAY_ORDER =
+      "ORDER BY CASE "
+          + "WHEN status IN ('FINISHED', 'CANCELED', 'PAID', 'SETTLING') OR end_time <= NOW() "
+          + "THEN 1 ELSE 0 END, created_at DESC, id DESC";
+
   private final Jdbi jdbi;
 
   public AuctionDao(Jdbi jdbi) {
@@ -318,10 +323,10 @@ public class AuctionDao {
    *
    * <p>Dùng cho màn hình danh sách phiên (auction-list.fxml).
    *
-   * @return List chứa tất cả Auction (sắp xếp theo end_time gần nhất trước)
+   * @return List chứa auction đang hoạt động trước, mỗi nhóm sắp xếp theo thời điểm đăng mới nhất
    */
   public List<Auction> findAll() {
-    String sql = "SELECT " + SELECT_COLUMNS + " FROM auctions ORDER BY end_time ASC";
+    String sql = "SELECT " + SELECT_COLUMNS + " FROM auctions " + DISPLAY_ORDER;
 
     return jdbi.withHandle(handle -> handle.createQuery(sql).map(new AuctionMapper()).list());
   }
@@ -332,7 +337,9 @@ public class AuctionDao {
             h.createQuery(
                     "SELECT "
                         + SELECT_COLUMNS
-                        + " FROM auctions ORDER BY end_time ASC LIMIT :limit OFFSET :offset")
+                        + " FROM auctions "
+                        + DISPLAY_ORDER
+                        + " LIMIT :limit OFFSET :offset")
                 .bind("limit", req.size())
                 .bind("offset", req.offset())
                 .map(new AuctionMapper())
@@ -355,7 +362,7 @@ public class AuctionDao {
    */
   public List<Auction> findByStatus(String status) {
     String sql =
-        "SELECT " + SELECT_COLUMNS + " FROM auctions WHERE status = :status ORDER BY end_time ASC";
+        "SELECT " + SELECT_COLUMNS + " FROM auctions WHERE status = :status " + DISPLAY_ORDER;
 
     return jdbi.withHandle(
         handle -> handle.createQuery(sql).bind("status", status).map(new AuctionMapper()).list());
@@ -365,7 +372,9 @@ public class AuctionDao {
     String sql =
         "SELECT "
             + SELECT_COLUMNS
-            + " FROM auctions WHERE status = :status ORDER BY end_time ASC LIMIT :limit OFFSET :offset";
+            + " FROM auctions WHERE status = :status "
+            + DISPLAY_ORDER
+            + " LIMIT :limit OFFSET :offset";
 
     return jdbi.withHandle(
         h ->
@@ -418,6 +427,15 @@ public class AuctionDao {
 
     return jdbi.withHandle(
         handle -> handle.createQuery(sql).bind("itemId", itemId).map(new AuctionMapper()).list());
+  }
+
+  public List<Auction> findActiveByItemIdForUpdate(Handle handle, Long itemId) {
+    String sql =
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM auctions WHERE item_id = :itemId"
+            + " AND status IN ('OPEN', 'RUNNING', 'SETTLING') ORDER BY id FOR UPDATE";
+    return handle.createQuery(sql).bind("itemId", itemId).map(new AuctionMapper()).list();
   }
 
   public boolean existsActiveAuctionForItem(Long itemId) {

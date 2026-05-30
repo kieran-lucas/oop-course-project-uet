@@ -25,6 +25,7 @@ import com.auction.pattern.state.AuctionStates;
 import com.auction.util.MoneyValidator;
 import com.auction.util.NotificationFormat;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
@@ -322,8 +323,11 @@ public class AuctionService {
             "You do not have permission to cancel another seller's auction!");
       }
 
-      if (AuctionStatus.RUNNING == auction.getStatus() && !"ADMIN".equals(role)) {
-        throw new IllegalStateException("Cannot cancel a running auction. Only ADMIN is allowed.");
+      if (AuctionStatus.RUNNING == auction.getStatus() && hasBids(auction)) {
+        throw new IllegalStateException("Cannot cancel a running auction after the first bid.");
+      }
+      if (auction.getEndTime() != null && !LocalDateTime.now().isBefore(auction.getEndTime())) {
+        throw new IllegalStateException("Cannot cancel an auction after its end time.");
       }
 
       AuctionStatus status = auction.getStatus();
@@ -347,6 +351,138 @@ public class AuctionService {
     }
 
     throw new UnauthorizedException("You do not have permission to perform this action.");
+  }
+
+  /** Ensures an item can still be edited. A listed item remains editable until its first bid. */
+  public void ensureItemCanBeModified(Long itemId) {
+    for (Auction auction : auctionDao.findByItemId(itemId)) {
+      if (auction.getStatus() == AuctionStatus.SETTLING) {
+        throw new IllegalStateException(
+            "Cannot modify item #" + itemId + " because its auction is settling.");
+      }
+      if (isActive(auction) && hasBids(auction)) {
+        throw new IllegalStateException(
+            "Cannot modify item #" + itemId + " because its auction already has bids.");
+      }
+    }
+  }
+
+  /** Updates an item while holding the same auction-row lock used by bid placement. */
+  public void updateItemWithoutBids(Item updatedItem) {
+    if (jdbi == null) {
+      ensureItemCanBeModified(updatedItem.getId());
+      itemDao.update(updatedItem);
+      return;
+    }
+    jdbi.useTransaction(
+        handle -> {
+          auctionDao.findActiveByItemIdForUpdate(handle, updatedItem.getId());
+          Item lockedItem =
+              itemDao
+                  .findByIdForUpdate(handle, updatedItem.getId())
+                  .orElseThrow(
+                      () -> new NotFoundException("Item #" + updatedItem.getId() + " not found"));
+          ensureMutableStatus(lockedItem);
+          ensureNoBids(handle, auctionDao.findActiveByItemIdForUpdate(handle, updatedItem.getId()));
+          updatedItem.setStatus(lockedItem.getStatus());
+          itemDao.updateInTransaction(handle, updatedItem);
+        });
+  }
+
+  /** Cancels active no-bid auctions before an item is removed. */
+  public void cancelActiveAuctionsWithoutBids(Long itemId, Long userId, String role) {
+    for (Auction auction : auctionDao.findByItemId(itemId)) {
+      if (!isActive(auction)) {
+        continue;
+      }
+      if (hasBids(auction)) {
+        throw new IllegalStateException(
+            "Cannot delete item #" + itemId + " because its auction already has bids.");
+      }
+      delete(auction.getId(), userId, role);
+    }
+  }
+
+  /** Cancels active no-bid auctions and soft-deletes the item in one transaction. */
+  public void removeItemWithoutBids(Long itemId, Long userId, String role) {
+    if (jdbi == null) {
+      cancelActiveAuctionsWithoutBids(itemId, userId, role);
+      itemDao.delete(itemId);
+      return;
+    }
+
+    List<CanceledAuction> canceledAuctions = new java.util.ArrayList<>();
+    List<NotificationBatch> notificationBatches = new java.util.ArrayList<>();
+    jdbi.useTransaction(
+        handle -> {
+          auctionDao.findActiveByItemIdForUpdate(handle, itemId);
+          Item lockedItem =
+              itemDao
+                  .findByIdForUpdate(handle, itemId)
+                  .orElseThrow(() -> new NotFoundException("Item #" + itemId + " not found"));
+          ensureMutableStatus(lockedItem);
+          List<Auction> activeAuctions = auctionDao.findActiveByItemIdForUpdate(handle, itemId);
+          ensureNoBids(handle, activeAuctions);
+          for (Auction auction : activeAuctions) {
+            AuctionStatus previousStatus = auction.getStatus();
+            auction.setStatus(AuctionStatus.CANCELED);
+            deactivateActiveAutoBidsInTransaction(handle, auction.getId());
+            auctionDao.updateInTransaction(handle, auction);
+            List<Long> recipients = new java.util.ArrayList<>();
+            String message =
+                insertCancellationNotificationInTransaction(
+                    handle, auction, previousStatus, role, recipients);
+            notificationBatches.add(new NotificationBatch(recipients, message));
+            canceledAuctions.add(new CanceledAuction(auction, previousStatus));
+          }
+          itemDao.deleteInTransaction(handle, itemId);
+        });
+
+    for (CanceledAuction canceled : canceledAuctions) {
+      emitCancellationIfNeeded(canceled.auction(), canceled.previousStatus());
+    }
+    for (NotificationBatch batch : notificationBatches) {
+      pushLiveNotifications(batch.recipients(), batch.message());
+    }
+  }
+
+  private record CanceledAuction(Auction auction, AuctionStatus previousStatus) {}
+
+  private record NotificationBatch(List<Long> recipients, String message) {}
+
+  private void ensureMutableStatus(Item item) {
+    if (!"AVAILABLE".equals(item.getStatus()) && !"IN_AUCTION".equals(item.getStatus())) {
+      throw new IllegalStateException(
+          "Cannot modify item #" + item.getId() + " because its status is " + item.getStatus());
+    }
+  }
+
+  private void ensureNoBids(Handle handle, List<Auction> auctions) {
+    for (Auction auction : auctions) {
+      if (auction.getStatus() == AuctionStatus.SETTLING) {
+        throw new IllegalStateException(
+            "Cannot modify item #" + auction.getItemId() + " because its auction is settling.");
+      }
+      if (bidTransactionDao.countByAuctionId(handle, auction.getId()) > 0) {
+        throw new IllegalStateException(
+            "Cannot modify item #"
+                + auction.getItemId()
+                + " because its auction already has bids.");
+      }
+    }
+  }
+
+  private boolean isActive(Auction auction) {
+    return auction.getStatus() == AuctionStatus.OPEN
+        || auction.getStatus() == AuctionStatus.RUNNING
+        || auction.getStatus() == AuctionStatus.SETTLING;
+  }
+
+  private boolean hasBids(Auction auction) {
+    if (bidTransactionDao != null) {
+      return bidTransactionDao.countByAuctionId(auction.getId()) > 0;
+    }
+    return auction.getLeadingBidderId() != null;
   }
 
   public void hardDelete(Long auctionId) {
@@ -456,26 +592,47 @@ public class AuctionService {
 
     jdbi.useTransaction(
         handle -> {
-          if (previousStatus == AuctionStatus.RUNNING && auction.getLeadingBidderId() != null) {
+          Auction lockedAuction = auctionDao.findByIdForUpdate(handle, auction.getId());
+          AuctionStatus lockedPreviousStatus = lockedAuction.getStatus();
+          if (lockedPreviousStatus != AuctionStatus.OPEN
+              && lockedPreviousStatus != AuctionStatus.RUNNING) {
+            throw new IllegalStateException(
+                "Only auctions in OPEN or RUNNING status can be cancelled. Current status: "
+                    + lockedPreviousStatus);
+          }
+          if ("SELLER".equals(actorRole)
+              && bidTransactionDao.countByAuctionId(handle, lockedAuction.getId()) > 0) {
+            throw new IllegalStateException("Cannot cancel a running auction after the first bid.");
+          }
+          if ("SELLER".equals(actorRole)
+              && lockedAuction.getEndTime() != null
+              && !LocalDateTime.now().isBefore(lockedAuction.getEndTime())) {
+            throw new IllegalStateException("Cannot cancel an auction after its end time.");
+          }
+
+          lockedAuction.setStatus(AuctionStatus.CANCELED);
+          if (lockedPreviousStatus == AuctionStatus.RUNNING
+              && lockedAuction.getLeadingBidderId() != null) {
             userDao.releaseReservedBalanceInTransaction(
-                handle, auction.getLeadingBidderId(), auction.getCurrentPrice());
+                handle, lockedAuction.getLeadingBidderId(), lockedAuction.getCurrentPrice());
             WalletTransactionDao.insert(
                 handle,
-                auction.getLeadingBidderId(),
-                auction.getId(),
+                lockedAuction.getLeadingBidderId(),
+                lockedAuction.getId(),
                 null,
                 "CANCEL_RELEASE",
-                auction.getCurrentPrice(),
-                "auction_cancel:" + auction.getId());
+                lockedAuction.getCurrentPrice(),
+                "auction_cancel:" + lockedAuction.getId());
           }
-          deactivateActiveAutoBidsInTransaction(handle, auction.getId());
-          itemDao.updateStatusInTransaction(handle, auction.getItemId(), "AVAILABLE");
-          auctionDao.updateInTransaction(handle, auction);
+          deactivateActiveAutoBidsInTransaction(handle, lockedAuction.getId());
+          itemDao.updateStatusInTransaction(handle, lockedAuction.getItemId(), "AVAILABLE");
+          auctionDao.updateInTransaction(handle, lockedAuction);
           msgHolder[0] =
               insertCancellationNotificationInTransaction(
-                  handle, auction, previousStatus, actorRole, recipients);
+                  handle, lockedAuction, lockedPreviousStatus, actorRole, recipients);
         });
 
+    auction.setStatus(AuctionStatus.CANCELED);
     pushLiveNotifications(recipients, msgHolder[0]);
   }
 
@@ -600,6 +757,7 @@ public class AuctionService {
     auction.setLeadingBidderId(response.getLeadingBidderId());
     auction.setStartTime(response.getStartTime());
     auction.setEndTime(response.getEndTime());
+    auction.setCreatedAt(response.getCreatedAt());
     if (response.getStatus() != null) {
       auction.setStatus(AuctionStatus.from(response.getStatus()));
     }

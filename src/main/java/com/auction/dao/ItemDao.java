@@ -218,6 +218,7 @@ public class ItemDao {
         UPDATE items
         SET name = :name,
             description = :description,
+            category = :category,
             status = :status,
             brand = :brand,
             artist = :artist,
@@ -233,6 +234,7 @@ public class ItemDao {
                     .createUpdate(sql)
                     .bind("name", item.getName())
                     .bind("description", item.getDescription())
+                    .bind("category", item.getCategory())
                     .bind("status", item.getStatus())
                     .bind("brand", getBrand(item))
                     .bind("artist", getArtist(item))
@@ -242,6 +244,37 @@ public class ItemDao {
                     .execute());
 
     return rowsAffected > 0;
+  }
+
+  public void updateInTransaction(Handle handle, Item item) {
+    int rowsAffected =
+        handle
+            .createUpdate(
+                """
+                UPDATE items
+                SET name = :name,
+                    description = :description,
+                    category = :category,
+                    status = :status,
+                    brand = :brand,
+                    artist = :artist,
+                    year = :year,
+                    updated_at = :updatedAt
+                WHERE id = :id
+                """)
+            .bind("name", item.getName())
+            .bind("description", item.getDescription())
+            .bind("category", item.getCategory())
+            .bind("status", item.getStatus())
+            .bind("brand", getBrand(item))
+            .bind("artist", getArtist(item))
+            .bind("year", getYear(item))
+            .bind("updatedAt", LocalDateTime.now())
+            .bind("id", item.getId())
+            .execute();
+    if (rowsAffected == 0) {
+      throw new IllegalStateException("Item #" + item.getId() + " not found — cannot update");
+    }
   }
 
   /**
@@ -264,7 +297,7 @@ public class ItemDao {
             .execute();
 
     if (rowsAffected == 0) {
-      throw new IllegalStateException("Không tìm thấy sản phẩm #" + id + " để cập nhật trạng thái");
+      throw new IllegalStateException("Item #" + id + " not found — cannot update status");
     }
   }
 
@@ -280,6 +313,17 @@ public class ItemDao {
     String sql = "UPDATE items SET status = 'REMOVED', updated_at = NOW() WHERE id = :id";
     int rowsAffected = jdbi.withHandle(handle -> handle.createUpdate(sql).bind("id", id).execute());
     return rowsAffected > 0;
+  }
+
+  public void deleteInTransaction(Handle handle, Long id) {
+    int rowsAffected =
+        handle
+            .createUpdate("UPDATE items SET status = 'REMOVED', updated_at = NOW() WHERE id = :id")
+            .bind("id", id)
+            .execute();
+    if (rowsAffected == 0) {
+      throw new IllegalStateException("Item #" + id + " not found — cannot delete");
+    }
   }
 
   /**

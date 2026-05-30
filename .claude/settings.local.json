@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"D:\\\\Programming\\\\Java\\\\oop-course-project-uet\" -Recurse -File -Include \"*.java\", \"*.fxml\", \"*.properties\", \"*.css\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(grep -v \"LOGGER\\\\|//\")"
+    ]
+  }
+}

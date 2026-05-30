@@ -1,6 +1,7 @@
 package com.auction.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,8 +12,11 @@ import com.auction.dao.ItemDao;
 import com.auction.dao.UserDao;
 import com.auction.dto.CreateAuctionRequest;
 import com.auction.exception.DuplicateException;
+import com.auction.model.Art;
 import com.auction.model.Auction;
 import com.auction.model.AuctionStatus;
+import com.auction.model.BidTransaction;
+import com.auction.model.Bidder;
 import com.auction.model.Electronics;
 import com.auction.model.Item;
 import com.auction.model.Seller;
@@ -51,6 +55,7 @@ class AuctionServiceCreateIntegrationTest {
   private static UserDao userDao;
   private static ItemDao itemDao;
   private static AuctionDao auctionDao;
+  private static BidTransactionDao bidTransactionDao;
   private static AuctionService auctionService;
 
   private User testSeller;
@@ -66,7 +71,7 @@ class AuctionServiceCreateIntegrationTest {
     userDao = new UserDao(jdbi);
     itemDao = new ItemDao(jdbi);
     auctionDao = new AuctionDao(jdbi);
-    BidTransactionDao bidTransactionDao = new BidTransactionDao(jdbi);
+    bidTransactionDao = new BidTransactionDao(jdbi);
     auctionService =
         new AuctionService(
             auctionDao, itemDao, userDao, new AuctionEventManager(), jdbi, bidTransactionDao);
@@ -190,6 +195,139 @@ class AuctionServiceCreateIntegrationTest {
     assertEquals("IN_AUCTION", itemDao.findById(testItem.getId()).orElseThrow().getStatus());
   }
 
+  @Test
+  @DisplayName("Item trong phiên chưa có bid → sửa category trong transaction")
+  void listedItemWithoutBidsCanBeUpdated() {
+    createExistingAuction(AuctionStatus.OPEN);
+    setItemStatus("IN_AUCTION");
+    Item replacement = new Art("Updated art", "Updated desc", testSeller.getId(), "Artist");
+    replacement.setId(testItem.getId());
+
+    auctionService.updateItemWithoutBids(replacement);
+
+    Item found = itemDao.findById(testItem.getId()).orElseThrow();
+    assertInstanceOf(Art.class, found);
+    assertEquals("IN_AUCTION", found.getStatus());
+  }
+
+  @Test
+  @DisplayName("Item trong phiên SETTLING → từ chối sửa")
+  void settlingItemCannotBeUpdated() {
+    createExistingAuction(AuctionStatus.SETTLING);
+    setItemStatus("IN_AUCTION");
+    Item replacement = new Art("Updated art", "Updated desc", testSeller.getId(), "Artist");
+    replacement.setId(testItem.getId());
+
+    assertThrows(
+        IllegalStateException.class, () -> auctionService.updateItemWithoutBids(replacement));
+  }
+
+  @Test
+  @DisplayName("Bid commit trước xóa item → xóa bị từ chối")
+  void committedBidBlocksConcurrentItemRemoval() throws Exception {
+    Auction auction = createExistingAuction(AuctionStatus.RUNNING);
+    setItemStatus("IN_AUCTION");
+    User bidder = userDao.insert(new Bidder("bidder", "hash", "bidder@test.com"));
+    CountDownLatch auctionLocked = new CountDownLatch(1);
+    CountDownLatch allowBidCommit = new CountDownLatch(1);
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+
+    Future<?> bidFuture =
+        pool.submit(
+            () ->
+                jdbi.useTransaction(
+                    handle -> {
+                      auctionDao.findByIdForUpdate(handle, auction.getId());
+                      auctionLocked.countDown();
+                      try {
+                        assertTrue(allowBidCommit.await(5, TimeUnit.SECONDS));
+                      } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                      }
+                      bidTransactionDao.insert(
+                          handle,
+                          new BidTransaction(
+                              auction.getId(), bidder.getId(), new BigDecimal("200000"), false));
+                    }));
+
+    assertTrue(auctionLocked.await(5, TimeUnit.SECONDS));
+    Future<?> removeFuture =
+        pool.submit(
+            () ->
+                assertThrows(
+                    IllegalStateException.class,
+                    () ->
+                        auctionService.removeItemWithoutBids(
+                            testItem.getId(), testSeller.getId(), "SELLER")));
+    allowBidCommit.countDown();
+
+    bidFuture.get(5, TimeUnit.SECONDS);
+    removeFuture.get(5, TimeUnit.SECONDS);
+    pool.shutdown();
+    assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS));
+    assertEquals("IN_AUCTION", itemDao.findById(testItem.getId()).orElseThrow().getStatus());
+  }
+
+  @Test
+  @DisplayName("Listed item without bids -> cancel auction and soft-delete item atomically")
+  void listedItemWithoutBidsCanBeRemoved() {
+    Auction auction = createExistingAuction(AuctionStatus.OPEN);
+    setItemStatus("IN_AUCTION");
+
+    auctionService.removeItemWithoutBids(testItem.getId(), testSeller.getId(), "SELLER");
+
+    assertEquals(
+        AuctionStatus.CANCELED, auctionDao.findById(auction.getId()).orElseThrow().getStatus());
+    assertEquals("REMOVED", itemDao.findById(testItem.getId()).orElseThrow().getStatus());
+  }
+
+  @Test
+  @DisplayName("Committed bid before seller cancellation -> cancellation is rejected")
+  void committedBidBlocksConcurrentSellerCancellation() throws Exception {
+    Auction auction = createExistingAuction(AuctionStatus.RUNNING);
+    setItemStatus("IN_AUCTION");
+    User bidder = userDao.insert(new Bidder("bidder", "hash", "bidder@test.com"));
+    CountDownLatch auctionLocked = new CountDownLatch(1);
+    CountDownLatch allowBidCommit = new CountDownLatch(1);
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+
+    Future<?> bidFuture =
+        pool.submit(
+            () ->
+                jdbi.useTransaction(
+                    handle -> {
+                      auctionDao.findByIdForUpdate(handle, auction.getId());
+                      auctionLocked.countDown();
+                      try {
+                        assertTrue(allowBidCommit.await(5, TimeUnit.SECONDS));
+                      } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                      }
+                      bidTransactionDao.insert(
+                          handle,
+                          new BidTransaction(
+                              auction.getId(), bidder.getId(), new BigDecimal("200000"), false));
+                    }));
+
+    assertTrue(auctionLocked.await(5, TimeUnit.SECONDS));
+    Future<?> cancelFuture =
+        pool.submit(
+            () ->
+                assertThrows(
+                    IllegalStateException.class,
+                    () -> auctionService.delete(auction.getId(), testSeller.getId(), "SELLER")));
+    allowBidCommit.countDown();
+
+    bidFuture.get(5, TimeUnit.SECONDS);
+    cancelFuture.get(5, TimeUnit.SECONDS);
+    pool.shutdown();
+    assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS));
+    assertEquals(
+        AuctionStatus.RUNNING, auctionDao.findById(auction.getId()).orElseThrow().getStatus());
+  }
+
   private Auction createExistingAuction(AuctionStatus status) {
     Auction auction =
         new Auction(
@@ -209,5 +347,10 @@ class AuctionServiceCreateIntegrationTest {
     request.setStartTime(LocalDateTime.now().plusHours(3));
     request.setEndTime(LocalDateTime.now().plusHours(4));
     return request;
+  }
+
+  private void setItemStatus(String status) {
+    testItem.setStatus(status);
+    itemDao.update(testItem);
   }
 }

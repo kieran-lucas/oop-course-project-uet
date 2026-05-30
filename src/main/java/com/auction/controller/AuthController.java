@@ -110,7 +110,7 @@ public class AuthController {
   private static void handleForgotPassword(Context ctx, PasswordResetService service) {
     ForgotPasswordRequest req = ctx.bodyAsClass(ForgotPasswordRequest.class);
     if (req.getEmail() == null || req.getEmail().trim().isEmpty()) {
-      ctx.status(400).json(Map.of("message", "Email không được để trống."));
+      ctx.status(400).json(Map.of("message", "Email is required."));
       return;
     }
     service.requestReset(req.getEmail().trim());
@@ -118,6 +118,6 @@ public class AuthController {
         .json(
             Map.of(
                 "message",
-                "Yêu cầu đã được gửi. Admin sẽ xét duyệt và cấp mật khẩu tạm thời nếu được duyệt."));
+                "Request submitted. An administrator will review it and issue a temporary password if approved."));
   }
 }

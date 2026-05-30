@@ -23,6 +23,7 @@ import com.auction.pattern.state.AuctionState;
 import com.auction.pattern.state.SettlingState;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -593,15 +594,35 @@ class AuctionServiceTest {
     }
 
     @Test
-    @DisplayName("Seller xóa phiên RUNNING → không được phép")
-    void testDeleteRunningAuctionThrowsException() {
+    @DisplayName("Seller xóa phiên RUNNING chưa có bid → thành công")
+    void testDeleteRunningAuctionWithoutBidsSucceeds() {
       Auction auction = buildAuction("RUNNING");
       when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
 
+      assertDoesNotThrow(() -> auctionService.delete(99L, SELLER_ID, "SELLER"));
+      assertEquals(AuctionStatus.CANCELED, auction.getStatus());
+    }
+
+    @Test
+    @DisplayName("Seller xóa phiên RUNNING đã có bid → không được phép")
+    void testDeleteRunningAuctionWithBidsThrowsException() {
+      Auction auction = buildAuction("RUNNING");
+      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
+      when(bidTransactionDao.countByAuctionId(99L)).thenReturn(1);
+
       assertThrows(
-          RuntimeException.class,
-          () -> auctionService.delete(99L, SELLER_ID, "SELLER"),
-          "Không thể xóa phiên đang RUNNING");
+          IllegalStateException.class, () -> auctionService.delete(99L, SELLER_ID, "SELLER"));
+    }
+
+    @Test
+    @DisplayName("Seller xóa phiên RUNNING đã quá endTime -> không được phép")
+    void testDeleteRunningAuctionAfterEndTimeThrowsException() {
+      Auction auction = buildAuction("RUNNING");
+      auction.setEndTime(LocalDateTime.now().minusSeconds(1));
+      when(auctionDao.findById(99L)).thenReturn(Optional.of(auction));
+
+      assertThrows(
+          IllegalStateException.class, () -> auctionService.delete(99L, SELLER_ID, "SELLER"));
     }
 
     @Test
@@ -627,6 +648,44 @@ class AuctionServiceTest {
           RuntimeException.class,
           () -> auctionService.delete(99L, otherSellerId, "SELLER"),
           "Seller không thể xóa phiên của người khác");
+    }
+  }
+
+  @Nested
+  @DisplayName("Chỉnh sửa hoặc xóa item đã đưa lên đấu giá")
+  class MutateListedItem {
+
+    @Test
+    @DisplayName("Item trong phiên chưa có bid vẫn được sửa")
+    void listedItemWithoutBidsCanBeModified() {
+      Auction auction = buildAuction("RUNNING");
+      when(auctionDao.findByItemId(ITEM_ID)).thenReturn(List.of(auction));
+
+      assertDoesNotThrow(() -> auctionService.ensureItemCanBeModified(ITEM_ID));
+    }
+
+    @Test
+    @DisplayName("Item trong phiên đã có bid không được sửa")
+    void listedItemWithBidsCannotBeModified() {
+      Auction auction = buildAuction("RUNNING");
+      when(auctionDao.findByItemId(ITEM_ID)).thenReturn(List.of(auction));
+      when(bidTransactionDao.countByAuctionId(auction.getId())).thenReturn(1);
+
+      assertThrows(
+          IllegalStateException.class, () -> auctionService.ensureItemCanBeModified(ITEM_ID));
+    }
+
+    @Test
+    @DisplayName("Xóa item sẽ hủy phiên chưa có bid trước")
+    void deletingItemCancelsNoBidAuction() {
+      Auction auction = buildAuction("OPEN");
+      when(auctionDao.findByItemId(ITEM_ID)).thenReturn(List.of(auction));
+      when(auctionDao.findById(auction.getId())).thenReturn(Optional.of(auction));
+
+      auctionService.cancelActiveAuctionsWithoutBids(ITEM_ID, SELLER_ID, "SELLER");
+
+      assertEquals(AuctionStatus.CANCELED, auction.getStatus());
+      verify(auctionDao).update(auction);
     }
   }
 }

@@ -21,26 +21,15 @@
 
 /* ================================================================
    FONTS
-   Two @font-face rules — one per actual CSS weight used in this file
-   (normal and bold). Numeric weights 100-900 are NOT used here because
-   JavaFX CSS does not implement the full @font-face font-weight matching
-   algorithm: when multiple @font-face rules share the same font-family,
-   only the LAST one is retained, so declaring 9 numeric-weight variants
-   would silently replace all of them with the final entry (Lexend-Black).
-   Using keyword values lets JavaFX correctly select the right file via
-   the standard "normal vs bold" style matching it does support.
+   JavaFX accepts font-family and src descriptors here, but not font-weight
+   inside @font-face. ClientApp.loadFonts() registers every bundled Lexend
+   variant before the first scene is created, so controls still select bold
+   through their normal -fx-font-weight rule.
    ================================================================ */
 
 @font-face {
     font-family: 'Lexend';
     src: url('../fonts/Lexend-Regular.ttf');
-    font-weight: normal;
-}
-
-@font-face {
-    font-family: 'Lexend';
-    src: url('../fonts/Lexend-Bold.ttf');
-    font-weight: bold;
 }
 
 /* Lexend SemiBold registered as its own family — JavaFX's @font-face matcher only
@@ -1920,8 +1909,9 @@
 }
 
 .dialog-title {
-    -fx-font-family: 'LexendSemiBold';
+    -fx-font-family: 'Lexend';
     -fx-font-size: 18px;
+    -fx-font-weight: bold;
     -fx-text-fill: #0F172A;
 }
 
@@ -1964,6 +1954,75 @@
     -fx-pref-width: 44;
     -fx-pref-height: 44;
     -fx-alignment: CENTER;
+}
+
+/* ----------------------------------------------------------------
+   Auction action dialog - in-scene modal used by seller and admin
+   ---------------------------------------------------------------- */
+
+.auction-dialog-overlay {
+    -fx-padding: 24;
+}
+
+.auction-dialog-card {
+    -fx-background-insets: 0;
+}
+
+.auction-dialog-icon-shape {
+    -fx-min-width: 22;
+    -fx-min-height: 22;
+    -fx-pref-width: 22;
+    -fx-pref-height: 22;
+    -fx-max-width: 22;
+    -fx-max-height: 22;
+    -fx-background-color: #FFFFFF;
+}
+
+.auction-dialog-button {
+    -fx-font-family: 'Lexend';
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-pref-height: 40;
+    -fx-min-height: 40;
+    -fx-max-width: Infinity;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    -fx-cursor: hand;
+}
+
+.auction-dialog-button-warn {
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: linear-gradient(to bottom, #F59E0B 0%, #D97706 100%);
+    -fx-border-color: transparent;
+    -fx-effect: dropshadow(gaussian, rgba(217,119,6,0.32), 10, 0.08, 0, 3);
+}
+
+.auction-dialog-button-warn:hover {
+    -fx-background-color: linear-gradient(to bottom, #D97706 0%, #B45309 100%);
+}
+
+.auction-dialog-button-danger {
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: linear-gradient(to bottom, #EF4444 0%, #DC2626 100%);
+    -fx-border-color: transparent;
+    -fx-effect: dropshadow(gaussian, rgba(220,38,38,0.30), 10, 0.08, 0, 3);
+}
+
+.auction-dialog-button-danger:hover {
+    -fx-background-color: linear-gradient(to bottom, #DC2626 0%, #B91C1C 100%);
+}
+
+.auction-dialog-button:hover {
+    -fx-scale-x: 1.012;
+    -fx-scale-y: 1.012;
+}
+
+.auction-dialog-button:pressed {
+    -fx-scale-x: 0.985;
+    -fx-scale-y: 0.985;
+    -fx-effect: none;
 }
 
 /* ----------------------------------------------------------------

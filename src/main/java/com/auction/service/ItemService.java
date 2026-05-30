@@ -21,8 +21,10 @@ import java.util.List;
 public class ItemService {
 
   private static final String STATUS_AVAILABLE = "AVAILABLE";
+  private static final String STATUS_IN_AUCTION = "IN_AUCTION";
 
   private final ItemDao itemDao;
+  private final AuctionService auctionService;
 
   /**
    * Tạo ItemService với DAO sản phẩm.
@@ -30,7 +32,12 @@ public class ItemService {
    * @param itemDao DAO để truy cập bảng {@code items}
    */
   public ItemService(ItemDao itemDao) {
+    this(itemDao, null);
+  }
+
+  public ItemService(ItemDao itemDao, AuctionService auctionService) {
     this.itemDao = itemDao;
+    this.auctionService = auctionService;
   }
 
   /**
@@ -94,18 +101,22 @@ public class ItemService {
    * @return sản phẩm sau khi cập nhật
    * @throws NotFoundException nếu sản phẩm không tồn tại
    * @throws UnauthorizedException nếu người yêu cầu không phải chủ sản phẩm
-   * @throws IllegalStateException nếu sản phẩm không còn ở trạng thái AVAILABLE
+   * @throws IllegalStateException nếu sản phẩm đã có bid hoặc không còn được phép chỉnh sửa
    */
   public Item update(Long id, CreateItemRequest request, Long requesterId) {
     Item existing = getById(id);
     checkOwnership(existing, requesterId, "update");
-    ensureAvailableForMutation(existing, "update");
+    ensureMutable(existing, "update");
 
     Item updatedItem = ItemFactory.create(request, existing.getSellerId());
     updatedItem.setId(id);
     // Giữ nguyên status — trạng thái sản phẩm chỉ được thay đổi qua AuctionService/BidService
     updatedItem.setStatus(existing.getStatus());
-    itemDao.update(updatedItem);
+    if (auctionService != null) {
+      auctionService.updateItemWithoutBids(updatedItem);
+    } else {
+      itemDao.update(updatedItem);
+    }
     return updatedItem;
   }
 
@@ -119,7 +130,7 @@ public class ItemService {
    * @param requesterRole role của người thực hiện ("ADMIN" hoặc "SELLER")
    * @throws NotFoundException nếu sản phẩm không tồn tại
    * @throws UnauthorizedException nếu SELLER cố xóa sản phẩm của người khác
-   * @throws IllegalStateException nếu sản phẩm không còn ở trạng thái AVAILABLE
+   * @throws IllegalStateException nếu sản phẩm đã có bid hoặc không còn được phép xóa
    */
   public void delete(Long id, Long requesterId, String requesterRole) {
     Item existing = getById(id);
@@ -129,8 +140,12 @@ public class ItemService {
       checkOwnership(existing, requesterId, "delete");
     }
 
-    ensureAvailableForMutation(existing, "delete");
-    itemDao.delete(id);
+    ensureMutable(existing, "delete");
+    if (auctionService != null) {
+      auctionService.removeItemWithoutBids(id, requesterId, requesterRole);
+    } else {
+      itemDao.delete(id);
+    }
   }
 
   /**
@@ -153,19 +168,24 @@ public class ItemService {
   }
 
   /**
-   * Chặn sửa/xóa sản phẩm không còn rảnh. Item đang đấu giá, đã bán hoặc đã bị remove không được
-   * mutate qua ItemService vì sẽ phá vỡ vòng đời auction-item.
+   * Chặn sửa/xóa item đã bán, đã remove hoặc đã có bid. Item đang đấu giá vẫn được thay đổi trước
+   * bid đầu tiên.
    */
-  private void ensureAvailableForMutation(Item item, String action) {
-    if (!STATUS_AVAILABLE.equals(item.getStatus())) {
-      throw new IllegalStateException(
-          "Cannot "
-              + action
-              + " item #"
-              + item.getId()
-              + " because its status is "
-              + item.getStatus()
-              + ". Only AVAILABLE items can be modified.");
+  private void ensureMutable(Item item, String action) {
+    if (STATUS_AVAILABLE.equals(item.getStatus())) {
+      return;
     }
+    if (STATUS_IN_AUCTION.equals(item.getStatus()) && auctionService != null) {
+      auctionService.ensureItemCanBeModified(item.getId());
+      return;
+    }
+    throw new IllegalStateException(
+        "Cannot "
+            + action
+            + " item #"
+            + item.getId()
+            + " because its status is "
+            + item.getStatus()
+            + ". Only AVAILABLE items or listed items without bids can be modified.");
   }
 }

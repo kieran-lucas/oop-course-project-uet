@@ -32,14 +32,14 @@ public final class NotificationFormat {
   /**
    * Bao một username trong guillemet để client hiển thị màu xanh dương.
    *
-   * <p>Nếu {@code username} null hoặc rỗng, trả về chuỗi fallback {@code «Người dùng»} thay vì để
-   * thông báo bị trống.
+   * <p>Nếu {@code username} null hoặc rỗng, trả về chuỗi fallback {@code «User»} thay vì để thông
+   * báo bị trống.
    *
    * @param username tên người dùng cần định dạng
    * @return chuỗi dạng {@code «username»}
    */
   public static String user(String username) {
-    String safe = username != null && !username.isBlank() ? username : "Người dùng";
+    String safe = username != null && !username.isBlank() ? username : "User";
     return USER_OPEN + safe + USER_CLOSE;
   }
 

@@ -96,7 +96,7 @@ public class JwtMiddleware {
 
     // Kiểm tra sự tồn tại và định dạng của header trước khi parse
     if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      throw new UnauthorizedException("Thiếu hoặc sai định dạng token. Vui lòng đăng nhập.");
+      throw new UnauthorizedException("Missing or malformed token. Please sign in.");
     }
 
     try {
@@ -116,7 +116,7 @@ public class JwtMiddleware {
     } catch (Exception e) {
       // Các lỗi thường gặp: TokenExpiredException, SignatureVerificationException, ...
       // Bọc lại thành UnauthorizedException để GlobalExceptionHandler trả về HTTP 401.
-      throw new UnauthorizedException("Token không hợp lệ hoặc đã hết hạn: " + e.getMessage());
+      throw new UnauthorizedException("Token is invalid or has expired: " + e.getMessage());
     }
   }
 

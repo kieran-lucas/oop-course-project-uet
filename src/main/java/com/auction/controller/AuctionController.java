@@ -249,8 +249,7 @@ public class AuctionController {
 
     // Chỉ SELLER hoặc ADMIN mới được hủy phiên
     if (!"SELLER".equals(role) && !"ADMIN".equals(role)) {
-      throw new UnauthorizedException(
-          "Chỉ người bán hoặc quản trị viên mới có thể hủy phiên đấu giá");
+      throw new UnauthorizedException("Only the seller or an administrator can cancel an auction");
     }
 
     // Service xử lý: kiểm tra ownership (với SELLER), chuyển status → CANCELED
@@ -279,8 +278,7 @@ public class AuctionController {
   private static void requireRole(Context ctx, String requiredRole) {
     String role = ctx.attribute("role");
     if (!requiredRole.equals(role)) {
-      throw new UnauthorizedException(
-          "Chỉ " + requiredRole + " mới có quyền thực hiện thao tác này");
+      throw new UnauthorizedException("Only " + requiredRole + " can perform this action");
     }
   }
 }

@@ -130,11 +130,11 @@ public class App {
     // ── 6. Khởi tạo Services ────────────────────────────────
     var userService = new UserService(userDao, depositRequestDao, jdbi);
     var passwordResetService = new PasswordResetService(userDao, passwordResetRequestDao, jdbi);
-    var itemService = new ItemService(itemDao);
     var notificationService = new NotificationService(notificationDao);
     var auctionService =
         new AuctionService(
             auctionDao, itemDao, userDao, eventManager, jdbi, bidTransactionDao, wsHandler);
+    var itemService = new ItemService(itemDao, auctionService);
     var autoBidStrategy = new AutoBidStrategy(autoBidConfigDao, userDao);
     var bidService =
         new BidService(
@@ -257,7 +257,7 @@ public class App {
               depositRequestDao
                   .findById(requestId)
                   .orElseThrow(
-                      () -> new NotFoundException("Không tìm thấy yêu cầu nạp tiền: " + requestId));
+                      () -> new NotFoundException("Deposit request not found: " + requestId));
           com.auction.dto.UserResponse result = userService.approveDeposit(requestId);
           // Notify user qua WebSocket về biến động số dư
           wsHandler.notifyBalanceUpdate(

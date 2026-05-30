@@ -1,5 +1,9 @@
 package com.auction.ui.controller;
 
+import com.auction.model.Art;
+import com.auction.model.Electronics;
+import com.auction.model.Item;
+import com.auction.model.Vehicle;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
@@ -48,6 +52,9 @@ public class CreateItemController implements Navigable {
   @FXML private TextField categoryDetailField;
   @FXML private Label statusLabel;
   @FXML private Button createButton;
+  @FXML private Label pageTitleLabel;
+
+  private Item editingItem;
 
   // ========== NAVIGABLE LIFECYCLE ==========
 
@@ -55,6 +62,19 @@ public class CreateItemController implements Navigable {
   @Override
   public void onNavigatedTo() {
     clearForm();
+    if (editingItem != null) {
+      populateForm(editingItem);
+    }
+  }
+
+  @Override
+  public void onDataReceived(Object data) {
+    editingItem = data instanceof Item item ? item : null;
+  }
+
+  @Override
+  public void onNavigatedFrom() {
+    editingItem = null;
   }
 
   // ========== FXML ACTIONS ==========
@@ -122,15 +142,23 @@ public class CreateItemController implements Navigable {
     body.put("description", description);
     body.put("category", category);
     body.put("categoryDetail", categoryDetail);
+    Item itemToEdit = editingItem;
 
     Thread.ofVirtual()
         .start(
             () -> {
               try {
-                HttpResponse<String> response = RestClient.post("/api/items", body);
-                if (response.statusCode() == 201) {
+                HttpResponse<String> response =
+                    itemToEdit == null
+                        ? RestClient.post("/api/items", body)
+                        : RestClient.put("/api/items/" + itemToEdit.getId(), body);
+                if (response.statusCode() == 200 || response.statusCode() == 201) {
                   // FIX 1: Hiển thị thông báo thành công trước khi navigate
-                  Platform.runLater(() -> showStatus("Product created successfully.", false));
+                  String successMessage =
+                      itemToEdit == null
+                          ? "Product created successfully."
+                          : "Product updated successfully.";
+                  Platform.runLater(() -> showStatus(successMessage, false));
                   Thread.sleep(1500);
                   Platform.runLater(
                       () -> {
@@ -210,7 +238,32 @@ public class CreateItemController implements Navigable {
     hideStatus();
     if (createButton != null) {
       createButton.setDisable(false);
+      createButton.setText(editingItem == null ? "Create product" : "Save changes");
     }
+    if (pageTitleLabel != null) {
+      pageTitleLabel.setText(editingItem == null ? "Create Product" : "Edit Product");
+    }
+  }
+
+  private void populateForm(Item item) {
+    nameField.setText(item.getName());
+    descriptionField.setText(item.getDescription());
+    categoryCombo.setValue(item.getCategory());
+    categoryDetailField.setText(getCategoryDetail(item));
+    handleCategoryChange();
+  }
+
+  private String getCategoryDetail(Item item) {
+    if (item instanceof Electronics electronics) {
+      return electronics.getBrand();
+    }
+    if (item instanceof Art art) {
+      return art.getArtist();
+    }
+    if (item instanceof Vehicle vehicle) {
+      return String.valueOf(vehicle.getYear());
+    }
+    return "";
   }
 
   /**

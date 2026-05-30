@@ -31,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ItemServiceTest {
 
   @Mock private ItemDao itemDao;
+  @Mock private AuctionService auctionService;
 
   private ItemService service;
 
@@ -40,7 +41,7 @@ class ItemServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new ItemService(itemDao);
+    service = new ItemService(itemDao, auctionService);
   }
 
   private Item buildItem(Long sellerId) {
@@ -166,7 +167,7 @@ class ItemServiceTest {
       Item result = service.update(ITEM_ID, buildRequest(), SELLER_ID);
 
       assertNotNull(result);
-      verify(itemDao).update(any(Item.class));
+      verify(auctionService).updateItemWithoutBids(any(Item.class));
     }
 
     @Test
@@ -184,10 +185,23 @@ class ItemServiceTest {
     @DisplayName("không được cập nhật item đang trong phiên đấu giá")
     void cannotUpdateItemInAuction() {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID, "IN_AUCTION")));
+      doThrow(new IllegalStateException("auction already has bids"))
+          .when(auctionService)
+          .ensureItemCanBeModified(ITEM_ID);
 
       assertThrows(
           IllegalStateException.class, () -> service.update(ITEM_ID, buildRequest(), SELLER_ID));
       verify(itemDao, never()).update(any());
+    }
+
+    @Test
+    @DisplayName("được cập nhật item đang đấu giá khi chưa có bid")
+    void canUpdateItemInAuctionWithoutBids() {
+      when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID, "IN_AUCTION")));
+
+      assertDoesNotThrow(() -> service.update(ITEM_ID, buildRequest(), SELLER_ID));
+      verify(auctionService).ensureItemCanBeModified(ITEM_ID);
+      verify(auctionService).updateItemWithoutBids(any(Item.class));
     }
 
     @Test
@@ -231,7 +245,7 @@ class ItemServiceTest {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID)));
 
       assertDoesNotThrow(() -> service.delete(ITEM_ID, SELLER_ID, "SELLER"));
-      verify(itemDao).delete(ITEM_ID);
+      verify(auctionService).removeItemWithoutBids(ITEM_ID, SELLER_ID, "SELLER");
     }
 
     @Test
@@ -240,7 +254,7 @@ class ItemServiceTest {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID)));
 
       assertDoesNotThrow(() -> service.delete(ITEM_ID, OTHER_SELLER_ID, "ADMIN"));
-      verify(itemDao).delete(ITEM_ID);
+      verify(auctionService).removeItemWithoutBids(ITEM_ID, OTHER_SELLER_ID, "ADMIN");
     }
 
     @Test
@@ -257,9 +271,22 @@ class ItemServiceTest {
     @DisplayName("không được xóa item đang trong phiên đấu giá")
     void cannotDeleteItemInAuction() {
       when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID, "IN_AUCTION")));
+      doThrow(new IllegalStateException("auction already has bids"))
+          .when(auctionService)
+          .ensureItemCanBeModified(ITEM_ID);
 
       assertThrows(IllegalStateException.class, () -> service.delete(ITEM_ID, SELLER_ID, "SELLER"));
       verify(itemDao, never()).delete(anyLong());
+    }
+
+    @Test
+    @DisplayName("được xóa item đang đấu giá khi chưa có bid và hủy phiên trước")
+    void canDeleteItemInAuctionWithoutBids() {
+      when(itemDao.findById(ITEM_ID)).thenReturn(Optional.of(buildItem(SELLER_ID, "IN_AUCTION")));
+
+      assertDoesNotThrow(() -> service.delete(ITEM_ID, SELLER_ID, "SELLER"));
+      verify(auctionService).ensureItemCanBeModified(ITEM_ID);
+      verify(auctionService).removeItemWithoutBids(ITEM_ID, SELLER_ID, "SELLER");
     }
 
     @Test

@@ -48,6 +48,12 @@
                <Label styleClass="field-label" text="PRODUCT *" />
                <ComboBox fx:id="itemCombo" maxWidth="Infinity" styleClass="combo-box"
                          promptText="Choose one of your products" />
+               <HBox spacing="8.0">
+                  <Button fx:id="editItemButton" text="Edit selected product"
+                          styleClass="link-button" disable="true" onAction="#handleEditItem" />
+                  <Button fx:id="deleteItemButton" text="Delete selected product"
+                          styleClass="link-button" disable="true" onAction="#handleDeleteItem" />
+               </HBox>
                <Button text="+ Create a new product" styleClass="link-button"
                        onAction="#goToCreateItem" />
             </VBox>

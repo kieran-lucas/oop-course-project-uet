@@ -366,7 +366,7 @@ public class UserDao {
             .bind("userId", userId)
             .execute();
     if (rows == 0) {
-      throw new IllegalStateException("Không thể cập nhật tiền giữ chỗ cho user: " + userId);
+      throw new IllegalStateException("Failed to update reserved balance for user: " + userId);
     }
   }
 
@@ -386,9 +386,9 @@ public class UserDao {
             .execute();
     if (rows == 0) {
       throw new IllegalStateException(
-          "Không thể release tiền giữ chỗ cho user "
+          "Failed to release reserved balance for user "
               + userId
-              + ": reserved_balance không đủ hoặc user không tồn tại");
+              + ": insufficient reserved balance or user not found");
     }
   }
 

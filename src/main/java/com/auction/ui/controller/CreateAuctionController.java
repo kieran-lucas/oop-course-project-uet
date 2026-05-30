@@ -1,6 +1,7 @@
 package com.auction.ui.controller;
 
 import com.auction.model.Item;
+import com.auction.ui.util.AuctionUiDialogs;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
@@ -78,6 +79,8 @@ public class CreateAuctionController implements Navigable {
   @FXML private TextField endTimeField;
   @FXML private Label statusLabel;
   @FXML private Button createButton;
+  @FXML private Button editItemButton;
+  @FXML private Button deleteItemButton;
 
   @FXML
   private void initialize() {
@@ -85,6 +88,7 @@ public class CreateAuctionController implements Navigable {
     installDatePickerMotion(endDatePicker);
     configureDatePicker(startDatePicker);
     configureDatePicker(endDatePicker);
+    itemCombo.valueProperty().addListener((obs, oldItem, newItem) -> updateItemActions(newItem));
   }
 
   // ========== NAVIGABLE LIFECYCLE ==========
@@ -113,6 +117,10 @@ public class CreateAuctionController implements Navigable {
 
     if (selectedItem == null) {
       showStatus("Please choose a product.", true);
+      return;
+    }
+    if (!"AVAILABLE".equals(selectedItem.getStatus())) {
+      showStatus("Only AVAILABLE products can be added to a new auction.", true);
       return;
     }
 
@@ -201,6 +209,68 @@ public class CreateAuctionController implements Navigable {
     SceneManager.getInstance().navigateTo("create-item.fxml");
   }
 
+  @FXML
+  public void handleEditItem() {
+    Item selectedItem = itemCombo.getValue();
+    if (selectedItem != null) {
+      SceneManager.getInstance().navigateTo("create-item.fxml", selectedItem);
+    }
+  }
+
+  @FXML
+  public void handleDeleteItem() {
+    Item selectedItem = itemCombo.getValue();
+    if (selectedItem == null) {
+      return;
+    }
+    AuctionUiDialogs.showConfirmDialog(
+        "Delete product?",
+        "Delete [" + selectedItem.getName() + "]?",
+        "This product will be removed from your catalog.\n"
+            + "If it belongs to an auction with no bids, that auction will be canceled.\n"
+            + "This action cannot be undone.",
+        true,
+        "Delete product",
+        () -> deleteItem(selectedItem));
+  }
+
+  private void deleteItem(Item selectedItem) {
+    editItemButton.setDisable(true);
+    deleteItemButton.setDisable(true);
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response =
+                    RestClient.delete("/api/items/" + selectedItem.getId());
+                if (response.statusCode() == 204) {
+                  Platform.runLater(
+                      () -> {
+                        showStatus("Product removed successfully.", false);
+                        itemCombo.getItems().remove(selectedItem);
+                        itemCombo.setValue(null);
+                        updateItemActions(null);
+                        loadMyItems();
+                      });
+                } else {
+                  String msg = extractMessage(response.body(), "Couldn't remove the product.");
+                  Platform.runLater(
+                      () -> {
+                        showStatus(msg, true);
+                        updateItemActions(itemCombo.getValue());
+                      });
+                }
+              } catch (Exception e) {
+                LOGGER.error("Lỗi xóa sản phẩm", e);
+                Platform.runLater(
+                    () -> {
+                      showStatus("Unable to reach the server.", true);
+                      updateItemActions(itemCombo.getValue());
+                    });
+              }
+            });
+  }
+
   /** Quay lại danh sách phiên. */
   @FXML
   public void goBack() {
@@ -218,9 +288,16 @@ public class CreateAuctionController implements Navigable {
               try {
                 HttpResponse<String> response = RestClient.get("/api/items?sellerId=" + sellerId);
                 if (response.statusCode() == 200) {
-                  List<Item> items = RestClient.parseList(response.body(), Item.class);
+                  List<Item> items =
+                      RestClient.parseList(response.body(), Item.class).stream()
+                          .filter(
+                              item ->
+                                  "AVAILABLE".equals(item.getStatus())
+                                      || "IN_AUCTION".equals(item.getStatus()))
+                          .toList();
                   Platform.runLater(
                       () -> {
+                        itemCombo.setValue(null);
                         itemCombo.setItems(FXCollections.observableArrayList(items));
                         itemCombo.setCellFactory(
                             lv ->
@@ -228,7 +305,7 @@ public class CreateAuctionController implements Navigable {
                                   @Override
                                   protected void updateItem(Item item, boolean empty) {
                                     super.updateItem(item, empty);
-                                    setText(empty || item == null ? null : item.getName());
+                                    setText(empty || item == null ? null : formatItem(item));
                                   }
                                 });
                         itemCombo.setButtonCell(
@@ -239,13 +316,16 @@ public class CreateAuctionController implements Navigable {
                                 setText(
                                     empty || item == null
                                         ? "Choose one of your products"
-                                        : item.getName());
+                                        : formatItem(item));
                               }
                             });
                         if (items.isEmpty()) {
                           showStatus("You don't have any products yet. Create one first.", true);
                         }
+                        updateItemActions(itemCombo.getValue());
                       });
+                } else {
+                  Platform.runLater(() -> showStatus("Couldn't load your product list.", true));
                 }
               } catch (Exception e) {
                 LOGGER.error("Lỗi load danh sách sản phẩm", e);
@@ -286,6 +366,7 @@ public class CreateAuctionController implements Navigable {
   private void clearForm() {
     if (itemCombo != null) {
       itemCombo.setValue(null);
+      itemCombo.getItems().clear();
     }
     if (startingPriceField != null) {
       startingPriceField.clear();
@@ -305,6 +386,23 @@ public class CreateAuctionController implements Navigable {
     hideStatus();
     if (createButton != null) {
       createButton.setDisable(false);
+    }
+    updateItemActions(null);
+  }
+
+  private String formatItem(Item item) {
+    return item.getName() + " [" + item.getStatus() + "]";
+  }
+
+  private void updateItemActions(Item item) {
+    boolean mutable =
+        item != null
+            && ("AVAILABLE".equals(item.getStatus()) || "IN_AUCTION".equals(item.getStatus()));
+    if (editItemButton != null) {
+      editItemButton.setDisable(!mutable);
+    }
+    if (deleteItemButton != null) {
+      deleteItemButton.setDisable(!mutable);
     }
   }
 

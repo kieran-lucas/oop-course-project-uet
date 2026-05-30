@@ -177,8 +177,8 @@ public class ItemController {
    * <p>Kiểm tra ownership: {@code item.sellerId == userId từ JWT}. Nếu một seller cố sửa item của
    * seller khác → {@code UnauthorizedException}.
    *
-   * <p>Lưu ý: Item đang được dùng trong phiên đấu giá RUNNING sẽ KHÔNG thể sửa (logic này được xử
-   * lý ở tầng Service, không phải Controller).
+   * <p>Lưu ý: Item đang được dùng trong phiên đấu giá vẫn có thể sửa trước bid đầu tiên. Sau khi có
+   * bid, tầng Service sẽ khóa thao tác này.
    *
    * @param ctx Javalin context chứa HTTP request/response
    * @param itemService service cập nhật item sau khi kiểm tra ownership
@@ -213,8 +213,8 @@ public class ItemController {
    *   <li>Role {@code BIDDER} → không được phép → {@code UnauthorizedException}.
    * </ul>
    *
-   * <p>Nếu item đang liên kết với phiên đấu giá RUNNING, service sẽ ném lỗi để tránh mất tính toàn
-   * vẹn dữ liệu.
+   * <p>Nếu item đang liên kết với phiên chưa có bid, service sẽ hủy phiên rồi xóa mềm item. Sau bid
+   * đầu tiên, service sẽ từ chối thao tác.
    *
    * @param ctx Javalin context chứa HTTP request/response
    * @param itemService service xóa item sau khi kiểm tra quyền và tính toàn vẹn dữ liệu
@@ -227,7 +227,7 @@ public class ItemController {
 
     // Chỉ SELLER hoặc ADMIN mới được xóa
     if (!"SELLER".equals(role) && !"ADMIN".equals(role)) {
-      throw new UnauthorizedException("Chỉ người bán hoặc quản trị viên mới có thể xóa sản phẩm");
+      throw new UnauthorizedException("Only the seller or an administrator can delete an item");
     }
 
     // Service xử lý logic phân quyền chi tiết (ADMIN bypass ownership check, SELLER thì không)
@@ -252,8 +252,7 @@ public class ItemController {
   private static void requireRole(Context ctx, String requiredRole) {
     String role = ctx.attribute("role");
     if (!requiredRole.equals(role)) {
-      throw new UnauthorizedException(
-          "Chỉ " + requiredRole + " mới có quyền thực hiện thao tác này");
+      throw new UnauthorizedException("Only " + requiredRole + " can perform this action");
     }
   }
 }

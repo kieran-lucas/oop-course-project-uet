@@ -279,6 +279,7 @@ class DtoCompletenessTest {
       assertEquals(5L, r.getId());
       assertEquals(10L, r.getItemId());
       assertEquals(1L, r.getSellerId());
+      assertEquals(a.getCreatedAt(), r.getCreatedAt());
       assertEquals("RUNNING", r.getStatus());
       assertEquals(2L, r.getLeadingBidderId());
       assertEquals(0, new BigDecimal("1000000").compareTo(r.getStartingPrice()));
@@ -297,6 +298,8 @@ class DtoCompletenessTest {
       r.setItemArtist("Some artist");
       r.setItemYear(2023);
       r.setLeadingBidderUsername("alice");
+      LocalDateTime createdAt = LocalDateTime.now();
+      r.setCreatedAt(createdAt);
       r.setRemainingTimeMs(3600000L);
       assertEquals(1L, r.getId());
       assertEquals("Laptop", r.getItemName());
@@ -306,6 +309,7 @@ class DtoCompletenessTest {
       assertEquals("Some artist", r.getItemArtist());
       assertEquals(2023, r.getItemYear());
       assertEquals("alice", r.getLeadingBidderUsername());
+      assertEquals(createdAt, r.getCreatedAt());
       assertEquals(3600000L, r.getRemainingTimeMs());
     }
   }

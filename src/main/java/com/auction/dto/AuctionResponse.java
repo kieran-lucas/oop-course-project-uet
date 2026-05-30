@@ -47,6 +47,7 @@ public class AuctionResponse {
   private String leadingBidderUsername;
   private LocalDateTime startTime;
   private LocalDateTime endTime;
+  private LocalDateTime createdAt;
   private String status;
   private long remainingTimeMs;
 
@@ -71,6 +72,7 @@ public class AuctionResponse {
     response.leadingBidderId = auction.getLeadingBidderId();
     response.startTime = auction.getStartTime();
     response.endTime = auction.getEndTime();
+    response.createdAt = auction.getCreatedAt();
     response.status = auction.getStatus().name();
     response.remainingTimeMs = auction.getRemainingTimeMs();
     return response;
@@ -196,6 +198,14 @@ public class AuctionResponse {
 
   public void setEndTime(LocalDateTime endTime) {
     this.endTime = endTime;
+  }
+
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(LocalDateTime createdAt) {
+    this.createdAt = createdAt;
   }
 
   public String getStatus() {

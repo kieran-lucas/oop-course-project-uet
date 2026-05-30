@@ -110,7 +110,7 @@ public class SceneManager {
   public static SceneManager getInstance() {
     if (instance == null) {
       throw new IllegalStateException(
-          "SceneManager chưa được khởi tạo! Gọi init() trong ClientApp.start() trước.");
+          "SceneManager has not been initialized. Call init() in ClientApp.start() first.");
     }
     return instance;
   }
@@ -960,6 +960,19 @@ public class SceneManager {
     }
   }
 
+  /**
+   * Add a modal overlay above the complete application frame, including custom window chrome.
+   *
+   * <p>Unlike {@link #addOverlay(Node)}, this keeps the overlay as the front-most layer so a modal
+   * backdrop dims the title bar and blocks every underlying control until the dialog is dismissed.
+   */
+  public void addModalOverlay(Node overlay) {
+    if (overlay != null && !rootContainer.getChildren().contains(overlay)) {
+      rootContainer.getChildren().add(overlay);
+      overlay.toFront();
+    }
+  }
+
   /** Remove an overlay previously added via {@link #addOverlay(Node)}. No-op nếu không tồn tại. */
   public void removeOverlay(Node overlay) {
     if (overlay != null) {
@@ -1121,9 +1134,9 @@ public class SceneManager {
     URL url = getClass().getResource("/ui/fxml/" + fxmlName);
     if (url == null) {
       String msg =
-          "Không tìm thấy FXML tại: /ui/fxml/"
+          "FXML not found at: /ui/fxml/"
               + fxmlName
-              + " — Kiểm tra file có nằm đúng trong src/main/resources/ui/fxml/ không.";
+              + " — Check that the file exists under src/main/resources/ui/fxml/";
       LOGGER.error(msg);
       throw new RuntimeException(msg);
     }
@@ -1139,7 +1152,7 @@ public class SceneManager {
       return view;
     } catch (IOException e) {
       LOGGER.error("Không thể load FXML '{}': {}", fxmlName, e.getMessage(), e);
-      throw new RuntimeException("Load FXML thất bại: " + fxmlName, e);
+      throw new RuntimeException("Failed to load FXML: " + fxmlName, e);
     }
   }
 

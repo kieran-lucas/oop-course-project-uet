@@ -233,7 +233,7 @@ public class PasswordResetRequestDao {
             .bind("id", id)
             .execute();
     if (rows == 0) {
-      throw new IllegalStateException("Yêu cầu này đã được xử lý rồi.");
+      throw new IllegalStateException("This request has already been processed.");
     }
   }
 }

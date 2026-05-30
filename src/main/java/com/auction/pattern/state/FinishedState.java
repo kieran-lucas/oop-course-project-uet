@@ -29,7 +29,7 @@ import java.math.BigDecimal;
 public class FinishedState implements AuctionState {
 
   /** Mẫu thông điệp lỗi dùng chung; tham số thứ hai là tên hành động bị chặn. */
-  private static final String ERROR_MSG_TEMPLATE = "Phiên đấu giá #%d đã kết thúc. Không thể %s.";
+  private static final String ERROR_MSG_TEMPLATE = "Auction #%d has ended. Cannot %s.";
 
   /**
    * {@inheritDoc}
@@ -38,7 +38,8 @@ public class FinishedState implements AuctionState {
    */
   @Override
   public void placeBid(Auction auction, BigDecimal amount, Long bidderId) {
-    throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId(), "đặt giá"));
+    throw new AuctionClosedException(
+        String.format(ERROR_MSG_TEMPLATE, auction.getId(), "place a bid"));
   }
 
   /**
@@ -60,8 +61,7 @@ public class FinishedState implements AuctionState {
    */
   @Override
   public void edit(Auction auction) {
-    throw new AuctionClosedException(
-        String.format(ERROR_MSG_TEMPLATE, auction.getId(), "chỉnh sửa"));
+    throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId(), "edit"));
   }
 
   /**
@@ -71,6 +71,6 @@ public class FinishedState implements AuctionState {
    */
   @Override
   public void extend(Auction auction, long extraSeconds) {
-    throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId(), "gia hạn"));
+    throw new AuctionClosedException(String.format(ERROR_MSG_TEMPLATE, auction.getId(), "extend"));
   }
 }

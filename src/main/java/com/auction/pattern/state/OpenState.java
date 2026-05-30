@@ -68,10 +68,9 @@ public class OpenState implements AuctionState {
   @Override
   public void placeBid(Auction auction, BigDecimal amount, Long bidderId) {
     throw new AuctionClosedException(
-        "Phiên đấu giá #"
+        "Auction #"
             + auction.getId()
-            + " chưa bắt đầu. "
-            + "Thời gian bắt đầu: "
+            + " has not started yet. Start time: "
             + auction.getStartTime());
   }
 
@@ -115,6 +114,6 @@ public class OpenState implements AuctionState {
   @Override
   public void extend(Auction auction, long extraSeconds) {
     throw new AuctionClosedException(
-        "Không thể gia hạn phiên #" + auction.getId() + " vì phiên chưa bắt đầu");
+        "Cannot extend auction #" + auction.getId() + " — it has not started yet");
   }
 }

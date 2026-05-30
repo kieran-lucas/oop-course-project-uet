@@ -23,7 +23,7 @@ public class PaidState implements AuctionState {
 
   /** Mẫu thông điệp lỗi dùng chung cho mọi method bị từ chối. */
   private static final String ERROR_MSG_TEMPLATE =
-      "Phiên đấu giá #%d đã được thanh toán và không thể thay đổi.";
+      "Auction #%d has been paid. No further changes are allowed.";
 
   /**
    * {@inheritDoc}

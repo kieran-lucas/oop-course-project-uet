@@ -41,7 +41,7 @@ class OpenStateTest {
         assertThrows(
             AuctionClosedException.class,
             () -> state.placeBid(auction, new BigDecimal("200000"), 7L));
-    assertTrue(ex.getMessage().contains("chưa bắt đầu"));
+    assertTrue(ex.getMessage().contains("has not started yet"));
   }
 
   @Test
@@ -61,6 +61,6 @@ class OpenStateTest {
   void extendRejected() {
     AuctionClosedException ex =
         assertThrows(AuctionClosedException.class, () -> state.extend(openAuction(), 60L));
-    assertTrue(ex.getMessage().contains("chưa bắt đầu"));
+    assertTrue(ex.getMessage().contains("has not started yet"));
   }
 }

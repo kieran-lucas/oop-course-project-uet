@@ -88,7 +88,7 @@ public class ClientApp extends Application {
 
     } catch (Exception e) {
       LOGGER.error("Lỗi khởi động ứng dụng JavaFX", e);
-      throw new RuntimeException("Không thể khởi động ứng dụng", e);
+      throw new RuntimeException("Failed to start the application", e);
     }
   }
 

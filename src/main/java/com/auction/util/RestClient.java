@@ -167,7 +167,7 @@ public class RestClient {
     try {
       return MAPPER.readValue(json, clazz);
     } catch (Exception e) {
-      throw new RuntimeException("Lỗi parse JSON: " + e.getMessage(), e);
+      throw new RuntimeException("JSON parse error: " + e.getMessage(), e);
     }
   }
 
@@ -188,7 +188,7 @@ public class RestClient {
       var type = MAPPER.getTypeFactory().constructCollectionType(java.util.List.class, clazz);
       return MAPPER.readValue(json, type);
     } catch (Exception e) {
-      throw new RuntimeException("Lỗi parse JSON list: " + e.getMessage(), e);
+      throw new RuntimeException("JSON list parse error: " + e.getMessage(), e);
     }
   }
 
@@ -250,7 +250,7 @@ public class RestClient {
       String json = MAPPER.writeValueAsString(body);
       return HttpRequest.BodyPublishers.ofString(json);
     } catch (Exception e) {
-      throw new RuntimeException("Lỗi serialize request body: " + e.getMessage(), e);
+      throw new RuntimeException("Failed to serialize request body: " + e.getMessage(), e);
     }
   }
 
@@ -274,7 +274,7 @@ public class RestClient {
       return response;
     } catch (Exception e) {
       LOGGER.error("Lỗi gửi HTTP request: {}", e.getMessage());
-      throw new RuntimeException("Không thể kết nối đến server: " + e.getMessage(), e);
+      throw new RuntimeException("Unable to connect to the server: " + e.getMessage(), e);
     }
   }
 }

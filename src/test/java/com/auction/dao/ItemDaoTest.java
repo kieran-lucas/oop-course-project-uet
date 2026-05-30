@@ -136,6 +136,22 @@ class ItemDaoTest {
   }
 
   @Test
+  @DisplayName("Update — đổi category khi seller sửa loại sản phẩm")
+  void testUpdateCategory() {
+    Item saved =
+        itemDao.insert(new Electronics("Old item", "Old desc", testSeller.getId(), "Old Brand"));
+    Item replacement = new Art("New item", "New desc", testSeller.getId(), "New Artist");
+    replacement.setId(saved.getId());
+
+    assertTrue(itemDao.update(replacement));
+
+    Item found = itemDao.findById(saved.getId()).orElseThrow();
+    assertInstanceOf(Art.class, found);
+    assertEquals("ART", found.getCategory());
+    assertEquals("New Artist", ((Art) found).getArtist());
+  }
+
+  @Test
   @DisplayName("Delete — đánh dấu item thành REMOVED")
   void testDeleteMarksItemRemoved() {
     Item item = new Electronics("To Delete", "Temp", testSeller.getId(), "Brand");

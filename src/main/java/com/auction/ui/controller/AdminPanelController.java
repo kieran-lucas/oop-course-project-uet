@@ -4,6 +4,8 @@ import com.auction.dto.AuctionResponse;
 import com.auction.dto.UserResponse;
 import com.auction.model.DepositRecord;
 import com.auction.model.PasswordResetRecord;
+import com.auction.ui.util.AuctionDisplayOrder;
+import com.auction.ui.util.AuctionUiDialogs;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.RestClient;
@@ -170,7 +172,7 @@ public class AdminPanelController implements Navigable {
                             && a.getItemName().toLowerCase().contains(keyword))
                         || String.valueOf(a.getId()).contains(keyword))
             .toList();
-    auctionTable.setItems(FXCollections.observableArrayList(filtered));
+    auctionTable.setItems(FXCollections.observableArrayList(AuctionDisplayOrder.sort(filtered)));
   }
 
   /** Tải lại danh sách phiên đấu giá từ server và cập nhật bảng. */
@@ -221,7 +223,7 @@ public class AdminPanelController implements Navigable {
                       RestClient.parseList(response.body(), AuctionResponse.class);
                   Platform.runLater(
                       () -> {
-                        allAuctions.setAll(list);
+                        allAuctions.setAll(AuctionDisplayOrder.sort(list));
                         auctionTable.setItems(FXCollections.observableArrayList(allAuctions));
                         setStatus(list.size() + " auctions in total.");
                       });
@@ -781,7 +783,7 @@ public class AdminPanelController implements Navigable {
   private void showConfirmDialog(
       String title, String header, String body, boolean danger, Runnable onConfirm) {
     try {
-      showConfirmDialogImpl(title, header, body, danger, onConfirm);
+      AuctionUiDialogs.showConfirmDialog(title, header, body, danger, onConfirm);
     } catch (Exception ex) {
       // Without this catch, any failure in dialog construction (font loading, scene wiring,
       // owner-window cast on a corner-case JavaFX runtime) would be swallowed by JavaFX's

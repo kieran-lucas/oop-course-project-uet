@@ -1,6 +1,8 @@
 package com.auction.ui.controller;
 
 import com.auction.dto.AuctionResponse;
+import com.auction.ui.util.AuctionDisplayOrder;
+import com.auction.ui.util.AuctionUiDialogs;
 import com.auction.ui.util.Navigable;
 import com.auction.ui.util.SceneManager;
 import com.auction.util.NotificationItem;
@@ -236,7 +238,7 @@ public class AuctionListController implements Navigable {
                 })
             .toList();
 
-    auctionTable.setItems(FXCollections.observableArrayList(filtered));
+    auctionTable.setItems(FXCollections.observableArrayList(AuctionDisplayOrder.sort(filtered)));
   }
 
   /** Tải lại danh sách phiên từ server và reset bộ lọc theo kết quả mới. */
@@ -283,7 +285,7 @@ public class AuctionListController implements Navigable {
                       RestClient.parseList(response.body(), AuctionResponse.class);
                   Platform.runLater(
                       () -> {
-                        allAuctions.setAll(list);
+                        allAuctions.setAll(AuctionDisplayOrder.sort(list));
                         updateCategoryFilter(list);
                         handleSearch();
                         setStatus(list.size() + " auctions in total.");
@@ -977,6 +979,8 @@ public class AuctionListController implements Navigable {
               // this cell is. When the cell itself becomes unreferenced, the weak wrapper lets
               // timerTick release the listener and the cell.
               private final ChangeListener<Number> tickListener = (obs, oldV, newV) -> redraw();
+              private final javafx.scene.control.Tooltip startsInTooltip =
+                  new javafx.scene.control.Tooltip();
 
               {
                 // Single-line, centred countdown. The status badge in the next column already
@@ -993,36 +997,25 @@ public class AuctionListController implements Navigable {
               }
 
               private void redraw() {
-                // Tooltip is only meaningful while the row is OPEN; clear at the start of every
-                // redraw so a stale "Bắt đầu sau: ..." doesn't follow the row into RUNNING/ENDED.
-                setTooltip(null);
-                if (isEmpty() || getTableRow() == null) {
-                  setText(null);
-                  setTextFill(null);
-                  setStyle("-fx-alignment: CENTER;");
-                  return;
-                }
-                AuctionResponse a = getTableRow().getItem();
+                clearTooltip();
+                AuctionResponse a = auctionForCell(this);
                 if (a == null) {
-                  setText(null);
-                  setTextFill(null);
-                  setStyle("-fx-alignment: CENTER;");
+                  clearCell();
                   return;
                 }
                 String st = computeClientStatus(a);
                 if ("FINISHED".equals(st) || "CANCELED".equals(st) || "PAID".equals(st)) {
-                  setText("Ended");
-                  setTextFill(null);
-                  setStyle("-fx-alignment: CENTER; -fx-text-fill: #64748B; -fx-font-weight: bold;");
+                  render(
+                      "Ended",
+                      "-fx-alignment: CENTER; -fx-text-fill: #64748B; -fx-font-weight: bold;");
                   return;
                 }
-                setTextFill(null);
-                setStyle(
+                String activeStyle =
                     "-fx-alignment: CENTER;"
                         + " -fx-font-weight: bold;"
                         + " -fx-text-fill: "
                         + TIME_COLOR
-                        + ";");
+                        + ";";
                 LocalDateTime now = LocalDateTime.now();
                 if ("OPEN".equals(st)) {
                   // Phiên chưa bắt đầu — đếm ngược đến startTime. Hiển thị duy nhất "HH:MM:SS"
@@ -1030,40 +1023,68 @@ public class AuctionListController implements Navigable {
                   // chiều cao.
                   LocalDateTime startTime = a.getStartTime();
                   if (startTime == null) {
-                    setText("—");
+                    render("—", activeStyle);
                     return;
                   }
                   long ms = java.time.Duration.between(now, startTime).toMillis();
                   if (ms <= 0) {
-                    setText("Starting soon");
+                    render("Starting soon", activeStyle);
                   } else {
                     long totalSec = ms / 1000;
                     long h = totalSec / 3600;
                     long m = (totalSec % 3600) / 60;
                     long s = totalSec % 60;
                     String timeStr = String.format("%02d:%02d:%02d", h, m, s);
-                    setText(timeStr);
-                    setTooltip(new javafx.scene.control.Tooltip("Starts in: " + timeStr));
+                    render(timeStr, activeStyle);
+                    startsInTooltip.setText("Starts in: " + timeStr);
+                    if (getTooltip() != startsInTooltip) {
+                      setTooltip(startsInTooltip);
+                    }
                   }
                 } else {
                   // RUNNING: hien thi thoi gian den khi ket thuc
                   LocalDateTime endTime = a.getEndTime();
                   if (endTime == null) {
-                    setText("—");
+                    render("—", activeStyle);
                     return;
                   }
                   long ms = java.time.Duration.between(now, endTime).toMillis();
                   if (ms <= 0) {
-                    setText("Ended");
-                    setStyle(
+                    render(
+                        "Ended",
                         "-fx-alignment: CENTER; -fx-text-fill: #64748B; -fx-font-weight: bold;");
                   } else {
                     long totalSec = ms / 1000;
                     long h = totalSec / 3600;
                     long m = (totalSec % 3600) / 60;
                     long s = totalSec % 60;
-                    setText(String.format("%02d:%02d:%02d", h, m, s));
+                    render(String.format("%02d:%02d:%02d", h, m, s), activeStyle);
                   }
+                }
+              }
+
+              private void render(String text, String style) {
+                setTextFill(null);
+                if (!java.util.Objects.equals(getText(), text)) {
+                  setText(text);
+                }
+                if (!java.util.Objects.equals(getStyle(), style)) {
+                  setStyle(style);
+                }
+              }
+
+              private void clearCell() {
+                setText(null);
+                setTextFill(null);
+                clearTooltip();
+                if (!"-fx-alignment: CENTER;".equals(getStyle())) {
+                  setStyle("-fx-alignment: CENTER;");
+                }
+              }
+
+              private void clearTooltip() {
+                if (getTooltip() != null) {
+                  setTooltip(null);
                 }
               }
             });
@@ -1086,7 +1107,8 @@ public class AuctionListController implements Navigable {
               }
 
               private void redraw() {
-                if (isEmpty() || getTableRow() == null || getTableRow().getItem() == null) {
+                AuctionResponse auction = auctionForCell(this);
+                if (auction == null) {
                   setText(null);
                   setStyle("");
                   return;
@@ -1094,8 +1116,7 @@ public class AuctionListController implements Navigable {
                 // Tinh status tu thoi gian phia client de hien thi luc tuc.
                 // Keep bold + colour for emphasis, but anchor alignment in CSS so the cell
                 // centres consistently with the centred header above it.
-                String effective = computeClientStatus(getTableRow().getItem());
-                setText(effective);
+                String effective = computeClientStatus(auction);
                 String color =
                     switch (effective) {
                       case "RUNNING" -> "-fx-text-fill: #16A34A; -fx-font-weight: bold;";
@@ -1104,33 +1125,120 @@ public class AuctionListController implements Navigable {
                       case "CANCELED" -> "-fx-text-fill: #DC2626; -fx-font-weight: bold;";
                       default -> "";
                     };
-                setStyle(color + " -fx-alignment: CENTER;");
+                String style = color + " -fx-alignment: CENTER;";
+                if (!java.util.Objects.equals(getText(), effective)) {
+                  setText(effective);
+                }
+                if (!java.util.Objects.equals(getStyle(), style)) {
+                  setStyle(style);
+                }
               }
             });
-    actionCol.setMinWidth(110);
-    actionCol.setPrefWidth(135);
+    actionCol.setMinWidth(135);
+    actionCol.setPrefWidth(190);
     actionCol.setCellFactory(
         col ->
             new TableCell<>() {
-              private final Button btnEnter = new Button("Xem");
+              private final Button viewButton = new Button("View");
+              private final Button cancelButton = new Button("Cancel");
+              private final HBox actions = new HBox(8, viewButton);
 
               {
-                btnEnter.getStyleClass().add("table-action-view");
-                btnEnter.setMinWidth(60);
-                btnEnter.setOnAction(
+                actions.setAlignment(Pos.CENTER);
+                viewButton.getStyleClass().add("table-action-view");
+                cancelButton.getStyleClass().add("table-action-cancel");
+                viewButton.setMinWidth(60);
+                cancelButton.setMinWidth(68);
+                viewButton.setOnAction(
                     e -> {
                       AuctionResponse auction = getTableView().getItems().get(getIndex());
                       SceneManager.getInstance().navigateTo("auction-detail.fxml", auction);
                     });
+                cancelButton.setOnAction(
+                    e -> confirmSellerCancellation(getTableView().getItems().get(getIndex())));
               }
 
               @Override
               protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : btnEnter);
-                setAlignment(javafx.geometry.Pos.CENTER);
+                AuctionResponse auction = auctionForCell(this);
+                if (empty || auction == null) {
+                  setGraphic(null);
+                  return;
+                }
+                actions.getChildren().setAll(viewButton);
+                if (canCurrentSellerCancel(auction)) {
+                  actions.getChildren().add(cancelButton);
+                }
+                setGraphic(actions);
+                setAlignment(Pos.CENTER);
               }
             });
+  }
+
+  private AuctionResponse auctionForCell(TableCell<?, ?> cell) {
+    int index = cell.getIndex();
+    TableView<?> table = cell.getTableView();
+    if (table == null || index < 0 || index >= table.getItems().size()) {
+      return null;
+    }
+    return (AuctionResponse) table.getItems().get(index);
+  }
+
+  private boolean canCurrentSellerCancel(AuctionResponse auction) {
+    SceneManager sm = SceneManager.getInstance();
+    String status = computeClientStatus(auction);
+    return "SELLER".equals(sm.getCurrentRole())
+        && sm.getCurrentUserId() != null
+        && sm.getCurrentUserId().equals(auction.getSellerId())
+        && auction.getLeadingBidderId() == null
+        && ("OPEN".equals(status) || "RUNNING".equals(status));
+  }
+
+  private void confirmSellerCancellation(AuctionResponse auction) {
+    String name =
+        auction.getItemName() == null || auction.getItemName().isBlank()
+            ? "#" + auction.getId()
+            : auction.getItemName().trim();
+    AuctionUiDialogs.showConfirmDialog(
+        "Cancel auction?",
+        "Cancel auction #" + auction.getId() + " - [" + name + "]?",
+        "The auction will move to the CANCELED state.\n"
+            + "Cancellation is allowed only before the first bid.\n"
+            + "This action cannot be undone.",
+        false,
+        () -> cancelAuction(auction.getId()));
+  }
+
+  private void cancelAuction(Long auctionId) {
+    setStatus("Canceling auction #" + auctionId + "...");
+    Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                HttpResponse<String> response = RestClient.delete("/api/auctions/" + auctionId);
+                Platform.runLater(
+                    () -> {
+                      if (response.statusCode() == 200 || response.statusCode() == 204) {
+                        setStatus("Auction #" + auctionId + " was canceled.");
+                        loadAuctions();
+                      } else {
+                        setStatus(extractMessage(response.body(), "Couldn't cancel the auction."));
+                      }
+                    });
+              } catch (Exception e) {
+                LOGGER.error("Lỗi hủy phiên {}", auctionId, e);
+                Platform.runLater(() -> setStatus("Unable to reach the server."));
+              }
+            });
+  }
+
+  private String extractMessage(String body, String fallback) {
+    try {
+      return MAPPER.readTree(body).path("message").asText(fallback);
+    } catch (Exception e) {
+      return fallback;
+    }
   }
 
   private String categoryColor(String category) {
@@ -1194,8 +1302,8 @@ public class AuctionListController implements Navigable {
   }
 
   /**
-   * Khởi động Timeline gọi {@code auctionTable.refresh()} mỗi giây để cột thời gian còn lại tự tính
-   * lại từ {@code endTime} mà không cần request server.
+   * Khởi động Timeline tăng {@link #timerTick} mỗi giây để các cell thời gian và trạng thái đang
+   * hiển thị tự vẽ lại từ {@code endTime}, không rebuild toàn bộ bảng và không cần request server.
    */
   private void startTableCountdown() {
     stopTableCountdown();

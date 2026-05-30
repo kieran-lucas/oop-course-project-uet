@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
@@ -339,6 +340,11 @@ public class BidTransactionDao {
 
     return jdbi.withHandle(
         handle -> handle.createQuery(sql).bind("auctionId", auctionId).mapTo(Integer.class).one());
+  }
+
+  public int countByAuctionId(Handle handle, Long auctionId) {
+    String sql = "SELECT COUNT(*) FROM bid_transactions WHERE auction_id = :auctionId";
+    return handle.createQuery(sql).bind("auctionId", auctionId).mapTo(Integer.class).one();
   }
 
   /**

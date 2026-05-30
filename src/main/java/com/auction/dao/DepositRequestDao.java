@@ -226,7 +226,7 @@ public class DepositRequestDao {
         """;
     int rows = handle.createUpdate(sql).bind("status", newStatus).bind("id", id).execute();
     if (rows == 0) {
-      throw new IllegalStateException("Không tìm thấy yêu cầu nạp tiền: " + id);
+      throw new IllegalStateException("Deposit request not found: " + id);
     }
   }
 
@@ -246,7 +246,7 @@ public class DepositRequestDao {
             .bind("id", id)
             .execute();
     if (rows == 0) {
-      throw new IllegalStateException("Yêu cầu nạp tiền này đã được xử lý rồi.");
+      throw new IllegalStateException("This deposit request has already been processed.");
     }
   }
 }

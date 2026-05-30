@@ -51,7 +51,7 @@ public class BidController {
     String role = ctx.attribute("role");
 
     if (!"BIDDER".equals(role)) {
-      throw new UnauthorizedException("Chỉ BIDDER mới được tham gia đặt giá");
+      throw new UnauthorizedException("Only BIDDERs can place bids");
     }
 
     Long auctionId = Long.parseLong(ctx.pathParam("id"));

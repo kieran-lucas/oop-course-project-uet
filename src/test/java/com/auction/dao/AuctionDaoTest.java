@@ -3,6 +3,7 @@ package com.auction.dao;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.auction.config.DatabaseConfig;
+import com.auction.dto.PageRequest;
 import com.auction.model.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -170,6 +171,35 @@ class AuctionDaoTest {
     List<Auction> auctions = auctionDao.findAll();
 
     assertEquals(2, auctions.size());
+  }
+
+  @Test
+  @DisplayName("findAll ưu tiên phiên hoạt động mới nhất trước khi phân trang")
+  void testFindAllOrdersActiveNewestFirstBeforePagination() {
+    LocalDateTime now = LocalDateTime.now();
+    Auction olderActive =
+        new Auction(testItem.getId(), new BigDecimal("100"), now, now.plusHours(1));
+    olderActive.setCreatedAt(now.minusMinutes(3));
+    olderActive = auctionDao.insert(olderActive);
+
+    Auction finished =
+        new Auction(testItem.getId(), new BigDecimal("200"), now.minusHours(2), now.minusHours(1));
+    finished.setCreatedAt(now);
+    finished.setStatus(AuctionStatus.FINISHED);
+    finished = auctionDao.insert(finished);
+
+    Auction newerActive =
+        new Auction(testItem.getId(), new BigDecimal("300"), now, now.plusHours(2));
+    newerActive.setCreatedAt(now.minusMinutes(1));
+    newerActive = auctionDao.insert(newerActive);
+
+    List<Auction> firstPage = auctionDao.findAll(PageRequest.of(0, 1));
+    List<Auction> all = auctionDao.findAll();
+
+    assertEquals(List.of(newerActive.getId()), firstPage.stream().map(Auction::getId).toList());
+    assertEquals(
+        List.of(newerActive.getId(), olderActive.getId(), finished.getId()),
+        all.stream().map(Auction::getId).toList());
   }
 
   /**

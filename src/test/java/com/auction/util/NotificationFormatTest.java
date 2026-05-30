@@ -37,9 +37,9 @@ class NotificationFormatTest {
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(strings = {" ", "   ", "\t"})
-  @DisplayName("fallback 'Người dùng' khi input null/blank")
+  @DisplayName("fallback 'User' khi input null/blank")
   void fallsBackForBlank(String input) {
-    assertEquals("«Người dùng»", NotificationFormat.user(input));
+    assertEquals("«User»", NotificationFormat.user(input));
   }
 
   @Test

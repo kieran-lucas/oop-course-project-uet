@@ -30,7 +30,7 @@ public class CanceledState implements AuctionState {
 
   /** Mẫu thông điệp lỗi dùng chung cho mọi method — đảm bảo phản hồi nhất quán. */
   private static final String ERROR_MSG_TEMPLATE =
-      "Phiên đấu giá #%d đã bị hủy và không thể thực hiện thêm thao tác nào.";
+      "Auction #%d has been canceled. No further actions are allowed.";
 
   /**
    * {@inheritDoc}
