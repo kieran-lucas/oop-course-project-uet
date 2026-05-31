@@ -44,7 +44,7 @@
 | **Server JAR** | [Download server executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-server-1.0.0.jar) |
 | **Client JAR** | [Download client executable](https://github.com/kieran-labs/oop-course-project-uet/releases/download/v1.0.0/auction-client-1.0.0.jar) |
 | **📄 Report PDF** | [![Report PDF](https://img.shields.io/badge/Report%20PDF-Final%20PDF-F59E0B?style=for-the-badge&labelColor=404040&logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0iI2ZmZiIgZD0iTTIwIDJIOGMtMS4xIDAtMiAuOS0yIDJ2MTJjMCAxLjEuOSAyIDIgMmgxMmMxLjEgMCAyLS45IDItMlY0YzAtMS4xLS45LTItMi0yek0xMS41IDkuNWMwIC44My0uNjcgMS41LTEuNSAxLjVIOXYySDcuNVY3SDEwYy44MyAwIDEuNS42NyAxLjUgMS41djF6bTUgMmMwIC44My0uNjcgMS41LTEuNSAxLjVoLTIuNVY3SDE1Yy44MyAwIDEuNS42NyAxLjUgMS41djN6bTQtM0gxOXYxaDEuNVYxMUgxOXYyaC0xLjVWN2gzdjEuNXpNOSA5LjVoMXYtMUg5djF6bTUgMmgxdi0zaC0xdjN6TTQgNkgydjE0YzAgMS4xLjkgMiAyIDJoMTR2LTJINFY2eiIvPjwvc3ZnPg%3D%3D)](https://drive.google.com/file/d/1tma9vZBT1YerlTCyiguBYfJj-S69wJ7R/view) |
-| **🎥 Demo video** | ![Demo Video Pending](https://img.shields.io/badge/Demo%20Video-Pending%20final%20link-EA580C?style=for-the-badge&logo=youtube&logoColor=white) |
+| **🎥 Demo video** | [![Demo Video](https://img.shields.io/badge/Demo%20Video-Watch%20on%20YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=7G_DbTu-bU0) |
 
 
 
